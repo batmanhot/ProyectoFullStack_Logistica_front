@@ -28,40 +28,49 @@ export const useInventory = () => {
         // Lógica para actualizar stock en un almacén específico
     };
 
-    return { products, almacenes, setProducts };
+    const registrarMovimiento = (sku, cantidad, almacen, tipo) => {
+        setProducts(prevProducts => {
+            return prevProducts.map(p => {
+                // Buscamos el producto que coincida con el SKU Y el Almacén
+                if (p.sku === sku && p.almacen === almacen) {
+                    const nuevaCantidad = tipo === 'entrada'
+                        ? p.cantidad + parseInt(cantidad)
+                        : p.cantidad - parseInt(cantidad);
+
+                    return {
+                        ...p,
+                        cantidad: nuevaCantidad,
+                        estado: nuevaCantidad <= 0 ? 'Agotado' : nuevaCantidad < 20 ? 'Stock Bajo' : 'Disponible'
+                    };
+                }
+                return p;
+            });
+        });
+    };
+
+
+    return { products, almacenes, registrarMovimiento };
 };
 
+// const registrarMovimiento = (sku, cantidad, almacen, tipo) => {
+//     setProducts(prevProducts => {
+//         return prevProducts.map(p => {
+//             // Buscamos el producto que coincida con el SKU Y el Almacén
+//             if (p.sku === sku && p.almacen === almacen) {
+//                 const nuevaCantidad = tipo === 'entrada'
+//                     ? p.cantidad + parseInt(cantidad)
+//                     : p.cantidad - parseInt(cantidad);
 
-// import { useState, useEffect } from 'react';
-
-// export const useInventory = () => {
-//     // Intentar cargar datos desde LocalStorage o usar iniciales
-//     const [products, setProducts] = useState(() => {
-//         const saved = localStorage.getItem('inventory_data');
-//         return saved ? JSON.parse(saved) : [
-//             { id: 1, sku: 'PROD-001', nombre: 'Pallets Plásticos HD', cantidad: 450, estado: 'Disponible' },
-//             { id: 2, sku: 'PROD-002', nombre: 'Film Stretch 50cm', cantidad: 12, estado: 'Stock Bajo' }
-//         ];
-//     });
-
-//     // Guardar en LocalStorage cada vez que cambien los productos
-//     useEffect(() => {
-//         localStorage.setItem('inventory_data', JSON.stringify(products));
-//     }, [products]);
-
-//     const updateStock = (sku, cantidad, tipo) => {
-//         setProducts(prev => prev.map(p => {
-//             if (p.sku === sku) {
-//                 const nuevaCant = tipo === 'entrada' ? p.cantidad + cantidad : p.cantidad - cantidad;
 //                 return {
 //                     ...p,
-//                     cantidad: nuevaCant,
-//                     estado: nuevaCant <= 0 ? 'Agotado' : nuevaCant < 20 ? 'Stock Bajo' : 'Disponible'
+//                     cantidad: nuevaCantidad,
+//                     estado: nuevaCantidad <= 0 ? 'Agotado' : nuevaCantidad < 20 ? 'Stock Bajo' : 'Disponible'
 //                 };
 //             }
 //             return p;
-//         }));
-//     };
-
-//     return { products, updateStock };
+//         });
+//     });
 // };
+
+// return { products, almacenes, registrarMovimiento };
+

@@ -92,16 +92,12 @@ const InventoryPage = () => {
     // 2. Calculamos el Stock Total (unidades físicas)
     const unidadesTotales = filteredData.reduce((acc, item) => acc + item.cantidad, 0);
 
-    const cantidadStockBajo = filteredData.reduce((acc, item) => acc + (item.cantidad < 10 ? item.cantidad : 0), 0);
-    const cantidadStockAgotado = filteredData.reduce((acc, item) => acc + (item.cantidad === 0 ? item.cantidad : 0), 0);
-    const cantidadStockDisponible = filteredData.reduce((acc, item) => acc + (item.cantidad > 0 ? item.cantidad : 0), 0);
-
-    // // 3. Calculamos el Valor Total del Inventario Filtrado
-    // const valorCantidadStockBajo = filteredData.reduce((acc, item) => {
-    //     const precio = moneda === 'PEN' ? item.precioPEN : item.precioUSD;
-    //     return acc + (item.cantidad * precio);
-    // }, 0);
-
+    //const cantidadStockAgotado = filteredData.filter(item => item.cantidad === 0).length;
+    //const cantidadStockBajo = filteredData.filter(item => item.cantidad > 0 && item.cantidad < 10).length;
+    //const cantidadStockDisponible = filteredData.filter(item => item.cantidad > 0).length;
+    const cantidadStockDisponible = filteredData.filter(item => item.estado === 'Disponible').length;
+    const cantidadStockBajo = filteredData.filter(item => item.estado === 'Stock Bajo').length;
+    const cantidadStockAgotado = filteredData.filter(item => item.estado === 'Agotado').length;
 
     return (
         <div className="space-y-6">
@@ -139,14 +135,6 @@ const InventoryPage = () => {
                 </select>
             </div>
             {/* END TITULO */}
-
-            {/* KPIs (Consultas Rápidas) */}
-            {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard title="Total SKU" value={initialData.length} icon={<Package className="text-blue-600" />} color="bg-blue-50" />
-                <StatCard title="Stock Bajo" value="1" icon={<AlertTriangle className="text-orange-600" />} color="bg-orange-50" />
-                <StatCard title="Entradas" value="+45" icon={<ArrowUp className="text-green-600" />} color="bg-green-50" />
-                <StatCard title="Salidas" value="-12" icon={<ArrowDown className="text-red-600" />} color="bg-red-50" />
-            </div> */}
 
             {/* Buscador Real */}
             {/* <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
@@ -192,7 +180,7 @@ const InventoryPage = () => {
                     </div>
                 </div>
                 <StatCard title="Total SKU" value={initialData.length} icon={<Package className="text-blue-600" />} color="bg-blue-50" />
-                <StatCard title="Stock Disponible" value={cantidadStockDisponible} icon={<AlertTriangle className="text-orange-600" />} color="bg-orange-50" />
+                <StatCard title="Stock Disponible" value={cantidadStockDisponible} icon={<Package className="text-orange-600" />} color="bg-orange-50" />
                 <StatCard title="Stock Bajo" value={cantidadStockBajo} icon={<AlertTriangle className="text-orange-600" />} color="bg-orange-50" />
                 <StatCard title="Stock Agotado" value={cantidadStockAgotado} icon={<AlertTriangle className="text-orange-600" />} color="bg-orange-50" />
             </div>

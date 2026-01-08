@@ -1,21 +1,34 @@
 import React, { useState } from 'react';
 import { Save, Truck, Box, User, Building2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useInventory } from '../../hooks/useInventory';
 
 const InboundPage = () => {
+
+    const { registrarMovimiento, almacenes } = useInventory();
 
     const [formData, setFormData] = useState({
         sku: '',
         cantidad: '',
         proveedor: '',
-        observaciones: ''
+        observaciones: '',
+        almacen: '',
+        precioPEN: '',
+        precioUSD: '',
     });
 
     const handleSubmit = (e) => {
         e.preventDefault();
 
+        // Ejecutamos la grabación en el estado (que a su vez graba en LocalStorage)
+        registrarMovimiento(formData.sku, formData.cantidad, formData.almacen, 'entrada');
+        toast.success(`Entrada grabada: +${formData.cantidad} unidades en Almacén ${formData.almacen}`);
+
         // Simulamos una carga
         const loadingToast = toast.loading('Registrando en sistema...');
+
+        // Opcional: Limpiar formulario
+        setFormData({ sku: '', cantidad: '', almacen: '', proveedor: '', observaciones: '', precioPEN: '', precioUSD: '' });
 
         setTimeout(() => {
             toast.dismiss(loadingToast);
@@ -86,11 +99,13 @@ const InboundPage = () => {
                         <select
                             className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                             required
+                            value={formData.almacen}
+                            onChange={(e) => setFormData({ ...formData, almacen: e.target.value })}
                         >
                             <option value="">Seleccione almacén...</option>
-                            <option value="Central">Almacén Central</option>
-                            <option value="Norte">Almacén Norte</option>
-                            <option value="Sur">Almacén Sur</option>
+                            {almacenes.map(almacen => (
+                                <option key={almacen} value={almacen}>{almacen}</option>
+                            ))}
                         </select>
                     </div>
 
@@ -104,6 +119,8 @@ const InboundPage = () => {
                                 step="0.01"
                                 className="w-full pl-8 p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                                 placeholder="0.00"
+                                value={formData.precioPEN}
+                                onChange={(e) => setFormData({ ...formData, precioPEN: e.target.value })}
                             />
                         </div>
                     </div>
