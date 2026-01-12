@@ -1,11 +1,12 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Truck, ClipboardList, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Package, Truck, ClipboardList, BarChart3, BookOpen } from 'lucide-react';
 
 const Sidebar = ({ isOpen }) => {
     const location = useLocation(); // Para saber qué ruta está activa
     const menuItems = [
         { icon: <LayoutDashboard size={20} />, label: 'Inventario', path: '/' },
+        { icon: <BookOpen size={20} />, label: 'Catálogo Maestro', path: '/catalogo' },
         { icon: <Truck size={20} />, label: 'Entradas', path: '/entradas' },
         { icon: <ClipboardList size={20} />, label: 'Salidas', path: '/salidas' },
         { icon: <BarChart3 size={20} />, label: 'Reportes', path: '/reportes' },

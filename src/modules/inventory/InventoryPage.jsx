@@ -5,76 +5,9 @@ import StatCard from '../../components/ui/StatCard';
 
 const InventoryPage = () => {
 
-    // const {products, almacenes } = useInventory();
+    const { products, almacenes } = useInventory();
     const [filtroAlmacen, setFiltroAlmacen] = useState('Todos');
     const [moneda, setMoneda] = useState('PEN'); // 'PEN' o 'USD'
-
-    // Datos iniciales con soporte Multialmacén y Bimonetario
-    const initialData = [
-        {
-            id: 1,
-            sku: 'PROD-001',
-            nombre: 'Pallets Plásticos HD',
-            almacen: 'Central',
-            cantidad: 450,
-            estado: 'Disponible',
-            precioPEN: 120.00,
-            precioUSD: 31.50
-        },
-        {
-            id: 2,
-            sku: 'PROD-002',
-            nombre: 'Film Stretch 50cm',
-            almacen: 'Norte',
-            cantidad: 12,
-            estado: 'Stock Bajo',
-            precioPEN: 45.50,
-            precioUSD: 11.90
-        },
-        {
-            id: 3,
-            sku: 'PROD-003',
-            nombre: 'Cinta de Embalar Transp.',
-            almacen: 'Sur',
-            cantidad: 0,
-            estado: 'Agotado',
-            precioPEN: 8.50,
-            precioUSD: 2.20
-        },
-        {
-            id: 4,
-            sku: 'PROD-004',
-            nombre: 'Cajas de Cartón 40x40',
-            almacen: 'Central',
-            cantidad: 100,
-            estado: 'Disponible',
-            precioPEN: 3.80,
-            precioUSD: 1.00
-        },
-        {
-            id: 5,
-            sku: 'PROD-005',
-            nombre: 'Montacargas Manual 2T',
-            almacen: 'Norte',
-            cantidad: 5,
-            estado: 'Stock Bajo',
-            precioPEN: 1850.00,
-            precioUSD: 485.00
-        }
-    ];
-
-    const [products, setProducts] = useState(() => {
-        const saved = localStorage.getItem('inventory_data');
-        return saved ? JSON.parse(saved) : initialData;
-    });
-
-    const [almacenes] = useState(['Central', 'Norte', 'Sur', 'Virtual']);
-
-    useEffect(() => {
-        localStorage.setItem('inventory_data', JSON.stringify(products));
-    }, [products]);
-
-    // return { products, almacenes, setProducts };
 
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -179,7 +112,7 @@ const InventoryPage = () => {
                         <Building2 size={24} />
                     </div>
                 </div>
-                <StatCard title="Total SKU" value={initialData.length} icon={<Package className="text-blue-600" />} color="bg-blue-50" />
+                <StatCard title="Total SKU" value={products.length} icon={<Package className="text-blue-600" />} color="bg-blue-50" />
                 <StatCard title="Stock Disponible" value={cantidadStockDisponible} icon={<Package className="text-orange-600" />} color="bg-orange-50" />
                 <StatCard title="Stock Bajo" value={cantidadStockBajo} icon={<AlertTriangle className="text-orange-600" />} color="bg-orange-50" />
                 <StatCard title="Stock Agotado" value={cantidadStockAgotado} icon={<AlertTriangle className="text-orange-600" />} color="bg-orange-50" />
@@ -198,7 +131,6 @@ const InventoryPage = () => {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {filteredData.map((item) => (
-                            console.log(item),
                             <tr key={item.id} className="hover:bg-gray-50 transition-colors border-b border-gray-100">
                                 <td className="p-4">
                                     <div className="font-mono text-xs text-blue-600 font-bold">{item.sku}</div>
