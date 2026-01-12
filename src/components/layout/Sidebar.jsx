@@ -5,7 +5,8 @@ import { LayoutDashboard, Package, Truck, ClipboardList, BarChart3, BookOpen } f
 const Sidebar = ({ isOpen }) => {
     const location = useLocation(); // Para saber qué ruta está activa
     const menuItems = [
-        { icon: <LayoutDashboard size={20} />, label: 'Inventario', path: '/' },
+        { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/' },
+        { icon: <Package size={20} />, label: 'Inventario', path: '/inventario' },
         { icon: <BookOpen size={20} />, label: 'Catálogo Maestro', path: '/catalogo' },
         { icon: <Truck size={20} />, label: 'Entradas', path: '/entradas' },
         { icon: <ClipboardList size={20} />, label: 'Salidas', path: '/salidas' },

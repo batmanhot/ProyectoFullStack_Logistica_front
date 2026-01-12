@@ -10,6 +10,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './modules/auth/LoginPage';
 import CatalogPage from './modules/catalog/CatalogPage';
 
+import DashboardPage from './modules/dashboard/DashboardPage';
+
 // Componentes temporales para rutas no creadas aún
 const Placeholder = ({ title }) => <div className="p-8 text-gray-400 italic">Módulo de {title} en desarrollo...</div>;
 
@@ -22,7 +24,8 @@ const AppContent = () => {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<InventoryPage />} />
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/inventario" element={<InventoryPage />} />
         <Route path="/catalogo" element={<CatalogPage />} /> {/* Nueva ruta operativa */}
         <Route path="/entradas" element={<InboundPage />} />
         <Route path="/salidas" element={<OutboundPage />} />
