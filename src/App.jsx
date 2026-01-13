@@ -13,6 +13,7 @@ import CatalogPage from './modules/catalog/CatalogPage';
 import CategoriesPage from './modules/catalog/CategoriesPage';
 import PartnersPage from './modules/partners/PartnersPage';
 import BatchPage from './modules/batches/BatchPage';
+import TransportersPage from './modules/partners/TransportersPage';
 
 import DashboardPage from './modules/dashboard/DashboardPage';
 
@@ -33,6 +34,7 @@ const AppContent = () => {
         <Route path="/catalogo" element={<CatalogPage />} />
         <Route path="/categorias" element={<CategoriesPage />} />
         <Route path="/lotes" element={<BatchPage />} />
+        <Route path="/transportistas" element={<TransportersPage />} />
         <Route path="/directorio" element={<PartnersPage />} />
         <Route path="/entradas" element={<InboundPage />} />
         <Route path="/salidas" element={<OutboundPage />} />

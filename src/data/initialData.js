@@ -21,3 +21,8 @@ export const InitialCategories = [
 export const InitialBatches = [
     { id: 1, sku: 'PROD-002', numero: 'L-2024001', fechaVencimiento: '2025-12-31', cantidadOriginal: 100, cantidadActual: 100, estado: 'Vigente' }
 ];
+
+export const InitialTransporters = [
+    { id: 1, nombre: 'EXPRESO MARVISUR', ruc: '20501234500', placa: 'V1Z-980', chofer: 'Juan Perez', telefono: '988-777-666', estado: 'Activo' },
+    { id: 2, nombre: 'LOGISTICA RAPIDA SAC', ruc: '20109876544', placa: 'B4X-123', chofer: 'Carlos Lopez', telefono: '955-444-333', estado: 'Activo' }
+];

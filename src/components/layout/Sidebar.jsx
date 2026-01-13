@@ -11,6 +11,7 @@ const Sidebar = ({ isOpen }) => {
         { icon: <Tag size={20} />, label: 'Categorías', path: '/categorias' },
         { icon: <CalendarClock size={20} />, label: 'Lotes y Caducidad', path: '/lotes' },
         { icon: <Users size={20} />, label: 'Directorio', path: '/directorio' },
+        { icon: <Truck size={20} />, label: 'Transportistas', path: '/transportistas' },
         { icon: <Truck size={20} />, label: 'Entradas', path: '/entradas' },
         { icon: <ClipboardList size={20} />, label: 'Salidas', path: '/salidas' },
         { icon: <ArrowRightLeft size={20} />, label: 'Transferencias', path: '/transferencias' },
