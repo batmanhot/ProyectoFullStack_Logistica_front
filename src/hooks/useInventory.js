@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
+import { InitialCatalog, InitialWarehouses } from '../data/initialData';
 
 export const useInventory = () => {
     // MAESTRO DE PRODUCTOS (Catálogo)
     const [catalog, setCatalog] = useState(() => {
         const saved = localStorage.getItem('logi_catalog');
-        return saved ? JSON.parse(saved) : [
-            { id: 1, sku: 'PROD-001', nombre: 'Pallets Plásticos HD', categoria: 'Almacenamiento', barcode: '7750001001', estado: 'Activo' },
-            { id: 2, sku: 'PROD-002', nombre: 'Film Stretch 50cm', categoria: 'Embalaje', barcode: '7750001002', estado: 'Activo' }
-        ];
+        return saved ? JSON.parse(saved) : InitialCatalog;
     });
 
     // STOCK POR ALMACÉN (Snapshot actual)
@@ -22,7 +20,7 @@ export const useInventory = () => {
         return saved ? JSON.parse(saved) : [];
     });
 
-    const [almacenes] = useState(['Central', 'Norte', 'Sur', 'Virtual']);
+    const [almacenes] = useState(InitialWarehouses);
 
     useEffect(() => {
         localStorage.setItem('logi_catalog', JSON.stringify(catalog));
@@ -95,22 +93,70 @@ export const useInventory = () => {
         updateStockInternal(sku, almacen, delta);
     };
 
+    // Registrar Transferencia
+    const registrarTransferencia = (sku, cantidad, almacenOrigen, almacenDestino, isLocal, observaciones = '', extraData = {}) => {
+        const newMovement = {
+            id: Date.now(),
+            fecha: new Date().toISOString(),
+            sku,
+            cantidad,
+            almacen: almacenOrigen, // Principal warehouse reference (Source)
+            almacenDestino: almacenDestino, // Secondary, only if Local
+            tipo: 'transferencia',
+            subtipo: isLocal ? 'Local' : 'Externa',
+            observaciones,
+            ...extraData // numeroGuia, transportista, etc.
+        };
+
+        setMovements(prev => [newMovement, ...prev]);
+
+        // 1. Descontar de Origen
+        updateStockInternal(sku, almacenOrigen, -cantidad);
+
+        // 2. Si es Local, Sumar a Destino
+        if (isLocal && almacenDestino) {
+            updateStockInternal(sku, almacenDestino, cantidad);
+        }
+    };
+
     // Actualizar movimiento existente (Edición)
     const updateMovement = (id, newData) => {
         const oldMovement = movements.find(m => m.id === id);
         if (!oldMovement) return;
 
-        // 1. Revertir impacto del movimiento anterior en el stock
-        const revertDelta = oldMovement.tipo === 'entrada' ? -oldMovement.cantidad : oldMovement.cantidad;
-        updateStockInternal(oldMovement.sku, oldMovement.almacen, revertDelta);
+        // --- A. REVERTIR ANTERIOR ---
+        if (oldMovement.tipo === 'transferencia') {
+            // Revertir Origen: Sumar lo que se restó
+            updateStockInternal(oldMovement.sku, oldMovement.almacen, oldMovement.cantidad);
+            // Revertir Destino (si era Local): Restar lo que se sumó
+            if (oldMovement.subtipo === 'Local' && oldMovement.almacenDestino) {
+                updateStockInternal(oldMovement.sku, oldMovement.almacenDestino, -oldMovement.cantidad);
+            }
+        } else {
+            // Entrada/Salida normal
+            const revertDelta = oldMovement.tipo === 'entrada' ? -oldMovement.cantidad : oldMovement.cantidad;
+            updateStockInternal(oldMovement.sku, oldMovement.almacen, revertDelta);
+        }
 
-        // 2. Aplicar impacto del nuevo movimiento
-        const applyDelta = newData.tipo === 'entrada' ? newData.cantidad : -newData.cantidad;
-        // Nota: usamos setTimeout o promises si updateStockInternal fuera async, pero aquí el setState de React en batch
-        // podría ser tricky si llamamos dos veces seguidas a setProducts.
-        // Mejor approach para evitar race conditions en setState: hacer todo en un solo paso o usar functional updates cuidadosamente.
-        // Como updateStockInternal usa functional update, debería encolarse correctamente.
-        updateStockInternal(newData.sku, newData.almacen, applyDelta);
+        // --- B. APLICAR NUEVO ---
+        // Chequeamos si el "nuevo" (que viene mezclado full data) es transferencia
+        // newData suele traer solo los campos cambiados si fueramos estrictos, pero en este app pasamos todo el objeto form
+        // Asumiremos que newData tiene 'tipo' actualizado si cambió.
+
+        const currentType = newData.tipo || oldMovement.tipo;
+        const currentSubtype = newData.subtipo || oldMovement.subtipo; // Para transferencias
+
+        if (currentType === 'transferencia') {
+            // Aplicar Origen: Restar
+            updateStockInternal(newData.sku, newData.almacen, -newData.cantidad);
+            // Aplicar Destino (si Local): Sumar
+            if (currentSubtype === 'Local' && newData.almacenDestino) {
+                updateStockInternal(newData.sku, newData.almacenDestino, newData.cantidad);
+            }
+        } else {
+            const applyDelta = newData.tipo === 'entrada' ? newData.cantidad : -newData.cantidad;
+            updateStockInternal(newData.sku, newData.almacen, applyDelta);
+        }
 
         // 3. Actualizar historial
         setMovements(prev => prev.map(m => m.id === id ? { ...m, ...newData } : m));
@@ -122,8 +168,17 @@ export const useInventory = () => {
         if (!movementToDelete) return;
 
         // Revertir impacto en stock
-        const revertDelta = movementToDelete.tipo === 'entrada' ? -movementToDelete.cantidad : movementToDelete.cantidad;
-        updateStockInternal(movementToDelete.sku, movementToDelete.almacen, revertDelta);
+        if (movementToDelete.tipo === 'transferencia') {
+            // Revertir Origen: Sumar
+            updateStockInternal(movementToDelete.sku, movementToDelete.almacen, movementToDelete.cantidad);
+            // Revertir Destino (si Local): Restar
+            if (movementToDelete.subtipo === 'Local' && movementToDelete.almacenDestino) {
+                updateStockInternal(movementToDelete.sku, movementToDelete.almacenDestino, -movementToDelete.cantidad);
+            }
+        } else {
+            const revertDelta = movementToDelete.tipo === 'entrada' ? -movementToDelete.cantidad : movementToDelete.cantidad;
+            updateStockInternal(movementToDelete.sku, movementToDelete.almacen, revertDelta);
+        }
 
         // Eliminar del historial
         setMovements(prev => prev.filter(m => m.id !== id));
@@ -137,6 +192,7 @@ export const useInventory = () => {
         addProductToCatalog,
         setCatalog,
         registrarMovimiento,
+        registrarTransferencia,
         updateMovement,
         deleteMovement
     };

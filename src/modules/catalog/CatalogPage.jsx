@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useInventory } from '../../hooks/useInventory';
+import { useCategories } from '../../hooks/useCategories';
 import { Plus, Search, Barcode, Trash2, Edit, Building2, Tag, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const CatalogPage = () => {
     // Agregamos almacenes y products desde el hook para los filtros
     const { catalog, setCatalog, almacenes, products } = useInventory();
+    const { categories } = useCategories();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterAlmacen, setFilterAlmacen] = useState('Todos');
 
@@ -19,7 +21,8 @@ const CatalogPage = () => {
 
     const [formData, setFormData] = useState({
         sku: '', nombre: '', barcode: '', unidad: 'UND', categoria: 'General',
-        pCompraPEN: '', pVentaPEN: '', pCompraUSD: '', pVentaUSD: '', estado: 'Activo'
+        pCompraPEN: '', pVentaPEN: '', pCompraUSD: '', pVentaUSD: '', estado: 'Activo',
+        esPerecedero: false
     });
 
     const generateBarcode = () => {
@@ -44,6 +47,7 @@ const CatalogPage = () => {
             unidad: formData.unidad,
             categoria: formData.categoria,
             estado: formData.estado,
+            esPerecedero: formData.esPerecedero,
             precios: {
                 compraPEN: parseFloat(formData.pCompraPEN) || 0,
                 ventaPEN: parseFloat(formData.pVentaPEN) || 0,
@@ -82,6 +86,7 @@ const CatalogPage = () => {
             unidad: product.unidad || 'UND',
             categoria: product.categoria || 'General',
             estado: product.estado,
+            esPerecedero: product.esPerecedero || false,
             pCompraPEN: product.precios?.compraPEN || '',
             pVentaPEN: product.precios?.ventaPEN || '',
             pCompraUSD: product.precios?.compraUSD || '',
@@ -111,7 +116,8 @@ const CatalogPage = () => {
     const resetForm = () => {
         setFormData({
             sku: '', nombre: '', barcode: '', unidad: 'UND', categoria: 'General',
-            pCompraPEN: '', pVentaPEN: '', pCompraUSD: '', pVentaUSD: '', estado: 'Activo'
+            pCompraPEN: '', pVentaPEN: '', pCompraUSD: '', pVentaUSD: '', estado: 'Activo',
+            esPerecedero: false
         });
     };
 
@@ -165,6 +171,33 @@ const CatalogPage = () => {
                     <div className="flex gap-2">
                         <input type="text" placeholder="Barcode" className="flex-1 p-2 border rounded bg-gray-50 text-sm" value={formData.barcode} readOnly />
                         <button type="button" onClick={generateBarcode} className="p-2 bg-slate-800 text-white rounded hover:bg-black transition-colors"><Barcode size={20} /></button>
+                    </div>
+
+                    {/* Agregado Selector de Categoría */}
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Categoría</label>
+                        <select
+                            className="w-full p-2 border rounded text-sm bg-white"
+                            value={formData.categoria}
+                            onChange={e => setFormData({ ...formData, categoria: e.target.value })}
+                        >
+                            {categories.map(c => (
+                                <option key={c.id} value={c.nombre}>{c.nombre}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-gray-50 p-2 rounded border">
+                        <input
+                            type="checkbox"
+                            id="esPerecedero"
+                            className="w-4 h-4 text-blue-600 rounded"
+                            checked={formData.esPerecedero}
+                            onChange={e => setFormData({ ...formData, esPerecedero: e.target.checked })}
+                        />
+                        <label htmlFor="esPerecedero" className="text-sm font-medium text-gray-700 select-none cursor-pointer">
+                            ¿Producto Perecedero? (Control de Lotes)
+                        </label>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
