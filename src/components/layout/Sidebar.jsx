@@ -36,7 +36,7 @@ const Sidebar = ({ isOpen }) => {
     return (
         <aside className={`${isOpen ? 'w-64' : 'w-20'} bg-slate-900 text-white transition-all duration-300 flex flex-col h-screen overflow-y-auto`}>
             <div className="p-4 border-b border-slate-700 font-bold text-xl text-blue-400 shrink-0">
-                {isOpen ? 'LOGI-WEB' : 'LW'}
+                {isOpen ? 'ALMACENES-WEB' : 'AW'}
             </div>
             <nav className="flex-1 mt-4">
                 {menuItems.map((item, index) => {
@@ -58,17 +58,19 @@ const Sidebar = ({ isOpen }) => {
                                     {isOpen && (isSubmenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
                                 </button>
 
-                                {isSubmenuOpen && isOpen && (
-                                    <div className="bg-slate-950/50 py-2">
+                                {isSubmenuOpen && (
+                                    <div className={`${isOpen ? 'bg-slate-950/50 py-2' : 'flex flex-col items-center bg-slate-950/30 py-1'}`}>
                                         {item.subItems.map((subItem, subIndex) => (
                                             <Link
                                                 key={subIndex}
                                                 to={subItem.path}
-                                                className={`flex items-center pl-12 p-3 cursor-pointer transition-colors text-sm
+                                                title={!isOpen ? subItem.label : ''}
+                                                className={`flex items-center cursor-pointer transition-colors text-sm
+                                                  ${isOpen ? 'pl-12 p-3' : 'p-3 justify-center w-full'}
                                                   ${location.pathname === subItem.path ? 'text-blue-400 font-bold' : 'text-gray-500 hover:text-gray-300'}`}
                                             >
-                                                <span className="mr-3">{subItem.icon}</span>
-                                                {subItem.label}
+                                                <span className={`${isOpen ? 'mr-3' : ''}`}>{subItem.icon}</span>
+                                                {isOpen && subItem.label}
                                             </Link>
                                         ))}
                                     </div>
