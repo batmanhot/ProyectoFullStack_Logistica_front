@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { useInventory } from '../../hooks/useInventory';
+import { usePartners } from '../../hooks/usePartners';
 import { Save, Truck, Box, Building2, Clipboard, Plus, Edit, Trash2, X, FileText, Calendar, Hash } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const InboundPage = () => {
     const { catalog, almacenes, registrarMovimiento, movements, updateMovement, deleteMovement } = useInventory();
+    const { getSuppliers } = usePartners();
+    const suppliers = getSuppliers();
 
     // Estado para controlar la vista (Listado vs Formulario)
     const [isCreating, setIsCreating] = useState(false);
@@ -273,13 +276,18 @@ const InboundPage = () => {
                             <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                                 <Clipboard size={16} /> Proveedor
                             </label>
-                            <input
-                                type="text"
-                                className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                            <select
+                                className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
                                 value={formData.proveedor}
                                 onChange={(e) => setFormData({ ...formData, proveedor: e.target.value })}
-                                placeholder="Opcional"
-                            />
+                            >
+                                <option value="">Seleccione proveedor...</option>
+                                {suppliers.map(p => (
+                                    <option key={p.id} value={p.nombre}>
+                                        {p.nombre}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <div className="md:col-span-2 space-y-2">

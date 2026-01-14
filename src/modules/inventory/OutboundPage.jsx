@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { ClipboardList, Send, Box, Building2, Plus, Edit, Trash2, X, ArrowLeft, User, FileText, Calendar, Hash } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useInventory } from '../../hooks/useInventory';
+import { usePartners } from '../../hooks/usePartners';
 
 const OutboundPage = () => {
 
     const { registrarMovimiento, updateMovement, deleteMovement, products, almacenes, movements } = useInventory();
+    const { getClients } = usePartners();
+    const clients = getClients();
 
     // Estado para controlar la vista (Listado vs Formulario)
     const [isCreating, setIsCreating] = useState(false);
@@ -295,14 +298,19 @@ const OutboundPage = () => {
                                 <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
                                     <User size={16} /> Cliente / Destino
                                 </label>
-                                <input
-                                    type="text"
-                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
-                                    placeholder="Cliente / Sucursal"
+                                <select
+                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none bg-white"
                                     value={formData.destino}
                                     onChange={(e) => setFormData({ ...formData, destino: e.target.value })}
                                     required
-                                />
+                                >
+                                    <option value="">Seleccione cliente...</option>
+                                    {clients.map(c => (
+                                        <option key={c.id} value={c.nombre}>
+                                            {c.nombre}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
 

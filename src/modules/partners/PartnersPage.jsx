@@ -3,7 +3,7 @@ import { usePartners } from '../../hooks/usePartners';
 import { Users, Plus, Edit, Trash2, X, Search, Briefcase, Truck, Phone, Mail, MapPin, Building } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const PartnersPage = () => {
+const PartnersPage = ({ initialTab = 'Todos' }) => {
     const { partners, addPartner, updatePartner, deletePartner } = usePartners();
 
     // UI State
@@ -11,7 +11,12 @@ const PartnersPage = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeTab, setActiveTab] = useState('Todos'); // Todos | Cliente | Proveedor
+    const [activeTab, setActiveTab] = useState(initialTab); // Todos | Cliente | Proveedor
+
+    // Sincronizar tab si cambia el prop
+    React.useEffect(() => {
+        setActiveTab(initialTab);
+    }, [initialTab]);
 
     const [formData, setFormData] = useState({
         nombre: '',

@@ -11,7 +11,10 @@ const ReportsPage = () => {
     // --- KPIs y ANALÍTICA ---
     const dashboardMetrics = useMemo(() => {
         // 1. Valor Total y Unidades
-        const totalValue = products.reduce((acc, p) => acc + (p.cantidad * (p.precioPEN || 50)), 0); // Precio mock si falta
+        const totalValue = products.reduce((acc, p) => {
+            const price = p.precioPEN || 0;
+            return acc + (p.cantidad * price);
+        }, 0);
         const totalUnits = products.reduce((acc, p) => acc + p.cantidad, 0);
 
         // 2. Alertas
@@ -102,10 +105,17 @@ const ReportsPage = () => {
         XLSX.writeFile(workbook, `${filename}.xlsx`);
     };
 
+    const tabTitles = {
+        dashboard: 'Panel de Control y Analítica',
+        stock: 'Reporte de Stock Detallado',
+        replenishment: 'Reporte de Reposición Crítica',
+        kardex: 'Reporte de Movimientos (Kardex)'
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <h1 className="text-2xl font-bold text-gray-800">Reportes y Analítica</h1>
+                <h1 className="text-2xl font-bold text-gray-800">{tabTitles[activeTab]}</h1>
                 <div className="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
                     {[
                         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -117,8 +127,8 @@ const ReportsPage = () => {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === tab.id
-                                    ? 'bg-blue-600 text-white shadow-md'
-                                    : 'text-gray-600 hover:bg-gray-50'
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'text-gray-600 hover:bg-gray-50'
                                 }`}
                         >
                             <tab.icon size={16} />
@@ -299,12 +309,22 @@ const ReportsPage = () => {
             {/* 3. REPORTE DE REPOSICIÓN */}
             {activeTab === 'replenishment' && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-start gap-3">
-                        <AlertTriangle className="text-orange-600 mt-1" size={24} />
-                        <div>
-                            <h4 className="font-bold text-orange-800">Atención Requerida</h4>
-                            <p className="text-sm text-orange-700">Se han detectado {stockCritico.length} productos con niveles de stock crítico o agotado que requieren reposición inmediata.</p>
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-start justify-between gap-3">
+                        <div className="flex gap-3">
+                            <AlertTriangle className="text-orange-600 mt-1" size={24} />
+                            <div>
+                                <h4 className="font-bold text-orange-800">Atención Requerida</h4>
+                                <p className="text-sm text-orange-700">Se han detectado {stockCritico.length} productos con niveles de stock crítico o agotado que requieren reposición inmediata.</p>
+                            </div>
                         </div>
+                        {stockCritico.length > 0 && (
+                            <button
+                                onClick={() => handleExportExcel(stockCritico, 'Reporte_Reposicion')}
+                                className="flex items-center gap-2 text-orange-700 hover:text-orange-800 font-medium text-sm border border-orange-200 bg-white px-3 py-1.5 rounded-lg transition-colors shadow-sm shrink-0"
+                            >
+                                <Download size={16} /> Exportar Excel
+                            </button>
+                        )}
                     </div>
 
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -358,9 +378,19 @@ const ReportsPage = () => {
             {/* 4. KARDEX (HISTORIAL) */}
             {activeTab === 'kardex' && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2">
-                        <History className="text-blue-600" /> Tarjeta de Existencias (Kardex)
-                    </h3>
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                            <History className="text-blue-600" /> Tarjeta de Existencias (Kardex)
+                        </h3>
+                        {selectedSku && kardexData.length > 0 && (
+                            <button
+                                onClick={() => handleExportExcel(kardexData, `Kardex_${selectedSku}`)}
+                                className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium text-sm border border-blue-200 bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+                            >
+                                <Download size={16} /> Exportar Excel
+                            </button>
+                        )}
+                    </div>
 
                     {/* Buscador */}
                     <div className="flex flex-col md:flex-row gap-4 mb-6 bg-gray-50 p-4 rounded-lg border border-gray-100">

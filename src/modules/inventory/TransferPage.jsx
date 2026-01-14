@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useInventory } from '../../hooks/useInventory';
+import { useTransporters } from '../../hooks/useTransporters';
+import { usePartners } from '../../hooks/usePartners';
 import { Save, ArrowRightLeft, Box, Building2, Clipboard, Plus, Edit, Trash2, X, FileText, Calendar, Hash, Globe, Truck } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const TransferPage = () => {
     const { catalog, almacenes, registrarTransferencia, movements, updateMovement, deleteMovement } = useInventory();
+    const { transporters } = useTransporters();
+    const { getClients } = usePartners();
+    const clients = getClients();
 
     // Estado para controlar la vista (Listado vs Formulario)
     const [isCreating, setIsCreating] = useState(false);
@@ -277,14 +282,19 @@ const TransferPage = () => {
                                 <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                                     <Globe size={16} /> Destino Externo / Cliente
                                 </label>
-                                <input
-                                    type="text"
-                                    className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder="Ej: Almacén Cliente SAC"
+                                <select
+                                    className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
                                     value={formData.destinoExterno}
                                     onChange={(e) => setFormData({ ...formData, destinoExterno: e.target.value })}
                                     required
-                                />
+                                >
+                                    <option value="">Seleccione cliente...</option>
+                                    {clients.filter(c => c.estado === 'Activo').map(c => (
+                                        <option key={c.id} value={c.nombre}>
+                                            {c.nombre}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         )}
 
@@ -306,12 +316,18 @@ const TransferPage = () => {
                             <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                                 <Truck size={16} /> Transportista
                             </label>
-                            <input
-                                type="text"
-                                className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                            <select
+                                className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
                                 value={formData.transportista}
                                 onChange={(e) => setFormData({ ...formData, transportista: e.target.value })}
-                            />
+                            >
+                                <option value="">Seleccione transportista...</option>
+                                {transporters.filter(t => t.estado === 'Activo').map(t => (
+                                    <option key={t.id} value={t.nombre}>
+                                        {t.nombre}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <div className="md:col-span-2 space-y-2">

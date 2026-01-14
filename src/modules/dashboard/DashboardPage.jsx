@@ -8,7 +8,10 @@ const DashboardPage = () => {
     const { products, movements, almacenes, catalog } = useInventory(); // Importamos catalog para tener nombres completos si necesario
 
     // --- CÁLCULOS KPI ---
-    const totalSoles = products.reduce((acc, item) => acc + (item.cantidad * item.precioPEN || 0), 0);
+    const totalSoles = products.reduce((acc, item) => {
+        const price = item.precioPEN || 0;
+        return acc + (item.cantidad * price);
+    }, 0);
     const totalUnidades = products.reduce((acc, item) => acc + item.cantidad, 0);
     const lowStockCount = products.filter(p => p.estado === 'Stock Bajo').length;
     const outOfStockCount = products.filter(p => p.estado === 'Agotado').length;

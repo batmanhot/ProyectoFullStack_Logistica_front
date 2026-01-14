@@ -36,6 +36,8 @@ const AppContent = () => {
         <Route path="/lotes" element={<BatchPage />} />
         <Route path="/transportistas" element={<TransportersPage />} />
         <Route path="/directorio" element={<PartnersPage />} />
+        <Route path="/clientes" element={<PartnersPage initialTab="Cliente" />} />
+        <Route path="/proveedores" element={<PartnersPage initialTab="Proveedor" />} />
         <Route path="/entradas" element={<InboundPage />} />
         <Route path="/salidas" element={<OutboundPage />} />
         <Route path="/transferencias" element={<TransferPage />} />
