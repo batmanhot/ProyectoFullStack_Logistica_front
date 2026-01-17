@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Truck, ClipboardList, BarChart3, BookOpen, ArrowRightLeft, Users, Tag, CalendarClock, ChevronDown, ChevronRight, Layers } from 'lucide-react';
+import { LayoutDashboard, Package, Truck, ClipboardList, BarChart3, BookOpen, ArrowRightLeft, Users, Tag, CalendarClock, ChevronDown, ChevronRight, Layers, MapPin, Map } from 'lucide-react';
 
 const Sidebar = ({ isOpen }) => {
     const location = useLocation();
@@ -20,6 +20,8 @@ const Sidebar = ({ isOpen }) => {
                 { icon: <Users size={18} />, label: 'Clientes', path: '/clientes' },
                 { icon: <Briefcase size={18} />, label: 'Proveedores', path: '/proveedores' },
                 { icon: <Truck size={18} />, label: 'Transportistas', path: '/transportistas' },
+                { icon: <MapPin size={18} />, label: 'Ubicaciones', path: '/ubicaciones' },
+                { icon: <Map size={18} />, label: 'Mapa de Almacén', path: '/mapa-almacen' },
                 { icon: <CalendarClock size={18} />, label: 'Lotes y Caducidad', path: '/lotes' },
             ]
         },

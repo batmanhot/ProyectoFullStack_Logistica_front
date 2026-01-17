@@ -33,9 +33,9 @@ export const useInventory = () => {
     };
 
     // Helper para actualizar el stock (No exportado)
-    const updateStockInternal = (sku, almacen, cantidadDelta) => {
+    const updateStockInternal = (sku, almacen, cantidadDelta, ubicacion = '') => {
         setProducts(prevProducts => {
-            const existingIndex = prevProducts.findIndex(p => p.sku === sku && p.almacen === almacen);
+            const existingIndex = prevProducts.findIndex(p => p.sku === sku && p.almacen === almacen && p.ubicacion === ubicacion);
             const getStatus = (qty) => qty <= 0 ? 'Agotado' : qty < 20 ? 'Stock Bajo' : 'Disponible';
 
             if (existingIndex >= 0) {
@@ -61,6 +61,7 @@ export const useInventory = () => {
                         sku: catalogoItem.sku,
                         nombre: catalogoItem.nombre,
                         almacen: almacen,
+                        ubicacion: ubicacion || '', // Nueva ubicación
                         cantidad: cantidadDelta,
                         estado: getStatus(cantidadDelta),
                         precioPEN: 0,
@@ -83,14 +84,14 @@ export const useInventory = () => {
             tipo, // 'entrada' | 'salida'
             proveedor,
             observaciones,
-            ...extraData // tipoEntrada, tipoDocumento, numeroDocumento, fechaDocumento
+            ...extraData // tipoEntrada, tipoDocumento, numeroDocumento, fechaDocumento, ubicacion
         };
 
         setMovements(prev => [newMovement, ...prev]);
 
         // Actualizar Stock
         const delta = tipo === 'entrada' ? cantidad : -cantidad;
-        updateStockInternal(sku, almacen, delta);
+        updateStockInternal(sku, almacen, delta, extraData.ubicacion || '');
     };
 
     // Registrar Transferencia
@@ -102,6 +103,8 @@ export const useInventory = () => {
             cantidad,
             almacen: almacenOrigen, // Principal warehouse reference (Source)
             almacenDestino: almacenDestino, // Secondary, only if Local
+            ubicacionOrigen: extraData.ubicacionOrigen || '',
+            ubicacionDestino: extraData.ubicacionDestino || '',
             tipo: 'transferencia',
             subtipo: isLocal ? 'Local' : 'Externa',
             observaciones,
@@ -111,11 +114,11 @@ export const useInventory = () => {
         setMovements(prev => [newMovement, ...prev]);
 
         // 1. Descontar de Origen
-        updateStockInternal(sku, almacenOrigen, -cantidad);
+        updateStockInternal(sku, almacenOrigen, -cantidad, extraData.ubicacionOrigen || '');
 
         // 2. Si es Local, Sumar a Destino
         if (isLocal && almacenDestino) {
-            updateStockInternal(sku, almacenDestino, cantidad);
+            updateStockInternal(sku, almacenDestino, cantidad, extraData.ubicacionDestino || '');
         }
     };
 
@@ -126,36 +129,32 @@ export const useInventory = () => {
 
         // --- A. REVERTIR ANTERIOR ---
         if (oldMovement.tipo === 'transferencia') {
-            // Revertir Origen: Sumar lo que se restó
-            updateStockInternal(oldMovement.sku, oldMovement.almacen, oldMovement.cantidad);
-            // Revertir Destino (si era Local): Restar lo que se sumó
+            // Revertir Origen: Sumar lo que se restó (usando su ubicación de origen)
+            updateStockInternal(oldMovement.sku, oldMovement.almacen, oldMovement.cantidad, oldMovement.ubicacionOrigen || '');
+            // Revertir Destino (si era Local): Restar lo que se sumó (en su ubicación de destino)
             if (oldMovement.subtipo === 'Local' && oldMovement.almacenDestino) {
-                updateStockInternal(oldMovement.sku, oldMovement.almacenDestino, -oldMovement.cantidad);
+                updateStockInternal(oldMovement.sku, oldMovement.almacenDestino, -oldMovement.cantidad, oldMovement.ubicacionDestino || '');
             }
         } else {
             // Entrada/Salida normal
             const revertDelta = oldMovement.tipo === 'entrada' ? -oldMovement.cantidad : oldMovement.cantidad;
-            updateStockInternal(oldMovement.sku, oldMovement.almacen, revertDelta);
+            updateStockInternal(oldMovement.sku, oldMovement.almacen, revertDelta, oldMovement.ubicacion || '');
         }
 
         // --- B. APLICAR NUEVO ---
-        // Chequeamos si el "nuevo" (que viene mezclado full data) es transferencia
-        // newData suele traer solo los campos cambiados si fueramos estrictos, pero en este app pasamos todo el objeto form
-        // Asumiremos que newData tiene 'tipo' actualizado si cambió.
-
         const currentType = newData.tipo || oldMovement.tipo;
-        const currentSubtype = newData.subtipo || oldMovement.subtipo; // Para transferencias
+        const currentSubtype = newData.subtipo || oldMovement.subtipo;
 
         if (currentType === 'transferencia') {
             // Aplicar Origen: Restar
-            updateStockInternal(newData.sku, newData.almacen, -newData.cantidad);
+            updateStockInternal(newData.sku, newData.almacen, -newData.cantidad, newData.ubicacionOrigen || '');
             // Aplicar Destino (si Local): Sumar
             if (currentSubtype === 'Local' && newData.almacenDestino) {
-                updateStockInternal(newData.sku, newData.almacenDestino, newData.cantidad);
+                updateStockInternal(newData.sku, newData.almacenDestino, newData.cantidad, newData.ubicacionDestino || '');
             }
         } else {
             const applyDelta = newData.tipo === 'entrada' ? newData.cantidad : -newData.cantidad;
-            updateStockInternal(newData.sku, newData.almacen, applyDelta);
+            updateStockInternal(newData.sku, newData.almacen, applyDelta, newData.ubicacion || '');
         }
 
         // 3. Actualizar historial
@@ -170,14 +169,14 @@ export const useInventory = () => {
         // Revertir impacto en stock
         if (movementToDelete.tipo === 'transferencia') {
             // Revertir Origen: Sumar
-            updateStockInternal(movementToDelete.sku, movementToDelete.almacen, movementToDelete.cantidad);
+            updateStockInternal(movementToDelete.sku, movementToDelete.almacen, movementToDelete.cantidad, movementToDelete.ubicacionOrigen || '');
             // Revertir Destino (si Local): Restar
             if (movementToDelete.subtipo === 'Local' && movementToDelete.almacenDestino) {
-                updateStockInternal(movementToDelete.sku, movementToDelete.almacenDestino, -movementToDelete.cantidad);
+                updateStockInternal(movementToDelete.sku, movementToDelete.almacenDestino, -movementToDelete.cantidad, movementToDelete.ubicacionDestino || '');
             }
         } else {
             const revertDelta = movementToDelete.tipo === 'entrada' ? -movementToDelete.cantidad : movementToDelete.cantidad;
-            updateStockInternal(movementToDelete.sku, movementToDelete.almacen, revertDelta);
+            updateStockInternal(movementToDelete.sku, movementToDelete.almacen, revertDelta, movementToDelete.ubicacion || '');
         }
 
         // Eliminar del historial

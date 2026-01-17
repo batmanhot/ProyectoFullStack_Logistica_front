@@ -36,7 +36,8 @@ const ReportsPage = () => {
             const dayMovements = movements.filter(m => m.fecha.startsWith(date));
             const entradas = dayMovements.filter(m => m.tipo === 'entrada').reduce((acc, m) => acc + m.cantidad, 0);
             const salidas = dayMovements.filter(m => m.tipo === 'salida').reduce((acc, m) => acc + m.cantidad, 0);
-            return { date: date.slice(5), entradas, salidas };
+            const transferencias = dayMovements.filter(m => m.tipo === 'transferencia').reduce((acc, m) => acc + m.cantidad, 0);
+            return { date: date.slice(5), entradas, salidas, transferencias };
         });
 
         // 5. Top Productos (Salidas)
@@ -206,6 +207,7 @@ const ReportsPage = () => {
                                         <Legend />
                                         <Area type="monotone" dataKey="entradas" name="Entradas" stroke="#10b981" fillOpacity={1} fill="url(#colorEntradas)" strokeWidth={2} />
                                         <Area type="monotone" dataKey="salidas" name="Salidas" stroke="#ef4444" fillOpacity={1} fill="url(#colorSalidas)" strokeWidth={2} />
+                                        <Area type="monotone" dataKey="transferencias" name="Transferencias" stroke="#3b82f6" fillOpacity={0.1} fill="#3b82f6" strokeWidth={2} strokeDasharray="5 5" />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </div>
@@ -279,6 +281,7 @@ const ReportsPage = () => {
                                     <th className="p-4">SKU</th>
                                     <th className="p-4">Producto</th>
                                     <th className="p-4">Almacén</th>
+                                    <th className="p-4">Ubicación</th>
                                     <th className="p-4 text-center">Cantidad</th>
                                     <th className="p-4">Estado</th>
                                 </tr>
@@ -289,6 +292,11 @@ const ReportsPage = () => {
                                         <td className="p-4 font-mono text-gray-600">{p.sku}</td>
                                         <td className="p-4 font-medium text-gray-800">{p.nombre}</td>
                                         <td className="p-4">{p.almacen}</td>
+                                        <td className="p-4">
+                                            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                                                {p.ubicacion || 'N/A'}
+                                            </span>
+                                        </td>
                                         <td className="p-4 text-center font-bold">{p.cantidad}</td>
                                         <td className="p-4">
                                             <span className={`px-2 py-1 rounded text-xs font-bold ${p.estado === 'Disponible' ? 'bg-green-100 text-green-700' :
@@ -335,6 +343,7 @@ const ReportsPage = () => {
                                         <th className="p-4">SKU</th>
                                         <th className="p-4">Producto</th>
                                         <th className="p-4">Almacén</th>
+                                        <th className="p-4">Ubicación</th>
                                         <th className="p-4 text-center">Stock Actual</th>
                                         <th className="p-4">Estado</th>
                                         <th className="p-4 text-center">Sugerido</th>
@@ -347,6 +356,11 @@ const ReportsPage = () => {
                                                 <td className="p-4 font-mono text-gray-600">{p.sku}</td>
                                                 <td className="p-4 font-medium text-gray-800">{p.nombre}</td>
                                                 <td className="p-4">{p.almacen}</td>
+                                                <td className="p-4">
+                                                    <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded">
+                                                        {p.ubicacion || 'N/A'}
+                                                    </span>
+                                                </td>
                                                 <td className="p-4 text-center font-bold text-red-600">{p.cantidad}</td>
                                                 <td className="p-4">
                                                     <span className="flex items-center gap-1 text-red-600 font-bold text-xs uppercase">
@@ -454,6 +468,7 @@ const ReportsPage = () => {
                                         <th className="p-3 text-center bg-red-50 text-red-800">Salida</th>
                                         <th className="p-3 text-center bg-blue-50 text-blue-800 font-bold">Saldo</th>
                                         <th className="p-3 text-left">Almacén</th>
+                                        <th className="p-3 text-left">Ubicación</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
@@ -484,6 +499,16 @@ const ReportsPage = () => {
                                                 </td>
                                                 <td className="p-3 text-xs text-gray-500">
                                                     {row.almacen} {row.almacenDestino ? `→ ${row.almacenDestino}` : ''}
+                                                </td>
+                                                <td className="p-3">
+                                                    <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                                                        {row.ubicacion || row.ubicacionOrigen || '-'}
+                                                    </span>
+                                                    {row.ubicacionDestino && (
+                                                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded ml-1">
+                                                            → {row.ubicacionDestino}
+                                                        </span>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))

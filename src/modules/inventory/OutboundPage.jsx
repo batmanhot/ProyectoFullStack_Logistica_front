@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { ClipboardList, Send, Box, Building2, Plus, Edit, Trash2, X, ArrowLeft, User, FileText, Calendar, Hash } from 'lucide-react';
+import { ClipboardList, Send, Box, Building2, Plus, Edit, Trash2, X, ArrowLeft, User, FileText, Calendar, Hash, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useInventory } from '../../hooks/useInventory';
 import { usePartners } from '../../hooks/usePartners';
+import { useLocations } from '../../context/LocationsContext';
 
 const OutboundPage = () => {
 
-    const { registrarMovimiento, updateMovement, deleteMovement, products, almacenes, movements } = useInventory();
+    const { registrarMovimiento, updateMovement, deleteMovement, products, almacenes, movements, catalog } = useInventory();
     const { getClients } = usePartners();
+    const { locations } = useLocations();
     const clients = getClients();
 
     // Estado para controlar la vista (Listado vs Formulario)
@@ -19,6 +21,7 @@ const OutboundPage = () => {
         sku: '',
         cantidad: '',
         almacen: '',
+        ubicacion: '',
         destino: '',
         tipoSalida: '',
         tipoDocumento: '',
@@ -31,6 +34,7 @@ const OutboundPage = () => {
             sku: '',
             cantidad: '',
             almacen: '',
+            ubicacion: '',
             destino: '',
             tipoSalida: '',
             tipoDocumento: '',
@@ -56,6 +60,7 @@ const OutboundPage = () => {
             sku: movement.sku,
             cantidad: movement.cantidad,
             almacen: movement.almacen,
+            ubicacion: movement.ubicacion || '',
             destino: movement.destino || '',
             tipoSalida: movement.tipoSalida || '',
             tipoDocumento: movement.tipoDocumento || '',
@@ -111,6 +116,7 @@ const OutboundPage = () => {
         try {
             const extraData = {
                 destino: formData.destino,
+                ubicacion: formData.ubicacion,
                 tipoSalida: formData.tipoSalida,
                 tipoDocumento: formData.tipoDocumento,
                 numeroDocumento: formData.numeroDocumento,
@@ -180,8 +186,8 @@ const OutboundPage = () => {
                     </div>
 
                     <form onSubmit={handleSalida} className="space-y-6 max-w-3xl mx-auto">
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* grid grid-cols-1 md:grid-cols-2 gap-6 */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {/* SELECCIÓN DE ALMACÉN DE ORIGEN */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
@@ -203,16 +209,61 @@ const OutboundPage = () => {
                                 <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
                                     <Box size={16} /> SKU del Producto
                                 </label>
-                                <input
-                                    type="text"
-                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
-                                    placeholder="Ej: PROD-001"
+                                <select
+                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none bg-white"
                                     value={formData.sku}
                                     onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                                     required
-                                />
+                                >
+                                    <option value="">Seleccione Producto...</option>
+                                    {catalog?.map(p => (
+                                        <option key={p.sku} value={p.sku}>
+                                            {p.sku} - {p.nombre}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* UBICACIÓN DE ORIGEN */}
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
+                                    <MapPin size={16} /> Ubicación de Retiro
+                                </label>
+                                <select
+                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none bg-white"
+                                    value={formData.ubicacion}
+                                    onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
+                                    disabled={!formData.almacen || !formData.sku}
+                                >
+                                    <option value="">Sin ubicación específica</option>
+                                    {formData.almacen && formData.sku &&
+                                        products
+                                            .filter(p => p.almacen === formData.almacen && p.sku === formData.sku && p.cantidad > 0)
+                                            .map((p, idx) => {
+                                                if (!p.ubicacion || p.ubicacion.trim() === '') {
+                                                    return (
+                                                        <option key={idx} value="">
+                                                            Stock General (Sin ubicación asignada) - {p.cantidad} u.
+                                                        </option>
+                                                    );
+                                                }
+                                                const loc = locations.find(l => l.codigo === p.ubicacion && l.almacen === p.almacen);
+                                                return (
+                                                    <option key={idx} value={p.ubicacion}>
+                                                        {p.ubicacion} - {loc?.zona || 'N/A'} ({p.cantidad} u.)
+                                                    </option>
+                                                );
+                                            })
+                                    }
+                                </select>
+                                {formData.almacen && formData.sku &&
+                                    products.filter(p => p.almacen === formData.almacen && p.sku === formData.sku && p.cantidad > 0).length === 0 && (
+                                        <p className="text-xs text-red-600 mt-1">⚠️ No hay stock disponible de este producto en este almacén</p>
+                                    )}
                             </div>
                         </div>
+
+
 
                         {/* NUEVOS CAMPOS: TIPOS */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

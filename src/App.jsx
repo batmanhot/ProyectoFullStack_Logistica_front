@@ -14,8 +14,11 @@ import CategoriesPage from './modules/catalog/CategoriesPage';
 import PartnersPage from './modules/partners/PartnersPage';
 import BatchPage from './modules/batches/BatchPage';
 import TransportersPage from './modules/partners/TransportersPage';
+import LocationsPage from './modules/locations/LocationsPage';
+import WarehouseMapPage from './modules/locations/WarehouseMapPage';
 
 import DashboardPage from './modules/dashboard/DashboardPage';
+import { LocationsProvider } from './context/LocationsContext';
 
 // Componentes temporales para rutas no creadas aún
 const Placeholder = ({ title }) => <div className="p-8 text-gray-400 italic">Módulo de {title} en desarrollo...</div>;
@@ -27,23 +30,27 @@ const AppContent = () => {
   if (!user) return <LoginPage />;
 
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/inventario" element={<InventoryPage />} />
-        <Route path="/catalogo" element={<CatalogPage />} />
-        <Route path="/categorias" element={<CategoriesPage />} />
-        <Route path="/lotes" element={<BatchPage />} />
-        <Route path="/transportistas" element={<TransportersPage />} />
-        <Route path="/directorio" element={<PartnersPage />} />
-        <Route path="/clientes" element={<PartnersPage initialTab="Cliente" />} />
-        <Route path="/proveedores" element={<PartnersPage initialTab="Proveedor" />} />
-        <Route path="/entradas" element={<InboundPage />} />
-        <Route path="/salidas" element={<OutboundPage />} />
-        <Route path="/transferencias" element={<TransferPage />} />
-        <Route path="/reportes" element={<ReportsPage />} />
-      </Routes>
-    </Layout>
+    <LocationsProvider>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/inventario" element={<InventoryPage />} />
+          <Route path="/catalogo" element={<CatalogPage />} />
+          <Route path="/categorias" element={<CategoriesPage />} />
+          <Route path="/lotes" element={<BatchPage />} />
+          <Route path="/transportistas" element={<TransportersPage />} />
+          <Route path="/ubicaciones" element={<LocationsPage />} />
+          <Route path="/mapa-almacen" element={<WarehouseMapPage />} />
+          <Route path="/directorio" element={<PartnersPage />} />
+          <Route path="/clientes" element={<PartnersPage initialTab="Cliente" />} />
+          <Route path="/proveedores" element={<PartnersPage initialTab="Proveedor" />} />
+          <Route path="/entradas" element={<InboundPage />} />
+          <Route path="/salidas" element={<OutboundPage />} />
+          <Route path="/transferencias" element={<TransferPage />} />
+          <Route path="/reportes" element={<ReportsPage />} />
+        </Routes>
+      </Layout>
+    </LocationsProvider>
   );
 };
 

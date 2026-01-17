@@ -59,7 +59,8 @@ const InventoryPage = () => {
             const matchSearch = searchTerm === '' ? true :
                 item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                item.categoria.toLowerCase().includes(searchTerm.toLowerCase());
+                item.categoria.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (item.ubicacion && item.ubicacion.toLowerCase().includes(searchTerm.toLowerCase()));
 
             return matchAlmacen && matchCategoria && matchSearch;
         });
@@ -298,6 +299,7 @@ const InventoryPage = () => {
                                 >
                                     Stock Físico <SortIcon columnKey="cantidad" />
                                 </th>
+                                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Ubicación</th>
                                 <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Estado</th>
                             </tr>
                         </thead>
@@ -325,14 +327,19 @@ const InventoryPage = () => {
                                             <div className="font-bold text-gray-900">{item.cantidad.toLocaleString()}</div>
                                         </td>
                                         <td className="p-4 text-center">
+                                            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                                {item.ubicacion || 'Sin Ubicación'}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 text-center">
                                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${item.estado === 'Disponible'
-                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                                    : item.estado === 'Stock Bajo'
-                                                        ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                : item.estado === 'Stock Bajo'
+                                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                                    : 'bg-rose-50 text-rose-700 border-rose-200'
                                                 }`}>
                                                 <span className={`w-1.5 h-1.5 rounded-full ${item.estado === 'Disponible' ? 'bg-emerald-500' :
-                                                        item.estado === 'Stock Bajo' ? 'bg-amber-500' : 'bg-rose-500'
+                                                    item.estado === 'Stock Bajo' ? 'bg-amber-500' : 'bg-rose-500'
                                                     }`}></span>
                                                 {item.estado}
                                             </span>
@@ -385,8 +392,8 @@ const InventoryPage = () => {
                                         key={pageNum}
                                         onClick={() => handlePageChange(pageNum)}
                                         className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${currentPage === pageNum
-                                                ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-100'
-                                                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                                            ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-100'
+                                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
                                             }`}
                                     >
                                         {pageNum}

@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { useInventory } from '../../hooks/useInventory';
 import { useTransporters } from '../../hooks/useTransporters';
 import { usePartners } from '../../hooks/usePartners';
-import { Save, ArrowRightLeft, Box, Building2, Clipboard, Plus, Edit, Trash2, X, FileText, Calendar, Hash, Globe, Truck } from 'lucide-react';
+import { useLocations } from '../../context/LocationsContext';
+import { Save, ArrowRightLeft, Box, Building2, Clipboard, Plus, Edit, Trash2, X, FileText, Calendar, Hash, Globe, Truck, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const TransferPage = () => {
     const { catalog, almacenes, registrarTransferencia, movements, updateMovement, deleteMovement } = useInventory();
     const { transporters } = useTransporters();
     const { getClients } = usePartners();
+    const { locations, getLocationsByWarehouse } = useLocations();
     const clients = getClients();
 
     // Estado para controlar la vista (Listado vs Formulario)
@@ -20,7 +22,9 @@ const TransferPage = () => {
         sku: '',
         cantidad: '',
         almacenOrigen: '',
+        ubicacionOrigen: '',
         almacenDestino: '',
+        ubicacionDestino: '',
         destinoExterno: '',
         tipoTransferencia: 'Local', // Local | Externa
         observaciones: '',
@@ -33,7 +37,9 @@ const TransferPage = () => {
             sku: '',
             cantidad: '',
             almacenOrigen: '',
+            ubicacionOrigen: '',
             almacenDestino: '',
+            ubicacionDestino: '',
             destinoExterno: '',
             tipoTransferencia: 'Local',
             observaciones: '',
@@ -59,7 +65,9 @@ const TransferPage = () => {
             sku: movement.sku,
             cantidad: movement.cantidad,
             almacenOrigen: movement.almacen, // Mapped back
+            ubicacionOrigen: movement.ubicacionOrigen || '',
             almacenDestino: movement.almacenDestino || '',
+            ubicacionDestino: movement.ubicacionDestino || '',
             destinoExterno: movement.destinoExterno || '',
             tipoTransferencia: movement.subtipo || 'Local',
             observaciones: movement.observaciones || '',
@@ -112,7 +120,9 @@ const TransferPage = () => {
             const extraData = {
                 numeroGuia: formData.numeroGuia,
                 transportista: formData.transportista,
-                destinoExterno: formData.destinoExterno
+                destinoExterno: formData.destinoExterno,
+                ubicacionOrigen: formData.ubicacionOrigen,
+                ubicacionDestino: formData.ubicacionDestino
             };
 
             const isLocal = formData.tipoTransferencia === 'Local';
@@ -242,40 +252,89 @@ const TransferPage = () => {
                         </div>
 
                         {/* ORIGEN */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                <Building2 size={16} /> Almacén Origen
-                            </label>
-                            <select
-                                className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
-                                value={formData.almacenOrigen}
-                                onChange={(e) => setFormData({ ...formData, almacenOrigen: e.target.value })}
-                                required
-                            >
-                                <option value="">Seleccione origen...</option>
-                                {almacenes.map(a => (
-                                    <option key={a} value={a}>{a}</option>
-                                ))}
-                            </select>
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                    <Building2 size={16} /> Almacén Origen
+                                </label>
+                                <select
+                                    className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={formData.almacenOrigen}
+                                    onChange={(e) => setFormData({ ...formData, almacenOrigen: e.target.value, ubicacionOrigen: '' })}
+                                    required
+                                >
+                                    <option value="">Seleccione origen...</option>
+                                    {almacenes.map(a => (
+                                        <option key={a} value={a}>{a}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {formData.almacenOrigen && (
+                                <div className="space-y-2 animate-in fade-in duration-300">
+                                    <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                        <MapPin size={16} /> Ubicación Origen
+                                    </label>
+                                    <select
+                                        className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                                        value={formData.ubicacionOrigen}
+                                        onChange={(e) => setFormData({ ...formData, ubicacionOrigen: e.target.value })}
+                                        required
+                                    >
+                                        <option value="">Seleccione ubicación...</option>
+                                        {getLocationsByWarehouse(formData.almacenOrigen).map(loc => (
+                                            <option key={loc.id} value={loc.codigo}>
+                                                {loc.codigo} ({loc.zona} - {loc.capacidadActual}/{loc.capacidadMax})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
 
                         {/* DESTINO */}
                         {formData.tipoTransferencia === 'Local' ? (
-                            <div className="space-y-2">
-                                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                    <Building2 size={16} /> Almacén Destino
-                                </label>
-                                <select
-                                    className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={formData.almacenDestino}
-                                    onChange={(e) => setFormData({ ...formData, almacenDestino: e.target.value })}
-                                    required
-                                >
-                                    <option value="">Seleccione destino...</option>
-                                    {almacenes.filter(a => a !== formData.almacenOrigen).map(a => (
-                                        <option key={a} value={a}>{a}</option>
-                                    ))}
-                                </select>
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                        <Building2 size={16} /> Almacén Destino
+                                    </label>
+                                    <select
+                                        className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                                        value={formData.almacenDestino}
+                                        onChange={(e) => setFormData({ ...formData, almacenDestino: e.target.value, ubicacionDestino: '' })}
+                                        required
+                                    >
+                                        <option value="">Seleccione destino...</option>
+                                        {almacenes.filter(a => a !== formData.almacenOrigen).map(a => (
+                                            <option key={a} value={a}>{a}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {formData.almacenDestino && (
+                                    <div className="space-y-2 animate-in fade-in duration-300">
+                                        <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                            <MapPin size={16} /> Ubicación Destino
+                                        </label>
+                                        <select
+                                            className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                                            value={formData.ubicacionDestino}
+                                            onChange={(e) => setFormData({ ...formData, ubicacionDestino: e.target.value })}
+                                            required
+                                        >
+                                            <option value="">Seleccione ubicación...</option>
+                                            {getLocationsByWarehouse(formData.almacenDestino)
+                                                .filter(loc => loc.estado === 'Disponible')
+                                                .map(loc => (
+                                                    <option key={loc.id} value={loc.codigo}>
+                                                        {loc.codigo} ({loc.zona} - {loc.capacidadActual}/{loc.capacidadMax})
+                                                    </option>
+                                                ))
+                                            }
+                                        </select>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="space-y-2">
@@ -391,13 +450,21 @@ const TransferPage = () => {
                                                 <div className="text-xs text-gray-400">{item.numeroGuia}</div>
                                             </td>
                                             <td className="p-4 font-medium text-gray-700">
-                                                {item.almacen}
+                                                <div>{item.almacen}</div>
+                                                <div className="text-xs text-indigo-600 flex items-center gap-1 font-bold">
+                                                    <MapPin size={10} /> {item.ubicacionOrigen || 'N/A'}
+                                                </div>
                                             </td>
                                             <td className="p-4 text-center text-gray-400">
                                                 →
                                             </td>
                                             <td className="p-4 font-medium text-gray-700">
-                                                {item.subtipo === 'Local' ? item.almacenDestino : item.destinoExterno}
+                                                <div>{item.subtipo === 'Local' ? item.almacenDestino : item.destinoExterno}</div>
+                                                {item.subtipo === 'Local' && (
+                                                    <div className="text-xs text-emerald-600 flex items-center gap-1 font-bold">
+                                                        <MapPin size={10} /> {item.ubicacionDestino || 'N/A'}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="p-4 text-center font-mono font-bold text-orange-600">
                                                 {item.cantidad}

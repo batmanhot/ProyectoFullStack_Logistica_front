@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useInventory } from '../../hooks/useInventory';
 import { usePartners } from '../../hooks/usePartners';
-import { Save, Truck, Box, Building2, Clipboard, Plus, Edit, Trash2, X, FileText, Calendar, Hash } from 'lucide-react';
+import { useLocations } from '../../context/LocationsContext';
+import { Save, Truck, Box, Building2, Clipboard, Plus, Edit, Trash2, X, FileText, Calendar, Hash, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const InboundPage = () => {
     const { catalog, almacenes, registrarMovimiento, movements, updateMovement, deleteMovement } = useInventory();
     const { getSuppliers } = usePartners();
+    const { getAvailableLocations } = useLocations();
     const suppliers = getSuppliers();
 
     // Estado para controlar la vista (Listado vs Formulario)
@@ -18,6 +20,7 @@ const InboundPage = () => {
         sku: '',
         cantidad: '',
         almacen: '',
+        ubicacion: '',
         proveedor: '',
         observaciones: '',
         tipoEntrada: '',
@@ -31,6 +34,7 @@ const InboundPage = () => {
             sku: '',
             cantidad: '',
             almacen: '',
+            ubicacion: '',
             proveedor: '',
             observaciones: '',
             tipoEntrada: '',
@@ -57,6 +61,7 @@ const InboundPage = () => {
             sku: movement.sku,
             cantidad: movement.cantidad,
             almacen: movement.almacen,
+            ubicacion: movement.ubicacion || '',
             proveedor: movement.proveedor || '',
             observaciones: movement.observaciones || '',
             tipoEntrada: movement.tipoEntrada || '',
@@ -95,7 +100,8 @@ const InboundPage = () => {
                 tipoEntrada: formData.tipoEntrada,
                 tipoDocumento: formData.tipoDocumento,
                 numeroDocumento: formData.numeroDocumento,
-                fechaDocumento: formData.fechaDocumento
+                fechaDocumento: formData.fechaDocumento,
+                ubicacion: formData.ubicacion
             };
 
             if (isEditing) {
@@ -187,7 +193,7 @@ const InboundPage = () => {
                             <select
                                 className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
                                 value={formData.almacen}
-                                onChange={(e) => setFormData({ ...formData, almacen: e.target.value })}
+                                onChange={(e) => setFormData({ ...formData, almacen: e.target.value, ubicacion: '' })}
                                 required
                             >
                                 <option value="">Seleccione ubicación...</option>
@@ -195,6 +201,29 @@ const InboundPage = () => {
                                     <option key={a} value={a}>{a}</option>
                                 ))}
                             </select>
+                        </div>
+
+                        {/* UBICACIÓN */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                <MapPin size={16} /> Ubicación
+                            </label>
+                            <select
+                                className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                                value={formData.ubicacion}
+                                onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
+                                disabled={!formData.almacen}
+                            >
+                                <option value="">Sin ubicación específica</option>
+                                {formData.almacen && getAvailableLocations(formData.almacen).map(loc => (
+                                    <option key={loc.id} value={loc.codigo}>
+                                        {loc.codigo} - {loc.zona} ({loc.capacidadActual}/{loc.capacidadMax})
+                                    </option>
+                                ))}
+                            </select>
+                            {formData.almacen && getAvailableLocations(formData.almacen).length === 0 && (
+                                <p className="text-xs text-orange-600">No hay ubicaciones disponibles en este almacén</p>
+                            )}
                         </div>
 
                         {/* NUEVOS CAMPOS: TIPOS */}

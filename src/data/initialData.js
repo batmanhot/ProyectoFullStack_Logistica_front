@@ -26,3 +26,21 @@ export const InitialTransporters = [
     { id: 1, nombre: 'EXPRESO MARVISUR', ruc: '20501234500', placa: 'V1Z-980', chofer: 'Juan Perez', telefono: '988-777-666', estado: 'Activo' },
     { id: 2, nombre: 'LOGISTICA RAPIDA SAC', ruc: '20109876544', placa: 'B4X-123', chofer: 'Carlos Lopez', telefono: '955-444-333', estado: 'Activo' }
 ];
+
+export const InitialLocations = [
+    // Almacén Central
+    { id: 1, almacen: 'Central', codigo: 'A-01-01', tipo: 'Estantería', zona: 'Picking', capacidadMax: 100, capacidadActual: 0, estado: 'Disponible', observaciones: '' },
+    { id: 2, almacen: 'Central', codigo: 'A-01-02', tipo: 'Estantería', zona: 'Picking', capacidadMax: 100, capacidadActual: 0, estado: 'Disponible', observaciones: '' },
+    { id: 3, almacen: 'Central', codigo: 'A-02-01', tipo: 'Estantería', zona: 'Picking', capacidadMax: 100, capacidadActual: 0, estado: 'Disponible', observaciones: '' },
+    { id: 4, almacen: 'Central', codigo: 'B-01-01', tipo: 'Rack', zona: 'Reserva', capacidadMax: 200, capacidadActual: 0, estado: 'Disponible', observaciones: '' },
+    { id: 5, almacen: 'Central', codigo: 'P-01', tipo: 'Piso', zona: 'Reserva', capacidadMax: 50, capacidadActual: 0, estado: 'Disponible', observaciones: 'Pallets en piso' },
+
+    // Almacén Norte
+    { id: 6, almacen: 'Norte', codigo: 'A-01-01', tipo: 'Estantería', zona: 'Picking', capacidadMax: 80, capacidadActual: 0, estado: 'Disponible', observaciones: '' },
+    { id: 7, almacen: 'Norte', codigo: 'A-01-02', tipo: 'Estantería', zona: 'Picking', capacidadMax: 80, capacidadActual: 0, estado: 'Disponible', observaciones: '' },
+    { id: 8, almacen: 'Norte', codigo: 'P-01', tipo: 'Piso', zona: 'Reserva', capacidadMax: 30, capacidadActual: 0, estado: 'Disponible', observaciones: '' },
+
+    // Almacén Sur
+    { id: 9, almacen: 'Sur', codigo: 'A-01-01', tipo: 'Estantería', zona: 'Picking', capacidadMax: 60, capacidadActual: 0, estado: 'Disponible', observaciones: '' },
+    { id: 10, almacen: 'Sur', codigo: 'P-01', tipo: 'Piso', zona: 'Reserva', capacidadMax: 40, capacidadActual: 0, estado: 'Disponible', observaciones: '' }
+];
