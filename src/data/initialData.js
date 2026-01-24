@@ -1,6 +1,7 @@
 export const InitialCatalog = [
-    { id: 1, sku: 'PROD-001', nombre: 'Pallets Plásticos HD', categoria: 'Almacenamiento', barcode: '7750001001', estado: 'Activo' },
-    { id: 2, sku: 'PROD-002', nombre: 'Film Stretch 50cm', categoria: 'Embalaje', barcode: '7750001002', estado: 'Activo' }
+    { id: 1, sku: 'PROD-001', nombre: 'Pallets Plásticos HD', categoria: 'Almacenamiento', barcode: '7750001001', estado: 'Activo', esPerecedero: false },
+    { id: 2, sku: 'PROD-002', nombre: 'Film Stretch 50cm', categoria: 'Embalaje', barcode: '7750001002', estado: 'Activo', esPerecedero: true },
+    { id: 3, sku: 'PROD-003', nombre: 'Insumo Químico X', categoria: 'Insumos', barcode: '7750001003', estado: 'Activo', esPerecedero: true }
 ];
 
 export const InitialWarehouses = ['Central', 'Norte', 'Sur', 'Virtual'];
@@ -19,7 +20,9 @@ export const InitialCategories = [
 ];
 
 export const InitialBatches = [
-    { id: 1, sku: 'PROD-002', numero: 'L-2024001', fechaVencimiento: '2025-12-31', cantidadOriginal: 100, cantidadActual: 100, estado: 'Vigente' }
+    { id: 1, sku: 'PROD-002', numero: 'L-2024001', fechaVencimiento: '2027-12-31', cantidadOriginal: 100, cantidadActual: 100, estado: 'Vigente' },
+    { id: 2, sku: 'PROD-002', numero: 'L-2024-EXP', fechaVencimiento: '2023-01-01', cantidadOriginal: 50, cantidadActual: 10, estado: 'Vencido' },
+    { id: 3, sku: 'PROD-003', numero: 'L-NEAR-01', fechaVencimiento: '2026-02-15', cantidadOriginal: 200, cantidadActual: 150, estado: 'Por Vencer' }
 ];
 
 export const InitialTransporters = [

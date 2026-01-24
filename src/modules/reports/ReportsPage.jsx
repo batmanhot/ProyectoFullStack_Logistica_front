@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, AreaChart, Area, Legend, PieChart, Pie } from 'recharts';
 import { useInventory } from '../../hooks/useInventory';
-import { LayoutDashboard, FileBarChart, AlertTriangle, History, Search, Download, ArrowRight, ArrowLeft, DollarSign, Package, Activity, AlertCircle } from 'lucide-react';
+import { useBatches } from '../../hooks/useBatches'; // Agregado
+import { LayoutDashboard, FileBarChart, AlertTriangle, History, Search, Download, ArrowRight, ArrowLeft, DollarSign, Package, Activity, AlertCircle, CalendarClock } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const ReportsPage = () => {
     const { products, movements, catalog, almacenes } = useInventory();
+    const { batches } = useBatches(); // Agregado
     const [activeTab, setActiveTab] = useState('dashboard'); // dashboard | stock | replenishment | kardex
 
     // --- KPIs y ANALÍTICA ---
@@ -63,8 +65,22 @@ const ReportsPage = () => {
         });
         const pieData = Object.entries(categoryDist).map(([name, value]) => ({ name, value }));
 
-        return { totalValue, totalUnits, lowStockCount, movementsThisMonth, trendData, topProducts, pieData };
-    }, [products, movements, catalog]);
+        // 7. Lotes por Vencer/Vencidos
+        const expiredBatchesCount = batches.filter(b => b.estado === 'Vencido').length;
+        const nearExpiryBatchesCount = batches.filter(b => b.estado === 'Por Vencer').length;
+
+        return {
+            totalValue,
+            totalUnits,
+            lowStockCount,
+            movementsThisMonth,
+            trendData,
+            topProducts,
+            pieData,
+            expiredBatchesCount,
+            nearExpiryBatchesCount
+        };
+    }, [products, movements, catalog, batches]);
 
     const COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899'];
 
@@ -174,11 +190,19 @@ const ReportsPage = () => {
 
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-500">Alertas Stock</p>
-                                <h3 className={`text-2xl font-bold ${dashboardMetrics.lowStockCount > 0 ? 'text-red-600' : 'text-gray-800'}`}>{dashboardMetrics.lowStockCount}</h3>
-                                <span className="text-xs text-red-500 mt-1 block">Requieren atención</span>
+                                <p className="text-sm font-medium text-gray-500">Lotes / Caducidad</p>
+                                <h3 className={`text-2xl font-bold ${dashboardMetrics.expiredBatchesCount > 0 ? 'text-red-600' : 'text-gray-800'}`}>
+                                    {dashboardMetrics.expiredBatchesCount} / {dashboardMetrics.nearExpiryBatchesCount}
+                                </h3>
+                                <div className="flex gap-2 mt-1">
+                                    <span className="text-[10px] text-red-500 font-bold uppercase">Vencidos</span>
+                                    <span className="text-[10px] text-gray-300">|</span>
+                                    <span className="text-[10px] text-orange-500 font-bold uppercase">Por Vencer</span>
+                                </div>
                             </div>
-                            <div className={`p-3 rounded-full ${dashboardMetrics.lowStockCount > 0 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-400'}`}><AlertCircle size={24} /></div>
+                            <div className={`p-3 rounded-full ${dashboardMetrics.expiredBatchesCount > 0 ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'}`}>
+                                <CalendarClock size={24} />
+                            </div>
                         </div>
                     </div>
 
@@ -283,7 +307,8 @@ const ReportsPage = () => {
                                     <th className="p-4">Almacén</th>
                                     <th className="p-4">Ubicación</th>
                                     <th className="p-4 text-center">Cantidad</th>
-                                    <th className="p-4">Estado</th>
+                                    <th className="p-4">Control Lotes</th>
+                                    <th className="p-4">Estado Stock</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -298,6 +323,22 @@ const ReportsPage = () => {
                                             </span>
                                         </td>
                                         <td className="p-4 text-center font-bold">{p.cantidad}</td>
+                                        <td className="p-4">
+                                            {(() => {
+                                                const productMaster = catalog.find(c => c.sku === p.sku);
+                                                if (!productMaster?.esPerecedero) return <span className="text-gray-400 italic text-xs">No aplica</span>;
+
+                                                const productBatches = batches.filter(b => b.sku === p.sku);
+                                                if (productBatches.length === 0) return <span className="text-gray-400 text-xs font-semibold px-2 py-1 bg-gray-100 rounded">Sin Lotes</span>;
+
+                                                const hasExpired = productBatches.some(b => b.estado === 'Vencido');
+                                                const hasNearExpiry = productBatches.some(b => b.estado === 'Por Vencer');
+
+                                                if (hasExpired) return <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-red-200">❌ Vencido</span>;
+                                                if (hasNearExpiry) return <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-orange-200">⚠️ Por Vencer</span>;
+                                                return <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-[10px] font-bold uppercase border border-green-200">✅ Vigente</span>;
+                                            })()}
+                                        </td>
                                         <td className="p-4">
                                             <span className={`px-2 py-1 rounded text-xs font-bold ${p.estado === 'Disponible' ? 'bg-green-100 text-green-700' :
                                                 p.estado === 'Stock Bajo' ? 'bg-yellow-100 text-yellow-700' :
