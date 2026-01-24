@@ -190,228 +190,253 @@ const TransferPage = () => {
                         </button>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <form onSubmit={handleSubmit} className="p-8 space-y-8 max-w-5xl mx-auto">
 
-                        {/* TIPO DE TRANSFERENCIA - RADIO BUTTONS */}
-                        <div className="md:col-span-2 flex gap-6 pb-4 border-b border-gray-100">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="tipoTransferencia"
-                                    value="Local"
-                                    checked={formData.tipoTransferencia === 'Local'}
-                                    onChange={() => setFormData({ ...formData, tipoTransferencia: 'Local' })}
-                                    className="w-4 h-4 text-orange-600 focus:ring-orange-500"
-                                />
-                                <span className="font-bold text-gray-700 flex items-center gap-1"><Building2 size={16} /> Interna / Local</span>
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="tipoTransferencia"
-                                    value="Externa"
-                                    checked={formData.tipoTransferencia === 'Externa'}
-                                    onChange={() => setFormData({ ...formData, tipoTransferencia: 'Externa' })}
-                                    className="w-4 h-4 text-orange-600 focus:ring-orange-500"
-                                />
-                                <span className="font-bold text-gray-700 flex items-center gap-1"><Globe size={16} /> Externa</span>
-                            </label>
-                        </div>
+                        {/* SECCIÓN 1: TIPO Y PRODUCTO */}
+                        <div className="bg-gray-200 p-6 rounded-xl border border-gray-300 space-y-4 shadow-sm">
+                            <h3 className="text-sm font-bold text-orange-700 uppercase tracking-wider flex items-center gap-2 mb-4">
+                                <Box size={18} /> Tipo y Producto
+                            </h3>
 
-                        {/* PRODUCTO */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                <Box size={16} /> Producto
-                            </label>
-                            <select
-                                className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
-                                value={formData.sku}
-                                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                                required
-                            >
-                                <option value="">Seleccione producto...</option>
-                                {catalog.map(item => (
-                                    <option key={item.id} value={item.sku}>
-                                        {item.sku} - {item.nombre}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
+                                {/* TIPO DE TRANSFERENCIA */}
+                                <div className="space-y-3">
+                                    <label className="text-sm font-semibold text-gray-700">Tipo de Movimiento</label>
+                                    <div className="flex gap-4 p-2 bg-white rounded-lg border shadow-sm">
+                                        <label className="flex items-center gap-2 cursor-pointer flex-1 justify-center py-1 rounded hover:bg-orange-50 transition-colors">
+                                            <input
+                                                type="radio"
+                                                name="tipoTransferencia"
+                                                value="Local"
+                                                checked={formData.tipoTransferencia === 'Local'}
+                                                onChange={() => setFormData({ ...formData, tipoTransferencia: 'Local' })}
+                                                className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                                            />
+                                            <span className="text-xs font-bold text-gray-700">Interna</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer flex-1 justify-center py-1 rounded hover:bg-orange-50 transition-colors">
+                                            <input
+                                                type="radio"
+                                                name="tipoTransferencia"
+                                                value="Externa"
+                                                checked={formData.tipoTransferencia === 'Externa'}
+                                                onChange={() => setFormData({ ...formData, tipoTransferencia: 'Externa' })}
+                                                className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                                            />
+                                            <span className="text-xs font-bold text-gray-700">Externa</span>
+                                        </label>
+                                    </div>
+                                </div>
 
-                        {/* CANTIDAD */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-700">Cantidad Transferida</label>
-                            <input
-                                type="number"
-                                className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                                value={formData.cantidad}
-                                onChange={(e) => setFormData({ ...formData, cantidad: e.target.value })}
-                                required
-                                min="1"
-                            />
-                        </div>
-
-                        {/* ORIGEN */}
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                    <Building2 size={16} /> Almacén Origen
-                                </label>
-                                <select
-                                    className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={formData.almacenOrigen}
-                                    onChange={(e) => setFormData({ ...formData, almacenOrigen: e.target.value, ubicacionOrigen: '' })}
-                                    required
-                                >
-                                    <option value="">Seleccione origen...</option>
-                                    {almacenes.map(a => (
-                                        <option key={a} value={a}>{a}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {formData.almacenOrigen && (
-                                <div className="space-y-2 animate-in fade-in duration-300">
-                                    <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                        <MapPin size={16} /> Ubicación Origen
-                                    </label>
+                                {/* PRODUCTO */}
+                                <div className="lg:col-span-2 space-y-2">
+                                    <label className="text-sm font-semibold text-gray-700">Producto / SKU</label>
                                     <select
-                                        className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
-                                        value={formData.ubicacionOrigen}
-                                        onChange={(e) => setFormData({ ...formData, ubicacionOrigen: e.target.value })}
+                                        className="w-full p-3 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
+                                        value={formData.sku}
+                                        onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                                         required
                                     >
-                                        <option value="">Seleccione ubicación...</option>
-                                        {getLocationsByWarehouse(formData.almacenOrigen).map(loc => (
-                                            <option key={loc.id} value={loc.codigo}>
-                                                {loc.codigo} ({loc.zona} - {loc.capacidadActual}/{loc.capacidadMax})
+                                        <option value="">Seleccione producto...</option>
+                                        {catalog.map(item => (
+                                            <option key={item.id} value={item.sku}>
+                                                {item.sku} - {item.nombre}
                                             </option>
                                         ))}
                                     </select>
                                 </div>
-                            )}
+
+                                {/* CANTIDAD */}
+                                <div className="space-y-2">
+                                    <label className="text-sm font-semibold text-gray-700">Cantidad</label>
+                                    <input
+                                        type="number"
+                                        className="w-full p-3 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
+                                        value={formData.cantidad}
+                                        onChange={(e) => setFormData({ ...formData, cantidad: e.target.value })}
+                                        required
+                                        min="1"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
-                        {/* DESTINO */}
-                        {formData.tipoTransferencia === 'Local' ? (
-                            <div className="space-y-4">
+                        {/* SECCIÓN 2: CONTROL DE UBICACIONES */}
+                        <div className="bg-gray-200 p-6 rounded-xl border border-gray-300 space-y-4 shadow-sm">
+                            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2 mb-4">
+                                <ArrowRightLeft size={18} /> Control de Ubicaciones (Origen ⮕ Destino)
+                            </h3>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {/* LADO IZQUIERDO: ORIGEN */}
+                                <div className="space-y-4 p-4 bg-white/50 rounded-lg border border-dashed border-gray-300">
+                                    <div className="flex items-center gap-2 text-orange-700 font-bold text-xs uppercase">
+                                        <Building2 size={14} /> Punto de Origen
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-gray-600">Almacén Origen</label>
+                                            <select
+                                                className="w-full p-3 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
+                                                value={formData.almacenOrigen}
+                                                onChange={(e) => setFormData({ ...formData, almacenOrigen: e.target.value, ubicacionOrigen: '' })}
+                                                required
+                                            >
+                                                <option value="">Seleccione origen...</option>
+                                                {almacenes.map(a => (
+                                                    <option key={a} value={a}>{a}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-gray-600">Ubicación Origen</label>
+                                            <select
+                                                className="w-full p-3 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
+                                                value={formData.ubicacionOrigen}
+                                                onChange={(e) => setFormData({ ...formData, ubicacionOrigen: e.target.value })}
+                                                required
+                                                disabled={!formData.almacenOrigen}
+                                            >
+                                                <option value="">Seleccione ubicación...</option>
+                                                {formData.almacenOrigen && getLocationsByWarehouse(formData.almacenOrigen).map(loc => (
+                                                    <option key={loc.id} value={loc.codigo}>
+                                                        {loc.codigo} ({loc.zona} - {loc.capacidadActual}/{loc.capacidadMax})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* LADO DERECHO: DESTINO */}
+                                <div className="space-y-4 p-4 bg-white/50 rounded-lg border border-dashed border-gray-300">
+                                    <div className="flex items-center gap-2 text-emerald-700 font-bold text-xs uppercase">
+                                        {formData.tipoTransferencia === 'Local' ? <Building2 size={14} /> : <Globe size={14} />}
+                                        Punto de Destino
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {formData.tipoTransferencia === 'Local' ? (
+                                            <>
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-bold text-gray-600">Almacén Destino</label>
+                                                    <select
+                                                        className="w-full p-3 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+                                                        value={formData.almacenDestino}
+                                                        onChange={(e) => setFormData({ ...formData, almacenDestino: e.target.value, ubicacionDestino: '' })}
+                                                        required
+                                                    >
+                                                        <option value="">Seleccione destino...</option>
+                                                        {almacenes.filter(a => a !== formData.almacenOrigen).map(a => (
+                                                            <option key={a} value={a}>{a}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-bold text-gray-600">Ubicación Destino</label>
+                                                    <select
+                                                        className="w-full p-3 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+                                                        value={formData.ubicacionDestino}
+                                                        onChange={(e) => setFormData({ ...formData, ubicacionDestino: e.target.value })}
+                                                        required
+                                                        disabled={!formData.almacenDestino}
+                                                    >
+                                                        <option value="">Seleccione ubicación...</option>
+                                                        {formData.almacenDestino && getLocationsByWarehouse(formData.almacenDestino)
+                                                            .filter(loc => loc.estado === 'Disponible')
+                                                            .map(loc => (
+                                                                <option key={loc.id} value={loc.codigo}>
+                                                                    {loc.codigo} ({loc.zona} - {loc.capacidadActual}/{loc.capacidadMax})
+                                                                </option>
+                                                            ))
+                                                        }
+                                                    </select>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-gray-600">Cliente / Destino Final</label>
+                                                <select
+                                                    className="w-full p-3 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-purple-500 shadow-sm"
+                                                    value={formData.destinoExterno}
+                                                    onChange={(e) => setFormData({ ...formData, destinoExterno: e.target.value })}
+                                                    required
+                                                >
+                                                    <option value="">Seleccione cliente...</option>
+                                                    {clients.filter(c => c.estado === 'Activo').map(c => (
+                                                        <option key={c.id} value={c.nombre}>
+                                                            {c.nombre}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* SECCIÓN 3: DATOS DE ENVÍO */}
+                        <div className="bg-gray-200 p-6 rounded-xl border border-gray-300 space-y-4 shadow-sm">
+                            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2 mb-4">
+                                <Truck size={18} /> Datos de Envío y Transporte
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                        <Building2 size={16} /> Almacén Destino
-                                    </label>
+                                    <label className="text-sm font-semibold text-gray-700">Guía de Remisión</label>
+                                    <input
+                                        type="text"
+                                        className="w-full p-3 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
+                                        placeholder="Ej: T001-2342"
+                                        value={formData.numeroGuia}
+                                        onChange={(e) => setFormData({ ...formData, numeroGuia: e.target.value })}
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-semibold text-gray-700">Transportista</label>
                                     <select
-                                        className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
-                                        value={formData.almacenDestino}
-                                        onChange={(e) => setFormData({ ...formData, almacenDestino: e.target.value, ubicacionDestino: '' })}
-                                        required
+                                        className="w-full p-3 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
+                                        value={formData.transportista}
+                                        onChange={(e) => setFormData({ ...formData, transportista: e.target.value })}
                                     >
-                                        <option value="">Seleccione destino...</option>
-                                        {almacenes.filter(a => a !== formData.almacenOrigen).map(a => (
-                                            <option key={a} value={a}>{a}</option>
+                                        <option value="">Seleccione transportista...</option>
+                                        {transporters.filter(t => t.estado === 'Activo').map(t => (
+                                            <option key={t.id} value={t.nombre}>
+                                                {t.nombre}
+                                            </option>
                                         ))}
                                     </select>
                                 </div>
 
-                                {formData.almacenDestino && (
-                                    <div className="space-y-2 animate-in fade-in duration-300">
-                                        <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                            <MapPin size={16} /> Ubicación Destino
-                                        </label>
-                                        <select
-                                            className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
-                                            value={formData.ubicacionDestino}
-                                            onChange={(e) => setFormData({ ...formData, ubicacionDestino: e.target.value })}
-                                            required
-                                        >
-                                            <option value="">Seleccione ubicación...</option>
-                                            {getLocationsByWarehouse(formData.almacenDestino)
-                                                .filter(loc => loc.estado === 'Disponible')
-                                                .map(loc => (
-                                                    <option key={loc.id} value={loc.codigo}>
-                                                        {loc.codigo} ({loc.zona} - {loc.capacidadActual}/{loc.capacidadMax})
-                                                    </option>
-                                                ))
-                                            }
-                                        </select>
-                                    </div>
-                                )}
+                                <div className="md:col-span-2 space-y-2">
+                                    <label className="text-sm font-semibold text-gray-700">Observaciones</label>
+                                    <textarea
+                                        className="w-full p-3 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
+                                        rows="2"
+                                        placeholder="Detalles adicionales sobre la transferencia..."
+                                        value={formData.observaciones}
+                                        onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
+                                    ></textarea>
+                                </div>
                             </div>
-                        ) : (
-                            <div className="space-y-2">
-                                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                    <Globe size={16} /> Destino Externo / Cliente
-                                </label>
-                                <select
-                                    className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={formData.destinoExterno}
-                                    onChange={(e) => setFormData({ ...formData, destinoExterno: e.target.value })}
-                                    required
-                                >
-                                    <option value="">Seleccione cliente...</option>
-                                    {clients.filter(c => c.estado === 'Activo').map(c => (
-                                        <option key={c.id} value={c.nombre}>
-                                            {c.nombre}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-
-                        {/* EXTRA DATA */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                <Hash size={16} /> Guía de Remisión
-                            </label>
-                            <input
-                                type="text"
-                                className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="Ej: T001-2342"
-                                value={formData.numeroGuia}
-                                onChange={(e) => setFormData({ ...formData, numeroGuia: e.target.value })}
-                            />
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                <Truck size={16} /> Transportista
-                            </label>
-                            <select
-                                className="w-full p-2.5 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
-                                value={formData.transportista}
-                                onChange={(e) => setFormData({ ...formData, transportista: e.target.value })}
-                            >
-                                <option value="">Seleccione transportista...</option>
-                                {transporters.filter(t => t.estado === 'Activo').map(t => (
-                                    <option key={t.id} value={t.nombre}>
-                                        {t.nombre}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="md:col-span-2 space-y-2">
-                            <label className="text-sm font-semibold text-gray-700">Observaciones</label>
-                            <textarea
-                                className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                                rows="2"
-                                value={formData.observaciones}
-                                onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
-                            ></textarea>
-                        </div>
-
-                        <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t mt-2">
+                        <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t">
                             <button
                                 type="button"
                                 onClick={handleCancel}
-                                className="px-6 py-2 rounded-lg text-gray-600 hover:bg-gray-100 font-medium transition-colors"
+                                className="order-2 sm:order-1 px-8 py-3 rounded-lg text-gray-600 hover:bg-gray-100 font-medium transition-colors"
                             >
                                 Cancelar
                             </button>
                             <button
                                 type="submit"
-                                className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-2 rounded-lg flex items-center gap-2 font-bold transition-all shadow-lg"
+                                className="order-1 sm:order-2 bg-orange-600 hover:bg-orange-700 text-white px-10 py-3 rounded-lg flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-orange-100"
                             >
-                                <Save size={18} /> {isEditing ? 'Actualizar Op.' : 'Procesar Transferencia'}
+                                <Save size={18} /> {isEditing ? 'Actualizar Operación' : 'Procesar Transferencia'}
                             </button>
                         </div>
                     </form>

@@ -185,199 +185,214 @@ const OutboundPage = () => {
                         </button>
                     </div>
 
-                    <form onSubmit={handleSalida} className="space-y-6 max-w-3xl mx-auto">
-                        {/* grid grid-cols-1 md:grid-cols-2 gap-6 */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {/* SELECCIÓN DE ALMACÉN DE ORIGEN */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
-                                    <Building2 size={16} /> Almacén de Origen
-                                </label>
-                                <select
-                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none bg-white"
-                                    value={formData.almacen}
-                                    onChange={(e) => setFormData({ ...formData, almacen: e.target.value })}
-                                    required
-                                >
-                                    <option value="">Seleccione el almacén...</option>
-                                    {almacenes.map(a => <option key={a} value={a}>{a}</option>)}
-                                </select>
-                            </div>
+                    <form onSubmit={handleSalida} className="space-y-8 max-w-4xl mx-auto">
 
-                            {/* SKU DEL PRODUCTO */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
-                                    <Box size={16} /> SKU del Producto
-                                </label>
-                                <select
-                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none bg-white"
-                                    value={formData.sku}
-                                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                                    required
-                                >
-                                    <option value="">Seleccione Producto...</option>
-                                    {catalog?.map(p => (
-                                        <option key={p.sku} value={p.sku}>
-                                            {p.sku} - {p.nombre}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                        {/* SECCIÓN 1: ORIGEN Y PRODUCTO */}
+                        <div className="bg-gray-200 p-6 rounded-xl border border-gray-100 space-y-4">
+                            <h3 className="text-sm font-bold text-red-700 uppercase tracking-wider flex items-center gap-2 mb-4">
+                                <Box size={18} /> Origen y Producto
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {/* SELECCIÓN DE ALMACÉN DE ORIGEN */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                        Almacén de Origen
+                                    </label>
+                                    <select
+                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none bg-white shadow-sm"
+                                        value={formData.almacen}
+                                        onChange={(e) => setFormData({ ...formData, almacen: e.target.value })}
+                                        required
+                                    >
+                                        <option value="">Seleccione el almacén...</option>
+                                        {almacenes.map(a => <option key={a} value={a}>{a}</option>)}
+                                    </select>
+                                </div>
 
-                            {/* UBICACIÓN DE ORIGEN */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
-                                    <MapPin size={16} /> Ubicación de Retiro
-                                </label>
-                                <select
-                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none bg-white"
-                                    value={formData.ubicacion}
-                                    onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
-                                    disabled={!formData.almacen || !formData.sku}
-                                >
-                                    <option value="">Sin ubicación específica</option>
-                                    {formData.almacen && formData.sku &&
-                                        products
-                                            .filter(p => p.almacen === formData.almacen && p.sku === formData.sku && p.cantidad > 0)
-                                            .map((p, idx) => {
-                                                if (!p.ubicacion || p.ubicacion.trim() === '') {
+                                {/* SKU DEL PRODUCTO */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                        Producto (SKU)
+                                    </label>
+                                    <select
+                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none bg-white shadow-sm"
+                                        value={formData.sku}
+                                        onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                                        required
+                                    >
+                                        <option value="">Seleccione Producto...</option>
+                                        {catalog?.map(p => (
+                                            <option key={p.sku} value={p.sku}>
+                                                {p.sku} - {p.nombre}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* UBICACIÓN DE ORIGEN */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                        Ubicación de Retiro
+                                    </label>
+                                    <select
+                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none bg-white shadow-sm"
+                                        value={formData.ubicacion}
+                                        onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
+                                        disabled={!formData.almacen || !formData.sku}
+                                    >
+                                        <option value="">Sin ubicación específica</option>
+                                        {formData.almacen && formData.sku &&
+                                            products
+                                                .filter(p => p.almacen === formData.almacen && p.sku === formData.sku && p.cantidad > 0)
+                                                .map((p, idx) => {
+                                                    if (!p.ubicacion || p.ubicacion.trim() === '') {
+                                                        return (
+                                                            <option key={idx} value="">
+                                                                Stock General - {p.cantidad} u.
+                                                            </option>
+                                                        );
+                                                    }
+                                                    const loc = locations.find(l => l.codigo === p.ubicacion && l.almacen === p.almacen);
                                                     return (
-                                                        <option key={idx} value="">
-                                                            Stock General (Sin ubicación asignada) - {p.cantidad} u.
+                                                        <option key={idx} value={p.ubicacion}>
+                                                            {p.ubicacion} - {loc?.zona || 'N/A'} ({p.cantidad} u.)
                                                         </option>
                                                     );
-                                                }
-                                                const loc = locations.find(l => l.codigo === p.ubicacion && l.almacen === p.almacen);
-                                                return (
-                                                    <option key={idx} value={p.ubicacion}>
-                                                        {p.ubicacion} - {loc?.zona || 'N/A'} ({p.cantidad} u.)
-                                                    </option>
-                                                );
-                                            })
-                                    }
-                                </select>
-                                {formData.almacen && formData.sku &&
-                                    products.filter(p => p.almacen === formData.almacen && p.sku === formData.sku && p.cantidad > 0).length === 0 && (
-                                        <p className="text-xs text-red-600 mt-1">⚠️ No hay stock disponible de este producto en este almacén</p>
-                                    )}
+                                                })
+                                        }
+                                    </select>
+                                    {formData.almacen && formData.sku &&
+                                        products.filter(p => p.almacen === formData.almacen && p.sku === formData.sku && p.cantidad > 0).length === 0 && (
+                                            <p className="text-xs text-red-600 mt-1 italic">⚠️ Sin stock disponible en este almacén</p>
+                                        )}
+                                </div>
                             </div>
                         </div>
 
+                        {/* SECCIÓN 2: DOCUMENTACIÓN */}
+                        {/* <div className="bg-gray-50/50 p-6 rounded-xl border border-gray-100 space-y-4"> */}
+                        <div className="bg-gray-200 p-6 rounded-xl border border-gray-100 space-y-4">
+                            <h3 className="text-sm font-bold text-blue-700 uppercase tracking-wider flex items-center gap-2 mb-4">
+                                <FileText size={18} /> Documentación
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                        Tipo de Salida
+                                    </label>
+                                    <select
+                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white shadow-sm"
+                                        value={formData.tipoSalida}
+                                        onChange={(e) => setFormData({ ...formData, tipoSalida: e.target.value })}
+                                    >
+                                        <option value="">Seleccione...</option>
+                                        <option value="Venta">Venta</option>
+                                        <option value="Transferencia">Transferencia</option>
+                                        <option value="Merma">Merma</option>
+                                        <option value="Devolución">Devolución a Prov.</option>
+                                        <option value="Uso Interno">Uso Interno</option>
+                                    </select>
+                                </div>
 
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                        Tipo de Documento
+                                    </label>
+                                    <select
+                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white shadow-sm"
+                                        value={formData.tipoDocumento}
+                                        onChange={(e) => setFormData({ ...formData, tipoDocumento: e.target.value })}
+                                    >
+                                        <option value="">Seleccione...</option>
+                                        <option value="Guía de Remisión">Guía de Remisión</option>
+                                        <option value="Factura">Factura</option>
+                                        <option value="Boleta">Boleta</option>
+                                        <option value="Nota de Salida">Nota de Salida</option>
+                                        <option value="Ticket">Ticket</option>
+                                    </select>
+                                </div>
 
-                        {/* NUEVOS CAMPOS: TIPOS */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
-                                    <FileText size={16} /> Tipo de Salida
-                                </label>
-                                <select
-                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none bg-white"
-                                    value={formData.tipoSalida}
-                                    onChange={(e) => setFormData({ ...formData, tipoSalida: e.target.value })}
-                                >
-                                    <option value="">Seleccione tipo...</option>
-                                    <option value="Venta">Venta</option>
-                                    <option value="Transferencia">Transferencia</option>
-                                    <option value="Merma">Merma</option>
-                                    <option value="Devolución a Proveedor">Devolución a Proveedor</option>
-                                    <option value="Uso Interno">Uso Interno</option>
-                                </select>
-                            </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                        N° Documento
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none shadow-sm bg-white"
+                                        placeholder="Ej: 001-00432"
+                                        value={formData.numeroDocumento}
+                                        onChange={(e) => setFormData({ ...formData, numeroDocumento: e.target.value })}
+                                    />
+                                </div>
 
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
-                                    <FileText size={16} /> Tipo de Documento
-                                </label>
-                                <select
-                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none bg-white"
-                                    value={formData.tipoDocumento}
-                                    onChange={(e) => setFormData({ ...formData, tipoDocumento: e.target.value })}
-                                >
-                                    <option value="">Seleccione documento...</option>
-                                    <option value="Guía de Remisión">Guía de Remisión</option>
-                                    <option value="Factura">Factura</option>
-                                    <option value="Boleta">Boleta</option>
-                                    <option value="Nota de Salida">Nota de Salida</option>
-                                    <option value="Ticket">Ticket</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* DOCUMENTO INFO */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
-                                    <Hash size={16} /> Número Documento
-                                </label>
-                                <input
-                                    type="text"
-                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
-                                    placeholder="Ej: 001-00432"
-                                    value={formData.numeroDocumento}
-                                    onChange={(e) => setFormData({ ...formData, numeroDocumento: e.target.value })}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
-                                    <Calendar size={16} /> Fecha Documento
-                                </label>
-                                <input
-                                    type="date"
-                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
-                                    value={formData.fechaDocumento}
-                                    onChange={(e) => setFormData({ ...formData, fechaDocumento: e.target.value })}
-                                />
-                            </div>
-                        </div>
-
-                        {/* CANTIDAD Y DESTINO */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1">Cantidad</label>
-                                <input
-                                    type="number"
-                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
-                                    placeholder="0"
-                                    value={formData.cantidad}
-                                    onChange={(e) => setFormData({ ...formData, cantidad: e.target.value })}
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
-                                    <User size={16} /> Cliente / Destino
-                                </label>
-                                <select
-                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none bg-white"
-                                    value={formData.destino}
-                                    onChange={(e) => setFormData({ ...formData, destino: e.target.value })}
-                                    required
-                                >
-                                    <option value="">Seleccione cliente...</option>
-                                    {clients.map(c => (
-                                        <option key={c.id} value={c.nombre}>
-                                            {c.nombre}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                        Fecha Documento
+                                    </label>
+                                    <input
+                                        type="date"
+                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none shadow-sm bg-white"
+                                        value={formData.fechaDocumento}
+                                        onChange={(e) => setFormData({ ...formData, fechaDocumento: e.target.value })}
+                                    />
+                                </div>
                             </div>
                         </div>
 
-                        <div className="flex justify-end gap-3 pt-4">
+                        {/* SECCIÓN 3: INFORMACIÓN DE ENTREGA */}
+                        {/* <div className="bg-gray-50/50 p-6 rounded-xl border border-gray-100 space-y-4"> */}
+                        <div className="bg-gray-200 p-6 rounded-xl border border-gray-100 space-y-4">
+                            <h3 className="text-sm font-bold text-green-700 uppercase tracking-wider flex items-center gap-2 mb-4">
+                                <User size={18} /> Información de Entrega
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                        Cantidad a Despachar
+                                    </label>
+                                    <input
+                                        type="number"
+                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none shadow-sm bg-white"
+                                        placeholder="0"
+                                        value={formData.cantidad}
+                                        onChange={(e) => setFormData({ ...formData, cantidad: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                        Cliente / Destino Final
+                                    </label>
+                                    <select
+                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-white shadow-sm"
+                                        value={formData.destino}
+                                        onChange={(e) => setFormData({ ...formData, destino: e.target.value })}
+                                        required
+                                    >
+                                        <option value="">Seleccione cliente...</option>
+                                        {clients.map(c => (
+                                            <option key={c.id} value={c.nombre}>
+                                                {c.nombre}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4">
                             <button
                                 type="button"
                                 onClick={handleCancel}
-                                className="px-6 py-3 rounded-lg text-gray-600 hover:bg-gray-100 font-medium transition-colors"
+                                className="order-2 sm:order-1 px-6 py-3 rounded-lg text-gray-600 hover:bg-gray-100 font-medium transition-colors"
                             >
                                 Cancelar
                             </button>
                             <button
                                 type="submit"
-                                className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg flex items-center gap-2 font-bold transition-all shadow-lg shadow-red-100"
+                                className="order-1 sm:order-2 bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-red-100"
                             >
-                                <Send size={18} /> {isEditing ? 'Actualizar Salida' : 'Confirmar Salida'}
+                                <Send size={18} /> {isEditing ? 'Actualizar Orden' : 'Confirmar Salida'}
                             </button>
                         </div>
                     </form>
