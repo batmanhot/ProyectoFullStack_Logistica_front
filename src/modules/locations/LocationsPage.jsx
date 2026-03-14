@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useLocations } from '../../context/LocationsContext';
+import { useLocations } from '../../context/useLocations';
 import { MapPin, Plus, Edit, Trash2, X, Save, Building2, Package, AlertCircle, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -119,7 +119,7 @@ const LocationsPage = () => {
                 toast.success('Ubicación creada');
             }
             handleCancel();
-        } catch (error) {
+        } catch {
             toast.error('Error al guardar ubicación');
         }
     };

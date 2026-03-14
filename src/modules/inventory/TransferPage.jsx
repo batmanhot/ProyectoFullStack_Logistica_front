@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useInventory } from '../../hooks/useInventory';
 import { useTransporters } from '../../hooks/useTransporters';
 import { usePartners } from '../../hooks/usePartners';
-import { useLocations } from '../../context/LocationsContext';
+import { useLocations } from '../../context/useLocations';
 import { Save, ArrowRightLeft, Box, Building2, Clipboard, Plus, Edit, Trash2, X, FileText, Calendar, Hash, Globe, Truck, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -10,7 +10,7 @@ const TransferPage = () => {
     const { catalog, almacenes, registrarTransferencia, movements, updateMovement, deleteMovement } = useInventory();
     const { transporters } = useTransporters();
     const { getClients } = usePartners();
-    const { locations, getLocationsByWarehouse } = useLocations();
+    const { getLocationsByWarehouse } = useLocations();
     const clients = getClients();
 
     // Estado para controlar la vista (Listado vs Formulario)
@@ -151,8 +151,8 @@ const TransferPage = () => {
                 toast.success(`Transferencia registrada: ${formData.cantidad} unidades`);
             }
             handleCancel();
-        } catch (error) {
-            console.error(error);
+        } catch {
+            // TODO: reemplazar por logger centralizado al integrar backend
             toast.error("Error al procesar transferencia");
         }
     };

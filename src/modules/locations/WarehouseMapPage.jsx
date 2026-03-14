@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useLocations } from '../../context/LocationsContext';
+import { useLocations } from '../../context/useLocations';
 import { useInventory } from '../../hooks/useInventory';
 import { MapPin, Building2, Package, Search, Grid3x3, List } from 'lucide-react';
 

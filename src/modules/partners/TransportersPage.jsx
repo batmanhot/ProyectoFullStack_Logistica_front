@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTransporters } from '../../hooks/useTransporters';
-import { Truck, Plus, Edit, Trash2, X, Search, Phone, CreditCard, User, Tag } from 'lucide-react';
+import { Truck, Plus, Edit, Trash2, X, Search, Phone, CreditCard, User, Tag, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const TransportersPage = () => {
@@ -51,6 +51,13 @@ const TransportersPage = () => {
         resetForm();
     };
 
+    const handleReset = () => {
+        if (window.confirm('¿Resetear datos de transportistas? Esto restaurará los datos iniciales.')) {
+            localStorage.removeItem('logi_transporters');
+            window.location.reload();
+        }
+    };
+
     const filteredTransporters = transporters.filter(t =>
         t.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.ruc.includes(searchTerm) ||
@@ -63,12 +70,21 @@ const TransportersPage = () => {
                 <h1 className="text-2xl font-bold flex items-center gap-2 text-gray-800">
                     <Truck className="text-blue-600" /> Catálogo de Transportistas
                 </h1>
-                <button
-                    onClick={() => setIsCreating(true)}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm"
-                >
-                    <Plus size={18} /> Registrar Transportista
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleReset}
+                        className="flex items-center gap-2 bg-gray-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-600 transition-colors shadow-sm"
+                        title="Resetear datos iniciales"
+                    >
+                        <RotateCcw size={18} /> Reset
+                    </button>
+                    <button
+                        onClick={() => setIsCreating(true)}
+                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm"
+                    >
+                        <Plus size={18} /> Registrar Transportista
+                    </button>
+                </div>
             </div>
 
             {/* BUSCADOR */}
@@ -183,44 +199,54 @@ const TransportersPage = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y">
-                        {filteredTransporters.map(t => (
-                            <tr key={t.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="p-4 font-bold text-gray-800">{t.nombre}</td>
-                                <td className="p-4 text-gray-600 font-mono">{t.ruc}</td>
-                                <td className="p-4">
-                                    <span className="bg-gray-100 px-2 py-1 rounded font-bold border border-gray-200">
-                                        {t.placa}
-                                    </span>
-                                </td>
-                                <td className="p-4 flex items-center gap-2">
-                                    <User size={14} className="text-gray-400" />
-                                    {t.chofer || '-'}
-                                </td>
-                                <td className="p-4">
-                                    {t.telefono && (
-                                        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                                            <Phone size={12} /> {t.telefono}
-                                        </div>
-                                    )}
-                                </td>
-                                <td className="p-4 text-center">
-                                    <div className="flex justify-center gap-2">
-                                        <button
-                                            onClick={() => handleEdit(t)}
-                                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                                        >
-                                            <Edit size={18} />
-                                        </button>
-                                        <button
-                                            onClick={() => { if (window.confirm('¿Eliminar transportista?')) deleteTransporter(t.id); }}
-                                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </div>
+                        {filteredTransporters.length === 0 ? (
+                            <tr>
+                                <td colSpan="6" className="p-8 text-center text-gray-500">
+                                    <Truck size={48} className="mx-auto mb-4 text-gray-300" />
+                                    <p className="text-lg font-medium">No hay transportistas registrados</p>
+                                    <p className="text-sm">Haz clic en "Registrar Transportista" para agregar el primero</p>
                                 </td>
                             </tr>
-                        ))}
+                        ) : (
+                            filteredTransporters.map(t => (
+                                <tr key={t.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="p-4 font-bold text-gray-800">{t.nombre}</td>
+                                    <td className="p-4 text-gray-600 font-mono">{t.ruc}</td>
+                                    <td className="p-4">
+                                        <span className="bg-gray-100 px-2 py-1 rounded font-bold border border-gray-200">
+                                            {t.placa}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 flex items-center gap-2">
+                                        <User size={14} className="text-gray-400" />
+                                        {t.chofer || '-'}
+                                    </td>
+                                    <td className="p-4">
+                                        {t.telefono && (
+                                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                                <Phone size={12} /> {t.telefono}
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="p-4 text-center">
+                                        <div className="flex justify-center gap-2">
+                                            <button
+                                                onClick={() => handleEdit(t)}
+                                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                            >
+                                                <Edit size={18} />
+                                            </button>
+                                            <button
+                                                onClick={() => { if (window.confirm('¿Eliminar transportista?')) deleteTransporter(t.id); }}
+                                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>

@@ -5,8 +5,7 @@ import { Plus, Search, Barcode, Trash2, Edit, Building2, Tag, ChevronLeft, Chevr
 import toast from 'react-hot-toast';
 
 const CatalogPage = () => {
-    // Agregamos almacenes y products desde el hook para los filtros
-    const { catalog, setCatalog, almacenes, products } = useInventory();
+    const { catalog, addProductToCatalog, updateProductInCatalog, deleteProductFromCatalog, almacenes, products } = useInventory();
     const { categories } = useCategories();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterAlmacen, setFilterAlmacen] = useState('Todos');
@@ -57,20 +56,13 @@ const CatalogPage = () => {
         };
 
         if (isEditing) {
-            // ACTUALIZAR
-            const updatedCatalog = catalog.map(p =>
-                p.id === editId ? { ...productData, id: editId } : p
-            );
-            setCatalog(updatedCatalog);
+            // ACTUALIZAR — usa la función del Context
+            updateProductInCatalog(editId, { ...productData, id: editId });
             toast.success("Producto actualizado correctamente");
             cancelEdit();
         } else {
-            // CREAR
-            const nuevoProducto = {
-                ...productData,
-                id: Date.now()
-            };
-            setCatalog([...catalog, nuevoProducto]);
+            // CREAR — usa la función del Context (genera UUID internamente)
+            addProductToCatalog(productData);
             toast.success("Producto añadido al catálogo maestro");
             resetForm();
         }
@@ -96,18 +88,10 @@ const CatalogPage = () => {
 
     const deleteProduct = (id) => {
         if (window.confirm("¿Está seguro de eliminar este producto?")) {
-            setCatalog(catalog.filter(p => p.id !== id));
+            deleteProductFromCatalog(id);
             toast.success("Producto eliminado del catálogo");
-
-            // Si eliminamos el último item de una página, retrocedemos
-            // Nota: usamos filteredCatalog en lugar de currentItems porque currentItems aún no se ha re-renderizado
-            const currentFiltered = filteredCatalog || []; // filteredCatalog es recalculado en render, pero aquí podemos aproximar
-            // Mejor: chequeamos después en render, o simplemente ajustamos si el índice se sale.
-            // Para simplicidad, si currentItems es 1, bajamos página.
-            // Accedemos al estado anterior de la UI... es safer:
+            // Si era el último item de la página actual, retrocedemos una página
             if (currentPage > 1) {
-                // Si era el único elemento, al borrarlo, esa página queda vacía.
-                // Calcular items en esta página antes de borrarlo requeriría mas logica.
                 // No es crítico para el MVP.
             }
         }

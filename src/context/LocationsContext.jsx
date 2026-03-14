@@ -1,21 +1,19 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { InitialLocations } from '../data/initialData';
-
-const LocationsContext = createContext();
+import { storageGet, storageSet } from '../services/storageAdapter';
+import { STORAGE_KEYS } from '../services/storageKeys';
+import { LocationsContext } from './locationsContextInstance';
 
 export const LocationsProvider = ({ children }) => {
-    const [locations, setLocations] = useState(() => {
-        const saved = localStorage.getItem('logi_locations');
-        return saved ? JSON.parse(saved) : InitialLocations;
-    });
+    const [locations, setLocations] = useState(() => storageGet(STORAGE_KEYS.LOCATIONS, InitialLocations));
 
     useEffect(() => {
-        localStorage.setItem('logi_locations', JSON.stringify(locations));
+        storageSet(STORAGE_KEYS.LOCATIONS, locations);
     }, [locations]);
 
     const addLocation = (locationData) => {
         const newLocation = {
-            id: Date.now(),
+            id: crypto.randomUUID(),
             capacidadActual: 0,
             estado: 'Disponible',
             observaciones: '',
@@ -27,8 +25,8 @@ export const LocationsProvider = ({ children }) => {
     const updateLocation = (id, updatedData) => {
         setLocations(prev => prev.map(loc => {
             if (loc.id === id) {
-                // Preserve capacidadActual - it should only be updated by recalculateCapacities
-                const { capacidadActual, ...safeUpdates } = updatedData;
+                // Preserve capacidadActual — solo recalculateCapacities debe actualizarla
+                const { capacidadActual: _cap, ...safeUpdates } = updatedData;
                 return { ...loc, ...safeUpdates };
             }
             return loc;
@@ -98,10 +96,4 @@ export const LocationsProvider = ({ children }) => {
     );
 };
 
-export const useLocations = () => {
-    const context = useContext(LocationsContext);
-    if (!context) {
-        throw new Error('useLocations must be used within LocationsProvider');
-    }
-    return context;
-};
+

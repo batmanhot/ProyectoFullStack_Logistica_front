@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useInventory } from '../../hooks/useInventory';
 import { usePartners } from '../../hooks/usePartners';
-import { useLocations } from '../../context/LocationsContext';
+import { useLocations } from '../../context/useLocations';
 import { Save, Truck, Box, Building2, Clipboard, Plus, Edit, Trash2, X, FileText, Calendar, Hash, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -126,8 +126,8 @@ const InboundPage = () => {
                 toast.success(`Ingreso registrado: +${formData.cantidad} unidades`);
             }
             handleCancel(); // Regresar al listado
-        } catch (error) {
-            console.error(error);
+        } catch {
+            // TODO: reemplazar por logger centralizado al integrar backend
             toast.error("Error al procesar");
         }
     };

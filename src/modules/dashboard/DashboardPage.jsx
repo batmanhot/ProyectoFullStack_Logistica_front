@@ -1,52 +1,49 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useInventory } from '../../hooks/useInventory';
-import { Package, Building2, AlertTriangle, TrendingUp, TrendingDown, Clock, Activity, ArrowRight, Award, ChevronDown } from 'lucide-react';
+import { Package, Building2, AlertTriangle, TrendingUp, Clock, Activity, ArrowRight, Award, ChevronDown } from 'lucide-react';
 import StatCard from '../../components/ui/StatCard';
 import { Link } from 'react-router-dom';
 
 const DashboardPage = () => {
-    const { products, movements, almacenes, catalog } = useInventory(); // Importamos catalog para tener nombres completos si necesario
+    const { products, movements, almacenes, catalog } = useInventory();
 
-    // --- CÁLCULOS KPI ---
-    const totalSoles = products.reduce((acc, item) => {
-        const price = item.precioPEN || 0;
-        return acc + (item.cantidad * price);
-    }, 0);
-    const totalUnidades = products.reduce((acc, item) => acc + item.cantidad, 0);
-    const lowStockCount = products.filter(p => p.estado === 'Stock Bajo').length;
-    const outOfStockCount = products.filter(p => p.estado === 'Agotado').length;
+    // --- CÁLCULOS KPI — memorizados para no recalcular en cada render ---
+    const kpis = useMemo(() => {
+        const totalSoles    = products.reduce((acc, item) => acc + (item.cantidad * (item.precioPEN || 0)), 0);
+        const totalUnidades = products.reduce((acc, item) => acc + item.cantidad, 0);
+        const lowStockCount  = products.filter(p => p.estado === 'Stock Bajo').length;
+        const outOfStockCount = products.filter(p => p.estado === 'Agotado').length;
+        return { totalSoles, totalUnidades, lowStockCount, outOfStockCount };
+    }, [products]);
 
-    // --- ESTADÍSTICAS DE VENTAS ---
-    // 1. Agrupar salidas por SKU
-    const salesBySku = movements
-        .filter(m => m.tipo === 'salida')
-        .reduce((acc, m) => {
-            acc[m.sku] = (acc[m.sku] || 0) + m.cantidad;
-            return acc;
-        }, {});
+    // --- ESTADÍSTICAS DE VENTAS — memorizadas ---
+    const { bestSellers, leastSellers } = useMemo(() => {
+        const salesBySku = movements
+            .filter(m => m.tipo === 'salida')
+            .reduce((acc, m) => {
+                acc[m.sku] = (acc[m.sku] || 0) + m.cantidad;
+                return acc;
+            }, {});
 
-    // 2. Crear array de rendimiento incluyendo productos con 0 ventas (del catálogo)
-    // Usamos 'products' como base para nombres, o 'catalog' si queremos incluir TODO lo definido.
-    // Usaremos 'catalog' para ser más exhaustivos con "Lo menos vendido".
-    // Nota: 'products' es stock actual, 'catalog' es la definición maestra.
+        const performanceList = (catalog || []).map(item => ({
+            sku:       item.sku,
+            nombre:    item.nombre,
+            totalSold: salesBySku[item.sku] || 0,
+        }));
 
-    const performanceList = (catalog || []).map(item => {
-        const totalSold = salesBySku[item.sku] || 0;
         return {
-            sku: item.sku,
-            nombre: item.nombre,
-            totalSold: totalSold
+            bestSellers:  [...performanceList].sort((a, b) => b.totalSold - a.totalSold).slice(0, 3),
+            leastSellers: [...performanceList].sort((a, b) => a.totalSold - b.totalSold).slice(0, 3),
         };
-    });
+    }, [movements, catalog]);
 
-    // 3. Ordenar
-    const bestSellers = [...performanceList].sort((a, b) => b.totalSold - a.totalSold).slice(0, 3);
-    const leastSellers = [...performanceList].sort((a, b) => a.totalSold - b.totalSold).slice(0, 3);
-
-    // --- MOVIMIENTOS RECIENTES (Últimos 10) ---
-    const recentMovements = [...movements]
-        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
-        .slice(0, 10);
+    // --- MOVIMIENTOS RECIENTES — memorizados ---
+    const recentMovements = useMemo(() =>
+        [...movements]
+            .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+            .slice(0, 10),
+        [movements]
+    );
 
     return (
         <div className="space-y-6">
@@ -59,7 +56,7 @@ const DashboardPage = () => {
                 <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-6 rounded-2xl shadow-lg text-white">
                     <p className="text-blue-100 text-sm font-medium">Valor Inventario (PEN)</p>
                     <h3 className="text-3xl font-bold mt-2">
-                        S/ {totalSoles.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        S/ {kpis.totalSoles.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </h3>
                     <p className="text-xs text-blue-200 mt-2 flex items-center gap-1">
                         <TrendingUp size={14} /> Total valorizado actual
@@ -68,21 +65,21 @@ const DashboardPage = () => {
 
                 <StatCard
                     title="Unidades en Stock"
-                    value={totalUnidades.toLocaleString()}
+                    value={kpis.totalUnidades.toLocaleString()}
                     icon={<Package className="text-blue-600" />}
                     color="bg-blue-50"
                 />
 
                 <StatCard
                     title="Alertas Stock Bajo"
-                    value={lowStockCount}
+                    value={kpis.lowStockCount}
                     icon={<AlertTriangle className="text-orange-500" />}
                     color="bg-orange-50"
                 />
 
                 <StatCard
                     title="Productos Agotados"
-                    value={outOfStockCount}
+                    value={kpis.outOfStockCount}
                     icon={<AlertTriangle className="text-red-500" />}
                     color="bg-red-50"
                 />

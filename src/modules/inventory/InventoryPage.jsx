@@ -15,6 +15,14 @@ import {
 } from 'lucide-react';
 import StatCard from '../../components/ui/StatCard';
 
+// Declarado fuera del componente padre para evitar re-creación en cada render
+const SortIcon = ({ columnKey, sortConfig }) => {
+    if (sortConfig.key !== columnKey) return <ArrowUpDown size={14} className="text-gray-400 ml-2 inline" />;
+    return sortConfig.direction === 'ascending'
+        ? <ArrowUp size={14} className="text-blue-600 ml-2 inline" />
+        : <ArrowDown size={14} className="text-blue-600 ml-2 inline" />;
+};
+
 const InventoryPage = () => {
 
     const { products, almacenes, catalog } = useInventory();
@@ -126,14 +134,6 @@ const InventoryPage = () => {
     const cantidadStockBajo = filteredData.filter(item => item.estado === 'Stock Bajo').length;
     const cantidadStockAgotado = filteredData.filter(item => item.estado === 'Agotado').length;
 
-
-    // Helper para iconos de sort
-    const SortIcon = ({ columnKey }) => {
-        if (sortConfig.key !== columnKey) return <ArrowUpDown size={14} className="text-gray-400 ml-2 inline" />;
-        return sortConfig.direction === 'ascending'
-            ? <ArrowUp size={14} className="text-blue-600 ml-2 inline" />
-            : <ArrowDown size={14} className="text-blue-600 ml-2 inline" />;
-    };
 
     return (
         <div className="space-y-6">
@@ -279,25 +279,25 @@ const InventoryPage = () => {
                                     className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                                     onClick={() => requestSort('sku')}
                                 >
-                                    SKU / Almacén <SortIcon columnKey="sku" />
+                                    SKU / Almacén <SortIcon columnKey="sku" sortConfig={sortConfig} />
                                 </th>
                                 <th
                                     className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                                     onClick={() => requestSort('nombre')}
                                 >
-                                    Producto <SortIcon columnKey="nombre" />
+                                    Producto <SortIcon columnKey="nombre" sortConfig={sortConfig} />
                                 </th>
                                 <th
                                     className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                                     onClick={() => requestSort('categoria')}
                                 >
-                                    Categoría <SortIcon columnKey="categoria" />
+                                    Categoría <SortIcon columnKey="categoria" sortConfig={sortConfig} />
                                 </th>
                                 <th
                                     className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors text-right"
                                     onClick={() => requestSort('cantidad')}
                                 >
-                                    Stock Físico <SortIcon columnKey="cantidad" />
+                                    Stock Físico <SortIcon columnKey="cantidad" sortConfig={sortConfig} />
                                 </th>
                                 <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Ubicación</th>
                                 <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Estado</th>

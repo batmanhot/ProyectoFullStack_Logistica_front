@@ -3,7 +3,7 @@ import { ClipboardList, Send, Box, Building2, Plus, Edit, Trash2, X, ArrowLeft, 
 import toast from 'react-hot-toast';
 import { useInventory } from '../../hooks/useInventory';
 import { usePartners } from '../../hooks/usePartners';
-import { useLocations } from '../../context/LocationsContext';
+import { useLocations } from '../../context/useLocations';
 
 const OutboundPage = () => {
 
@@ -146,8 +146,8 @@ const OutboundPage = () => {
                 toast.success(`Despacho registrado: -${cantidadSolicitada} unidades`);
             }
             handleCancel();
-        } catch (error) {
-            console.error(error);
+        } catch {
+            // TODO: reemplazar por logger centralizado al integrar backend
             toast.error("Error al procesar la salida");
         }
     };
