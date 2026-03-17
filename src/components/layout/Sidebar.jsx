@@ -1,119 +1,141 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Truck, ClipboardList, BarChart3, BookOpen, ArrowRightLeft, Users, Tag, CalendarClock, ChevronDown, ChevronRight, Layers, MapPin, Map } from 'lucide-react';
+import { NavLink } from 'react-router-dom'
+import {
+  LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine,
+  ShoppingCart, BarChart3, Settings, ChevronRight, Boxes,
+  Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut,
+  ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell,
+  FileText, ClipboardList, Activity, Smartphone,
+  Truck, Navigation as NavIcon,
+} from 'lucide-react'
+import { useApp } from '../../store/AppContext'
+import { estadoStock, diasParaVencer } from '../../utils/helpers'
 
-const Sidebar = ({ isOpen }) => {
-    const location = useLocation();
-    const [openSubmenu, setOpenSubmenu] = useState('maestros'); // Por defecto abierto para visibilidad
+const NAV = [
+  { label:'Dashboard',            path:'/',               icon:LayoutDashboard,  modulo:'dashboard'     },
+  { label:'Inventario',           path:'/inventario',     icon:Package,          modulo:'inventario',   badge:'stock' },
+  { divider:true, label:'OPERACIONES' },
+  { label:'Entradas',             path:'/entradas',       icon:ArrowDownToLine,  modulo:'entradas'      },
+  { label:'Salidas',              path:'/salidas',        icon:ArrowUpFromLine,  modulo:'salidas'       },
+  { label:'Ajustes',              path:'/ajustes',        icon:SlidersHorizontal,modulo:'ajustes'       },
+  { label:'Devoluciones',         path:'/devoluciones',   icon:RotateCcw,        modulo:'devoluciones'  },
+  { label:'Transferencias',       path:'/transferencias', icon:ArrowRightLeft,   modulo:'transferencias'},
+  { divider:true, label:'COMPRAS' },
+  { label:'Órdenes de Compra',    path:'/ordenes',        icon:ShoppingCart,     modulo:'ordenes'       },
+  { label:'Cotizaciones',         path:'/cotizaciones',   icon:FileText,         modulo:'cotizaciones'  },
+  { label:'Proveedores',          path:'/proveedores',    icon:Building2,        modulo:'proveedores'   },
+  { divider:true, label:'DESPACHOS' },
+  { label:'Clientes',              path:'/clientes',    icon:Users,    modulo:'clientes'   },
+  { label:'Despachos',             path:'/despachos',   icon:Truck,    modulo:'despachos'  },
+  { label:'Transportes',           path:'/transportes', icon:NavIcon,   modulo:'transportes'},
+  { divider:true, label:'ANÁLISIS' },
+  { label:'Alertas',              path:'/alertas',        icon:Bell,             modulo:'alertas',      badge:'alertas' },
+  { label:'Movimientos',          path:'/movimientos',    icon:Boxes,            modulo:'movimientos'   },
+  { label:'Kardex',               path:'/kardex',         icon:BookOpen,         modulo:'kardex'        },
+  { label:'Vencimientos',         path:'/vencimientos',   icon:Clock,            modulo:'vencimientos'  },
+  { label:'Punto de Reorden',     path:'/reorden',        icon:TrendingDown,     modulo:'reorden'       },
+  { label:'Previsión de Demanda', path:'/prevision',      icon:Activity,         modulo:'prevision'     },
+  { label:'Reportes',             path:'/reportes',       icon:BarChart3,        modulo:'reportes'      },
+  { divider:true, label:'HERRAMIENTAS' },
+  { label:'Inventario Físico',    path:'/inv-fisico',     icon:ClipboardList,    modulo:'inv-fisico'    },
+  { label:'App Móvil / PWA',      path:'/pwa',            icon:Smartphone,       modulo:'pwa'           },
+  { divider:true, label:'CONFIGURACIÓN' },
+  { label:'Categ. / Almacenes',   path:'/maestros',       icon:Tag,              modulo:'maestros'      },
+  { label:'Usuarios y Roles',     path:'/usuarios',       icon:Users,            modulo:'usuarios'      },
+  { label:'Configuración',        path:'/configuracion',  icon:Settings,         modulo:'configuracion' },
+]
 
-    const menuItems = [
-        { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/' },
-        { icon: <Package size={20} />, label: 'Inventario', path: '/inventario' },
-        {
-            icon: <Layers size={20} />,
-            label: 'Maestros',
-            id: 'maestros',
-            subItems: [
-                { icon: <Users size={18} />, label: 'Directorio (Todos)', path: '/directorio' },
-                { icon: <BookOpen size={18} />, label: 'Artículos', path: '/catalogo' },
-                { icon: <Tag size={18} />, label: 'Categorías', path: '/categorias' },
-                { icon: <Users size={18} />, label: 'Clientes', path: '/clientes' },
-                { icon: <Briefcase size={18} />, label: 'Proveedores', path: '/proveedores' },
-                { icon: <Truck size={18} />, label: 'Transportistas', path: '/transportistas' },
-                { icon: <MapPin size={18} />, label: 'Ubicaciones', path: '/ubicaciones' },
-                { icon: <Map size={18} />, label: 'Mapa de Almacén', path: '/mapa-almacen' },
-                { icon: <CalendarClock size={18} />, label: 'Lotes y Caducidad', path: '/lotes' },
-            ]
-        },
-        { icon: <Truck size={20} />, label: 'Entradas', path: '/entradas' },
-        { icon: <ClipboardList size={20} />, label: 'Salidas', path: '/salidas' },
-        { icon: <ArrowRightLeft size={20} />, label: 'Transferencias', path: '/transferencias' },
-        { icon: <BarChart3 size={20} />, label: 'Reportes', path: '/reportes' },
-    ];
+export default function Sidebar({ collapsed, onToggle }) {
+  const { productos, sesion, logout, tienePermiso } = useApp()
 
-    const toggleSubmenu = (id) => {
-        setOpenSubmenu(openSubmenu === id ? null : id);
-    };
+  const stockCritico = productos.filter(p => {
+    const e = estadoStock(p.stockActual, p.stockMinimo)
+    return e.estado === 'critico' || e.estado === 'agotado'
+  }).length
 
-    return (
-        <aside className={`${isOpen ? 'w-64' : 'w-20'} bg-slate-900 text-white transition-all duration-300 flex flex-col h-screen overflow-y-auto`}>
-            <div className="p-4 border-b border-slate-700 font-bold text-xl text-blue-400 shrink-0">
-                {isOpen ? 'ALMACENES-WEB' : 'AW'}
+  const alertasVenc = productos.filter(p => {
+    if (!p.tieneVencimiento || !p.fechaVencimiento) return false
+    const d = diasParaVencer(p.fechaVencimiento)
+    return d !== null && d <= 30
+  }).length
+
+  const totalAlertas = stockCritico + alertasVenc
+
+  return (
+    <aside className={`flex flex-col bg-[#141920] border-r border-white/[0.08] transition-all duration-200 shrink-0 overflow-y-auto z-10 ${collapsed ? 'w-14' : 'w-[235px]'}`}>
+      {/* Logo */}
+      <div className="h-[52px] flex items-center px-4 border-b border-white/[0.08] gap-2.5 shrink-0 sticky top-0 bg-[#141920] z-10">
+        <div className="w-7 h-7 rounded-lg bg-[#00c896] flex items-center justify-center shrink-0">
+          <Package size={15} color="#082e1e" strokeWidth={2.5}/>
+        </div>
+        {!collapsed && (
+          <div className="overflow-hidden flex-1">
+            <div className="text-[15px] font-semibold text-[#e8edf2] whitespace-nowrap">StockPro</div>
+            <div className="text-[10px] text-[#00c896] font-medium tracking-[0.05em]">GESTIÓN LOGÍSTICA</div>
+          </div>
+        )}
+        <button onClick={onToggle} className="ml-auto p-1 rounded text-[#5f6f80] hover:text-[#9ba8b6] transition-colors shrink-0">
+          <ChevronRight size={14} className="transition-transform duration-200" style={{ transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}/>
+        </button>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 py-2">
+        {NAV.map((item, i) => {
+          if (item.divider) return (
+            <div key={i}>
+              <div className="h-px bg-white/[0.05] mx-3 mt-1.5"/>
+              {!collapsed && item.label && (
+                <div className="px-4 py-1.5 text-[9px] font-semibold text-[#5f6f80] uppercase tracking-[0.1em]">{item.label}</div>
+              )}
             </div>
-            <nav className="flex-1 mt-4">
-                {menuItems.map((item, index) => {
-                    const hasSubItems = item.subItems && item.subItems.length > 0;
-                    const isSubmenuOpen = openSubmenu === item.id;
-                    const isActive = location.pathname === item.path;
+          )
+          if (sesion && !tienePermiso(item.modulo) && item.modulo !== 'configuracion' && item.modulo !== 'pwa') return null
+          const Icon = item.icon
+          const badgeCount = item.badge === 'stock' ? stockCritico : item.badge === 'alertas' ? totalAlertas : 0
+          return (
+            <NavLink key={item.path} to={item.path} end={item.path === '/'} title={collapsed ? item.label : undefined}
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 mx-2 my-px px-3 py-[7px] rounded-lg text-[13px] transition-all duration-150 no-underline overflow-hidden whitespace-nowrap
+                ${isActive ? 'text-[#00c896] bg-[#00c896]/10 font-medium' : 'text-[#9ba8b6] hover:text-[#e8edf2] hover:bg-white/[0.04]'}`
+              }>
+              {({ isActive }) => (
+                <>
+                  <Icon size={15} className="shrink-0" style={{ opacity: isActive ? 1 : 0.6 }}/>
+                  {!collapsed && <span className="flex-1 overflow-hidden text-ellipsis">{item.label}</span>}
+                  {!collapsed && badgeCount > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-[10px] font-semibold px-1.5 py-px rounded-full shrink-0">{badgeCount}</span>
+                  )}
+                </>
+              )}
+            </NavLink>
+          )
+        })}
+      </nav>
 
-                    if (hasSubItems) {
-                        return (
-                            <div key={index} className="flex flex-col">
-                                <button
-                                    onClick={() => toggleSubmenu(item.id)}
-                                    className={`flex items-center justify-between p-4 cursor-pointer transition-colors hover:bg-slate-800 text-gray-400 w-full`}
-                                >
-                                    <div className="flex items-center">
-                                        <span>{item.icon}</span>
-                                        {isOpen && <span className="ml-4 text-sm font-medium">{item.label}</span>}
-                                    </div>
-                                    {isOpen && (isSubmenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
-                                </button>
-
-                                {isSubmenuOpen && (
-                                    <div className={`${isOpen ? 'bg-slate-950/50 py-2' : 'flex flex-col items-center bg-slate-950/30 py-1'}`}>
-                                        {item.subItems.map((subItem, subIndex) => (
-                                            <Link
-                                                key={subIndex}
-                                                to={subItem.path}
-                                                title={!isOpen ? subItem.label : ''}
-                                                className={`flex items-center cursor-pointer transition-colors text-sm
-                                                  ${isOpen ? 'pl-12 p-3' : 'p-3 justify-center w-full'}
-                                                  ${location.pathname === subItem.path ? 'text-blue-400 font-bold' : 'text-gray-500 hover:text-gray-300'}`}
-                                            >
-                                                <span className={`${isOpen ? 'mr-3' : ''}`}>{subItem.icon}</span>
-                                                {isOpen && subItem.label}
-                                            </Link>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    }
-
-                    return (
-                        <Link
-                            key={index}
-                            to={item.path}
-                            className={`flex items-center p-4 cursor-pointer transition-colors group
-                ${isActive ? 'bg-blue-600 text-white' : 'hover:bg-slate-800 text-gray-400'}`}
-                        >
-                            <span>{item.icon}</span>
-                            {isOpen && <span className="ml-4 text-sm font-medium">{item.label}</span>}
-                        </Link>
-                    );
-                })}
-            </nav>
-        </aside>
-    );
-};
-
-// Icono faltante en los imports del sidebar original
-const Briefcase = ({ size }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-    >
-        <rect width="20" height="14" x="2" y="7" rx="2" ry="2" />
-        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-    </svg>
-);
-
-export default Sidebar;
+      {/* Footer */}
+      {!collapsed && sesion && (
+        <div className="px-3 py-3 border-t border-white/[0.06] sticky bottom-0 bg-[#141920]">
+          <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg">
+            <div className="w-6 h-6 rounded-full bg-[#00c896]/15 flex items-center justify-center text-[#00c896] text-[10px] font-bold shrink-0">
+              {sesion.nombre.charAt(0)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[12px] font-medium text-[#9ba8b6] truncate">{sesion.nombre}</div>
+              <div className="text-[10px] text-[#5f6f80] truncate">{sesion.email}</div>
+            </div>
+            <button onClick={logout} title="Cerrar sesión" className="p-1 text-[#5f6f80] hover:text-red-400 transition-colors shrink-0">
+              <LogOut size={13}/>
+            </button>
+          </div>
+        </div>
+      )}
+      {collapsed && (
+        <div className="p-2 border-t border-white/[0.06] sticky bottom-0 bg-[#141920]">
+          <button onClick={logout} title="Cerrar sesión" className="w-full p-2 flex items-center justify-center text-[#5f6f80] hover:text-red-400 transition-colors rounded-lg hover:bg-white/[0.04]">
+            <LogOut size={14}/>
+          </button>
+        </div>
+      )}
+    </aside>
+  )
+}
