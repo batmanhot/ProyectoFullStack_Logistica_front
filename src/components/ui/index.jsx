@@ -284,3 +284,5 @@ export function KpiCard({ label, value, sub, accentColor, icon, mono, onClick })
 }
 
 export { default as DireccionInput } from './DireccionInput'
+
+export { default as DateInput } from './DateInput'

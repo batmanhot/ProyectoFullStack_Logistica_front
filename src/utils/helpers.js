@@ -13,40 +13,52 @@ export function formatNumber(n, decimals = 2) {
 }
 
 // ── Formateo de fechas ─────────────────────
+function safeParseDate(fecha) {
+  if (!fecha) return null
+  if (fecha instanceof Date) return fecha
+  if (typeof fecha !== 'string') return new Date(fecha)
+
+  // Manejar dd/mm/yyyy
+  if (fecha.includes('/')) {
+    const parts = fecha.split('/')
+    if (parts.length === 3) {
+      const [d, m, y] = parts.map(Number)
+      if (d > 31) return new Date(d, m - 1, y) // yyyy/mm/dd case
+      return new Date(y, m - 1, d)
+    }
+  }
+  
+  // Manejar ISO o otros formatos
+  const d = parseISO(fecha)
+  return isNaN(d.getTime()) ? new Date(fecha) : d
+}
+
 export function formatDate(fecha) {
-  if (!fecha) return '—'
-  try {
-    const d = typeof fecha === 'string' ? parseISO(fecha) : fecha
-    return format(d, 'dd/MM/yyyy', { locale: es })
-  } catch { return '—' }
+  const d = safeParseDate(fecha)
+  if (!d || isNaN(d.getTime())) return '—'
+  return format(d, 'dd/MM/yyyy', { locale: es })
 }
 
 export function formatDateTime(fecha) {
-  if (!fecha) return '—'
-  try {
-    const d = typeof fecha === 'string' ? parseISO(fecha) : fecha
-    return format(d, 'dd/MM/yyyy HH:mm', { locale: es })
-  } catch { return '—' }
+  const d = safeParseDate(fecha)
+  if (!d || isNaN(d.getTime())) return '—'
+  return format(d, 'dd/MM/yyyy HH:mm', { locale: es })
 }
 
 export function timeAgo(fecha) {
-  if (!fecha) return '—'
-  try {
-    const d = typeof fecha === 'string' ? parseISO(fecha) : fecha
-    return formatDistanceToNow(d, { locale: es, addSuffix: true })
-  } catch { return '—' }
+  const d = safeParseDate(fecha)
+  if (!d || isNaN(d.getTime())) return '—'
+  return formatDistanceToNow(d, { locale: es, addSuffix: true })
 }
 
 export function diasParaVencer(fechaVencimiento) {
-  if (!fechaVencimiento) return null
-  try {
-    const d = typeof fechaVencimiento === 'string' ? parseISO(fechaVencimiento) : fechaVencimiento
-    return differenceInDays(d, new Date())
-  } catch { return null }
+  const d = safeParseDate(fechaVencimiento)
+  if (!d || isNaN(d.getTime())) return null
+  return differenceInDays(d, new Date())
 }
 
 export function fechaHoy() {
-  return format(new Date(), 'yyyy-MM-dd')
+  return format(new Date(), 'dd/MM/yyyy')
 }
 
 // ── Semáforo de stock ──────────────────────

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, Eye, CheckCircle, FileText, X, ShoppingCart, MessageCircle, Mail } from 'lucide-react'
+import { Plus, Search, Eye, CheckCircle, FileText, X, ShoppingCart, MessageCircle, Mail, ChevronUp, ChevronDown } from 'lucide-react'
+
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
 import * as storage from '../services/storage'
@@ -26,6 +27,29 @@ export default function Cotizaciones() {
   const [shareRFQ, setShareRFQ]  = useState(null)
   const [filtEst, setFiltEst]   = useState('')
   const [busqueda, setBusqueda] = useState('')
+  const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' })
+
+  const handleSort = (key) => {
+    let direction = 'asc'
+    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc'
+    setSortConfig({ key, direction })
+  }
+
+  const toISODate = (val) => {
+    if (!val) return ''
+    if (val instanceof Date) return val.toISOString().split('T')[0]
+    const s = String(val).trim()
+    if (s.includes('/')) {
+      const parts = s.split('/')
+      if (parts.length === 3) {
+        const [d, m, y] = parts
+        return y.length === 4 ? `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` : `${d}-${m.padStart(2, '0')}-${y.padStart(2, '0')}`
+      }
+    }
+    const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    return isoMatch ? isoMatch[0] : ''
+  }
+
 
   const recargar = () => setCotizaciones(storage.getCotizaciones().data || [])
 
@@ -36,8 +60,30 @@ export default function Cotizaciones() {
       const q = busqueda.toLowerCase()
       d = d.filter(c => c.numero?.toLowerCase().includes(q) || c.notas?.toLowerCase().includes(q))
     }
+
+    d.sort((a, b) => {
+      let aV = a[sortConfig.key]
+      let bV = b[sortConfig.key]
+
+      if (sortConfig.key === 'fecha' || sortConfig.key === 'fechaVencimiento') {
+        aV = toISODate(a[sortConfig.key])
+        bV = toISODate(b[sortConfig.key])
+      } else if (sortConfig.key === 'respuestas') {
+        aV = a.respuestas?.length || 0
+        bV = b.respuestas?.length || 0
+      } else if (typeof aV === 'string') {
+        aV = aV.toLowerCase()
+        bV = bV.toLowerCase()
+      }
+
+      if (aV < bV) return sortConfig.direction === 'asc' ? -1 : 1
+      if (aV > bV) return sortConfig.direction === 'asc' ? 1 : -1
+      return 0
+    })
+
     return d
-  }, [cotizaciones, filtEst, busqueda])
+  }, [cotizaciones, filtEst, busqueda, sortConfig])
+
 
   const kpis = useMemo(() => ({
     total:      cotizaciones.length,
@@ -123,11 +169,31 @@ export default function Cotizaciones() {
           <table className="w-full border-collapse text-[13px]">
             <thead>
               <tr>
-                {['N° RFQ','Fecha','Vence','Ítems','Respuestas','Estado','Notas','Acciones'].map(h => (
-                  <th key={h} className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/[0.08] whitespace-nowrap">{h}</th>
+                {[
+                  { l: 'N° RFQ', k: 'numero' },
+                  { l: 'Fecha', k: 'fecha' },
+                  { l: 'Vence', k: 'fechaVencimiento' },
+                  { l: 'Ítems' },
+                  { l: 'Respuestas', k: 'respuestas' },
+                  { l: 'Estado', k: 'estado' },
+                  { l: 'Notas', k: 'notas' },
+                  { l: 'Acciones' }
+                ].map((h) => (
+                  <th key={h.l} 
+                    className={`bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/[0.08] cursor-pointer hover:bg-white/[0.02] whitespace-nowrap`}
+                    onClick={() => h.k && handleSort(h.k)}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      {h.l}
+                      {sortConfig.key === h.k && (
+                        sortConfig.direction === 'asc' ? <ChevronUp size={10} /> : <ChevronDown size={10} />
+                      )}
+                    </div>
+                  </th>
                 ))}
               </tr>
             </thead>
+
             <tbody>
               {filtered.length === 0 && (
                 <tr><td colSpan={8}>

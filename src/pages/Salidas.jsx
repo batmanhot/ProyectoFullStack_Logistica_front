@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, ArrowUpFromLine, Eye, XCircle, DollarSign, Calendar, TrendingDown, ShoppingBag } from 'lucide-react'
+import { Plus, Search, ArrowUpFromLine, Eye, XCircle, DollarSign, Calendar, TrendingDown, ShoppingBag, ChevronUp, ChevronDown } from 'lucide-react'
+
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
 import { procesarSalida, calcularPMP } from '../utils/valorizacion'
@@ -16,15 +17,65 @@ export default function Salidas() {
   const [verMov, setVerMov]     = useState(null)
   const [anular, setAnular]     = useState(null)
   const [busqueda, setBusqueda] = useState('')
+  const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' })
 
-  const salidas = useMemo(() =>
-    movimientos.filter(m => m.tipo === 'SALIDA').filter(m => {
-      if (!busqueda) return true
+  const handleSort = (key) => {
+    let direction = 'asc'
+    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc'
+    setSortConfig({ key, direction })
+  }
+
+
+  const toISODate = (val) => {
+    if (!val) return ''
+    if (val instanceof Date) return val.toISOString().split('T')[0]
+    const s = String(val).trim()
+    if (s.includes('/')) {
+      const parts = s.split('/')
+      if (parts.length === 3) {
+        const [d, m, y] = parts
+        return y.length === 4 ? `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` : `${d}-${m.padStart(2, '0')}-${y.padStart(2, '0')}`
+      }
+    }
+    const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    return isoMatch ? isoMatch[0] : ''
+  }
+
+  const salidas = useMemo(() => {
+    let d = movimientos.filter(m => m.tipo === 'SALIDA')
+    
+    if (busqueda) {
       const q = busqueda.toLowerCase()
-      const p = productos.find(x => x.id === m.productoId)
-      return p?.nombre.toLowerCase().includes(q) || m.documento?.toLowerCase().includes(q)
+      d = d.filter(m => {
+        const p = productos.find(x => x.id === m.productoId)
+        return p?.nombre.toLowerCase().includes(q) || m.documento?.toLowerCase().includes(q)
+      })
+    }
+
+    d.sort((a, b) => {
+      let aV = a[sortConfig.key]
+      let bV = b[sortConfig.key]
+
+      if (sortConfig.key === 'fecha') {
+        aV = toISODate(a.fecha)
+        bV = toISODate(b.fecha)
+      } else if (sortConfig.key === 'producto') {
+        aV = productos.find(x => x.id === a.productoId)?.nombre || ''
+        bV = productos.find(x => x.id === b.productoId)?.nombre || ''
+      } else if (typeof aV === 'string') {
+        aV = aV.toLowerCase()
+        bV = bV.toLowerCase()
+      }
+
+      if (aV < bV) return sortConfig.direction === 'asc' ? -1 : 1
+      if (aV > bV) return sortConfig.direction === 'asc' ? 1 : -1
+      return 0
     })
-  , [movimientos, busqueda, productos])
+
+    return d
+  }, [movimientos, busqueda, productos, sortConfig])
+
+
 
   const kpis = useMemo(() => {
     const todas  = movimientos.filter(m => m.tipo === 'SALIDA')
@@ -156,10 +207,31 @@ export default function Salidas() {
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full border-collapse text-[13px]">
             <thead><tr>
-              {['Fecha','Documento','Producto','Cantidad','Costo Unit.','Total','Motivo','Fórmula','Acciones'].map((h, i) => (
-                <th key={h} className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/[0.08] ${[3,4,5].includes(i) ? 'text-right' : 'text-left'}`}>{h}</th>
+              {[
+                { l: 'Fecha', k: 'fecha' },
+                { l: 'Documento', k: 'documento' },
+                { l: 'Producto', k: 'producto' },
+                { l: 'Cantidad', k: 'cantidad', r: true },
+                { l: 'Costo Unit.', k: 'costoUnitario', r: true },
+                { l: 'Total', k: 'costoTotal', r: true },
+                { l: 'Motivo', k: 'motivo' },
+                { l: 'Fórmula', k: 'formula' },
+                { l: 'Acciones' }
+              ].map((h, i) => (
+                <th key={h.l} 
+                  className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/[0.08] cursor-pointer hover:bg-white/[0.02] ${h.r ? 'text-right' : 'text-left'}`}
+                  onClick={() => h.k && handleSort(h.k)}
+                >
+                  <div className={`flex items-center gap-1.5 ${h.r ? 'justify-end' : ''}`}>
+                    {h.l}
+                    {sortConfig.key === h.k && (
+                      sortConfig.direction === 'asc' ? <ChevronUp size={10} /> : <ChevronDown size={10} />
+                    )}
+                  </div>
+                </th>
               ))}
             </tr></thead>
+
             <tbody>
               {salidas.length === 0 && <tr><td colSpan={9}><EmptyState icon={ArrowUpFromLine} title="Sin salidas" description="Registra tu primera salida de stock."/></td></tr>}
               {salidas.map(m => {

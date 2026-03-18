@@ -2,12 +2,14 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Plus, Search, Edit2, Trash2, Truck, MapPin, Clock,
   CheckCircle, X, Eye, Navigation as NavIcon, Package, AlertTriangle,
-  PlayCircle, Flag, RotateCcw, Users
+  PlayCircle, Flag, RotateCcw, Users, ChevronUp, ChevronDown
 } from 'lucide-react'
+
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
 import * as storage from '../services/storage'
 import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field, Alert } from '../components/ui/index'
+import DateInput from '../components/ui/DateInput'
 import DireccionInput from '../components/ui/DireccionInput'
 
 const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
@@ -73,6 +75,29 @@ function TabRutas() {
   const [detalle, setDetalle] = useState(null)
   const [filtEst, setFiltEst] = useState('')
   const [busq,    setBusq]    = useState('')
+  const [sortConfig, setSortConfig] = useState({ key: 'fechaSalida', direction: 'desc' })
+
+  const handleSort = (key) => {
+    let direction = 'asc'
+    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc'
+    setSortConfig({ key, direction })
+  }
+
+  const toISODate = (val) => {
+    if (!val) return ''
+    if (val instanceof Date) return val.toISOString().split('T')[0]
+    const s = String(val).trim()
+    if (s.includes('/')) {
+      const parts = s.split('/')
+      if (parts.length === 3) {
+        const [d, m, y] = parts
+        return y.length === 4 ? `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` : `${d}-${m.padStart(2, '0')}-${y.padStart(2, '0')}`
+      }
+    }
+    const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    return isoMatch ? isoMatch[0] : ''
+  }
+
 
   const filtered = useMemo(() => {
     let d = [...rutas]
@@ -84,8 +109,30 @@ function TabRutas() {
         transportistas.find(t => t.id === r.transportistaId)?.nombre?.toLowerCase().includes(q)
       )
     }
+
+    d.sort((a, b) => {
+      let aV = a[sortConfig.key]
+      let bV = b[sortConfig.key]
+
+      if (sortConfig.key === 'fechaSalida') {
+        aV = toISODate(a.fechaSalida)
+        bV = toISODate(b.fechaSalida)
+      } else if (sortConfig.key === 'transportista') {
+        aV = transportistas.find(x => x.id === a.transportistaId)?.nombre || ''
+        bV = transportistas.find(x => x.id === b.transportistaId)?.nombre || ''
+      } else if (typeof aV === 'string') {
+        aV = aV.toLowerCase()
+        bV = bV.toLowerCase()
+      }
+
+      if (aV < bV) return sortConfig.direction === 'asc' ? -1 : 1
+      if (aV > bV) return sortConfig.direction === 'asc' ? 1 : -1
+      return 0
+    })
+
     return d
-  }, [rutas, filtEst, busq, transportistas])
+  }, [rutas, filtEst, busq, transportistas, sortConfig])
+
 
   const kpis = useMemo(() => ({
     programadas: rutas.filter(r => r.estado === 'PROGRAMADA').length,
@@ -228,10 +275,30 @@ function TabRutas() {
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full border-collapse text-[13px]">
             <thead><tr>
-              {['N° Ruta','Transportista','Placa/Vehículo','F. Salida','Hora','Paradas','Estado','Acciones'].map(h => (
-                <th key={h} className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/[0.08] whitespace-nowrap">{h}</th>
+              {[
+                { l: 'N° Ruta', k: 'numero' },
+                { l: 'Transportista', k: 'transportista' },
+                { l: 'Placa/Vehículo' },
+                { l: 'F. Salida', k: 'fechaSalida' },
+                { l: 'Hora', k: 'horaSalida' },
+                { l: 'Paradas' },
+                { l: 'Estado', k: 'estado' },
+                { l: 'Acciones' }
+              ].map((h) => (
+                <th key={h.l} 
+                  className={`bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/[0.08] cursor-pointer hover:bg-white/[0.02] whitespace-nowrap`}
+                  onClick={() => h.k && handleSort(h.k)}
+                >
+                  <div className="flex items-center gap-1.5">
+                    {h.l}
+                    {sortConfig.key === h.k && (
+                      sortConfig.direction === 'asc' ? <ChevronUp size={10} /> : <ChevronDown size={10} />
+                    )}
+                  </div>
+                </th>
               ))}
             </tr></thead>
+
             <tbody>
               {filtered.length === 0 && (
                 <tr><td colSpan={8}><EmptyState icon={NavIcon} title="Sin rutas" description="Programa la primera ruta de entrega."/></td></tr>
@@ -594,13 +661,13 @@ function TabSeguimiento() {
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-[#5f6f80]">Desde</span>
-              <input type="date" value={filtDesde} onChange={e => setFiltDesde(e.target.value)}
-                className={SI} style={{ width:148 }}/>
+              <DateInput value={filtDesde} onChange={v => setFiltDesde(v)}
+                className={SI} placeholder="dd/mm/aaaa" style={{ width:148 }}/>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-[#5f6f80]">Hasta</span>
-              <input type="date" value={filtHasta} onChange={e => setFiltHasta(e.target.value)}
-                className={SI} style={{ width:148 }}/>
+              <DateInput value={filtHasta} onChange={v => setFiltHasta(v)}
+                className={SI} placeholder="dd/mm/aaaa" style={{ width:148 }}/>
             </div>
             {(filtDesde !== hace7s || filtHasta) && (
               <Btn variant="ghost" size="sm" onClick={() => { setFiltDesde(hace7s); setFiltHasta('') }}>Limpiar</Btn>
@@ -711,12 +778,37 @@ function TabTransportistas() {
   const [editando,   setEditando]   = useState(null)
   const [confirmDel, setConfirmDel] = useState(null)
   const [busq,       setBusq]       = useState('')
+  const [sortConfig, setSortConfig] = useState({ key: 'nombre', direction: 'asc' })
 
-  const filtered = useMemo(() =>
-    transportistas.filter(t =>
+  const handleSort = (key) => {
+    let direction = 'asc'
+    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc'
+    setSortConfig({ key, direction })
+  }
+
+
+  const filtered = useMemo(() => {
+    let d = transportistas.filter(t =>
       !busq || t.nombre?.toLowerCase().includes(busq.toLowerCase()) || t.placa?.toLowerCase().includes(busq.toLowerCase())
     )
-  , [transportistas, busq])
+
+    d.sort((a, b) => {
+      let aV = a[sortConfig.key]
+      let bV = b[sortConfig.key]
+
+      if (typeof aV === 'string') {
+        aV = aV.toLowerCase()
+        bV = bV.toLowerCase()
+      }
+
+      if (aV < bV) return sortConfig.direction === 'asc' ? -1 : 1
+      if (aV > bV) return sortConfig.direction === 'asc' ? 1 : -1
+      return 0
+    })
+
+    return d
+  }, [transportistas, busq, sortConfig])
+
 
   function handleSave(data) {
     storage.saveTransportista(data)
@@ -761,10 +853,30 @@ function TabTransportistas() {
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full border-collapse text-[13px]">
             <thead><tr>
-              {['Nombre','Tipo','Placa','Vehículo','Teléfono','Licencia','Estado','Acciones'].map(h => (
-                <th key={h} className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/[0.08] whitespace-nowrap">{h}</th>
+              {[
+                { l: 'Nombre', k: 'nombre' },
+                { l: 'Tipo', k: 'tipo' },
+                { l: 'Placa', k: 'placa' },
+                { l: 'Vehículo', k: 'vehiculo' },
+                { l: 'Teléfono', k: 'telefono' },
+                { l: 'Licencia', k: 'licencia' },
+                { l: 'Estado', k: 'activo' },
+                { l: 'Acciones' }
+              ].map((h) => (
+                <th key={h.l} 
+                  className={`bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/[0.08] cursor-pointer hover:bg-white/[0.02] whitespace-nowrap`}
+                  onClick={() => h.k && handleSort(h.k)}
+                >
+                  <div className="flex items-center gap-1.5">
+                    {h.l}
+                    {sortConfig.key === h.k && (
+                      sortConfig.direction === 'asc' ? <ChevronUp size={10} /> : <ChevronDown size={10} />
+                    )}
+                  </div>
+                </th>
               ))}
             </tr></thead>
+
             <tbody>
               {filtered.length === 0 && (
                 <tr><td colSpan={8}><EmptyState icon={Truck} title="Sin transportistas" description="Agrega el primer transportista."/></td></tr>

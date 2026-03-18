@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, CheckCircle, X, Eye, ShoppingCart, FileText, MessageCircle, Mail } from 'lucide-react'
+import { Plus, Search, CheckCircle, X, Eye, ShoppingCart, FileText, MessageCircle, Mail, ChevronUp, ChevronDown } from 'lucide-react'
+
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
 import * as storage from '../services/storage'
@@ -21,6 +22,29 @@ export default function Ordenes() {
   const [shareOC,   setShareOC]   = useState(null)
   const [filtEst, setFiltEst]   = useState('')
   const [busqueda, setBusqueda] = useState('')
+  const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' })
+
+  const handleSort = (key) => {
+    let direction = 'asc'
+    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc'
+    setSortConfig({ key, direction })
+  }
+
+  const toISODate = (val) => {
+    if (!val) return ''
+    if (val instanceof Date) return val.toISOString().split('T')[0]
+    const s = String(val).trim()
+    if (s.includes('/')) {
+      const parts = s.split('/')
+      if (parts.length === 3) {
+        const [d, m, y] = parts
+        return y.length === 4 ? `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` : `${d}-${m.padStart(2, '0')}-${y.padStart(2, '0')}`
+      }
+    }
+    const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    return isoMatch ? isoMatch[0] : ''
+  }
+
 
   const filtered = useMemo(() => {
     let d = [...ordenes]
@@ -29,8 +53,30 @@ export default function Ordenes() {
       const q = busqueda.toLowerCase()
       d = d.filter(o => o.numero?.toLowerCase().includes(q) || proveedores.find(p=>p.id===o.proveedorId)?.razonSocial.toLowerCase().includes(q))
     }
+
+    d.sort((a, b) => {
+      let aV = a[sortConfig.key]
+      let bV = b[sortConfig.key]
+
+      if (sortConfig.key === 'fecha' || sortConfig.key === 'fechaEntrega') {
+        aV = toISODate(a[sortConfig.key])
+        bV = toISODate(b[sortConfig.key])
+      } else if (sortConfig.key === 'proveedor') {
+        aV = proveedores.find(x => x.id === a.proveedorId)?.razonSocial || ''
+        bV = proveedores.find(x => x.id === b.proveedorId)?.razonSocial || ''
+      } else if (typeof aV === 'string') {
+        aV = aV.toLowerCase()
+        bV = bV.toLowerCase()
+      }
+
+      if (aV < bV) return sortConfig.direction === 'asc' ? -1 : 1
+      if (aV > bV) return sortConfig.direction === 'asc' ? 1 : -1
+      return 0
+    })
+
     return d
-  }, [ordenes, filtEst, busqueda, proveedores])
+  }, [ordenes, filtEst, busqueda, proveedores, sortConfig])
+
 
   const provNombre = id => proveedores.find(p=>p.id===id)?.razonSocial || '—'
 
@@ -129,7 +175,31 @@ export default function Ordenes() {
 
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full border-collapse text-[13px]">
-            <thead><tr><TH c="N° OC"/><TH c="Proveedor"/><TH c="Fecha"/><TH c="Entrega"/><TH c="Ítems"/><TH c="Total" r/><TH c="Estado"/><TH c="Acciones"/></tr></thead>
+            <thead><tr>
+              {[
+                { l: 'N° OC', k: 'numero' },
+                { l: 'Proveedor', k: 'proveedor' },
+                { l: 'Fecha', k: 'fecha' },
+                { l: 'Entrega', k: 'fechaEntrega' },
+                { l: 'Ítems' },
+                { l: 'Total', k: 'total', r: true },
+                { l: 'Estado', k: 'estado' },
+                { l: 'Acciones' }
+              ].map((h) => (
+                <th key={h.l} 
+                  className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/[0.08] cursor-pointer hover:bg-white/[0.02] ${h.r ? 'text-right' : 'text-left'}`}
+                  onClick={() => h.k && handleSort(h.k)}
+                >
+                  <div className={`flex items-center gap-1.5 ${h.r ? 'justify-end' : ''}`}>
+                    {h.l}
+                    {sortConfig.key === h.k && (
+                      sortConfig.direction === 'asc' ? <ChevronUp size={10} /> : <ChevronDown size={10} />
+                    )}
+                  </div>
+                </th>
+              ))}
+            </tr></thead>
+
             <tbody>
               {filtered.length===0&&<tr><td colSpan={8}><EmptyState icon={ShoppingCart} title="Sin órdenes" description="Crea tu primera orden de compra."/></td></tr>}
               {filtered.map(oc=>(

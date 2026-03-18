@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Plus, Search, Edit2, Trash2, Eye, Package, AlertTriangle, DollarSign, TrendingDown, Clock } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, estadoStock, formatDate, diasParaVencer } from '../utils/helpers'
@@ -214,7 +214,11 @@ function ModalProducto({open,onClose,editando,categorias,almacenes,proveedores,o
   const [form,setForm]=useState(init)
   const [err,setErr]=useState({})
   const f=(k,v)=>setForm(p=>({...p,[k]:v}))
-  useState(()=>{if(editando)setForm({...init,...editando});else setForm(init)},[editando,open])
+  useEffect(() => {
+    if (editando) setForm({ ...init, ...editando })
+    else setForm(init)
+  }, [editando, open])
+
   const UMs=['UND','KG','LT','MT','CJA','PAQ','RESMA','DOC','JGO','SET']
   const validate=()=>{const e={};if(!form.sku.trim())e.sku='Requerido';if(!form.nombre.trim())e.nombre='Requerido';if(!form.categoriaId)e.categoriaId='Requerido';setErr(e);return Object.keys(e).length===0}
   function handleSave(){if(!validate())return;storage.saveProducto({...form,stockMinimo:+form.stockMinimo,stockMaximo:+form.stockMaximo,precioVenta:+form.precioVenta});onSaved()}

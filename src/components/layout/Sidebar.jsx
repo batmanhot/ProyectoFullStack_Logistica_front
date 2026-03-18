@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import logoImg from '../../assets/logo.png'
 import {
   LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine,
   ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes,
@@ -64,35 +65,79 @@ export default function Sidebar({ collapsed, onToggle }) {
   return (
     <aside className={`flex flex-col bg-[#0f1520] border-r border-white/[0.07] transition-all duration-250 shrink-0 overflow-y-auto z-10 ${collapsed ? 'w-[60px]' : 'w-[252px]'}`}>
 
-      {/* Logo */}
-      <div className={`flex items-center border-b border-white/[0.07] shrink-0 sticky top-0 bg-[#0f1520] z-10 ${collapsed ? 'h-[60px] justify-center' : 'h-[68px] px-4 gap-3'}`}>
-        <div className={`rounded-xl bg-[#00c896] flex items-center justify-center shrink-0 shadow-[0_0_16px_rgba(0,200,150,0.35)] ${collapsed ? 'w-9 h-9' : 'w-10 h-10'}`}>
-          <Package size={collapsed ? 17 : 20} color="#082e1e" strokeWidth={2.5}/>
+      {/* ── CABECERA / LOGO ──────────────────────────── */}
+      {collapsed ? (
+        /* Modo colapsado — solo logo pequeño + botón expandir */
+        <div className="flex flex-col items-center border-b border-white/[0.07] shrink-0 sticky top-0 bg-[#0f1520] z-10 py-3 gap-2">
+          <img src={logoImg} alt="StockPro" className="w-9 h-9 object-contain rounded-lg" style={{ filter:'brightness(1.1)' }}/>
+          <button onClick={onToggle} title="Expandir menú"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#5f6f80] hover:text-[#e8edf2] hover:bg-white/[0.06] transition-all">
+            <ChevronRight size={15}/>
+          </button>
         </div>
-        {!collapsed && (
-          <div className="flex-1 overflow-hidden">
-            <div className="text-[18px] font-extrabold text-white tracking-tight leading-none" style={{ fontFamily:"'Inter','Segoe UI',system-ui,sans-serif", letterSpacing:'-0.03em' }}>
-              Stock<span style={{ color:'#00c896' }}>Pro</span>
-            </div>
-            <div className="text-[10px] font-semibold tracking-[0.18em] mt-0.5" style={{ color:'#00c896', opacity:0.75 }}>
-              GESTIÓN LOGÍSTICA
-            </div>
-          </div>
-        )}
-        <button onClick={onToggle} title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
-          className={`flex items-center justify-center rounded-lg transition-all duration-150 shrink-0 text-[#5f6f80] hover:text-[#e8edf2] hover:bg-white/[0.06] ${collapsed ? 'w-9 h-9' : 'w-8 h-8 ml-auto'}`}>
-          {collapsed ? <ChevronRight size={16}/> : <ChevronLeft size={16}/>}
-        </button>
-      </div>
+      ) : (
+        /* Modo expandido — cabecera de alto impacto */
+        <div className="shrink-0 sticky top-0 z-10 overflow-hidden"
+          style={{ background:'linear-gradient(160deg, #0f1a2e 0%, #0f1520 60%, #121a1f 100%)' }}>
 
-      {/* Versión */}
-      {!collapsed && config?.modoSistema && (
-        <div className="px-4 py-1.5">
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#00c896]/10 text-[#00c896]/70 font-medium tracking-wide">
-            {config.version || 'v2.0'} · {config.modoSistema?.split('—')[0]?.trim()}
-          </span>
+          {/* Línea superior decorativa */}
+          <div className="h-[2px] w-full" style={{ background:'linear-gradient(90deg, #f97316, #00c896, #3b82f6)' }}/>
+
+          {/* Contenido principal */}
+          <div className="flex items-center gap-3 px-4 pt-3.5 pb-3">
+
+            {/* Logo image */}
+            <div className="relative shrink-0">
+              <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center"
+                style={{ background:'radial-gradient(circle at 40% 40%, #1a2a3a, #0a1020)', boxShadow:'0 0 20px rgba(249,115,22,0.25), 0 4px 12px rgba(0,0,0,0.5)' }}>
+                <img src={logoImg} alt="Logo" className="w-11 h-11 object-contain" style={{ filter:'brightness(1.05) contrast(1.05)' }}/>
+              </div>
+              {/* Badge live */}
+              <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#00c896] border-2 border-[#0f1520]"
+                style={{ boxShadow:'0 0 6px rgba(0,200,150,0.8)' }}/>
+            </div>
+
+            {/* Textos */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-1 leading-none mb-1">
+                <span className="text-[20px] font-black text-white tracking-tight"
+                  style={{ fontFamily:"'DM Sans','Inter',system-ui", letterSpacing:'-0.04em', textShadow:'0 0 20px rgba(249,115,22,0.3)' }}>
+                  Stock
+                </span>
+                <span className="text-[20px] font-black tracking-tight"
+                  style={{ fontFamily:"'DM Sans','Inter',system-ui", letterSpacing:'-0.04em', color:'#f97316', textShadow:'0 0 16px rgba(249,115,22,0.5)' }}>
+                  Pro
+                </span>
+              </div>
+              <div className="text-[9px] font-bold tracking-[0.22em] uppercase"
+                style={{ color:'#00c896', opacity:0.8, letterSpacing:'0.2em' }}>
+                Gestión Logística
+              </div>
+            </div>
+
+            {/* Botón colapsar */}
+            <button onClick={onToggle} title="Colapsar menú"
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-[#3d4f60] hover:text-[#9ba8b6] hover:bg-white/[0.06] transition-all shrink-0">
+              <ChevronLeft size={14}/>
+            </button>
+          </div>
+
+          {/* Versión/modo pill */}
+          {config?.modoSistema && (
+            <div className="px-4 pb-2.5 flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#00c896] animate-pulse shrink-0"/>
+              <span className="text-[10px] font-medium tracking-wide" style={{ color:'rgba(0,200,150,0.65)' }}>
+                {config.version || 'v2.0'} · {config.modoSistema?.split('—')[0]?.trim()}
+              </span>
+            </div>
+          )}
+
+          {/* Línea inferior degradada */}
+          <div className="h-px" style={{ background:'linear-gradient(90deg, rgba(249,115,22,0.3), rgba(0,200,150,0.2), transparent)' }}/>
         </div>
       )}
+
+
 
       {/* Nav */}
       <nav className="flex-1 py-2">
@@ -122,7 +167,7 @@ export default function Sidebar({ collapsed, onToggle }) {
               {({ isActive }) => (<>
                 {isActive && !collapsed && <div className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full bg-[#00c896]"/>}
                 <Icon size={16} className="shrink-0" style={{ opacity: isActive ? 1 : 0.65 }}/>
-                {!collapsed && <span className="flex-1 text-[16px] font-medium overflow-hidden text-ellipsis leading-snug">{item.label}</span>}
+                {!collapsed && <span className="flex-1 text-[13.5px] font-medium overflow-hidden text-ellipsis leading-snug">{item.label}</span>}
                 {badgeCount > 0 && (
                   collapsed
                     ? <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500"/>

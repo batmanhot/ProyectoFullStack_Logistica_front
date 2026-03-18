@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy } from 'react'
+import { useState, Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AppProvider, useApp } from './store/AppContext'
 import Sidebar from './components/layout/Sidebar'
@@ -63,32 +63,6 @@ const PAGE_TITLES = {
 
 const ROLES_LABEL = { admin:'Administrador', supervisor:'Supervisor', almacenero:'Almacenero' }
 
-class ErrorBoundary extends React.Component {
-  constructor(props) { super(props); this.state = { hasError: false, error: null } }
-  static getDerivedStateFromError(error) { return { hasError: true, error } }
-  componentDidCatch(error, info) { console.error('[StockPro Error]', error, info) }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex flex-col items-center justify-center flex-1 gap-4 p-8 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-400 text-2xl">!</div>
-          <div>
-            <div className="text-[15px] font-semibold text-[#e8edf2] mb-1">Error al cargar el módulo</div>
-            <div className="text-[12px] text-[#5f6f80] mb-4 max-w-sm">{this.state.error?.message || 'Error inesperado'}</div>
-            <button
-              onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload() }}
-              className="px-4 py-2 bg-[#00c896] text-[#082e1e] text-[13px] font-semibold rounded-lg hover:bg-[#00e0aa] transition-colors">
-              Recargar página
-            </button>
-          </div>
-        </div>
-      )
-    }
-    return this.props.children
-  }
-}
-
-
 function PageLoader() {
   return (
     <div className="flex items-center justify-center flex-1 gap-3 text-[#5f6f80]">
@@ -143,12 +117,12 @@ function AppLayout() {
 
   if (!sesion) {
     return (
-      <ErrorBoundary>
+      <>
         <Suspense fallback={<PageLoader />}>
           <Routes><Route path="*" element={<Login />}/></Routes>
         </Suspense>
         <ToastContainer />
-      </ErrorBoundary>
+      </>
     )
   }
 
@@ -157,7 +131,6 @@ function AppLayout() {
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(p => !p)} />
       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
         <PageHeader />
-        <ErrorBoundary>
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/"               element={<Dashboard />} />
@@ -189,7 +162,6 @@ function AppLayout() {
             <Route path="*"               element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
-        </ErrorBoundary>
       </div>
       <ToastContainer />
     </div>

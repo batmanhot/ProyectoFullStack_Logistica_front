@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, SlidersHorizontal, TrendingUp, TrendingDown, Eye, Trash2 } from 'lucide-react'
+import { Plus, Search, SlidersHorizontal, TrendingUp, TrendingDown, Eye, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
 import { calcularPMP, procesarSalida } from '../utils/valorizacion'
@@ -18,6 +19,29 @@ export default function Ajustes() {
   const [eliminar, setEliminar] = useState(null)
   const [busqueda, setBusqueda] = useState('')
   const [filtTipo, setFiltTipo] = useState('')
+  const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' })
+
+  const handleSort = (key) => {
+    let direction = 'asc'
+    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc'
+    setSortConfig({ key, direction })
+  }
+
+
+  const toISODate = (val) => {
+    if (!val) return ''
+    if (val instanceof Date) return val.toISOString().split('T')[0]
+    const s = String(val).trim()
+    if (s.includes('/')) {
+      const parts = s.split('/')
+      if (parts.length === 3) {
+        const [d, m, y] = parts
+        return y.length === 4 ? `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` : `${d}-${m.padStart(2, '0')}-${y.padStart(2, '0')}`
+      }
+    }
+    const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    return isoMatch ? isoMatch[0] : ''
+  }
 
   const filtered = useMemo(() => {
     let d = [...ajustes]
@@ -29,8 +53,37 @@ export default function Ajustes() {
         return p?.nombre.toLowerCase().includes(q) || a.documento?.toLowerCase().includes(q) || a.motivo?.toLowerCase().includes(q)
       })
     }
+
+    d.sort((a, b) => {
+      const valA = toISODate(a.fecha)
+      const valB = toISODate(b.fecha)
+      return valB.localeCompare(valA)
+    })
+
+    d.sort((a, b) => {
+      let aV = a[sortConfig.key]
+      let bV = b[sortConfig.key]
+
+      if (sortConfig.key === 'fecha') {
+        aV = toISODate(a.fecha)
+        bV = toISODate(b.fecha)
+      } else if (sortConfig.key === 'producto') {
+        aV = productos.find(x => x.id === a.productoId)?.nombre || ''
+        bV = productos.find(x => x.id === b.productoId)?.nombre || ''
+      } else if (typeof aV === 'string') {
+        aV = aV.toLowerCase()
+        bV = bV.toLowerCase()
+      }
+
+      if (aV < bV) return sortConfig.direction === 'asc' ? -1 : 1
+      if (aV > bV) return sortConfig.direction === 'asc' ? 1 : -1
+      return 0
+    })
+
     return d
-  }, [ajustes, filtTipo, busqueda, productos])
+  }, [ajustes, filtTipo, busqueda, productos, sortConfig])
+
+
 
   const totales = useMemo(() => ({
     positivos: filtered.filter(a => a.tipo === 'POSITIVO').reduce((s,a) => s + a.costoTotal, 0),
@@ -134,10 +187,30 @@ export default function Ajustes() {
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full border-collapse text-[13px]">
             <thead><tr>
-              {['Fecha','Documento','Tipo','Producto','Cantidad','Costo Total','Motivo','Acciones'].map(h => (
-                <th key={h} className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/[0.08] whitespace-nowrap">{h}</th>
+              {[
+                { l: 'Fecha', k: 'fecha' },
+                { l: 'Documento', k: 'documento' },
+                { l: 'Tipo', k: 'tipo' },
+                { l: 'Producto', k: 'producto' },
+                { l: 'Cantidad', k: 'cantidad' },
+                { l: 'Costo Total', k: 'costoTotal' },
+                { l: 'Motivo', k: 'motivo' },
+                { l: 'Acciones' }
+              ].map((h) => (
+                <th key={h.l} 
+                  className={`bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/[0.08] cursor-pointer hover:bg-white/[0.02] whitespace-nowrap`}
+                  onClick={() => h.k && handleSort(h.k)}
+                >
+                  <div className="flex items-center gap-1.5">
+                    {h.l}
+                    {sortConfig.key === h.k && (
+                      sortConfig.direction === 'asc' ? <ChevronUp size={10} /> : <ChevronDown size={10} />
+                    )}
+                  </div>
+                </th>
               ))}
             </tr></thead>
+
             <tbody>
               {filtered.length === 0 && <tr><td colSpan={8}><EmptyState icon={SlidersHorizontal} title="Sin ajustes" description="Registra el primer ajuste de inventario."/></td></tr>}
               {filtered.map(a => {

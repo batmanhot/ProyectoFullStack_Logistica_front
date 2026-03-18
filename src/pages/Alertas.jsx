@@ -4,7 +4,9 @@ import {
   ShoppingCart, Package, CheckCircle, X, Eye,
   ArrowRight, Calendar, Hash, Layers
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useApp } from '../store/AppContext'
+
 import { formatDate, formatCurrency, diasParaVencer, estadoStock } from '../utils/helpers'
 import { Badge, Btn, Modal } from '../components/ui/index'
 
@@ -98,7 +100,9 @@ function generarAlertas(productos, ordenes, config, categorias, almacenes, simbo
 // ════════════════════════════════════════════════════════
 export default function Alertas() {
   const { productos, ordenes, config, categorias, almacenes, simboloMoneda } = useApp()
+  const navigate = useNavigate()
   const [filtroTipo, setFiltroTipo] = useState('all')
+
   const [verAlerta,  setVerAlerta]  = useState(null)
   const [leidas,     setLeidas]     = useState(() => {
     try { return JSON.parse(localStorage.getItem('sp_alertas_leidas') || '[]') } catch { return [] }
@@ -243,9 +247,11 @@ export default function Alertas() {
         <ModalDetalleAlerta
           alerta={verAlerta}
           simboloMoneda={simboloMoneda}
+          navigate={navigate}
           onClose={() => setVerAlerta(null)}
           onMarcarLeida={() => { marcarLeida(verAlerta.titulo); setVerAlerta(null) }}
         />
+
       )}
     </div>
   )
@@ -254,7 +260,8 @@ export default function Alertas() {
 // ════════════════════════════════════════════════════════
 // MODAL DETALLE ALERTA
 // ════════════════════════════════════════════════════════
-function ModalDetalleAlerta({ alerta, simboloMoneda, onClose, onMarcarLeida }) {
+function ModalDetalleAlerta({ alerta, simboloMoneda, navigate, onClose, onMarcarLeida }) {
+
   const meta  = TIPOS[alerta.tipo]
   const Icon  = meta?.icon || Bell
 
@@ -339,14 +346,23 @@ function ModalDetalleAlerta({ alerta, simboloMoneda, onClose, onMarcarLeida }) {
 
       {/* Acción recomendada */}
       {alerta.accion && (
-        <div className="flex items-center justify-between px-4 py-3 bg-[#00c896]/8 border border-[#00c896]/20 rounded-xl">
+        <div 
+          onClick={() => {
+            if (alerta.accionPath) {
+              navigate(alerta.accionPath)
+              onClose()
+            }
+          }}
+          className="flex items-center justify-between px-4 py-3 bg-[#00c896]/8 border border-[#00c896]/20 rounded-xl cursor-pointer hover:bg-[#00c896]/15 hover:border-[#00c896]/40 transition-all group/action"
+        >
           <div>
-            <div className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-wide mb-0.5">Acción recomendada</div>
+            <div className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-wide mb-0.5 group-hover/action:text-[#00c896] transition-colors">Acción recomendada</div>
             <div className="text-[13px] font-medium text-[#e8edf2]">{alerta.accion}</div>
           </div>
-          <ArrowRight size={16} className="text-[#00c896] shrink-0"/>
+          <ArrowRight size={16} className="text-[#00c896] shrink-0 group-hover/action:translate-x-1 transition-transform"/>
         </div>
       )}
+
     </Modal>
   )
 }
