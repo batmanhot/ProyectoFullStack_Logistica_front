@@ -30,6 +30,7 @@ const PWA             = lazy(() => import('./pages/PWA'))
 const Clientes        = lazy(() => import('./pages/Clientes'))
 const Despachos       = lazy(() => import('./pages/Despachos'))
 const Transportes     = lazy(() => import('./pages/Transportes'))
+const Auditoria       = lazy(() => import('./pages/Auditoria'))
 
 const PAGE_TITLES = {
   '/':               'Dashboard',
@@ -53,6 +54,7 @@ const PAGE_TITLES = {
   '/clientes':       'Clientes',
   '/despachos':      'Gestión de Despachos',
   '/transportes':    'Gestión de Transportes',
+  '/auditoria':      'Auditoría del Sistema',
   '/proveedores':    'Proveedores',
   '/maestros':       'Categorías y Almacenes',
   '/usuarios':       'Usuarios y Roles',
@@ -152,6 +154,7 @@ function AppLayout() {
             <Route path="/clientes"       element={<Clientes />} />
             <Route path="/despachos"      element={<Despachos />} />
             <Route path="/transportes"    element={<Transportes />} />
+            <Route path="/auditoria"      element={<Auditoria />} />
             <Route path="/proveedores"    element={<Proveedores />} />
             <Route path="/maestros"       element={<Maestros />} />
             <Route path="/usuarios"       element={<Usuarios />} />

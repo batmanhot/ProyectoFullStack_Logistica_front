@@ -1,18 +1,22 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine,
-  ShoppingCart, BarChart3, Settings, ChevronRight, Boxes,
+  ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes,
   Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut,
   ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell,
   FileText, ClipboardList, Activity, Smartphone,
-  Truck, Navigation as NavIcon,
+  Truck, Navigation as NavIcon, Shield,
 } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { estadoStock, diasParaVencer } from '../../utils/helpers'
 
 const NAV = [
   { label:'Dashboard',            path:'/',               icon:LayoutDashboard,  modulo:'dashboard'     },
+  { label:'Alertas',              path:'/alertas',        icon:Bell,             modulo:'alertas',      badge:'alertas' },
+  { divider:true, label:'INVENTARIO' },
   { label:'Inventario',           path:'/inventario',     icon:Package,          modulo:'inventario',   badge:'stock' },
+  { label:'Kardex',               path:'/kardex',         icon:BookOpen,         modulo:'kardex'        },
+  { label:'Inventario Físico',    path:'/inv-fisico',     icon:ClipboardList,    modulo:'inv-fisico'    },
   { divider:true, label:'OPERACIONES' },
   { label:'Entradas',             path:'/entradas',       icon:ArrowDownToLine,  modulo:'entradas'      },
   { label:'Salidas',              path:'/salidas',        icon:ArrowUpFromLine,  modulo:'salidas'       },
@@ -24,28 +28,25 @@ const NAV = [
   { label:'Cotizaciones',         path:'/cotizaciones',   icon:FileText,         modulo:'cotizaciones'  },
   { label:'Proveedores',          path:'/proveedores',    icon:Building2,        modulo:'proveedores'   },
   { divider:true, label:'DESPACHOS' },
-  { label:'Clientes',              path:'/clientes',    icon:Users,    modulo:'clientes'   },
-  { label:'Despachos',             path:'/despachos',   icon:Truck,    modulo:'despachos'  },
-  { label:'Transportes',           path:'/transportes', icon:NavIcon,   modulo:'transportes'},
+  { label:'Clientes',             path:'/clientes',       icon:Users,            modulo:'clientes'      },
+  { label:'Despachos',            path:'/despachos',      icon:Truck,            modulo:'despachos'     },
+  { label:'Transportes',          path:'/transportes',    icon:NavIcon,          modulo:'transportes'   },
   { divider:true, label:'ANÁLISIS' },
-  { label:'Alertas',              path:'/alertas',        icon:Bell,             modulo:'alertas',      badge:'alertas' },
   { label:'Movimientos',          path:'/movimientos',    icon:Boxes,            modulo:'movimientos'   },
-  { label:'Kardex',               path:'/kardex',         icon:BookOpen,         modulo:'kardex'        },
   { label:'Vencimientos',         path:'/vencimientos',   icon:Clock,            modulo:'vencimientos'  },
   { label:'Punto de Reorden',     path:'/reorden',        icon:TrendingDown,     modulo:'reorden'       },
   { label:'Previsión de Demanda', path:'/prevision',      icon:Activity,         modulo:'prevision'     },
   { label:'Reportes',             path:'/reportes',       icon:BarChart3,        modulo:'reportes'      },
-  { divider:true, label:'HERRAMIENTAS' },
-  { label:'Inventario Físico',    path:'/inv-fisico',     icon:ClipboardList,    modulo:'inv-fisico'    },
-  { label:'App Móvil / PWA',      path:'/pwa',            icon:Smartphone,       modulo:'pwa'           },
-  { divider:true, label:'CONFIGURACIÓN' },
+  { divider:true, label:'ADMINISTRACIÓN' },
   { label:'Categ. / Almacenes',   path:'/maestros',       icon:Tag,              modulo:'maestros'      },
   { label:'Usuarios y Roles',     path:'/usuarios',       icon:Users,            modulo:'usuarios'      },
+  { label:'Auditoría',            path:'/auditoria',      icon:Shield,           modulo:'auditoria'     },
   { label:'Configuración',        path:'/configuracion',  icon:Settings,         modulo:'configuracion' },
+  { label:'App Móvil / PWA',      path:'/pwa',            icon:Smartphone,       modulo:'pwa'           },
 ]
 
 export default function Sidebar({ collapsed, onToggle }) {
-  const { productos, sesion, logout, tienePermiso } = useApp()
+  const { productos, sesion, logout, tienePermiso, config } = useApp()
 
   const stockCritico = productos.filter(p => {
     const e = estadoStock(p.stockActual, p.stockMinimo)
@@ -61,79 +62,101 @@ export default function Sidebar({ collapsed, onToggle }) {
   const totalAlertas = stockCritico + alertasVenc
 
   return (
-    <aside className={`flex flex-col bg-[#141920] border-r border-white/[0.08] transition-all duration-200 shrink-0 overflow-y-auto z-10 ${collapsed ? 'w-14' : 'w-[235px]'}`}>
+    <aside className={`flex flex-col bg-[#0f1520] border-r border-white/[0.07] transition-all duration-250 shrink-0 overflow-y-auto z-10 ${collapsed ? 'w-[60px]' : 'w-[252px]'}`}>
+
       {/* Logo */}
-      <div className="h-[52px] flex items-center px-4 border-b border-white/[0.08] gap-2.5 shrink-0 sticky top-0 bg-[#141920] z-10">
-        <div className="w-7 h-7 rounded-lg bg-[#00c896] flex items-center justify-center shrink-0">
-          <Package size={15} color="#082e1e" strokeWidth={2.5}/>
+      <div className={`flex items-center border-b border-white/[0.07] shrink-0 sticky top-0 bg-[#0f1520] z-10 ${collapsed ? 'h-[60px] justify-center' : 'h-[68px] px-4 gap-3'}`}>
+        <div className={`rounded-xl bg-[#00c896] flex items-center justify-center shrink-0 shadow-[0_0_16px_rgba(0,200,150,0.35)] ${collapsed ? 'w-9 h-9' : 'w-10 h-10'}`}>
+          <Package size={collapsed ? 17 : 20} color="#082e1e" strokeWidth={2.5}/>
         </div>
         {!collapsed && (
-          <div className="overflow-hidden flex-1">
-            <div className="text-[15px] font-semibold text-[#e8edf2] whitespace-nowrap">StockPro</div>
-            <div className="text-[10px] text-[#00c896] font-medium tracking-[0.05em]">GESTIÓN LOGÍSTICA</div>
+          <div className="flex-1 overflow-hidden">
+            <div className="text-[18px] font-extrabold text-white tracking-tight leading-none" style={{ fontFamily:"'Inter','Segoe UI',system-ui,sans-serif", letterSpacing:'-0.03em' }}>
+              Stock<span style={{ color:'#00c896' }}>Pro</span>
+            </div>
+            <div className="text-[10px] font-semibold tracking-[0.18em] mt-0.5" style={{ color:'#00c896', opacity:0.75 }}>
+              GESTIÓN LOGÍSTICA
+            </div>
           </div>
         )}
-        <button onClick={onToggle} className="ml-auto p-1 rounded text-[#5f6f80] hover:text-[#9ba8b6] transition-colors shrink-0">
-          <ChevronRight size={14} className="transition-transform duration-200" style={{ transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}/>
+        <button onClick={onToggle} title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+          className={`flex items-center justify-center rounded-lg transition-all duration-150 shrink-0 text-[#5f6f80] hover:text-[#e8edf2] hover:bg-white/[0.06] ${collapsed ? 'w-9 h-9' : 'w-8 h-8 ml-auto'}`}>
+          {collapsed ? <ChevronRight size={16}/> : <ChevronLeft size={16}/>}
         </button>
       </div>
+
+      {/* Versión */}
+      {!collapsed && config?.modoSistema && (
+        <div className="px-4 py-1.5">
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#00c896]/10 text-[#00c896]/70 font-medium tracking-wide">
+            {config.version || 'v2.0'} · {config.modoSistema?.split('—')[0]?.trim()}
+          </span>
+        </div>
+      )}
 
       {/* Nav */}
       <nav className="flex-1 py-2">
         {NAV.map((item, i) => {
           if (item.divider) return (
-            <div key={i}>
-              <div className="h-px bg-white/[0.05] mx-3 mt-1.5"/>
+            <div key={i} className="mt-1">
+              <div className="h-px bg-white/[0.05] mx-3 mb-1"/>
               {!collapsed && item.label && (
-                <div className="px-4 py-1.5 text-[9px] font-semibold text-[#5f6f80] uppercase tracking-[0.1em]">{item.label}</div>
+                <div className="px-4 py-1 text-[9.5px] font-bold text-[#3d4f60] uppercase tracking-[0.14em]">{item.label}</div>
               )}
             </div>
           )
-          if (sesion && !tienePermiso(item.modulo) && item.modulo !== 'configuracion' && item.modulo !== 'pwa') return null
+          if (sesion) {
+            const libre = ['configuracion','pwa','auditoria'].includes(item.modulo)
+            if (!libre && !tienePermiso(item.modulo)) return null
+            if (item.modulo === 'auditoria' && sesion.rol !== 'admin') return null
+          }
           const Icon = item.icon
           const badgeCount = item.badge === 'stock' ? stockCritico : item.badge === 'alertas' ? totalAlertas : 0
           return (
             <NavLink key={item.path} to={item.path} end={item.path === '/'} title={collapsed ? item.label : undefined}
               className={({ isActive }) =>
-                `flex items-center gap-2.5 mx-2 my-px px-3 py-[7px] rounded-lg text-[13px] transition-all duration-150 no-underline overflow-hidden whitespace-nowrap
-                ${isActive ? 'text-[#00c896] bg-[#00c896]/10 font-medium' : 'text-[#9ba8b6] hover:text-[#e8edf2] hover:bg-white/[0.04]'}`
+                `flex items-center gap-3 mx-2 my-[2px] rounded-lg transition-all duration-150 no-underline overflow-hidden whitespace-nowrap relative
+                ${collapsed ? 'px-0 justify-center h-10' : 'px-3 py-[8px]'}
+                ${isActive ? 'bg-[#00c896]/12 text-[#00c896]' : 'text-[#7a8fa8] hover:text-[#d0dae6] hover:bg-white/[0.05]'}`
               }>
-              {({ isActive }) => (
-                <>
-                  <Icon size={15} className="shrink-0" style={{ opacity: isActive ? 1 : 0.6 }}/>
-                  {!collapsed && <span className="flex-1 overflow-hidden text-ellipsis">{item.label}</span>}
-                  {!collapsed && badgeCount > 0 && (
-                    <span className="ml-auto bg-red-500 text-white text-[10px] font-semibold px-1.5 py-px rounded-full shrink-0">{badgeCount}</span>
-                  )}
-                </>
-              )}
+              {({ isActive }) => (<>
+                {isActive && !collapsed && <div className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full bg-[#00c896]"/>}
+                <Icon size={16} className="shrink-0" style={{ opacity: isActive ? 1 : 0.65 }}/>
+                {!collapsed && <span className="flex-1 text-[16px] font-medium overflow-hidden text-ellipsis leading-snug">{item.label}</span>}
+                {badgeCount > 0 && (
+                  collapsed
+                    ? <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500"/>
+                    : <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-[1px] rounded-full shrink-0">{badgeCount}</span>
+                )}
+              </>)}
             </NavLink>
           )
         })}
       </nav>
 
       {/* Footer */}
-      {!collapsed && sesion && (
-        <div className="px-3 py-3 border-t border-white/[0.06] sticky bottom-0 bg-[#141920]">
-          <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg">
-            <div className="w-6 h-6 rounded-full bg-[#00c896]/15 flex items-center justify-center text-[#00c896] text-[10px] font-bold shrink-0">
-              {sesion.nombre.charAt(0)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[12px] font-medium text-[#9ba8b6] truncate">{sesion.nombre}</div>
-              <div className="text-[10px] text-[#5f6f80] truncate">{sesion.email}</div>
-            </div>
-            <button onClick={logout} title="Cerrar sesión" className="p-1 text-[#5f6f80] hover:text-red-400 transition-colors shrink-0">
-              <LogOut size={13}/>
+      {sesion && (
+        <div className={`border-t border-white/[0.07] sticky bottom-0 bg-[#0f1520] ${collapsed ? 'p-2' : 'px-3 py-3'}`}>
+          {collapsed ? (
+            <button onClick={logout} title="Cerrar sesión"
+              className="w-full h-10 flex items-center justify-center text-[#5f6f80] hover:text-red-400 transition-colors rounded-lg hover:bg-white/[0.04]">
+              <LogOut size={15}/>
             </button>
-          </div>
-        </div>
-      )}
-      {collapsed && (
-        <div className="p-2 border-t border-white/[0.06] sticky bottom-0 bg-[#141920]">
-          <button onClick={logout} title="Cerrar sesión" className="w-full p-2 flex items-center justify-center text-[#5f6f80] hover:text-red-400 transition-colors rounded-lg hover:bg-white/[0.04]">
-            <LogOut size={14}/>
-          </button>
+          ) : (
+            <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/[0.03] transition-colors">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background:'linear-gradient(135deg,#00c896,#008f6b)' }}>
+                {sesion.nombre.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-medium text-[#c8d8e8] truncate leading-tight">{sesion.nombre}</div>
+                <div className="text-[10px] text-[#3d4f60] truncate">{sesion.email}</div>
+              </div>
+              <button onClick={logout} title="Cerrar sesión"
+                className="p-1.5 text-[#3d4f60] hover:text-red-400 transition-colors rounded-lg hover:bg-white/[0.06] shrink-0">
+                <LogOut size={13}/>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </aside>

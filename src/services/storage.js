@@ -7,6 +7,27 @@ import { newId, fechaHoy } from '../utils/helpers'
 
 const KEYS={config:'sp_config',productos:'sp_productos',categorias:'sp_categorias',almacenes:'sp_almacenes',proveedores:'sp_proveedores',movimientos:'sp_movimientos',ordenes:'sp_ordenes',usuarios:'sp_usuarios'}
 
+// ── Auditoría interna — se llama desde cada función de escritura ──────
+function _audit(accion, modulo, detalle, datos) {
+  try {
+    const ses   = JSON.parse(localStorage.getItem('sp_session') || 'null')
+    const logs  = JSON.parse(localStorage.getItem('sp_auditoria') || '[]')
+    const ahora = new Date()
+    logs.unshift({
+      id:            Math.random().toString(36).slice(2,10),
+      timestamp:     ahora.toISOString(),
+      fecha:         ahora.toISOString().split('T')[0],
+      hora:          ahora.toTimeString().slice(0,8),
+      usuarioId:     ses?.id     || 'sistema',
+      usuarioNombre: ses?.nombre || 'Sistema',
+      accion, modulo, detalle, datos: datos || null,
+    })
+    if (logs.length > 500) logs.splice(500)
+    localStorage.setItem('sp_auditoria', JSON.stringify(logs))
+  } catch(e) { /* silencioso — no interrumpir operación */ }
+}
+
+
 function leer(key){try{return JSON.parse(localStorage.getItem(key)||'null')}catch{return null}}
 function guardar(key,data){try{localStorage.setItem(key,JSON.stringify(data));return true}catch{return false}}
 function ok(data){return{data,error:null}}
@@ -50,8 +71,20 @@ const PROV=[
   {id:'prov7',razonSocial:'Seguridad y EPP Lima',ruc:'20565443210',contacto:'Sr. César Mendoza',direccion:'Av. Próceres de la Independencia 2580, San Juan de Lurigancho, Lima',telefono:'964-321-987',email:'epp@seguridadlima.pe',activo:true,plazoEntrega:3},
 ]
 export function getProveedores(){const d=leer(KEYS.proveedores)||PROV;if(!leer(KEYS.proveedores))guardar(KEYS.proveedores,PROV);return ok(d)}
-export function saveProveedor(p){const l=leer(KEYS.proveedores)||PROV;if(p.id){const i=l.findIndex(x=>x.id===p.id);if(i>=0)l[i]=p;else l.push({...p,id:newId(),activo:true})}else l.push({...p,id:newId(),activo:true});guardar(KEYS.proveedores,l);return ok(true)}
-export function deleteProveedor(id){guardar(KEYS.proveedores,(leer(KEYS.proveedores)||[]).filter(p=>p.id!==id));return ok(true)}
+export function saveProveedor(p){
+  const l=leer(KEYS.proveedores)||PROV;const esNuevo=!p.id
+  if(p.id){const i=l.findIndex(x=>x.id===p.id);if(i>=0)l[i]=p;else l.push({...p,id:newId(),activo:true})}
+  else l.push({...p,id:newId(),activo:true})
+  guardar(KEYS.proveedores,l)
+  _audit(esNuevo?'CREATE':'UPDATE','proveedores',`Proveedor ${esNuevo?'creado':'modificado'} — ${p.razonSocial}`)
+  return ok(true)
+}
+export function deleteProveedor(id){
+  const p=(leer(KEYS.proveedores)||[]).find(x=>x.id===id)
+  guardar(KEYS.proveedores,(leer(KEYS.proveedores)||[]).filter(x=>x.id!==id))
+  _audit('DELETE','proveedores',`Proveedor eliminado — ${p?.razonSocial||id}`)
+  return ok(true)
+}
 
 // ═══════════════════════════════════════════════════════════
 // PRODUCTOS — 24 SKUs con batches reales
@@ -93,8 +126,21 @@ const PROD=[
 
 export function getProductos(){let d=leer(KEYS.productos);if(!d){guardar(KEYS.productos,PROD);d=PROD}return ok(d)}
 export function getProductoById(id){const l=leer(KEYS.productos)||PROD;const p=l.find(x=>x.id===id);return p?ok(p):err('Producto no encontrado')}
-export function saveProducto(prod){const l=leer(KEYS.productos)||[];const t=new Date().toISOString();if(prod.id){const i=l.findIndex(p=>p.id===prod.id);if(i>=0)l[i]={...prod,updatedAt:t};else return err('No encontrado')}else l.push({...prod,id:newId(),batches:[],stockActual:0,createdAt:t,updatedAt:t});guardar(KEYS.productos,l);return ok(true)}
-export function deleteProducto(id){guardar(KEYS.productos,(leer(KEYS.productos)||[]).filter(p=>p.id!==id));return ok(true)}
+export function saveProducto(prod){
+  const l=leer(KEYS.productos)||[];const t=new Date().toISOString()
+  const esNuevo=!prod.id
+  if(prod.id){const i=l.findIndex(p=>p.id===prod.id);if(i>=0)l[i]={...prod,updatedAt:t};else return err('No encontrado')}
+  else l.push({...prod,id:newId(),batches:[],stockActual:0,createdAt:t,updatedAt:t})
+  guardar(KEYS.productos,l)
+  _audit(esNuevo?'CREATE':'UPDATE','inventario',`${esNuevo?'Producto creado':'Producto modificado'} — ${prod.nombre} (${prod.sku})`)
+  return ok(true)
+}
+export function deleteProducto(id){
+  const prod=(leer(KEYS.productos)||[]).find(p=>p.id===id)
+  guardar(KEYS.productos,(leer(KEYS.productos)||[]).filter(p=>p.id!==id))
+  _audit('DELETE','inventario',`Producto eliminado — ${prod?.nombre||id} (${prod?.sku||''})`)
+  return ok(true)
+}
 export function _actualizarBatchesProducto(pId,batches,stock){const l=leer(KEYS.productos)||[];const i=l.findIndex(p=>p.id===pId);if(i<0)return false;l[i].batches=batches;l[i].stockActual=stock;l[i].updatedAt=new Date().toISOString();guardar(KEYS.productos,l);return true}
 
 // ═══════════════════════════════════════════════════════════
@@ -224,7 +270,19 @@ const MOV=[
 ]
 
 export function getMovimientos(f={}){let d=leer(KEYS.movimientos)||MOV;if(!leer(KEYS.movimientos))guardar(KEYS.movimientos,MOV);if(f.productoId)d=d.filter(m=>m.productoId===f.productoId);if(f.tipo)d=d.filter(m=>m.tipo===f.tipo);if(f.desde)d=d.filter(m=>m.fecha>=f.desde);if(f.hasta)d=d.filter(m=>m.fecha<=f.hasta);return ok([...d].sort((a,b)=>b.fecha.localeCompare(a.fecha)))}
-export function registrarMovimiento(mov){const l=leer(KEYS.movimientos)||[];const n={...mov,id:newId(),fecha:mov.fecha||fechaHoy(),createdAt:new Date().toISOString()};l.push(n);guardar(KEYS.movimientos,l);return ok(n)}
+export function registrarMovimiento(mov){
+  const l=leer(KEYS.movimientos)||[]
+  const n={...mov,id:newId(),fecha:mov.fecha||fechaHoy(),createdAt:new Date().toISOString()}
+  l.push(n);guardar(KEYS.movimientos,l)
+  const tipoLabel={ENTRADA:'Entrada registrada',SALIDA:'Salida registrada',AJUSTE:'Ajuste registrado',TRANSFERENCIA:'Transferencia registrada',DEVOLUCION:'Devolución registrada'}
+  const modLabel={ENTRADA:'entradas',SALIDA:'salidas',AJUSTE:'ajustes',TRANSFERENCIA:'transferencias',DEVOLUCION:'devoluciones'}
+  const prods=leer(KEYS.productos)||[]
+  const prod=prods.find(p=>p.id===mov.productoId)
+  _audit('CREATE', modLabel[mov.tipo]||'movimientos',
+    `${tipoLabel[mov.tipo]||mov.tipo} — ${prod?.nombre||mov.productoId} · ${mov.cantidad} ${prod?.unidadMedida||''} · Doc: ${mov.documento||'—'}`,
+    { tipo:mov.tipo, productoId:mov.productoId, cantidad:mov.cantidad, documento:mov.documento })
+  return ok(n)
+}
 
 // ═══════════════════════════════════════════════════════════
 // ÓRDENES DE COMPRA
@@ -247,13 +305,21 @@ const OC=[
 ]
 export function getOrdenes(f={}){let d=leer(KEYS.ordenes)||OC;if(!leer(KEYS.ordenes))guardar(KEYS.ordenes,OC);if(f.estado)d=d.filter(o=>o.estado===f.estado);return ok([...d].sort((a,b)=>b.createdAt.localeCompare(a.createdAt)))}
 export function getOrdenById(id){const l=leer(KEYS.ordenes)||OC;const o=l.find(x=>x.id===id);return o?ok(o):err('No encontrada')}
-export function saveOrden(orden){const l=leer(KEYS.ordenes)||[];const t=new Date().toISOString();if(orden.id){const i=l.findIndex(o=>o.id===orden.id);if(i>=0)l[i]={...orden,updatedAt:t};else l.push({...orden,id:newId(),createdAt:t})}else l.push({...orden,id:newId(),createdAt:t});guardar(KEYS.ordenes,l);return ok(true)}
+export function saveOrden(orden){
+  const l=leer(KEYS.ordenes)||[];const t=new Date().toISOString()
+  const esNueva=!orden.id||(l.findIndex(o=>o.id===orden.id)<0)
+  if(orden.id){const i=l.findIndex(o=>o.id===orden.id);if(i>=0)l[i]={...orden,updatedAt:t};else l.push({...orden,id:newId(),createdAt:t})}
+  else l.push({...orden,id:newId(),createdAt:t})
+  guardar(KEYS.ordenes,l)
+  _audit(esNueva?'CREATE':'UPDATE','ordenes',`OC ${orden.numero||''} — Estado: ${orden.estado} · Total: ${orden.total||0}`)
+  return ok(true)
+}
 
 // ═══════════════════════════════════════════════════════════
 // USUARIOS Y ROLES
 // ═══════════════════════════════════════════════════════════
 const ROLES={
-  admin:     {label:'Administrador',permisos:['*']},
+  admin:     {label:'Administrador',permisos:['*','auditoria']},
   supervisor:{label:'Supervisor',   permisos:['dashboard','inventario','movimientos','reportes','ordenes','proveedores','kardex','vencimientos','reorden','prevision','alertas','cotizaciones','clientes','despachos','transportes']},
   almacenero:{label:'Almacenero',   permisos:['dashboard','inventario','entradas','salidas','ajustes','devoluciones','transferencias','kardex','vencimientos','inv-fisico','alertas','despachos','clientes','transportes']},
 }
@@ -264,13 +330,44 @@ const USR=[
   {id:'usr4',nombre:'Miguel Ángel Cáceres',email:'miguel@dlnorte.pe', password:'miguel123', rol:'almacenero', activo:true,createdAt:'2025-01-15T00:00:00Z'},
 ]
 export function getUsuarios(){const d=leer('sp_usuarios')||USR;if(!leer('sp_usuarios'))guardar('sp_usuarios',USR);return ok(d)}
-export function saveUsuario(u){const l=leer('sp_usuarios')||USR;if(u.id){const i=l.findIndex(x=>x.id===u.id);if(i>=0)l[i]={...l[i],...u};else l.push({...u,id:newId(),createdAt:new Date().toISOString()})}else l.push({...u,id:newId(),createdAt:new Date().toISOString()});guardar('sp_usuarios',l);return ok(true)}
-export function deleteUsuario(id){guardar('sp_usuarios',(leer('sp_usuarios')||[]).filter(u=>u.id!==id));return ok(true)}
-export function loginUsuario(email,password){const l=leer('sp_usuarios')||USR;const u=l.find(x=>x.email===email&&x.password===password&&x.activo);if(!u)return err('Credenciales incorrectas o usuario inactivo');const s={...u,loginAt:new Date().toISOString()};guardar('sp_session',s);return ok(s)}
+export function saveUsuario(u){
+  const l=leer('sp_usuarios')||USR;const esNuevo=!u.id
+  if(u.id){const i=l.findIndex(x=>x.id===u.id);if(i>=0)l[i]={...l[i],...u};else l.push({...u,id:newId(),createdAt:new Date().toISOString()})}
+  else l.push({...u,id:newId(),createdAt:new Date().toISOString()})
+  guardar('sp_usuarios',l)
+  _audit(esNuevo?'CREATE':'UPDATE','usuarios',`Usuario ${esNuevo?'creado':'modificado'} — ${u.nombre} (${u.rol})`)
+  return ok(true)
+}
+export function deleteUsuario(id){
+  const u=(leer('sp_usuarios')||[]).find(x=>x.id===id)
+  guardar('sp_usuarios',(leer('sp_usuarios')||[]).filter(x=>x.id!==id))
+  _audit('DELETE','usuarios',`Usuario eliminado — ${u?.nombre||id}`)
+  return ok(true)
+}
+export function loginUsuario(email,password){const l=leer('sp_usuarios')||USR;const u=l.find(x=>x.email===email&&x.password===password&&x.activo);if(!u){registrarAuditoria({usuarioId:'desconocido',usuarioNombre:email,accion:'LOGIN_FAILED',modulo:'auth',detalle:`Intento de acceso fallido para: ${email}`});return err('Credenciales incorrectas o usuario inactivo');}const s={...u,loginAt:new Date().toISOString()};guardar('sp_session',s);registrarAuditoria({usuarioId:u.id,usuarioNombre:u.nombre,accion:'LOGIN',modulo:'auth',detalle:`Inicio de sesión exitoso`});return ok(s)}
 export function getSession(){return ok(leer('sp_session'))}
-export function logout(){localStorage.removeItem('sp_session');return ok(true)}
-export function getRoles(){return ok(ROLES)}
-export function tienePermiso(rol,modulo){const r=ROLES[rol];if(!r)return false;return r.permisos.includes('*')||r.permisos.includes(modulo)}
+export function logout(){
+  const ses=leer('sp_session')
+  _audit('LOGOUT','auth',`Cierre de sesión — ${ses?.nombre||'usuario'}`)
+  localStorage.removeItem('sp_session');return ok(true)
+}
+export function getRoles(){
+  // Combinar roles base con roles custom del localStorage
+  try {
+    const custom = JSON.parse(localStorage.getItem('sp_roles_custom')||'{}')
+    return ok({...ROLES,...custom})
+  } catch { return ok(ROLES) }
+}
+export function tienePermiso(rol,modulo){
+  // Primero buscar en roles base
+  let r = ROLES[rol]
+  // Si no está en base, buscar en custom
+  if(!r){
+    try { const custom=JSON.parse(localStorage.getItem('sp_roles_custom')||'{}'); r=custom[rol] } catch {}
+  }
+  if(!r) return false
+  return r.permisos.includes('*')||r.permisos.includes(modulo)
+}
 
 // ═══════════════════════════════════════════════════════════
 // AJUSTES
@@ -394,11 +491,14 @@ export function saveCliente(cli) {
     lista.push({ ...cli, id: newId(), createdAt: ahora, activo: true })
   }
   guardar('sp_clientes', lista)
+  _audit(cli.id?'UPDATE':'CREATE','clientes',`Cliente ${cli.id?'modificado':'creado'} — ${cli.razonSocial}`)
   return ok(true)
 }
 
 export function deleteCliente(id) {
+  const cli=(leer('sp_clientes')||[]).find(x=>x.id===id)
   guardar('sp_clientes', (leer('sp_clientes') || []).filter(c => c.id !== id))
+  _audit('DELETE','clientes',`Cliente eliminado — ${cli?.razonSocial||id}`)
   return ok(true)
 }
 
@@ -529,6 +629,7 @@ export function saveDespacho(des) {
     lista.push({ ...des, id: newId(), createdAt: ahora })
   }
   guardar('sp_despachos', lista)
+  _audit(des.id?'UPDATE':'CREATE','despachos',`Despacho ${des.numero||''} — Cliente: ${des.clienteId} · Estado: ${des.estado}`)
   return ok(true)
 }
 
@@ -653,7 +754,53 @@ export function saveRuta(ruta) {
   return ok(true)
 }
 
-export function eliminarRuta(id) {
-  guardar('sp_rutas', (leer('sp_rutas') || []).filter(r => r.id !== id))
+// ═══════════════════════════════════════════════════════════
+// AUDITORÍA DEL SISTEMA
+// ═══════════════════════════════════════════════════════════
+const KEY_AUDIT = 'sp_auditoria'
+const MAX_LOGS  = 500  // máximo de registros en localStorage
+
+export function registrarAuditoria({ usuarioId, usuarioNombre, accion, modulo, detalle, datos = null }) {
+  try {
+    const logs = leer(KEY_AUDIT) || []
+    const nuevo = {
+      id:             newId(),
+      timestamp:      new Date().toISOString(),
+      fecha:          new Date().toISOString().split('T')[0],
+      hora:           new Date().toTimeString().slice(0,8),
+      usuarioId:      usuarioId || 'sistema',
+      usuarioNombre:  usuarioNombre || 'Sistema',
+      accion,         // CREATE | UPDATE | DELETE | LOGIN | LOGOUT | EXPORT | PRINT
+      modulo,         // inventario | entradas | salidas | etc.
+      detalle,        // descripción legible
+      datos,          // objeto JSON opcional con datos del cambio
+    }
+    logs.unshift(nuevo)  // más reciente primero
+    if (logs.length > MAX_LOGS) logs.splice(MAX_LOGS)
+    guardar(KEY_AUDIT, logs)
+    return ok(nuevo)
+  } catch { return ok(null) }
+}
+
+export function getAuditoria(filtros = {}) {
+  let logs = leer(KEY_AUDIT) || []
+  if (filtros.usuarioId) logs = logs.filter(l => l.usuarioId === filtros.usuarioId)
+  if (filtros.modulo)    logs = logs.filter(l => l.modulo === filtros.modulo)
+  if (filtros.accion)    logs = logs.filter(l => l.accion === filtros.accion)
+  if (filtros.desde)     logs = logs.filter(l => l.fecha >= filtros.desde)
+  if (filtros.hasta)     logs = logs.filter(l => l.fecha <= filtros.hasta)
+  if (filtros.busqueda) {
+    const q = filtros.busqueda.toLowerCase()
+    logs = logs.filter(l =>
+      l.detalle?.toLowerCase().includes(q) ||
+      l.usuarioNombre?.toLowerCase().includes(q) ||
+      l.modulo?.toLowerCase().includes(q)
+    )
+  }
+  return ok(logs)
+}
+
+export function limpiarAuditoria() {
+  guardar(KEY_AUDIT, [])
   return ok(true)
 }
