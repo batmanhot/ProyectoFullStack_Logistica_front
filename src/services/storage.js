@@ -754,6 +754,35 @@ export function saveRuta(ruta) {
   return ok(true)
 }
 
+// ── Stock Reservado por Despachos activos ─────────────────
+// Estados que bloquean stock: PEDIDO, APROBADO, PICKING, LISTO
+const ESTADOS_RESERVA = ['PEDIDO','APROBADO','PICKING','LISTO']
+
+export function getStockReservado() {
+  // Devuelve map { productoId → cantidadReservada }
+  const despachos = leer('sp_despachos') || []
+  const reservas  = {}
+  despachos
+    .filter(d => ESTADOS_RESERVA.includes(d.estado))
+    .forEach(d => {
+      (d.items || []).forEach(it => {
+        reservas[it.productoId] = (reservas[it.productoId] || 0) + (it.cantidad || 0)
+      })
+    })
+  return ok(reservas)
+}
+
+export function getStockDisponible(productoId) {
+  // stockDisponible = stockActual - cantidadReservada en despachos activos
+  const prods    = leer(KEYS.productos) || []
+  const prod     = prods.find(p => p.id === productoId)
+  if (!prod) return ok(0)
+  const reservas = getStockReservado().data || {}
+  const reservado = reservas[productoId] || 0
+  return ok(Math.max(0, prod.stockActual - reservado))
+}
+
+
 // ═══════════════════════════════════════════════════════════
 // AUDITORÍA DEL SISTEMA
 // ═══════════════════════════════════════════════════════════

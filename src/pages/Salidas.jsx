@@ -1,81 +1,32 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, ArrowUpFromLine, Eye, XCircle, DollarSign, Calendar, TrendingDown, ShoppingBag, ChevronUp, ChevronDown } from 'lucide-react'
-
+import { Plus, Search, ArrowUpFromLine, Eye, XCircle, DollarSign, Calendar, TrendingDown, ShoppingBag , Download } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
 import { procesarSalida, calcularPMP } from '../utils/valorizacion'
 import * as storage from '../services/storage'
 import { Modal, ConfirmDialog, EmptyState, Btn, Field, Badge, Alert } from '../components/ui/index'
+import { exportarMovimientosXLSX } from '../utils/exportXLSX'
+import { exportarMovimientosPDF } from '../utils/exportPDF'
 
 const SI  = 'px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 w-full font-[inherit] placeholder-[#5f6f80]'
 const SEL = SI + ' pr-8'
 const MOTIVOS = ['Venta','Consumo interno','Muestra','Merma','Transferencia','Devolución a proveedor','Otro']
 
 export default function Salidas() {
-  const { movimientos, productos, almacenes, recargarProductos, recargarMovimientos, toast, formulaValorizacion, simboloMoneda } = useApp()
+  const { movimientos, productos, almacenes, recargarProductos, recargarMovimientos, toast, formulaValorizacion, simboloMoneda , config } = useApp()
   const [modal, setModal]       = useState(false)
   const [verMov, setVerMov]     = useState(null)
   const [anular, setAnular]     = useState(null)
   const [busqueda, setBusqueda] = useState('')
-  const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' })
 
-  const handleSort = (key) => {
-    let direction = 'asc'
-    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc'
-    setSortConfig({ key, direction })
-  }
-
-
-  const toISODate = (val) => {
-    if (!val) return ''
-    if (val instanceof Date) return val.toISOString().split('T')[0]
-    const s = String(val).trim()
-    if (s.includes('/')) {
-      const parts = s.split('/')
-      if (parts.length === 3) {
-        const [d, m, y] = parts
-        return y.length === 4 ? `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` : `${d}-${m.padStart(2, '0')}-${y.padStart(2, '0')}`
-      }
-    }
-    const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
-    return isoMatch ? isoMatch[0] : ''
-  }
-
-  const salidas = useMemo(() => {
-    let d = movimientos.filter(m => m.tipo === 'SALIDA')
-    
-    if (busqueda) {
+  const salidas = useMemo(() =>
+    movimientos.filter(m => m.tipo === 'SALIDA').filter(m => {
+      if (!busqueda) return true
       const q = busqueda.toLowerCase()
-      d = d.filter(m => {
-        const p = productos.find(x => x.id === m.productoId)
-        return p?.nombre.toLowerCase().includes(q) || m.documento?.toLowerCase().includes(q)
-      })
-    }
-
-    d.sort((a, b) => {
-      let aV = a[sortConfig.key]
-      let bV = b[sortConfig.key]
-
-      if (sortConfig.key === 'fecha') {
-        aV = toISODate(a.fecha)
-        bV = toISODate(b.fecha)
-      } else if (sortConfig.key === 'producto') {
-        aV = productos.find(x => x.id === a.productoId)?.nombre || ''
-        bV = productos.find(x => x.id === b.productoId)?.nombre || ''
-      } else if (typeof aV === 'string') {
-        aV = aV.toLowerCase()
-        bV = bV.toLowerCase()
-      }
-
-      if (aV < bV) return sortConfig.direction === 'asc' ? -1 : 1
-      if (aV > bV) return sortConfig.direction === 'asc' ? 1 : -1
-      return 0
+      const p = productos.find(x => x.id === m.productoId)
+      return p?.nombre.toLowerCase().includes(q) || m.documento?.toLowerCase().includes(q)
     })
-
-    return d
-  }, [movimientos, busqueda, productos, sortConfig])
-
-
+  , [movimientos, busqueda, productos])
 
   const kpis = useMemo(() => {
     const todas  = movimientos.filter(m => m.tipo === 'SALIDA')
@@ -198,7 +149,19 @@ export default function Salidas() {
       <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Registro de Salidas</span>
-          <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/>Nueva Salida</Btn>
+          <div className="flex items-center gap-2">
+            <Btn variant="secondary" size="sm"
+              onClick={async () => { await exportarMovimientosXLSX(salidas, productos, almacenes, simboloMoneda) }}
+              style={{background:'#1e7b47',color:'#fff',borderColor:'#1e7b47'}}>
+              <Download size={13}/> Excel
+            </Btn>
+            <Btn variant="secondary" size="sm"
+              onClick={async () => { await exportarMovimientosPDF(salidas, productos, almacenes, simboloMoneda, config?.empresa, 'Salidas de Stock') }}
+              style={{background:'#c0392b',color:'#fff',borderColor:'#c0392b'}}>
+              <Download size={13}/> PDF
+            </Btn>
+            <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/>Nueva Salida</Btn>
+          </div>
         </div>
         <div className="relative mb-3 max-w-sm">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
@@ -207,31 +170,10 @@ export default function Salidas() {
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full border-collapse text-[13px]">
             <thead><tr>
-              {[
-                { l: 'Fecha', k: 'fecha' },
-                { l: 'Documento', k: 'documento' },
-                { l: 'Producto', k: 'producto' },
-                { l: 'Cantidad', k: 'cantidad', r: true },
-                { l: 'Costo Unit.', k: 'costoUnitario', r: true },
-                { l: 'Total', k: 'costoTotal', r: true },
-                { l: 'Motivo', k: 'motivo' },
-                { l: 'Fórmula', k: 'formula' },
-                { l: 'Acciones' }
-              ].map((h, i) => (
-                <th key={h.l} 
-                  className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/[0.08] cursor-pointer hover:bg-white/[0.02] ${h.r ? 'text-right' : 'text-left'}`}
-                  onClick={() => h.k && handleSort(h.k)}
-                >
-                  <div className={`flex items-center gap-1.5 ${h.r ? 'justify-end' : ''}`}>
-                    {h.l}
-                    {sortConfig.key === h.k && (
-                      sortConfig.direction === 'asc' ? <ChevronUp size={10} /> : <ChevronDown size={10} />
-                    )}
-                  </div>
-                </th>
+              {['Fecha','Documento','Producto','Cantidad','Costo Unit.','Total','Motivo','Fórmula','Acciones'].map((h, i) => (
+                <th key={h} className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/[0.08] ${[3,4,5].includes(i) ? 'text-right' : 'text-left'}`}>{h}</th>
               ))}
             </tr></thead>
-
             <tbody>
               {salidas.length === 0 && <tr><td colSpan={9}><EmptyState icon={ArrowUpFromLine} title="Sin salidas" description="Registra tu primera salida de stock."/></td></tr>}
               {salidas.map(m => {

@@ -6,7 +6,7 @@ import {
   Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut,
   ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell,
   FileText, ClipboardList, Activity, Smartphone,
-  Truck, Navigation as NavIcon, Shield,
+  Truck, Navigation as NavIcon, Shield, TrendingUp, Wrench,
 } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { estadoStock, diasParaVencer } from '../../utils/helpers'
@@ -32,12 +32,14 @@ const NAV = [
   { label:'Clientes',             path:'/clientes',       icon:Users,            modulo:'clientes'      },
   { label:'Despachos',            path:'/despachos',      icon:Truck,            modulo:'despachos'     },
   { label:'Transportes',          path:'/transportes',    icon:NavIcon,          modulo:'transportes'   },
+  { label:'Flota y Mantenimiento',  path:'/flota',       icon:Wrench,           modulo:'flota'         },
   { divider:true, label:'ANÁLISIS' },
   { label:'Movimientos',          path:'/movimientos',    icon:Boxes,            modulo:'movimientos'   },
   { label:'Vencimientos',         path:'/vencimientos',   icon:Clock,            modulo:'vencimientos'  },
   { label:'Punto de Reorden',     path:'/reorden',        icon:TrendingDown,     modulo:'reorden'       },
   { label:'Previsión de Demanda', path:'/prevision',      icon:Activity,         modulo:'prevision'     },
   { label:'Reportes',             path:'/reportes',       icon:BarChart3,        modulo:'reportes'      },
+  { label:'Dashboard Financiero', path:'/financiero',   icon:TrendingUp,       modulo:'financiero'    },
   { divider:true, label:'ADMINISTRACIÓN' },
   { label:'Categ. / Almacenes',   path:'/maestros',       icon:Tag,              modulo:'maestros'      },
   { label:'Usuarios y Roles',     path:'/usuarios',       icon:Users,            modulo:'usuarios'      },
@@ -151,7 +153,7 @@ export default function Sidebar({ collapsed, onToggle }) {
             </div>
           )
           if (sesion) {
-            const libre = ['configuracion','pwa','auditoria'].includes(item.modulo)
+            const libre = ['configuracion','pwa','auditoria','flota','financiero'].includes(item.modulo)
             if (!libre && !tienePermiso(item.modulo)) return null
             if (item.modulo === 'auditoria' && sesion.rol !== 'admin') return null
           }

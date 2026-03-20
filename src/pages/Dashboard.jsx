@@ -483,32 +483,30 @@ function WidgetVolumenDespachos({ despachos, devoluciones, rutas, simboloMoneda,
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
   }
 
-  // ── Últimos 30 días → 6 bloques de 5 días ────────────
+  // ── Bloques por mes (6 meses hacia atrás) ──────────
   const { bloques, ini30s } = useMemo(() => {
-    const hoy    = hoyStr()
-    const inicio = restarDias(hoy, 29) // 30 días incluyendo hoy
-
+    const hoy   = new Date()
     const bloques = []
-    for (let i = 0; i < 6; i++) {
-      // bloque 0 = más antiguo, bloque 5 = más reciente (hoy)
-      const desdeStr = restarDias(hoy, 29 - i * 5)        // inicio del bloque
-      const hastaStr = i < 5
-        ? restarDias(hoy, 29 - (i + 1) * 5 + 1)           // fin exclusivo
-        : hoy                                               // último bloque termina hoy (inclusivo)
 
-      const esFinal  = i === 5
-      const label    = esFinal ? 'HOY'
-        : new Date(desdeStr + 'T12:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit'})
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)
+      const desdeStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`
+      // último día del mes
+      const fin = new Date(d.getFullYear(), d.getMonth()+1, 0)
+      const hastaStr = `${fin.getFullYear()}-${String(fin.getMonth()+1).padStart(2,'0')}-${String(fin.getDate()).padStart(2,'0')}`
+      const esFinal  = i === 0
+      const label    = d.toLocaleDateString('es-PE', { month:'short' }).toUpperCase()
 
-      // Filtrar despachos en este bloque (inclusive en ambos extremos)
-      const desMes = despachos.filter(d => {
-        const f = getFecha(d)
+      const desMes = despachos.filter(dd => {
+        const f = getFecha(dd)
         return f >= desdeStr && f <= hastaStr
       })
-
-      const entregados = desMes.filter(d => d.estado === 'ENTREGADO').length
+      const entregados = desMes.filter(dd => dd.estado === 'ENTREGADO').length
       bloques.push({ label, desdeStr, hastaStr, total: desMes.length, entregados, esFinal })
     }
+
+    // ini30s = inicio del mes más antiguo para KPIs
+    const inicio = bloques[0]?.desdeStr || hoyStr()
     return { bloques, ini30s: inicio }
   }, [despachos])
 
@@ -559,7 +557,7 @@ function WidgetVolumenDespachos({ despachos, devoluciones, rutas, simboloMoneda,
       <div className="flex items-start justify-between">
         <div>
           <div className="text-[14px] font-bold text-[#e8edf2]">Volumen de Despachos</div>
-          <div className="text-[11px] text-[#5f6f80] mt-0.5">Últimos 30 días</div>
+          <div className="text-[11px] text-[#5f6f80] mt-0.5">Últimos 6 meses</div>
         </div>
         <button onClick={onVerDetalle}
           className="text-[11px] text-[#00c896] hover:text-[#00e0aa] transition-colors whitespace-nowrap">

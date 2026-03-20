@@ -186,6 +186,16 @@ export default function Configuracion() {
               </div>
               <Toggle value={form.alertaVencimiento} onChange={v => f('alertaVencimiento', v)} />
             </div>
+            <div className="flex items-center justify-between py-3 border-b border-white/[0.06]">
+              <div>
+                <div className="text-[13px] font-medium text-[#e8edf2]">Lector de Código de Barras</div>
+                <div className="text-[12px] text-[#5f6f80] mt-0.5">
+                  Activa el botón "Scan" en Entradas para escanear con la cámara del celular o lector USB.
+                  Cuando está desactivado, solo se muestra el buscador de texto estándar.
+                </div>
+              </div>
+              <Toggle value={!!form.lectorBarras} onChange={v => f('lectorBarras', v)} />
+            </div>
 
             {form.alertaVencimiento && (
               <div className="px-4 py-4 bg-[#1a2230] rounded-xl">

@@ -112,6 +112,17 @@ export function AppProvider({ children }) {
     get formulaValorizacion() { return state.config?.formulaValorizacion || 'PMP' },
     get simboloMoneda()       { return state.config?.simboloMoneda || 'S/' },
     get esAdmin()             { return state.sesion?.rol === 'admin' },
+    get stockReservado() {
+      // Map { productoId → cantidadReservada } basado en despachos activos
+      const ESTADOS = ['PEDIDO','APROBADO','PICKING','LISTO']
+      const reservas = {}
+      ;(state.despachos || [])
+        .filter(d => ESTADOS.includes(d.estado))
+        .forEach(d => (d.items || []).forEach(it => {
+          reservas[it.productoId] = (reservas[it.productoId] || 0) + (it.cantidad || 0)
+        }))
+      return reservas
+    },
     recargarProductos, recargarMovimientos, recargarOrdenes,
     recargarProveedores, recargarCategorias, recargarAlmacenes,
     recargarAjustes, recargarDevoluciones, recargarTransferencias, recargarUsuarios,
