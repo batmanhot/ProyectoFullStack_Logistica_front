@@ -170,6 +170,11 @@ export default function Dashboard() {
     LISTO:'teal', DESPACHADO:'info', ENTREGADO:'success', ANULADO:'danger',
   }
 
+  // ── Vista diferenciada por rol ─────────────────────
+  if (sesion?.rol === 'almacenero') {
+    return <DashboardAlmacenero productos={productos} despachos={despachos} kpis={kpis} nav={nav} simboloMoneda={simboloMoneda}/>
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
 
@@ -177,7 +182,13 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-[18px] font-bold text-[#e8edf2]">
-            Buenos días{sesion?.nombre ? `, ${sesion.nombre.split(' ')[0]}` : ''} 👋
+            {(() => {
+              const h = new Date().getHours()
+              if (h >= 6 && h < 12)  return 'Buenos días'
+              if (h >= 12 && h < 19) return 'Buenas tardes'
+              if (h >= 19 && h < 24) return 'Buenas noches'
+              return 'Buenas madrugadas'
+            })()}{sesion?.nombre ? `, ${sesion.nombre.split(' ')[0]}` : ''} 👋
           </h1>
           <p className="text-[12px] text-[#5f6f80] mt-0.5">
             {new Date().toLocaleDateString('es-PE',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
@@ -786,6 +797,130 @@ function WidgetUltimasOrdenes({ despachos, clientes, rutas, almacenes, onVerToda
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+
+// ════════════════════════════════════════════════════════
+// DASHBOARD ALMACENERO — Vista operativa simplificada
+// ════════════════════════════════════════════════════════
+function DashboardAlmacenero({ productos, despachos, kpis, nav, simboloMoneda }) {
+  const criticos = productos.filter(p => {
+    const e = estadoStock(p.stockActual, p.stockMinimo)
+    return (e.estado === 'critico' || e.estado === 'agotado') && p.activo !== false
+  })
+
+  const pendientePicking = despachos.filter(d => ['PICKING','LISTO'].includes(d.estado))
+  const paraDespachar    = despachos.filter(d => d.estado === 'LISTO')
+
+  return (
+    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-[18px] font-bold text-[#e8edf2]">Panel de Almacén 📦</h1>
+          <p className="text-[12px] text-[#5f6f80] mt-0.5">Vista operativa — {new Date().toLocaleDateString('es-PE',{weekday:'long',day:'numeric',month:'long'})}</p>
+        </div>
+        <div className="text-[11px] px-3 py-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg font-semibold">
+          Rol: Almacenero
+        </div>
+      </div>
+
+      {/* Acciones urgentes */}
+      {(paraDespachar.length > 0 || criticos.length > 0) && (
+        <div className="flex flex-col gap-2">
+          {paraDespachar.length > 0 && (
+            <div onClick={()=>nav('/despachos')} className="flex items-center gap-3 px-4 py-3.5 bg-[#00c896]/8 border border-[#00c896]/25 rounded-xl cursor-pointer hover:bg-[#00c896]/12 transition-colors">
+              <div className="w-9 h-9 rounded-xl bg-[#00c896]/15 flex items-center justify-center shrink-0">
+                <span style={{color:'#00c896',fontSize:18}}>🚚</span>
+              </div>
+              <div className="flex-1">
+                <div className="text-[13px] font-semibold text-[#e8edf2]">{paraDespachar.length} despacho{paraDespachar.length>1?'s':''} listos para entregar</div>
+                <div className="text-[11px] text-[#5f6f80]">Ir a Despachos para procesar →</div>
+              </div>
+              <div className="text-[22px] font-black text-[#00c896] font-mono">{paraDespachar.length}</div>
+            </div>
+          )}
+          {criticos.length > 0 && (
+            <div onClick={()=>nav('/inventario')} className="flex items-center gap-3 px-4 py-3.5 bg-red-500/8 border border-red-500/20 rounded-xl cursor-pointer hover:bg-red-500/12 transition-colors">
+              <div className="w-9 h-9 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0">
+                <span style={{fontSize:18}}>⚠️</span>
+              </div>
+              <div className="flex-1">
+                <div className="text-[13px] font-semibold text-[#e8edf2]">{criticos.length} producto{criticos.length>1?'s':''} en stock crítico/agotado</div>
+                <div className="text-[11px] text-[#5f6f80]">{criticos.slice(0,2).map(p=>p.nombre.split(' ').slice(0,3).join(' ')).join(', ')}{criticos.length>2?'...':''}</div>
+              </div>
+              <div className="text-[22px] font-black text-red-400 font-mono">{criticos.length}</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* KPIs simples */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label:'En picking ahora',  val:pendientePicking.length, color:'#f59e0b', onClick:()=>nav('/despachos') },
+          { label:'Listos despachar',  val:paraDespachar.length,    color:'#00c896', onClick:()=>nav('/despachos') },
+          { label:'Stock crítico',     val:criticos.length,         color:'#ef4444', onClick:()=>nav('/inventario') },
+          { label:'Total productos',   val:kpis.totalProductos,     color:'#3b82f6', onClick:()=>nav('/inventario') },
+        ].map(({label,val,color,onClick})=>(
+          <div key={label} onClick={onClick} className="relative bg-[#161d28] border border-white/[0.08] rounded-xl px-5 py-4 overflow-hidden cursor-pointer hover:border-white/[0.14] transition-all">
+            <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{background:color}}/>
+            <div className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-[0.07em] mb-2">{label}</div>
+            <div className="text-[28px] font-bold" style={{color}}>{val}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Despachos en picking */}
+      {pendientePicking.length > 0 && (
+        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+          <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">Despachos activos — picking / listos</div>
+          <div className="flex flex-col divide-y divide-white/[0.05]">
+            {pendientePicking.slice(0,6).map(d=>(
+              <div key={d.id} onClick={()=>nav('/despachos')} className="flex items-center gap-3 py-3 hover:bg-white/[0.02] px-1 rounded-lg cursor-pointer">
+                <div className={`w-2 h-2 rounded-full shrink-0 ${d.estado==='LISTO'?'bg-[#00c896]':'bg-amber-400'}`}/>
+                <span className="font-mono text-[12px] text-[#00c896] font-bold">{d.numero}</span>
+                <span className="text-[12px] text-[#e8edf2] flex-1">{d.items?.length||0} ítems</span>
+                <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${d.estado==='LISTO'?'bg-[#00c896]/15 text-[#00c896]':'bg-amber-500/15 text-amber-400'}`}>{d.estado}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Stock crítico */}
+      {criticos.length > 0 && (
+        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+          <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">Alertas de stock</div>
+          <div className="flex flex-col divide-y divide-white/[0.05]">
+            {criticos.slice(0,8).map(p=>{
+              const agotado = p.stockActual <= 0
+              return (
+                <div key={p.id} onClick={()=>nav('/inventario')} className="flex items-center gap-3 py-3 hover:bg-white/[0.02] px-1 rounded-lg cursor-pointer">
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${agotado?'bg-red-500':'bg-amber-400'}`}/>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-medium text-[#e8edf2] truncate">{p.nombre}</div>
+                    <div className="text-[10px] text-[#5f6f80] font-mono">{p.sku} · {p.almacenId}</div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className={`text-[12px] font-bold ${agotado?'text-red-400':'text-amber-400'}`}>{p.stockActual} {p.unidadMedida}</div>
+                    <div className="text-[10px] text-[#5f6f80]">min: {p.stockMinimo}</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {criticos.length === 0 && pendientePicking.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 gap-3">
+          <span style={{fontSize:48}}>✅</span>
+          <div className="text-[16px] font-semibold text-[#e8edf2]">Todo en orden</div>
+          <div className="text-[13px] text-[#5f6f80]">No hay alertas de stock ni despachos pendientes.</div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { Bell, X, AlertTriangle } from 'lucide-react'
+import { Bell, X, AlertTriangle, Sun, Moon, Palette, Check } from 'lucide-react'
 import { AppProvider, useApp } from './store/AppContext'
 import Sidebar from './components/layout/Sidebar'
 import { ToastContainer } from './components/ui/index'
 import { estadoStock, diasParaVencer, formatCurrency } from './utils/helpers'
+import { useTheme, THEMES } from './hooks/useTheme'
 
 // ── Lazy imports de páginas ─────────────────────────────
 const Login           = lazy(() => import('./pages/Login'))
@@ -36,6 +37,15 @@ const Transportes     = lazy(() => import('./pages/Transportes'))
 const Auditoria       = lazy(() => import('./pages/Auditoria'))
 const Flota           = lazy(() => import('./pages/Flota'))
 const Financiero      = lazy(() => import('./pages/Financiero'))
+const CuentasPorCobrar= lazy(() => import('./pages/CuentasPorCobrar'))
+const Proformas       = lazy(() => import('./pages/Proformas'))
+const MapaAlmacen     = lazy(() => import('./pages/MapaAlmacen'))
+const LotesSeries     = lazy(() => import('./pages/LotesSeries'))
+const Empaque         = lazy(() => import('./pages/Empaque'))
+const ListaPrecios    = lazy(() => import('./pages/ListaPrecios'))
+const KPIsOperativos  = lazy(() => import('./pages/KPIsOperativos'))
+const Sunat           = lazy(() => import('./pages/Sunat'))
+const PortalPedidos   = lazy(() => import('./pages/PortalPedidos'))
 
 // ── Títulos de página ───────────────────────────────────
 const PAGE_TITLES = {
@@ -63,6 +73,15 @@ const PAGE_TITLES = {
   '/auditoria':      'Auditoría del Sistema',
   '/flota':          'Flota y Mantenimiento',
   '/financiero':     'Dashboard Financiero — P&L',
+  '/cxc':            'Cuentas por Cobrar',
+  '/proformas':      'Proformas y Cotizaciones de Venta',
+  '/mapa-almacen':   'Mapa Visual de Almacén',
+  '/lotes-series':   'Trazabilidad de Lotes y Series',
+  '/empaque':        'Módulo de Empaque y Packing',
+  '/lista-precios':  'Listas de Precios',
+  '/kpis':           'KPIs Operativos — Fill Rate · OTIF · Perfect Order',
+  '/sunat':          'Integración SUNAT / Facturación Electrónica',
+  '/portal-pedidos': 'Portal de Pedidos para Clientes',
   '/proveedores':    'Proveedores',
   '/maestros':       'Categorías y Almacenes',
   '/usuarios':       'Usuarios y Roles',
@@ -110,6 +129,19 @@ function PageLoader() {
 // ── Generador de notificaciones automáticas ─────────────
 function generarNotifAuto(productos, ordenes, config, simboloMoneda) {
   const notifs = []
+  // ── Alerta WhatsApp automática si está configurada ─────
+  function enviarWhatsAppAlerta(mensaje) {
+    const tel = config?.whatsappResponsable
+    if (!tel || !config?.alertasAutoWhatsApp) return
+    const url = `https://wa.me/${tel.replace(/[^0-9]/g,'')}?text=${encodeURIComponent('🚨 StockPro Alerta:\n'+mensaje)}`
+    // Solo abrir si no se abrió en los últimos 60 min (evitar spam)
+    const lastSent = sessionStorage.getItem('sp_wa_last')
+    const now = Date.now()
+    if (!lastSent || now - parseInt(lastSent) > 3600000) {
+      window.open(url, '_blank')
+      sessionStorage.setItem('sp_wa_last', now.toString())
+    }
+  }
   const diasAlerta = config?.diasAlertaVencimiento || 30
   productos.filter(p => p.activo !== false).forEach(p => {
     const e = estadoStock(p.stockActual, p.stockMinimo)
@@ -130,6 +162,12 @@ function generarNotifAuto(productos, ordenes, config, simboloMoneda) {
   ordenes.filter(o => o.estado === 'PENDIENTE').forEach(o => {
     notifs.push({ tipo:'info', titulo:'OC pendiente', msg:`OC ${o.numero}`, sub:`Total: ${formatCurrency(o.total, simboloMoneda)}`, path:'/ordenes' })
   })
+  // Auto-enviar WhatsApp si hay alertas críticas
+  const dangers = notifs.filter(n => n.tipo === 'danger')
+  if (dangers.length > 0) {
+    const msg = dangers.slice(0,3).map(n=>`• ${n.titulo}: ${n.msg}`).join('\n')
+    enviarWhatsAppAlerta(msg)
+  }
   return notifs.slice(0, 20)
 }
 
@@ -201,6 +239,52 @@ function PanelNotificaciones({ open, onClose, notifs }) {
 }
 
 // ── PageHeader ──────────────────────────────────────────
+function ThemeToggle() {
+  const { current, toggleDark, applyTheme, themes } = useTheme()
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    function h(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    if (open) document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        title={current.dark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+        className={`relative w-9 h-9 flex items-center justify-center rounded-lg transition-all ${open ? 'bg-[#00c896]/15 text-[#00c896]' : 'text-[#5f6f80] hover:text-[#9ba8b6] hover:bg-white/[0.05]'}`}>
+        {current.dark ? <Moon size={15}/> : <Sun size={15}/>}
+      </button>
+      {open && (
+        <div className="absolute top-full right-0 mt-1 w-[220px] bg-[#141920] border border-white/[0.12] rounded-xl shadow-2xl z-[9999] overflow-hidden p-2">
+          <div className="px-2 pt-1 pb-2 text-[10px] font-bold text-[#5f6f80] uppercase tracking-[0.1em]">Tema de color</div>
+          {themes.map(t => (
+            <button
+              key={t.id}
+              onClick={() => { applyTheme(t.id); setOpen(false) }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.05] transition-colors text-left">
+              {/* Preview dots */}
+              <div className="flex gap-1 shrink-0">
+                {t.preview.map((c, i) => (
+                  <div key={i} className="w-3.5 h-3.5 rounded-full border border-white/20" style={{ background: c }}/>
+                ))}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[12px] font-semibold" style={{ color: current.id === t.id ? t.accent : '#e8edf2' }}>{t.label}</div>
+                <div className="text-[10px] text-[#5f6f80]">{t.desc}</div>
+              </div>
+              {current.id === t.id && <Check size={13} style={{ color: t.accent, flexShrink: 0 }}/>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PageHeader() {
   const location = useLocation()
   const { config, sesion, logout, productos, ordenes, simboloMoneda } = useApp()
@@ -258,6 +342,7 @@ function PageHeader() {
             </button>
           </div>
         )}
+        <ThemeToggle/>
         <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-[#00c896]/10 text-[#00c896] font-semibold tracking-wide">
           {config?.version || 'StockPro v2.0'}
         </span>
@@ -314,6 +399,15 @@ function AppLayout() {
             <Route path="/auditoria"      element={<Auditoria />} />
             <Route path="/flota"          element={<Flota />} />
             <Route path="/financiero"     element={<Financiero />} />
+            <Route path="/cxc"            element={<CuentasPorCobrar />} />
+            <Route path="/proformas"      element={<Proformas />} />
+            <Route path="/mapa-almacen"   element={<MapaAlmacen />} />
+            <Route path="/lotes-series"   element={<LotesSeries />} />
+            <Route path="/empaque"        element={<Empaque />} />
+            <Route path="/lista-precios"  element={<ListaPrecios />} />
+            <Route path="/kpis"           element={<KPIsOperativos />} />
+            <Route path="/sunat"          element={<Sunat />} />
+            <Route path="/portal-pedidos" element={<PortalPedidos />} />
             <Route path="/proveedores"    element={<Proveedores />} />
             <Route path="/maestros"       element={<Maestros />} />
             <Route path="/usuarios"       element={<Usuarios />} />

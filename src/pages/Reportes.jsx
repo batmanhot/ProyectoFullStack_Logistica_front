@@ -9,7 +9,7 @@ import { Badge, Btn } from '../components/ui/index'
 import { exportarRentabilidadXLSX, exportarInventarioXLSX } from '../utils/exportXLSX'
 import { exportarRentabilidadPDF, exportarInventarioPDF } from '../utils/exportPDF'
 
-const TT = { background:'#1a2230', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, fontSize:12, color:'#e8edf2' }
+const TT = { background:'#0f172a', border:'1px solid rgba(255,255,255,0.15)', borderRadius:8, fontSize:12, color:'#fff', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.5)' }
 const TH = ({c,r,center})=><th className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/[0.08] sticky top-0 ${r?'text-right':center?'text-center':'text-left'}`}>{c}</th>
 const PIE_COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#06b6d4']
 
@@ -22,7 +22,7 @@ const TABS = [
 ]
 
 export default function Reportes() {
-  const { productos, movimientos, despachos, clientes, categorias,
+  const { productos, movimientos, categorias, almacenes,
           formulaValorizacion, simboloMoneda, config } = useApp()
   const [tab, setTab] = useState('rentabilidad')
 
@@ -117,8 +117,12 @@ export default function Reportes() {
 
   // ── Exportaciones CSV ─────────────────────────────────
   function exportCSV(rows, nombre) {
+    const content = rows.map(r => r.map(v => {
+      const val = v === null || v === undefined ? '' : v
+      return `"${String(val).replace(/"/g, '""')}"`
+    }).join(',')).join('\n')
     const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob([rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' }))
+    a.href = URL.createObjectURL(new Blob(['\ufeff' + content], { type: 'text/csv;charset=utf-8' }))
     a.download = `${nombre}_${new Date().toISOString().split('T')[0]}.csv`
     a.click()
   }
@@ -199,50 +203,79 @@ export default function Reportes() {
             </div>
           )}
 
-          {/* Gráfico margen por categoría + Tabla */}
+          {/* Gráfico y Distribución */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-            {/* Pie margen por categoría */}
-            <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
-              <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">Margen por Categoría</div>
-              {rentPorCat.length > 0 ? (
-                <>
-                  <ResponsiveContainer width="100%" height={160}>
+            <div className="lg:col-span-2 bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+                <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] block mb-4">Distribución de Margen por Categoría</span>
+                <div className="h-[280px]">
+                  <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={rentPorCat} dataKey="margen" cx="50%" cy="50%" innerRadius={38} outerRadius={68} paddingAngle={2}>
-                        {rentPorCat.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]}/>)}
+                      <Pie
+                        data={rentPorCat}
+                        dataKey="margen"
+                        nameKey="nombre"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        stroke="none"
+                        animationBegin={0}
+                        animationDuration={1200}
+                        animationEasing="ease-out"
+                      >
+                        {rentPorCat.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        ))}
                       </Pie>
-                      <Tooltip contentStyle={TT} formatter={v => formatCurrency(v, simboloMoneda)}/>
+                      <Tooltip
+                        contentStyle={TT}
+                        itemStyle={{ color: '#fff' }}
+                        labelStyle={{ color: '#fff', fontWeight: 'bold', marginBottom: '4px' }}
+                        formatter={(v) => formatCurrency(v, simboloMoneda)}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
-                  <div className="flex flex-col gap-1 mt-2">
-                    {rentPorCat.slice(0, 5).map((r, i) => (
-                      <div key={r.nombre} className="flex items-center gap-2 text-[11px]">
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}/>
-                        <span className="text-[#9ba8b6] flex-1 truncate">{r.nombre}</span>
-                        <span className="text-[#e8edf2] font-mono font-medium">{formatCurrency(r.margen, simboloMoneda)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : <p className="text-[12px] text-[#5f6f80] text-center py-8">Sin datos de ventas</p>}
+                </div>
             </div>
 
-            {/* Tabla rentabilidad por producto */}
-            <div className="lg:col-span-2 bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+            <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5 flex flex-col">
+              <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] block mb-4">Resumen por Categoría</span>
+              <div className="flex flex-col gap-3 overflow-y-auto max-h-[280px] custom-scrollbar">
+                {rentPorCat.map((c, i) => (
+                  <div key={c.nombre} className="flex items-center justify-between group">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                      <span className="text-[12px] text-[#9ba8b6] group-hover:text-[#e8edf2] transition-colors">{c.nombre}</span>
+                    </div>
+                    <span className="text-[12px] font-mono text-[#e8edf2]">{formatCurrency(c.margen, simboloMoneda)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-auto pt-4 border-t border-white/5 flex justify-between items-center text-[11px]">
+                <span className="text-[#5f6f80]">Eficiencia Global</span>
+                <span className="text-[#00c896] font-bold">{kpisRent.margenPct.toFixed(1)}%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabla rentabilidad por producto */}
+          <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Rentabilidad por Producto</span>
-                <Btn variant="secondary" size="sm" onClick={exportarRentabilidad}><Download size={13}/>CSV</Btn>
-                <Btn variant="secondary" size="sm"
-                  onClick={async()=>{ await exportarRentabilidadXLSX(rentabilidad, kpisRent, simboloMoneda) }}
-                  style={{background:'#1e7b47',color:'#fff',borderColor:'#1e7b47'}}>
-                  <Download size={13}/>Excel
-                </Btn>
-                <Btn variant="secondary" size="sm"
-                  onClick={async()=>{ await exportarRentabilidadPDF(rentabilidad, kpisRent, simboloMoneda, config?.empresa) }}
-                  style={{background:'#c0392b',color:'#fff',borderColor:'#c0392b'}}>
-                  <Download size={13}/>PDF
-                </Btn>
+                <div className="flex items-center gap-2">
+                  <Btn variant="secondary" size="sm" onClick={exportarRentabilidad}><Download size={13}/>CSV</Btn>
+                  <Btn variant="secondary" size="sm"
+                    onClick={async()=>{ await exportarRentabilidadXLSX(rentabilidad, kpisRent, simboloMoneda) }}
+                    style={{background:'#1e7b47',color:'#fff',borderColor:'#1e7b47'}}>
+                    <Download size={13}/>Excel
+                  </Btn>
+                  <Btn variant="secondary" size="sm"
+                    onClick={async()=>{ await exportarRentabilidadPDF(rentabilidad, kpisRent, simboloMoneda, config?.empresa) }}
+                    style={{background:'#c0392b',color:'#fff',borderColor:'#c0392b'}}>
+                    <Download size={13}/>PDF
+                  </Btn>
+                </div>
               </div>
               <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
                 <table className="w-full border-collapse text-[13px]">
@@ -298,7 +331,6 @@ export default function Reportes() {
                 </table>
               </div>
             </div>
-          </div>
 
           {/* Panel explicativo */}
           <div className="bg-[#161d28] border border-[#00c896]/20 rounded-xl p-5">
@@ -324,6 +356,83 @@ export default function Reportes() {
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ════════════════════════════════════════════════════════
+              GUÍA DIDÁCTICA ABC — aparece después de rentabilidad
+          ════════════════════════════════════════════════════════ */}
+
+          {/* Panel A: ¿Qué es la clasificación ABC? */}
+          <div className="flex items-start gap-4 px-5 py-4 rounded-xl" style={{background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.20)'}}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-blue-400 text-[13px] leading-none" style={{background:'rgba(59,130,246,0.15)'}}>
+              ABC
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-semibold text-[#e8edf2] mb-1">¿Qué es la Clasificación ABC?</div>
+              <div className="text-[12px] text-[#9ba8b6] leading-relaxed mb-3">
+                Es una técnica de gestión de inventario basada en el{' '}
+                <strong className="text-[#e8edf2]">Principio de Pareto (regla 80/20)</strong>:
+                unos pocos productos concentran la mayor parte del valor del stock.
+                El sistema analiza el valor de cada producto y lo clasifica automáticamente en una de tres clases.
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                {[
+                  { cls:'A', pct:'80%', color:'#22c55e', titulo:'Clase A — Alto valor',   desc:'Son el 20% de los productos pero representan el 80% del valor total. Requieren control riguroso, conteos físicos frecuentes, stock de seguridad alto y negociación activa con proveedores.' },
+                  { cls:'B', pct:'15%', color:'#3b82f6', titulo:'Clase B — Valor medio',  desc:'Representan el 15% del valor. Requieren control moderado, revisiones periódicas y reorden por punto de pedido estándar. Son importantes pero no críticos.' },
+                  { cls:'C', pct:'5%',  color:'#5f6f80', titulo:'Clase C — Bajo valor',   desc:'Son muchos productos pero solo el 5% del valor. Control mínimo, pedidos en lotes grandes para reducir costos operativos. Menor frecuencia de conteo físico.' },
+                ].map(({ cls, pct, color, titulo, desc }) => (
+                  <div key={cls} className="bg-[#1a2230] rounded-xl p-3.5" style={{ borderTop:`3px solid ${color}` }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[15px] font-bold" style={{ color }}>Clase {cls}</span>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background:`${color}20`, color }}>{pct} del valor</span>
+                    </div>
+                    <div className="text-[11px] font-semibold text-[#e8edf2] mb-1">{titulo}</div>
+                    <div className="text-[11px] text-[#5f6f80] leading-relaxed">{desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Panel B: ¿Cómo usar el análisis ABC? */}
+          <div className="flex items-start gap-4 px-5 py-4 rounded-xl" style={{background:'rgba(0,200,150,0.08)',border:'1px solid rgba(0,200,150,0.20)'}}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{background:'rgba(0,200,150,0.15)'}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00c896" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-semibold text-[#e8edf2] mb-1">¿Cómo usar este análisis en tu negocio?</div>
+              <div className="text-[12px] text-[#9ba8b6] leading-relaxed mb-3">
+                El objetivo es <strong className="text-[#e8edf2]">enfocar los recursos donde más importa</strong>.
+                No todos los productos merecen el mismo nivel de atención — el ABC te dice exactamente cuáles sí.
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                {[
+                  { titulo:'Compras y presupuesto', color:'#22c55e', icon:'💰',
+                    items:['Concentra el presupuesto en productos Clase A', 'Negocia mejores precios con proveedores de A', 'Mantén stock de seguridad más alto para la Clase A', 'Revisa los Clase C: ¿se pueden eliminar o consolidar?'] },
+                  { titulo:'Control de inventario', color:'#3b82f6', icon:'📋',
+                    items:['Clase A → conteo físico mensual o semanal', 'Clase B → conteo trimestral', 'Clase C → conteo semestral o anual', 'Automatiza el reorden de Clase A con alertas de stock mínimo'] },
+                  { titulo:'Estrategia operativa', color:'#f59e0b', icon:'🎯',
+                    items:['Dedica más tiempo del equipo a los productos A', 'Clase C: pide en lotes grandes, menos órdenes', 'Un C puede ascender a A — revisa periódicamente', 'Usa este reporte antes de cada negociación de compras'] },
+                ].map(({ titulo, color, icon, items }) => (
+                  <div key={titulo} className="bg-[#1a2230] rounded-xl p-3.5">
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <span className="text-[15px]">{icon}</span>
+                      <span className="text-[12px] font-semibold" style={{ color }}>{titulo}</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      {items.map((item, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: color }}/>
+                          <span className="text-[11px] text-[#5f6f80] leading-snug">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -429,23 +538,15 @@ export default function Reportes() {
           ANÁLISIS ABC
       ══════════════════════════════════════════════════ */}
       {tab === 'abc' && (
-        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
-          <div className="flex items-start justify-between mb-4">
-            <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Análisis ABC de Inventario</span>
-          </div>
-          {/* Explicación ABC */}
-          <div className="flex items-start gap-3 px-4 py-3 mb-4 bg-blue-500/8 border border-blue-500/20 rounded-xl text-[12px]">
-            <div className="text-blue-400 font-bold text-[15px] shrink-0 mt-0.5">ABC</div>
-            <div className="text-[#9ba8b6] leading-relaxed">
-              El <strong className="text-[#e8edf2]">Análisis ABC</strong> clasifica el inventario según el principio de Pareto:
-              el 20% de los productos concentra el 80% del valor.
-              <span className="text-[#22c55e] font-semibold"> Clase A</span> = 80% del valor total, máximo control y stock de seguridad alto.
-              <span className="text-[#3b82f6] font-semibold"> Clase B</span> = 15% del valor, control moderado.
-              <span className="text-[#5f6f80] font-semibold"> Clase C</span> = 5% restante, control mínimo, se pueden pedir en grandes lotes.
-              Úsalo para priorizar dónde enfocar tu presupuesto de compras y atención operativa.
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-4 mb-5">
+        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5 flex flex-col gap-5">
+
+          {/* Título */}
+          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">
+            Análisis ABC de Inventario
+          </span>
+
+          {/* ── KPIs por clase con datos reales ─────────── */}
+          <div className="grid grid-cols-3 gap-4">
             {[['A','80% del valor','#22c55e'],['B','15% del valor','#3b82f6'],['C','5% del valor','#5f6f80']].map(([cls,desc,color]) => {
               const items = abc.filter(p => p.abc === cls)
               const valor = items.reduce((s, p) => s + p.valorStock, 0)
@@ -459,6 +560,8 @@ export default function Reportes() {
               )
             })}
           </div>
+
+          {/* ── Tabla detallada ──────────────────────────── */}
           <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
             <table className="w-full border-collapse text-[13px]">
               <thead><tr><TH c="Clase"/><TH c="SKU"/><TH c="Producto"/><TH c="Stock" r/><TH c="Valor" r/><TH c="% Acum." r/></tr></thead>
@@ -479,6 +582,86 @@ export default function Reportes() {
               </tbody>
             </table>
           </div>
+
+          {/* ════════════════════════════════════════════════════════
+              GUÍA DIDÁCTICA — aparece en la parte inferior
+              visible para el usuario, debajo de la tabla.
+              Conserva ambos paneles originales: definición y uso.
+              ════════════════════════════════════════════════════════ */}
+
+          {/* Panel A: ¿Qué es la clasificación ABC? */}
+          <div className="flex items-start gap-4 px-5 py-4 rounded-xl" style={{background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.20)'}}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-blue-400 text-[13px] leading-none" style={{background:'rgba(59,130,246,0.15)'}}>
+              ABC
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-semibold text-[#e8edf2] mb-1">¿Qué es la Clasificación ABC?</div>
+              <div className="text-[12px] text-[#9ba8b6] leading-relaxed mb-3">
+                Es una técnica de gestión de inventario basada en el{' '}
+                <strong className="text-[#e8edf2]">Principio de Pareto (regla 80/20)</strong>:
+                unos pocos productos concentran la mayor parte del valor del stock.
+                El sistema analiza el valor de cada producto y lo clasifica automáticamente en una de tres clases.
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                {[
+                  { cls:'A', pct:'80%', color:'#22c55e', titulo:'Clase A — Alto valor',   desc:'Son el 20% de los productos pero representan el 80% del valor total. Requieren control riguroso, conteos físicos frecuentes, stock de seguridad alto y negociación activa con proveedores.' },
+                  { cls:'B', pct:'15%', color:'#3b82f6', titulo:'Clase B — Valor medio',  desc:'Representan el 15% del valor. Requieren control moderado, revisiones periódicas y reorden por punto de pedido estándar. Son importantes pero no críticos.' },
+                  { cls:'C', pct:'5%',  color:'#5f6f80', titulo:'Clase C — Bajo valor',   desc:'Son muchos productos pero solo el 5% del valor. Control mínimo, pedidos en lotes grandes para reducir costos operativos. Menor frecuencia de conteo físico.' },
+                ].map(({ cls, pct, color, titulo, desc }) => (
+                  <div key={cls} className="bg-[#1a2230] rounded-xl p-3.5" style={{ borderTop:`3px solid ${color}` }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[15px] font-bold" style={{ color }}>Clase {cls}</span>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background:`${color}20`, color }}>{pct} del valor</span>
+                    </div>
+                    <div className="text-[11px] font-semibold text-[#e8edf2] mb-1">{titulo}</div>
+                    <div className="text-[11px] text-[#5f6f80] leading-relaxed">{desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Panel B: ¿Cómo usar el análisis ABC? */}
+          <div className="flex items-start gap-4 px-5 py-4 rounded-xl" style={{background:'rgba(0,200,150,0.08)',border:'1px solid rgba(0,200,150,0.20)'}}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{background:'rgba(0,200,150,0.15)'}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00c896" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-semibold text-[#e8edf2] mb-1">¿Cómo usar este análisis en tu negocio?</div>
+              <div className="text-[12px] text-[#9ba8b6] leading-relaxed mb-3">
+                El objetivo es <strong className="text-[#e8edf2]">enfocar los recursos donde más importa</strong>.
+                No todos los productos merecen el mismo nivel de atención — el ABC te dice exactamente cuáles sí.
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                {[
+                  { titulo:'Compras y presupuesto', color:'#22c55e', icon:'💰',
+                    items:['Concentra el presupuesto en productos Clase A', 'Negocia mejores precios con proveedores de A', 'Mantén stock de seguridad más alto para la Clase A', 'Revisa los Clase C: ¿se pueden eliminar o consolidar?'] },
+                  { titulo:'Control de inventario', color:'#3b82f6', icon:'📋',
+                    items:['Clase A → conteo físico mensual o semanal', 'Clase B → conteo trimestral', 'Clase C → conteo semestral o anual', 'Automatiza el reorden de Clase A con alertas de stock mínimo'] },
+                  { titulo:'Estrategia operativa', color:'#f59e0b', icon:'🎯',
+                    items:['Dedica más tiempo del equipo a los productos A', 'Clase C: pide en lotes grandes, menos órdenes', 'Un C puede ascender a A — revisa periódicamente', 'Usa este reporte antes de cada negociación de compras'] },
+                ].map(({ titulo, color, icon, items }) => (
+                  <div key={titulo} className="bg-[#1a2230] rounded-xl p-3.5">
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <span className="text-[15px]">{icon}</span>
+                      <span className="text-[12px] font-semibold" style={{ color }}>{titulo}</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      {items.map((item, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: color }}/>
+                          <span className="text-[11px] text-[#5f6f80] leading-snug">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
         </div>
       )}
 

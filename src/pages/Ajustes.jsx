@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, SlidersHorizontal, TrendingUp, TrendingDown, Eye, Trash2 , Download } from 'lucide-react'
+import { Plus, Search, SlidersHorizontal, TrendingUp, TrendingDown, Eye, Trash2, Download, FileText, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
 import { calcularPMP, procesarSalida } from '../utils/valorizacion'
@@ -18,12 +18,16 @@ export default function Ajustes() {
   const [modal, setModal]       = useState(false)
   const [verAj, setVerAj]       = useState(null)
   const [eliminar, setEliminar] = useState(null)
-  const [busqueda, setBusqueda] = useState('')
-  const [filtTipo, setFiltTipo] = useState('')
+  const [busqueda,   setBusqueda]   = useState('')
+  const [filtTipo,   setFiltTipo]   = useState('')
+  const [filtAlm,    setFiltAlm]    = useState('')
+  const [filtMotivo, setFiltMotivo] = useState('')
 
   const filtered = useMemo(() => {
     let d = [...ajustes]
-    if (filtTipo) d = d.filter(a => a.tipo === filtTipo)
+    if (filtTipo)   d = d.filter(a => a.tipo === filtTipo)
+    if (filtAlm)    d = d.filter(a => a.almacenId === filtAlm)
+    if (filtMotivo) d = d.filter(a => a.motivo?.toLowerCase().includes(filtMotivo.toLowerCase()))
     if (busqueda) {
       const q = busqueda.toLowerCase()
       d = d.filter(a => {
@@ -32,7 +36,10 @@ export default function Ajustes() {
       })
     }
     return d
-  }, [ajustes, filtTipo, busqueda, productos])
+  }, [ajustes, filtTipo, filtAlm, filtMotivo, busqueda, productos])
+
+  const hayFiltros = busqueda || filtTipo || filtAlm || filtMotivo
+  function limpiarFiltros() { setBusqueda(''); setFiltTipo(''); setFiltAlm(''); setFiltMotivo('') }
 
   const totales = useMemo(() => ({
     positivos: filtered.filter(a => a.tipo === 'POSITIVO').reduce((s,a) => s + a.costoTotal, 0),
@@ -117,33 +124,58 @@ export default function Ajustes() {
       </div>
 
       <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Historial de Ajustes</span>
-          <div className="flex items-center gap-2">
-            <Btn variant="secondary" size="sm"
-              onClick={async () => { await exportarMovimientosXLSX(filtered, productos, almacenes, simboloMoneda) }}
-              style={{background:'#1e7b47',color:'#fff',borderColor:'#1e7b47'}}>
+        {/* ── Fila 1: título + botones ── */}
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] whitespace-nowrap">Historial de Ajustes</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <Btn variant="ghost" size="sm" onClick={async () => { await exportarMovimientosXLSX(filtered, productos, almacenes, simboloMoneda) }}>
               <Download size={13}/> Excel
             </Btn>
-            <Btn variant="secondary" size="sm"
-              onClick={async () => { await exportarMovimientosPDF(filtered, productos, almacenes, simboloMoneda, config?.empresa, 'Ajustes de Inventario') }}
-              style={{background:'#c0392b',color:'#fff',borderColor:'#c0392b'}}>
-              <Download size={13}/> PDF
+            <Btn variant="ghost" size="sm" onClick={async () => { await exportarMovimientosPDF(filtered, productos, almacenes, simboloMoneda, config?.empresa, 'Ajustes de Inventario') }}>
+              <FileText size={13}/> PDF
             </Btn>
-            <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/>Nuevo Ajuste</Btn>
+            <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nuevo Ajuste</Btn>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 mb-3">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI+' pl-8'} placeholder="Buscar producto, motivo..." value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
+
+        {/* ── Fila 2: buscador izquierda + filtros derecha ── */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          {/* Buscador — izquierda, flex-1 */}
+          <div className="relative flex-1 min-w-[180px]">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
+            <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar producto, documento..."
+              value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select className={SEL} style={{ width:160 }} value={filtTipo} onChange={e => setFiltTipo(e.target.value)}>
+          {/* Tipo ajuste */}
+          <select className={SEL} style={{width:148,padding:'5px 8px',fontSize:12}} value={filtTipo} onChange={e=>setFiltTipo(e.target.value)}>
             <option value="">Todos los tipos</option>
             <option value="POSITIVO">Positivo (+)</option>
             <option value="NEGATIVO">Negativo (-)</option>
           </select>
-          {(busqueda||filtTipo) && <Btn variant="ghost" size="sm" onClick={() => { setBusqueda(''); setFiltTipo('') }}>Limpiar</Btn>}
+          {/* Almacén */}
+          <select className={SEL} style={{width:148,padding:'5px 8px',fontSize:12}} value={filtAlm} onChange={e=>setFiltAlm(e.target.value)}>
+            <option value="">Todos los almacenes</option>
+            {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+          </select>
+          {/* Motivo — lista combinada positivos + negativos del formulario */}
+          <select className={SEL} style={{width:200,padding:'5px 8px',fontSize:12}} value={filtMotivo} onChange={e=>setFiltMotivo(e.target.value)}>
+            <option value="">Todos los motivos</option>
+            <optgroup label="Ajuste Positivo">
+              {MOTIVOS_POS.map(m => <option key={m} value={m}>{m}</option>)}
+            </optgroup>
+            <optgroup label="Ajuste Negativo">
+              {MOTIVOS_NEG.map(m => <option key={m} value={m}>{m}</option>)}
+            </optgroup>
+          </select>
+          {/* Contador + limpiar */}
+          <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">
+            {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
+          </span>
+          {hayFiltros && (
+            <Btn variant="ghost" size="sm" onClick={limpiarFiltros}>
+              <X size={12}/> Limpiar
+            </Btn>
+          )}
         </div>
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full border-collapse text-[13px]">

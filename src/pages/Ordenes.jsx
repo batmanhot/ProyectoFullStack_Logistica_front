@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, CheckCircle, X, Eye, ShoppingCart, FileText, MessageCircle, Mail, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, Search, CheckCircle, X, Eye, ShoppingCart, FileText, MessageCircle, Mail, ChevronUp, ChevronDown, Download } from 'lucide-react'
 
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
@@ -8,6 +8,8 @@ import { Modal, ConfirmDialog, EmptyState, EstadoOCBadge, Badge, Btn, Field, Ale
 import { ModalRecepcionParcial } from '../components/ui/ModalRecepcionParcial'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
 import { imprimirOC } from '../utils/pdfTemplates'
+import { exportarOrdenesXLSX } from '../utils/exportXLSX'
+import { exportarOrdenesPDF } from '../utils/exportPDF'
 
 const IGV=0.18
 const TH=({c,r})=><th className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/[0.08] sticky top-0 ${r?'text-right':'text-left'}`}>{c}</th>
@@ -20,7 +22,8 @@ export default function Ordenes() {
   const [detalle, setDetalle]   = useState(null)
   const [recepcion, setRecepcion] = useState(null)
   const [shareOC,   setShareOC]   = useState(null)
-  const [filtEst, setFiltEst]   = useState('')
+  const [filtEst,  setFiltEst]  = useState('')
+  const [filtProv, setFiltProv] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' })
 
@@ -48,7 +51,8 @@ export default function Ordenes() {
 
   const filtered = useMemo(() => {
     let d = [...ordenes]
-    if (filtEst) d = d.filter(o => o.estado === filtEst)
+    if (filtEst)  d = d.filter(o => o.estado === filtEst)
+    if (filtProv) d = d.filter(o => o.proveedorId === filtProv)
     if (busqueda) {
       const q = busqueda.toLowerCase()
       d = d.filter(o => o.numero?.toLowerCase().includes(q) || proveedores.find(p=>p.id===o.proveedorId)?.razonSocial.toLowerCase().includes(q))
@@ -75,7 +79,7 @@ export default function Ordenes() {
     })
 
     return d
-  }, [ordenes, filtEst, busqueda, proveedores, sortConfig])
+  }, [ordenes, filtEst, filtProv, busqueda, proveedores, sortConfig])
 
 
   const provNombre = id => proveedores.find(p=>p.id===id)?.razonSocial || '—'
@@ -158,19 +162,47 @@ export default function Ordenes() {
       </div>
 
       <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Órdenes de Compra</span>
-          <Btn variant="primary" size="sm" onClick={()=>setModal(true)}><Plus size={13}/>Nueva OC</Btn>
-        </div>
-        <div className="flex flex-wrap gap-2 mb-3">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI+' pl-8'} placeholder="Buscar número, proveedor..." value={busqueda} onChange={e=>setBusqueda(e.target.value)}/>
+        {/* ── Fila 1: título + botones ── */}
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] whitespace-nowrap">Órdenes de Compra</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarOrdenesXLSX(filtered, proveedores, productos, simboloMoneda) }}>
+              <Download size={13}/> Excel
+            </Btn>
+            <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarOrdenesPDF(filtered, proveedores, simboloMoneda, config?.empresa) }}>
+              <FileText size={13}/> PDF
+            </Btn>
+            <Btn variant="primary" size="sm" onClick={()=>setModal(true)}><Plus size={13}/> Nueva OC</Btn>
           </div>
-          <select className={SEL} style={{width:160}} value={filtEst} onChange={e=>setFiltEst(e.target.value)}>
+        </div>
+
+        {/* ── Fila 2: buscador + filtros ── */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          {/* Buscador — izquierda, flex-1 */}
+          <div className="relative flex-1 min-w-[180px]">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
+            <input className={SI+' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar número o proveedor..."
+              value={busqueda} onChange={e=>setBusqueda(e.target.value)}/>
+          </div>
+          {/* Estado */}
+          <select className={SEL} style={{width:148,padding:'5px 8px',fontSize:12}} value={filtEst} onChange={e=>setFiltEst(e.target.value)}>
             <option value="">Todos los estados</option>
             {['PENDIENTE','APROBADA','PARCIAL','RECIBIDA','CANCELADA'].map(e=><option key={e}>{e}</option>)}
           </select>
+          {/* Proveedor */}
+          <select className={SEL} style={{width:185,padding:'5px 8px',fontSize:12}} value={filtProv} onChange={e=>setFiltProv(e.target.value)}>
+            <option value="">Todos los proveedores</option>
+            {proveedores.filter(p=>p.activo!==false).map(p=><option key={p.id} value={p.id}>{p.razonSocial}</option>)}
+          </select>
+          {/* Contador + limpiar */}
+          <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">
+            {filtered.length} resultado{filtered.length!==1?'s':''}
+          </span>
+          {(busqueda||filtEst||filtProv) && (
+            <Btn variant="ghost" size="sm" onClick={()=>{setBusqueda('');setFiltEst('');setFiltProv('')}}>
+              <X size={12}/> Limpiar
+            </Btn>
+          )}
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">

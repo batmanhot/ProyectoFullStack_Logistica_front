@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, ArrowUpFromLine, Eye, XCircle, DollarSign, Calendar, TrendingDown, ShoppingBag , Download } from 'lucide-react'
+import { Plus, Search, ArrowUpFromLine, FileText, Eye, XCircle, DollarSign, Calendar, TrendingDown, ShoppingBag, Download, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
 import { procesarSalida, calcularPMP } from '../utils/valorizacion'
@@ -17,16 +17,34 @@ export default function Salidas() {
   const [modal, setModal]       = useState(false)
   const [verMov, setVerMov]     = useState(null)
   const [anular, setAnular]     = useState(null)
-  const [busqueda, setBusqueda] = useState('')
+  const [busqueda,   setBusqueda]   = useState('')
+  const [filtProd,   setFiltProd]   = useState('')  // texto producto/SKU
+  const [filtAlm,    setFiltAlm]    = useState('')
+  const [filtMotivo, setFiltMotivo] = useState('')
 
   const salidas = useMemo(() =>
-    movimientos.filter(m => m.tipo === 'SALIDA').filter(m => {
-      if (!busqueda) return true
-      const q = busqueda.toLowerCase()
-      const p = productos.find(x => x.id === m.productoId)
-      return p?.nombre.toLowerCase().includes(q) || m.documento?.toLowerCase().includes(q)
-    })
-  , [movimientos, busqueda, productos])
+    movimientos
+      .filter(m => m.tipo === 'SALIDA')
+      .filter(m => {
+        const p = productos.find(x => x.id === m.productoId)
+        // Búsqueda general: nombre producto o documento
+        if (busqueda) {
+          const q = busqueda.toLowerCase()
+          if (!p?.nombre.toLowerCase().includes(q) && !m.documento?.toLowerCase().includes(q)) return false
+        }
+        // Filtro producto por SKU/nombre
+        if (filtProd) {
+          const q = filtProd.toLowerCase()
+          if (!p?.nombre.toLowerCase().includes(q) && !p?.sku.toLowerCase().includes(q)) return false
+        }
+        // Filtro almacén
+        if (filtAlm    && m.almacenId !== filtAlm)  return false
+        // Filtro motivo
+        if (filtMotivo && !m.motivo?.toLowerCase().includes(filtMotivo.toLowerCase())) return false
+        // Filtro N° documento
+        return true
+      })
+  , [movimientos, busqueda, filtProd, filtAlm, filtMotivo, productos])
 
   const kpis = useMemo(() => {
     const todas  = movimientos.filter(m => m.tipo === 'SALIDA')
@@ -54,6 +72,9 @@ export default function Salidas() {
 
     return { costoTotal, totalUnidades, costo30, salidasHoy: salidasHoy.length, costoHoy, topProd, topMotivo, count30: hoy30.length, countTotal: todas.length }
   }, [movimientos, productos])
+
+  const hayFiltros = busqueda || filtProd || filtAlm || filtMotivo
+  function limpiarFiltros() { setBusqueda(''); setFiltProd(''); setFiltAlm(''); setFiltMotivo('') }
 
   function handleRegistrar(data) {
     const prod = storage.getProductoById(data.productoId).data
@@ -147,25 +168,58 @@ export default function Salidas() {
 
       {/* Tabla */}
       <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Registro de Salidas</span>
-          <div className="flex items-center gap-2">
-            <Btn variant="secondary" size="sm"
-              onClick={async () => { await exportarMovimientosXLSX(salidas, productos, almacenes, simboloMoneda) }}
-              style={{background:'#1e7b47',color:'#fff',borderColor:'#1e7b47'}}>
+        {/* ── Fila 1: título + botones ── */}
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] whitespace-nowrap">Registro de Salidas</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <Btn variant="ghost" size="sm" onClick={async () => { await exportarMovimientosXLSX(salidas, productos, almacenes, simboloMoneda) }}>
               <Download size={13}/> Excel
             </Btn>
-            <Btn variant="secondary" size="sm"
-              onClick={async () => { await exportarMovimientosPDF(salidas, productos, almacenes, simboloMoneda, config?.empresa, 'Salidas de Stock') }}
-              style={{background:'#c0392b',color:'#fff',borderColor:'#c0392b'}}>
-              <Download size={13}/> PDF
+            <Btn variant="ghost" size="sm" onClick={async () => { await exportarMovimientosPDF(salidas, productos, almacenes, simboloMoneda, config?.empresa, 'Salidas de Stock') }}>
+              <FileText size={13}/> PDF
             </Btn>
-            <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/>Nueva Salida</Btn>
+            <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nueva Salida</Btn>
           </div>
         </div>
-        <div className="relative mb-3 max-w-sm">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-          <input className={SI + ' pl-8'} placeholder="Buscar producto, documento..." value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
+
+        {/* ── Fila 2: buscador izquierda + filtros derecha ── */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          {/* Buscador general — izquierda, flex-1 */}
+          <div className="relative flex-1 min-w-[180px]">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
+            <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar producto o documento..."
+              value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
+          </div>
+          {/* Producto (SKU / nombre) */}
+          <select className={SEL} style={{width:180,padding:'5px 8px',fontSize:12}} value={filtProd} onChange={e=>setFiltProd(e.target.value)}>
+            <option value="">Todos los productos</option>
+            {[...new Map(movimientos.filter(m=>m.tipo==='SALIDA').map(m=>{
+              const p = productos.find(x=>x.id===m.productoId)
+              return p ? [p.id, p] : null
+            }).filter(Boolean)).values()]
+              .sort((a,b)=>a.nombre.localeCompare(b.nombre))
+              .map(p => <option key={p.id} value={p.nombre}>{p.sku} — {p.nombre.slice(0,22)}</option>)
+            }
+          </select>
+          {/* Almacén */}
+          <select className={SEL} style={{width:148,padding:'5px 8px',fontSize:12}} value={filtAlm} onChange={e=>setFiltAlm(e.target.value)}>
+            <option value="">Todos los almacenes</option>
+            {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+          </select>
+          {/* Motivo — lista fija del formulario de registro */}
+          <select className={SEL} style={{width:165,padding:'5px 8px',fontSize:12}} value={filtMotivo} onChange={e=>setFiltMotivo(e.target.value)}>
+            <option value="">Todos los motivos</option>
+            {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+          {/* Contador + limpiar */}
+          <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">
+            {salidas.length} resultado{salidas.length !== 1 ? 's' : ''}
+          </span>
+          {hayFiltros && (
+            <Btn variant="ghost" size="sm" onClick={limpiarFiltros}>
+              <X size={12}/> Limpiar
+            </Btn>
+          )}
         </div>
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full border-collapse text-[13px]">

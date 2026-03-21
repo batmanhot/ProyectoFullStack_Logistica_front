@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Plus, Search, Eye, Truck, Package, CheckCircle, X,
-         ClipboardList, ArrowRight, FileText, MapPin, MessageCircle, Mail, ChevronUp, ChevronDown } from 'lucide-react'
+         ClipboardList, ArrowRight, FileText, MapPin, MessageCircle, Mail, ChevronUp, ChevronDown, Printer } from 'lucide-react'
 
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
@@ -9,7 +9,7 @@ import * as storage from '../services/storage'
 import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field, Alert } from '../components/ui/index'
 import DireccionInput from '../components/ui/DireccionInput'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
-import { imprimirGuia } from '../utils/pdfTemplates'
+import { imprimirGuia, imprimirPickingList } from '../utils/pdfTemplates'
 
 const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
 const SEL = SI + ' pr-8'
@@ -36,8 +36,10 @@ export default function Despachos() {
   const [detalle,    setDetalle]    = useState(null)
   const [shareDoc,   setShareDoc]   = useState(null)
   const [confirmAnu, setConfirmAnu] = useState(null)
+  const [evidenciaModal, setEvidenciaModal] = useState(null) // despacho para captura evidencia
   const [busqueda,   setBusqueda]   = useState('')
   const [filtEst,    setFiltEst]    = useState('')
+  const [filtAlm,    setFiltAlm]    = useState('')
   const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' })
 
   const handleSort = (key) => {
@@ -64,7 +66,8 @@ export default function Despachos() {
 
   const filtered = useMemo(() => {
     let d = [...despachos]
-    if (filtEst) d = d.filter(x => x.estado === filtEst)
+    if (filtEst)  d = d.filter(x => x.estado === filtEst)
+    if (filtAlm)  d = d.filter(x => x.almacenId === filtAlm)
     if (busqueda) {
       const q = busqueda.toLowerCase()
       d = d.filter(x =>
@@ -95,7 +98,7 @@ export default function Despachos() {
     })
 
     return d
-  }, [despachos, filtEst, busqueda, clientes, sortConfig])
+  }, [despachos, filtEst, filtAlm, busqueda, clientes, sortConfig])
 
 
   const kpis = useMemo(() => ({
@@ -156,8 +159,9 @@ export default function Despachos() {
     }
 
     if (sig === 'ENTREGADO') {
-      actualizado.fechaEntregaReal = ahora
-      toast(`Despacho ${des.numero} confirmado como entregado`, 'success')
+      // Abrir modal de evidencia en vez de confirmar directo
+      setEvidenciaModal(des)
+      return
     }
 
     if (sig === 'PICKING') toast(`${des.numero} en preparación (Picking)`, 'info')
@@ -167,6 +171,22 @@ export default function Despachos() {
     storage.saveDespacho(actualizado)
     recargarDespachos()
     if (detalle?.id === des.id) setDetalle(actualizado)
+  }
+
+  function confirmarEntrega(des, evidencia) {
+    const ahora = new Date().toISOString().split('T')[0]
+    storage.saveDespacho({
+      ...des,
+      estado: 'ENTREGADO',
+      fechaEntregaReal: ahora,
+      evidenciaFoto:    evidencia.foto     || null,
+      evidenciaFirma:   evidencia.firma    || null,
+      evidenciaNotas:   evidencia.notas    || '',
+      receptorNombre:   evidencia.receptor || '',
+    })
+    recargarDespachos()
+    setEvidenciaModal(null)
+    toast(`Despacho ${des.numero} entregado con evidencia registrada`, 'success')
   }
 
   function anular(des) {
@@ -233,8 +253,9 @@ export default function Despachos() {
 
       {/* Tabla */}
       <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">
+        {/* ── Fila 1: título + botón ── */}
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] whitespace-nowrap">
             Despachos
             {filtEst && <span className="ml-2 text-[#00c896]">— {ESTADOS[filtEst]?.label}</span>}
           </span>
@@ -243,17 +264,33 @@ export default function Despachos() {
           </Btn>
         </div>
 
-        <div className="flex flex-wrap gap-2 mb-3">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-8'} placeholder="Buscar número, cliente, guía..."
+        {/* ── Fila 2: buscador + filtros ── */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          {/* Buscador — izquierda, flex-1 */}
+          <div className="relative flex-1 min-w-[180px]">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
+            <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar número, cliente, guía..."
               value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select className={SEL} style={{ width: 160 }} value={filtEst} onChange={e => setFiltEst(e.target.value)}>
+          {/* Estado */}
+          <select className={SEL} style={{width:155,padding:'5px 8px',fontSize:12}} value={filtEst} onChange={e=>setFiltEst(e.target.value)}>
             <option value="">Todos los estados</option>
             {Object.entries(ESTADOS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
-          {(busqueda || filtEst) && <Btn variant="ghost" size="sm" onClick={() => { setBusqueda(''); setFiltEst('') }}>Limpiar</Btn>}
+          {/* Almacén de despacho */}
+          <select className={SEL} style={{width:165,padding:'5px 8px',fontSize:12}} value={filtAlm} onChange={e=>setFiltAlm(e.target.value)}>
+            <option value="">Todos los almacenes</option>
+            {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+          </select>
+          {/* Contador + limpiar */}
+          <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">
+            {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
+          </span>
+          {(busqueda || filtEst || filtAlm) && (
+            <Btn variant="ghost" size="sm" onClick={() => { setBusqueda(''); setFiltEst(''); setFiltAlm('') }}>
+              <X size={12}/> Limpiar
+            </Btn>
+          )}
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
@@ -327,6 +364,27 @@ export default function Despachos() {
                             <FileText size={13}/>
                           </Btn>
                         )}
+                        {des.estado === 'DESPACHADO' && (
+                          <Btn variant="ghost" size="icon" title="Registrar entrega con evidencia"
+                            className="text-green-400 hover:text-green-300"
+                            onClick={() => setEvidenciaModal(des)}>
+                            <CheckCircle size={13}/>
+                          </Btn>
+                        )}
+                        {['APROBADO','PICKING'].includes(des.estado) && (
+                          <Btn variant="ghost" size="icon" title="Imprimir Picking List"
+                            className="text-amber-400 hover:text-amber-300"
+                            onClick={() => imprimirPickingList({
+                              des,
+                              cliente: clientes.find(c => c.id === des.clienteId),
+                              productos,
+                              almacen: almacenes.find(a => a.id === des.almacenId),
+                              config,
+                              sesion,
+                            })}>
+                            <Printer size={13}/>
+                          </Btn>
+                        )}
                         {!['ENTREGADO','ANULADO','DESPACHADO'].includes(des.estado) && (
                           <Btn variant="ghost" size="icon" title="Anular"
                             className="text-red-400 hover:text-red-300"
@@ -382,6 +440,14 @@ export default function Despachos() {
         title="Anular despacho"
         message={`¿Anular el despacho ${confirmAnu?.numero}? Esta acción no se puede deshacer.`}
       />
+
+      {evidenciaModal && (
+        <ModalEvidencia
+          des={evidenciaModal}
+          onClose={() => setEvidenciaModal(null)}
+          onConfirm={(evidencia) => confirmarEntrega(evidenciaModal, evidencia)}
+        />
+      )}
 
       {/* ── Panel explicativo ─────────────────────────────── */}
       <div className="bg-[#161d28] border border-[#00c896]/20 rounded-xl p-5">
@@ -708,6 +774,89 @@ function ModalDetalle({ des, productos, clientes, almacenes, simboloMoneda, onCl
           <strong className="text-[#5f6f80]">Observaciones: </strong>{des.observaciones}
         </div>
       )}
+    </Modal>
+  )
+}
+
+// ══════════════════════════════════════════════════════════
+// MODAL DE EVIDENCIA DE ENTREGA
+// ══════════════════════════════════════════════════════════
+function ModalEvidencia({ des, onClose, onConfirm }) {
+  const [foto,     setFoto]     = useState(null)
+  const [preview,  setPreview]  = useState(null)
+  const [receptor, setReceptor] = useState('')
+  const [notas,    setNotas]    = useState('')
+
+  const SI = 'w-full px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
+
+  function handleFoto(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      setFoto(ev.target.result)
+      setPreview(ev.target.result)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  return (
+    <Modal open title={`Confirmar Entrega — ${des.numero}`} onClose={onClose} size="md"
+      footer={<>
+        <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+        <Btn variant="primary" onClick={() => onConfirm({ foto, receptor, notas })}>
+          <CheckCircle size={13}/> Confirmar Entrega
+        </Btn>
+      </>}>
+
+      <Alert variant="info">
+        Registra la evidencia de entrega. La foto y nombre del receptor quedan guardados en el despacho.
+      </Alert>
+
+      {/* Captura de foto — funciona vía PWA en móvil con cámara */}
+      <div className="flex flex-col gap-2">
+        <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide">
+          Foto de entrega (opcional)
+        </label>
+        {preview ? (
+          <div className="relative">
+            <img src={preview} alt="Evidencia" className="w-full max-h-48 object-cover rounded-xl border border-white/[0.08]"/>
+            <button onClick={() => { setFoto(null); setPreview(null) }}
+              className="absolute top-2 right-2 w-7 h-7 bg-red-500/80 rounded-lg flex items-center justify-center text-white text-[12px] hover:bg-red-500">
+              ×
+            </button>
+          </div>
+        ) : (
+          <label className="flex flex-col items-center justify-center gap-2 h-32 bg-[#1a2230] border-2 border-dashed border-white/[0.1] rounded-xl cursor-pointer hover:border-[#00c896]/40 transition-colors">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="#5f6f80" strokeWidth="1.5" strokeLinejoin="round"/><circle cx="12" cy="13" r="4" stroke="#5f6f80" strokeWidth="1.5"/></svg>
+            <span className="text-[12px] text-[#5f6f80]">Toca para capturar foto</span>
+            <span className="text-[10px] text-[#3d4f60]">Funciona con cámara en móvil (PWA)</span>
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFoto}/>
+          </label>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3.5">
+        <div>
+          <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">
+            Nombre del receptor *
+          </label>
+          <input className={SI} value={receptor} onChange={e=>setReceptor(e.target.value)}
+            placeholder="Nombre completo de quien recibe"/>
+        </div>
+        <div>
+          <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">
+            Observaciones de entrega
+          </label>
+          <textarea className={SI+' resize-y min-h-[56px]'} value={notas} onChange={e=>setNotas(e.target.value)}
+            placeholder="Condiciones del producto al entregar, incidencias, etc."/>
+        </div>
+      </div>
+
+      <div className="px-3.5 py-2.5 bg-[#1a2230] rounded-lg text-[11px] text-[#5f6f80] flex items-start gap-2">
+        <div className="w-1 h-1 rounded-full bg-[#00c896] mt-1.5 shrink-0"/>
+        Al confirmar, el despacho pasará a estado ENTREGADO y se registrará la fecha y hora exacta de entrega.
+      </div>
     </Modal>
   )
 }

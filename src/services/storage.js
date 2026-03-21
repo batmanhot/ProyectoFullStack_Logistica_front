@@ -33,7 +33,7 @@ function guardar(key,data){try{localStorage.setItem(key,JSON.stringify(data));re
 function ok(data){return{data,error:null}}
 function err(msg){return{data:null,error:msg}}
 
-const CONFIG_DEFAULT={empresa:'Distribuidora Lima Norte S.A.C.',ruc:'20512345678',direccion:'Av. Universitaria 2650, Los Olivos, Lima',telefono:'01-537-8900',email:'operaciones@dlnorte.pe',logo:null,moneda:'PEN',simboloMoneda:'S/',formulaValorizacion:'PMP',alertaStockMinimo:true,alertaVencimiento:true,diasAlertaVencimiento:30,serieOC:'OC',serieMov:'MOV'}
+const CONFIG_DEFAULT={empresa:'Distribuidora Lima Norte S.A.C.',ruc:'20512345678',direccion:'Av. Universitaria 2650, Los Olivos, Lima',telefono:'01-537-8900',email:'operaciones@dlnorte.pe',logo:null,moneda:'PEN',simboloMoneda:'S/',formulaValorizacion:'PMP',alertaStockMinimo:true,alertaVencimiento:true,diasAlertaVencimiento:30,serieOC:'OC',serieMov:'MOV',whatsappResponsable:'',emailResponsable:'',alertasAutoWhatsApp:false}
 export function getConfig(){return ok({...CONFIG_DEFAULT,...(leer(KEYS.config)||{})})}
 export function saveConfig(cfg){const c=leer(KEYS.config)||{};guardar(KEYS.config,{...c,...cfg});return ok(true)}
 
@@ -320,7 +320,7 @@ export function saveOrden(orden){
 // ═══════════════════════════════════════════════════════════
 const ROLES={
   admin:     {label:'Administrador',permisos:['*','auditoria']},
-  supervisor:{label:'Supervisor',   permisos:['dashboard','inventario','movimientos','reportes','ordenes','proveedores','kardex','vencimientos','reorden','prevision','alertas','cotizaciones','clientes','despachos','transportes']},
+  supervisor:{label:'Supervisor',   permisos:['dashboard','inventario','movimientos','reportes','ordenes','proveedores','kardex','vencimientos','reorden','prevision','alertas','cotizaciones','clientes','despachos','transportes','cxc','proformas','mapa-almacen','lotes-series','financiero','kpis','sunat','portal-pedidos']},
   almacenero:{label:'Almacenero',   permisos:['dashboard','inventario','entradas','salidas','ajustes','devoluciones','transferencias','kardex','vencimientos','inv-fisico','alertas','despachos','clientes','transportes']},
 }
 const USR=[
@@ -419,7 +419,27 @@ export function getKardex(pId){
     lines.push({fecha:t.fecha,tipo:'TRANSFER-OUT',documento:t.numero,motivo:`Transfer → ${t.almacenDestinoId}`,entrada:0,salida:t.cantidad,costoUnit:t.costoUnitario,createdAt:t.createdAt})
     lines.push({fecha:t.fecha,tipo:'TRANSFER-IN', documento:t.numero,motivo:`Transfer ← ${t.almacenOrigenId}`, entrada:t.cantidad,salida:0,costoUnit:t.costoUnitario,createdAt:t.createdAt})
   })
-  lines.sort((a,b)=>{const d=a.fecha.localeCompare(b.fecha);return d!==0?d:(a.createdAt||'').localeCompare(b.createdAt||'')})
+  // Convertir fecha YYYY-MM-DD a número para comparación robusta
+  // Secondary sort: por createdAt completo (ISO), luego por id numérico del movimiento
+  lines.sort((a,b)=>{
+    // Normalizar fecha a YYYY-MM-DD para comparación segura
+    function toYMD(f){
+      if(!f) return '0000-00-00'
+      const s=String(f).trim()
+      // Si viene como DD/MM/YYYY convertir
+      if(s[2]==='/')return `${s.slice(6,10)}-${s.slice(3,5)}-${s.slice(0,2)}`
+      return s.slice(0,10)
+    }
+    const fa=toYMD(a.fecha), fb=toYMD(b.fecha)
+    if(fa!==fb) return fa.localeCompare(fb)
+    // Mismo día: usar createdAt completo
+    const ca=(a.createdAt||''), cb=(b.createdAt||'')
+    if(ca!==cb) return ca.localeCompare(cb)
+    // Último recurso: orden por id (mv001 < mv002 etc.)
+    const ia=parseInt((a.id||'').replace(/[^0-9]/g,'')||'0')
+    const ib=parseInt((b.id||'').replace(/[^0-9]/g,'')||'0')
+    return ia-ib
+  })
   let s=0
   return lines.map(l=>{s=s+l.entrada-l.salida;return{...l,saldo:Math.max(0,Math.round(s*1000)/1000)}})
 }
@@ -832,4 +852,45 @@ export function getAuditoria(filtros = {}) {
 export function limpiarAuditoria() {
   guardar(KEY_AUDIT, [])
   return ok(true)
+}
+
+// ══════════════════════════════════════════════════════════
+// CUENTAS POR COBRAR (CxC)
+// ══════════════════════════════════════════════════════════
+const CXC_DEMO = [
+  {id:'cxc1',numero:'FAC-001-0001',clienteId:'cli1',despachoId:null,monto:4500,saldo:4500,fechaEmision:'2025-02-10',fechaVencimiento:'2025-03-12',diasCredito:30,estado:'VENCIDA',  notas:'Factura equipos Q1',createdAt:'2025-02-10T09:00:00Z'},
+  {id:'cxc2',numero:'FAC-001-0002',clienteId:'cli2',despachoId:null,monto:2800,saldo:2800,fechaEmision:'2025-03-01',fechaVencimiento:'2025-03-31',diasCredito:30,estado:'PENDIENTE',notas:'',createdAt:'2025-03-01T10:00:00Z'},
+  {id:'cxc3',numero:'FAC-001-0003',clienteId:'cli3',despachoId:null,monto:1200,saldo:0,   fechaEmision:'2025-02-15',fechaVencimiento:'2025-03-01',diasCredito:15,estado:'COBRADA',  notas:'Pago recibido 01/03',createdAt:'2025-02-15T11:00:00Z'},
+  {id:'cxc4',numero:'FAC-001-0004',clienteId:'cli1',despachoId:null,monto:6700,saldo:3350,fechaEmision:'2025-03-05',fechaVencimiento:'2025-04-04',diasCredito:30,estado:'PARCIAL',  notas:'Abono 50% recibido',createdAt:'2025-03-05T09:00:00Z'},
+  {id:'cxc5',numero:'FAC-001-0005',clienteId:'cli4',despachoId:null,monto:900, saldo:900, fechaEmision:'2025-03-10',fechaVencimiento:'2025-03-25',diasCredito:15,estado:'PENDIENTE',notas:'',createdAt:'2025-03-10T14:00:00Z'},
+]
+export function getCxC(){let d=leer('sp_cxc')||CXC_DEMO;if(!leer('sp_cxc'))guardar('sp_cxc',CXC_DEMO);return ok([...d].sort((a,b)=>b.createdAt.localeCompare(a.createdAt)))}
+export function saveCxC(doc){const l=leer('sp_cxc')||CXC_DEMO;const t=new Date().toISOString();if(doc.id){const i=l.findIndex(x=>x.id===doc.id);if(i>=0)l[i]={...doc,updatedAt:t};else l.push({...doc,id:newId(),createdAt:t})}else l.push({...doc,id:newId(),createdAt:t});guardar('sp_cxc',l);_audit('SAVE','cxc',`CxC ${doc.numero}`);return ok(true)}
+export function deleteCxC(id){guardar('sp_cxc',(leer('sp_cxc')||[]).filter(x=>x.id!==id));return ok(true)}
+
+// ══════════════════════════════════════════════════════════
+// PROFORMAS / COTIZACIONES DE VENTA A CLIENTES
+// ══════════════════════════════════════════════════════════
+const PROF_DEMO = [
+  {id:'prof1',numero:'PRO-001-0001',clienteId:'cli1',fecha:'2025-03-10',fechaVencimiento:'2025-03-24',estado:'ENVIADA',items:[{productoId:'prod1',descripcion:'Laptop HP 15"',cantidad:2,precioUnitario:3200,subtotal:6400},{productoId:'prod2',descripcion:'Monitor LG 24"',cantidad:2,precioUnitario:550,subtotal:1100}],subtotal:7500,igv:1350,total:8850,notas:'Precios válidos por 14 días.',createdAt:'2025-03-10T09:00:00Z'},
+  {id:'prof2',numero:'PRO-001-0002',clienteId:'cli3',fecha:'2025-03-12',fechaVencimiento:'2025-03-26',estado:'BORRADOR',items:[{productoId:'prod7',descripcion:'Papel Bond A4',cantidad:10,precioUnitario:28,subtotal:280}],subtotal:280,igv:50.4,total:330.4,notas:'',createdAt:'2025-03-12T11:00:00Z'},
+]
+export function getProformas(){let d=leer('sp_proformas')||PROF_DEMO;if(!leer('sp_proformas'))guardar('sp_proformas',PROF_DEMO);return ok([...d].sort((a,b)=>b.createdAt.localeCompare(a.createdAt)))}
+export function saveProforma(p){const l=leer('sp_proformas')||PROF_DEMO;const t=new Date().toISOString();if(p.id){const i=l.findIndex(x=>x.id===p.id);if(i>=0)l[i]={...p,updatedAt:t};else l.push({...p,id:newId(),createdAt:t})}else l.push({...p,id:newId(),createdAt:t});guardar('sp_proformas',l);_audit('SAVE','proformas',`Proforma ${p.numero}`);return ok(true)}
+export function deleteProforma(id){guardar('sp_proformas',(leer('sp_proformas')||[]).filter(x=>x.id!==id));return ok(true)}
+
+// ══════════════════════════════════════════════════════════
+// LOTES Y SERIES
+// ══════════════════════════════════════════════════════════
+export function getLotesProducto(productoId){
+  const movs = (leer('sp_movimientos')||[]).filter(m=>m.productoId===productoId&&m.lote)
+  const map = {}
+  movs.forEach(m=>{
+    const key=m.lote
+    if(!map[key])map[key]={lote:key,productoId,entradas:0,salidas:0,costo:m.costoUnitario||0,fechaEntrada:m.fecha,fechaUltMov:m.fecha}
+    if(m.tipo==='ENTRADA')map[key].entradas+=(m.cantidad||0)
+    if(m.tipo==='SALIDA')map[key].salidas+=(m.cantidad||0)
+    if(m.fecha>map[key].fechaUltMov)map[key].fechaUltMov=m.fecha
+  })
+  return ok(Object.values(map).map(l=>({...l,saldo:Math.max(0,l.entradas-l.salidas)})))
 }

@@ -25,6 +25,7 @@ export default function Devoluciones() {
   const [filtAlm,     setFiltAlm]     = useState('')
   const [filtMotivo,  setFiltMotivo]  = useState('')
   const [filtEstItem, setFiltEstItem] = useState('')
+  const [filtDoc,     setFiltDoc]     = useState('')
   const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' })
 
   const handleSort = (key) => {
@@ -49,8 +50,8 @@ export default function Devoluciones() {
     return isoMatch ? isoMatch[0] : ''
   }
 
-  const hayFiltros = busqueda || filtTipo || filtAlm || filtMotivo || filtEstItem
-  function limpiarFiltros() { setBusqueda(''); setFiltTipo(''); setFiltAlm(''); setFiltMotivo(''); setFiltEstItem('') }
+  const hayFiltros = busqueda || filtTipo || filtAlm || filtMotivo || filtEstItem || filtDoc
+  function limpiarFiltros() { setBusqueda(''); setFiltTipo(''); setFiltAlm(''); setFiltMotivo(''); setFiltEstItem(''); setFiltDoc('') }
 
   const filtered = useMemo(() => {
     let d = [...devoluciones]
@@ -58,6 +59,7 @@ export default function Devoluciones() {
     if (filtAlm)     d = d.filter(x => x.almacenId === filtAlm)
     if (filtMotivo)  d = d.filter(x => x.motivo?.toLowerCase().includes(filtMotivo.toLowerCase()))
     if (filtEstItem) d = d.filter(x => x.estadoItem === filtEstItem)
+    if (filtDoc)     d = d.filter(x => x.documento?.toLowerCase().includes(filtDoc.toLowerCase()))
     if (busqueda) {
       const q = busqueda.toLowerCase()
       d = d.filter(x => {
@@ -93,7 +95,7 @@ export default function Devoluciones() {
     })
 
     return d
-  }, [devoluciones, filtTipo, filtAlm, filtMotivo, filtEstItem, busqueda, productos, sortConfig])
+  }, [devoluciones, filtTipo, filtAlm, filtMotivo, filtEstItem, filtDoc, busqueda, productos, sortConfig])
 
 
 
@@ -213,6 +215,12 @@ export default function Devoluciones() {
               {MOTIVOS_PROV.map(m => <option key={m} value={m}>{m}</option>)}
             </optgroup>
           </select>
+          {/* N° Documento */}
+          <div className="relative">
+            <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
+            <input className={SI + ' pl-7 !py-[5px] text-[12px]'} style={{width:148}}
+              placeholder="N° Documento..." value={filtDoc} onChange={e => setFiltDoc(e.target.value)}/>
+          </div>
           {/* Contador + limpiar */}
           <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">
             {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}

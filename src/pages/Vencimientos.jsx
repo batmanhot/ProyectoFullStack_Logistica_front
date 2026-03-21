@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle, Package, Eye, XCircle,
-         Calendar, Hash, DollarSign, Layers, Info, Clock } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Package, Eye, XCircle, Calendar, Hash, DollarSign, Layers, Info, Clock, Download, FileText, X, Search } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, diasParaVencer, fechaHoy, generarNumDoc } from '../utils/helpers'
 import { valorarStock, calcularPMP } from '../utils/valorizacion'
-import { calcularPMP as pmp } from '../utils/valorizacion'
 import * as storage from '../services/storage'
 import { Badge, Btn, EmptyState, Modal } from '../components/ui/index'
+import { exportarVencimientosXLSX } from '../utils/exportXLSX'
+import { exportarVencimientosPDF } from '../utils/exportPDF'
 
 const RANGOS = [
   { key:'vencido', label:'Vencidos',           dias:[-Infinity,-1], color:'#ef4444', badge:'danger'  },
@@ -21,15 +21,20 @@ function clasificar(dias) {
   return RANGOS.find(r => dias >= r.dias[0] && dias <= r.dias[1])
 }
 
-const SEL = 'px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] pr-8'
+const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
+const SEL = SI + ' pr-8'
 
 // ════════════════════════════════════════════════════════
 export default function Vencimientos() {
-  const { productos, categorias, almacenes, formulaValorizacion, simboloMoneda,
+  const { config,
+   productos, categorias, almacenes, formulaValorizacion, simboloMoneda,
           recargarProductos, recargarMovimientos, recargarAjustes, toast } = useApp()
 
   const [filtroRango, setFiltroRango] = useState('all')
   const [filtCat,     setFiltCat]     = useState('')
+  const [filtAlm,     setFiltAlm]     = useState('')
+  const [filtEstado,  setFiltEstado]  = useState('')
+  const [filtProd,    setFiltProd]    = useState('')
   const [verProd,     setVerProd]     = useState(null)  // modal detalle
   const [bajaConf,    setBajaConf]    = useState(null)  // modal confirmar baja
 
@@ -57,9 +62,18 @@ export default function Vencimientos() {
   const filtered = useMemo(() => {
     let d = productosConVenc
     if (filtroRango !== 'all') d = d.filter(p => clasificar(p.dias)?.key === filtroRango)
-    if (filtCat) d = d.filter(p => p.categoriaId === filtCat)
+    if (filtCat)    d = d.filter(p => p.categoriaId === filtCat)
+    if (filtAlm)    d = d.filter(p => p.almacenId === filtAlm)
+    if (filtEstado) d = d.filter(p => {
+      const est = clasificar(p.dias)?.key
+      return est === filtEstado
+    })
+    if (filtProd) {
+      const q = filtProd.toLowerCase()
+      d = d.filter(p => p.nombre?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q))
+    }
     return d
-  }, [productosConVenc, filtroRango, filtCat])
+  }, [productosConVenc, filtroRango, filtCat, filtAlm, filtEstado, filtProd])
 
   // ── Dar de baja (ajuste negativo de stock completo) ──
   function ejecutarBaja(prod, motivo) {
@@ -134,10 +148,37 @@ export default function Vencimientos() {
               <option value="">Todas las categorías</option>
               {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </select>
-            {(filtroRango !== 'all' || filtCat) && (
-              <Btn variant="ghost" size="sm" onClick={() => { setFiltroRango('all'); setFiltCat('') }}>Limpiar</Btn>
+            {(filtroRango !== 'all' || filtCat || filtAlm || filtEstado || filtProd) && (
+              <Btn variant="ghost" size="sm" onClick={() => { setFiltroRango('all'); setFiltCat(''); setFiltAlm(''); setFiltEstado(''); setFiltProd('') }}>
+                <X size={12}/> Limpiar
+              </Btn>
             )}
+            <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarVencimientosXLSX(filtered, categorias, almacenes, simboloMoneda, calcularPMP) }}>
+              <Download size={13}/> Excel
+            </Btn>
+            <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarVencimientosPDF(filtered, categorias, almacenes, simboloMoneda, calcularPMP, config?.empresa) }}>
+              <FileText size={13}/> PDF
+            </Btn>
           </div>
+        </div>
+        {/* Filtros adicionales: producto, almacén, estado */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <div className="relative flex-1 min-w-[160px]">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
+            <input className={SI+' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar producto o SKU..."
+              value={filtProd} onChange={e=>setFiltProd(e.target.value)}/>
+          </div>
+          <select className={SEL} style={{width:155,padding:'5px 8px',fontSize:12}} value={filtAlm} onChange={e=>setFiltAlm(e.target.value)}>
+            <option value="">Todos los almacenes</option>
+            {almacenes.map(a=><option key={a.id} value={a.id}>{a.nombre}</option>)}
+          </select>
+          <select className={SEL} style={{width:148,padding:'5px 8px',fontSize:12}} value={filtEstado} onChange={e=>setFiltEstado(e.target.value)}>
+            <option value="">Todos los estados</option>
+            {RANGOS.map(r=><option key={r.key} value={r.key}>{r.label}</option>)}
+          </select>
+          <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">
+            {filtered.length} resultado{filtered.length!==1?'s':''}
+          </span>
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
@@ -386,7 +427,6 @@ function ModalDetalleVencimiento({ prod, simboloMoneda, formulaValorizacion, onC
 // ════════════════════════════════════════════════════════
 function ModalConfirmarBaja({ prod, simboloMoneda, onClose, onConfirm }) {
   const [motivo, setMotivo] = useState('Producto vencido — retirado del almacén')
-  const SI = 'w-full px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] font-[inherit] placeholder-[#5f6f80]'
 
   return (
     <Modal

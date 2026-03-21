@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, Eye, CheckCircle, FileText, X, ShoppingCart, MessageCircle, Mail, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, Search, Eye, CheckCircle, FileText, X, ShoppingCart, MessageCircle, Mail, ChevronUp, ChevronDown, Download } from 'lucide-react'
 
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
@@ -7,6 +7,8 @@ import * as storage from '../services/storage'
 import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field, Alert } from '../components/ui/index'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
 import { imprimirRFQ } from '../utils/pdfTemplates'
+import { exportarCotizacionesXLSX } from '../utils/exportXLSX'
+import { exportarCotizacionesPDF } from '../utils/exportPDF'
 
 const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
 const SEL = SI + ' pr-8'
@@ -144,25 +146,39 @@ export default function Cotizaciones() {
       </div>
 
       <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">
-            Solicitudes de Cotización
-          </span>
-          <Btn variant="primary" size="sm" onClick={() => setModal(true)}>
-            <Plus size={13}/> Nueva RFQ
-          </Btn>
+        {/* ── Fila 1: título + botones ── */}
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] whitespace-nowrap">Solicitudes de Cotización</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarCotizacionesXLSX(cotizaciones, proveedores, productos) }}>
+              <Download size={13}/> Excel
+            </Btn>
+            <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarCotizacionesPDF(cotizaciones, proveedores, simboloMoneda, config?.empresa) }}>
+              <FileText size={13}/> PDF
+            </Btn>
+            <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nueva RFQ</Btn>
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 mb-3">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-8'} placeholder="Buscar número, notas..."
+        {/* ── Fila 2: buscador + filtro estado ── */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="relative flex-1 min-w-[180px]">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
+            <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar número, notas..."
               value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select className={SEL} style={{ width: 160 }} value={filtEst} onChange={e => setFiltEst(e.target.value)}>
+          <select className={SEL} style={{ width:160, padding:'5px 8px', fontSize:12 }} value={filtEst} onChange={e => setFiltEst(e.target.value)}>
             <option value="">Todos los estados</option>
             {Object.keys(ESTADOS_COT).map(k => <option key={k} value={k}>{ESTADOS_COT[k].label}</option>)}
           </select>
+          <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">
+            {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
+          </span>
+          {(busqueda || filtEst) && (
+            <Btn variant="ghost" size="sm" onClick={() => { setBusqueda(''); setFiltEst('') }}>
+              <X size={12}/> Limpiar
+            </Btn>
+          )}
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">

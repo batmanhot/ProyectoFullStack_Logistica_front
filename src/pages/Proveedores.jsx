@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Plus, Search, Edit2, Trash2, Building2 } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, Building2, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import * as storage from '../services/storage'
 import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field } from '../components/ui/index'
+import { exportarProveedoresXLSX } from '../utils/exportXLSX'
+import { exportarProveedoresPDF } from '../utils/exportPDF'
 
 const TH = ({c}) => <th className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/[0.08] sticky top-0">{c}</th>
 const SI = 'px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 w-full font-[inherit] placeholder-[#5f6f80]'
@@ -38,17 +40,24 @@ export default function Proveedores() {
   return (
     <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
       <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Proveedores</span>
-          <Btn variant="primary" size="sm" onClick={() => { setEditando(null); setModal(true) }}>
-            <Plus size={13}/> Nuevo Proveedor
-          </Btn>
-        </div>
-
-        <div className="relative mb-3 max-w-sm">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-          <input className={SI + ' pl-8'} placeholder="Buscar razón social, RUC..."
-            value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] whitespace-nowrap">Proveedores</span>
+            <div className="relative w-[220px]">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
+              <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar razón social, RUC..."
+                value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarProveedoresXLSX(proveedores) }}>
+              <Download size={13}/> Excel
+            </Btn>
+            <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarProveedoresPDF(proveedores, config?.empresa) }}>
+              <FileText size={13}/> PDF
+            </Btn>
+            <Btn variant="primary" size="sm" onClick={() => { setEditando(null); setModal(true) }}><Plus size={13}/> Nuevo Proveedor</Btn>
+          </div>
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">

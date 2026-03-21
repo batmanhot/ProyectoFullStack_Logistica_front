@@ -1,23 +1,28 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, ArrowRightLeft, Warehouse, Eye, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, Search, ArrowRightLeft, Warehouse, Eye, Trash2, ChevronUp, ChevronDown, Download, FileText, X } from 'lucide-react'
 
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
 import { calcularPMP } from '../utils/valorizacion'
 import * as storage from '../services/storage'
 import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field, Alert } from '../components/ui/index'
+import { exportarTransferenciasXLSX } from '../utils/exportXLSX'
+import { exportarTransferenciasPDF } from '../utils/exportPDF'
 
 const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
 const SEL = SI + ' pr-8'
 const MOTIVOS = ['Rebalanceo de stock','Consolidación de almacén','Pedido urgente','Reorganización','Otro']
 
 export default function Transferencias() {
-  const { transferencias, productos, almacenes, sesion, recargarProductos, recargarMovimientos, recargarTransferencias, toast, simboloMoneda } = useApp()
+  const { config,
+   transferencias, productos, almacenes, sesion, recargarProductos, recargarMovimientos, recargarTransferencias, toast, simboloMoneda } = useApp()
   const [modal, setModal]       = useState(false)
   const [verTr, setVerTr]       = useState(null)
   const [eliminar, setEliminar] = useState(null)
-  const [busqueda, setBusqueda] = useState('')
-  const [filtAlm, setFiltAlm]   = useState('')
+  const [busqueda,   setBusqueda]   = useState('')
+  const [filtOrigen, setFiltOrigen] = useState('')
+  const [filtDestino,setFiltDestino]= useState('')
+  const [filtMotivo, setFiltMotivo] = useState('')
   const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' })
 
   const handleSort = (key) => {
@@ -42,9 +47,14 @@ export default function Transferencias() {
     return isoMatch ? isoMatch[0] : ''
   }
 
+  const hayFiltros = busqueda || filtOrigen || filtDestino || filtMotivo
+  function limpiarFiltros() { setBusqueda(''); setFiltOrigen(''); setFiltDestino(''); setFiltMotivo('') }
+
   const filtered = useMemo(() => {
     let d = [...transferencias]
-    if (filtAlm) d = d.filter(t => t.almacenOrigenId===filtAlm||t.almacenDestinoId===filtAlm)
+    if (filtOrigen)  d = d.filter(t => t.almacenOrigenId  === filtOrigen)
+    if (filtDestino) d = d.filter(t => t.almacenDestinoId === filtDestino)
+    if (filtMotivo)  d = d.filter(t => t.motivo?.toLowerCase().includes(filtMotivo.toLowerCase()))
     if (busqueda) {
       const q = busqueda.toLowerCase()
       d = d.filter(t => {
@@ -80,7 +90,7 @@ export default function Transferencias() {
     })
 
     return d
-  }, [transferencias, busqueda, filtAlm, productos, sortConfig])
+  }, [transferencias, busqueda, filtOrigen, filtDestino, filtMotivo, productos, sortConfig])
 
 
 
@@ -130,20 +140,52 @@ export default function Transferencias() {
       </div>
 
       <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Historial de Transferencias</span>
-          <Btn variant="primary" size="sm" onClick={()=>setModal(true)}><Plus size={13}/>Nueva Transferencia</Btn>
-        </div>
-        <div className="flex flex-wrap gap-2 mb-3">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI+' pl-8'} placeholder="Buscar producto, número..." value={busqueda} onChange={e=>setBusqueda(e.target.value)}/>
+        {/* ── Fila 1: título + botones ── */}
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] whitespace-nowrap">Historial de Transferencias</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarTransferenciasXLSX(filtered, productos, almacenes, simboloMoneda) }}>
+              <Download size={13}/> Excel
+            </Btn>
+            <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarTransferenciasPDF(filtered, productos, almacenes, simboloMoneda, config?.empresa) }}>
+              <FileText size={13}/> PDF
+            </Btn>
+            <Btn variant="primary" size="sm" onClick={()=>setModal(true)}><Plus size={13}/> Nueva Transferencia</Btn>
           </div>
-          <select className={SEL} style={{width:180}} value={filtAlm} onChange={e=>setFiltAlm(e.target.value)}>
-            <option value="">Todos los almacenes</option>
+        </div>
+
+        {/* ── Fila 2: buscador izquierda + filtros derecha ── */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          {/* Buscador — izquierda, flex-1 */}
+          <div className="relative flex-1 min-w-[180px]">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
+            <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar producto o N° transferencia..."
+              value={busqueda} onChange={e=>setBusqueda(e.target.value)}/>
+          </div>
+          {/* Almacén origen */}
+          <select className={SEL} style={{width:155,padding:'5px 8px',fontSize:12}} value={filtOrigen} onChange={e=>setFiltOrigen(e.target.value)}>
+            <option value="">Origen: todos</option>
             {almacenes.map(a=><option key={a.id} value={a.id}>{a.nombre}</option>)}
           </select>
-          {(busqueda||filtAlm)&&<Btn variant="ghost" size="sm" onClick={()=>{setBusqueda('');setFiltAlm('')}}>Limpiar</Btn>}
+          {/* Almacén destino */}
+          <select className={SEL} style={{width:155,padding:'5px 8px',fontSize:12}} value={filtDestino} onChange={e=>setFiltDestino(e.target.value)}>
+            <option value="">Destino: todos</option>
+            {almacenes.map(a=><option key={a.id} value={a.id}>{a.nombre}</option>)}
+          </select>
+          {/* Motivo — lista fija del formulario de registro */}
+          <select className={SEL} style={{width:175,padding:'5px 8px',fontSize:12}} value={filtMotivo} onChange={e=>setFiltMotivo(e.target.value)}>
+            <option value="">Todos los motivos</option>
+            {MOTIVOS.map(m=><option key={m} value={m}>{m}</option>)}
+          </select>
+          {/* Contador + limpiar */}
+          <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">
+            {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
+          </span>
+          {hayFiltros && (
+            <Btn variant="ghost" size="sm" onClick={limpiarFiltros}>
+              <X size={12}/> Limpiar
+            </Btn>
+          )}
         </div>
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full border-collapse text-[13px]">

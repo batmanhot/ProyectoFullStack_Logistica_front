@@ -1,13 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import logoImg from '../../assets/logo.png'
-import {
-  LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine,
-  ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes,
-  Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut,
-  ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell,
-  FileText, ClipboardList, Activity, Smartphone,
-  Truck, Navigation as NavIcon, Shield, TrendingUp, Wrench,
-} from 'lucide-react'
+import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Target, Zap, Globe} from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { estadoStock, diasParaVencer } from '../../utils/helpers'
 
@@ -31,6 +24,7 @@ const NAV = [
   { divider:true, label:'DESPACHOS' },
   { label:'Clientes',             path:'/clientes',       icon:Users,            modulo:'clientes'      },
   { label:'Despachos',            path:'/despachos',      icon:Truck,            modulo:'despachos'     },
+  { label:'Empaque / Packing',     path:'/empaque',        icon:Package,          modulo:'empaque'       },
   { label:'Transportes',          path:'/transportes',    icon:NavIcon,          modulo:'transportes'   },
   { label:'Flota y Mantenimiento',  path:'/flota',       icon:Wrench,           modulo:'flota'         },
   { divider:true, label:'ANÁLISIS' },
@@ -39,7 +33,17 @@ const NAV = [
   { label:'Punto de Reorden',     path:'/reorden',        icon:TrendingDown,     modulo:'reorden'       },
   { label:'Previsión de Demanda', path:'/prevision',      icon:Activity,         modulo:'prevision'     },
   { label:'Reportes',             path:'/reportes',       icon:BarChart3,        modulo:'reportes'      },
+  { label:'KPIs Operativos',      path:'/kpis',           icon:Target,           modulo:'kpis'          },
+  { label:'SUNAT / Fact. Elect.', path:'/sunat',          icon:Zap,              modulo:'sunat'         },
   { label:'Dashboard Financiero', path:'/financiero',   icon:TrendingUp,       modulo:'financiero'    },
+  { divider:true, label:'VENTAS' },
+  { label:'Proformas / Cotiz.',    path:'/proformas',    icon:FileText,         modulo:'proformas'     },
+  { label:'Cuentas por Cobrar',   path:'/cxc',          icon:DollarSign,       modulo:'cxc'           },
+  { label:'Portal de Pedidos',    path:'/portal-pedidos',icon:Globe,            modulo:'portal-pedidos'},
+  { divider:true, label:'ALMACÉN' },
+  { label:'Mapa de Almacén',      path:'/mapa-almacen', icon:Grid3x3,          modulo:'mapa-almacen'  },
+  { label:'Lotes y Series',       path:'/lotes-series', icon:Layers,           modulo:'lotes-series'  },
+  { label:'Lista de Precios',     path:'/lista-precios',icon:Tag,              modulo:'lista-precios' },
   { divider:true, label:'ADMINISTRACIÓN' },
   { label:'Categ. / Almacenes',   path:'/maestros',       icon:Tag,              modulo:'maestros'      },
   { label:'Usuarios y Roles',     path:'/usuarios',       icon:Users,            modulo:'usuarios'      },

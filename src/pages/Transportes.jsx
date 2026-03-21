@@ -916,6 +916,7 @@ function TabTransportistas() {
 // ── Modal Nueva Ruta ─────────────────────────────────────
 function ModalNuevaRuta({ onClose, onSave, despachos, transportistas, clientes }) {
   const [form, setForm] = useState({ transportistaId:'', fechaSalida:fechaHoy(), horaSalida:'08:00', costoViaje:'', observaciones:'' })
+  const [optimizar, setOptimizar] = useState(false)
   const [selDes, setSelDes] = useState([]) // despachoIds seleccionados
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
@@ -928,7 +929,18 @@ function ModalNuevaRuta({ onClose, onSave, despachos, transportistas, clientes }
 
   function handleSave() {
     if (!form.transportistaId || selDes.length === 0) return
-    const paradas = selDes.map((dId, i) => ({ despachoId:dId, orden:i+1, estado:'PENDIENTE', horaLlegada:null, horaPartida:null, observacion:'' }))
+    // Ordenar paradas por zona si el usuario activó optimización
+    const despachosOrdenados = optimizar
+      ? [...selDes].sort((a, b) => {
+          const da = listosParaRuta.find(d => d.id === a)
+          const db = listosParaRuta.find(d => d.id === b)
+          // Ordenar por distrito/zona (primeras palabras de la dirección)
+          const za = (da?.direccionEntrega || clientes.find(c=>c.id===da?.clienteId)?.direccion || '').split(',').pop()?.trim() || ''
+          const zb = (db?.direccionEntrega || clientes.find(c=>c.id===db?.clienteId)?.direccion || '').split(',').pop()?.trim() || ''
+          return za.localeCompare(zb)
+        })
+      : selDes
+    const paradas = despachosOrdenados.map((dId, i) => ({ despachoId:dId, orden:i+1, estado:'PENDIENTE', horaLlegada:null, horaPartida:null, observacion:'' }))
     onSave({ numero:generarNumDoc('RT','001'), estado:'PROGRAMADA', ...form, costoViaje:+form.costoViaje||0, despachoIds:selDes, paradas, fechaRetorno:null, horaRetorno:null, usuarioId:'usr1' })
   }
 
@@ -951,6 +963,20 @@ function ModalNuevaRuta({ onClose, onSave, despachos, transportistas, clientes }
         </Field>
         <Field label="Costo del Viaje (S/)">
           <input type="number" className={SI} value={form.costoViaje} onChange={e => f('costoViaje', e.target.value)} min="0" step="0.50"/>
+
+          {/* Optimización de paradas */}
+          {selDes.length > 1 && (
+            <div className="col-span-2 mt-1">
+              <label className="flex items-center gap-2.5 cursor-pointer px-3.5 py-3 bg-[#1a2230] rounded-xl border border-white/[0.07] hover:border-white/[0.12] transition-colors">
+                <input type="checkbox" checked={optimizar} onChange={e => setOptimizar(e.target.checked)} className="accent-[#00c896] w-4 h-4"/>
+                <div>
+                  <div className="text-[13px] font-medium text-[#e8edf2]">Optimizar orden de paradas por zona</div>
+                  <div className="text-[11px] text-[#5f6f80] mt-0.5">Ordena automáticamente las paradas por distrito/zona usando la dirección de entrega — reduce km recorridos.</div>
+                </div>
+                {optimizar && <span className="ml-auto text-[10px] bg-[#00c896]/15 text-[#00c896] px-2 py-1 rounded-lg font-semibold shrink-0">ACTIVO</span>}
+              </label>
+            </div>
+          )}
         </Field>
       </div>
 

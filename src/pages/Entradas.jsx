@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Search, ArrowDownToLine, Eye, XCircle, Package, DollarSign, Calendar, TrendingUp , Download } from 'lucide-react'
+import { Plus, Search, ArrowDownToLine, Eye, XCircle, Package, DollarSign, Calendar, TrendingUp, Download, FileText, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
 import { calcularPMP } from '../utils/valorizacion'
@@ -18,16 +18,31 @@ export default function Entradas() {
   const [modal, setModal]       = useState(false)
   const [verMov, setVerMov]     = useState(null)
   const [anular, setAnular]     = useState(null)
-  const [busqueda, setBusqueda] = useState('')
+  const [busqueda,  setBusqueda]  = useState('')
+  const [filtAlm,   setFiltAlm]   = useState('')
+  const [filtProv,  setFiltProv]  = useState('')
+  const [filtMotivo,setFiltMotivo]= useState('')
 
   const entradas = useMemo(() =>
-    movimientos.filter(m => m.tipo === 'ENTRADA').filter(m => {
-      if (!busqueda) return true
-      const q = busqueda.toLowerCase()
-      const p = productos.find(x => x.id === m.productoId)
-      return p?.nombre.toLowerCase().includes(q) || m.documento?.toLowerCase().includes(q)
-    })
-  , [movimientos, busqueda, productos])
+    movimientos
+      .filter(m => m.tipo === 'ENTRADA')
+      .filter(m => {
+        // Búsqueda general: nombre producto o documento
+        if (busqueda) {
+          const q = busqueda.toLowerCase()
+          const p = productos.find(x => x.id === m.productoId)
+          if (!p?.nombre.toLowerCase().includes(q) && !m.documento?.toLowerCase().includes(q)) return false
+        }
+        // Filtro almacén
+        if (filtAlm   && m.almacenId   !== filtAlm)   return false
+        // Filtro proveedor
+        if (filtProv  && m.proveedorId !== filtProv)  return false
+        // Filtro motivo
+        if (filtMotivo && !m.motivo?.toLowerCase().includes(filtMotivo.toLowerCase())) return false
+        // Filtro N° documento
+        return true
+      })
+  , [movimientos, busqueda, filtAlm, filtProv, filtMotivo, productos])
 
   const kpis = useMemo(() => {
     const todas  = movimientos.filter(m => m.tipo === 'ENTRADA')
@@ -49,6 +64,9 @@ export default function Entradas() {
 
     return { valorTotal, totalUnidades, valor30, entradasHoy: entradasHoy.length, valorHoy, topProd, count30: hoy30.length, countTotal: todas.length }
   }, [movimientos, productos])
+
+  const hayFiltros = busqueda || filtAlm || filtProv || filtMotivo
+  function limpiarFiltros() { setBusqueda(''); setFiltAlm(''); setFiltProv(''); setFiltMotivo('') }
 
   function handleRegistrar(data) {
     const prod = storage.getProductoById(data.productoId).data
@@ -144,25 +162,52 @@ export default function Entradas() {
 
       {/* Tabla */}
       <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Registro de Entradas</span>
-          <div className="flex items-center gap-2">
-            <Btn variant="secondary" size="sm"
-              onClick={async () => { await exportarMovimientosXLSX(entradas, productos, almacenes, simboloMoneda) }}
-              style={{background:'#1e7b47',color:'#fff',borderColor:'#1e7b47'}}>
+        {/* ── Fila 1: título + botones ── */}
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] whitespace-nowrap">Registro de Entradas</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <Btn variant="ghost" size="sm" onClick={async () => { await exportarMovimientosXLSX(entradas, productos, almacenes, simboloMoneda) }}>
               <Download size={13}/> Excel
             </Btn>
-            <Btn variant="secondary" size="sm"
-              onClick={async () => { await exportarMovimientosPDF(entradas, productos, almacenes, simboloMoneda, config?.empresa, 'Entradas de Stock') }}
-              style={{background:'#c0392b',color:'#fff',borderColor:'#c0392b'}}>
-              <Download size={13}/> PDF
+            <Btn variant="ghost" size="sm" onClick={async () => { await exportarMovimientosPDF(entradas, productos, almacenes, simboloMoneda, config?.empresa, 'Entradas de Stock') }}>
+              <FileText size={13}/> PDF
             </Btn>
-            <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/>Nueva Entrada</Btn>
+            <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nueva Entrada</Btn>
           </div>
         </div>
-        <div className="relative mb-3 max-w-sm">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-          <input className={SI + ' pl-8'} placeholder="Buscar producto, documento..." value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
+
+        {/* ── Fila 2: buscador izquierda + filtros derecha ── */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          {/* Buscador — izquierda */}
+          <div className="relative flex-1 min-w-[180px]">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
+            <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar producto o documento..."
+              value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
+          </div>
+          {/* Almacén */}
+          <select className={SEL} style={{width:148,padding:'5px 8px',fontSize:12}} value={filtAlm} onChange={e=>setFiltAlm(e.target.value)}>
+            <option value="">Todos los almacenes</option>
+            {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+          </select>
+          {/* Proveedor */}
+          <select className={SEL} style={{width:165,padding:'5px 8px',fontSize:12}} value={filtProv} onChange={e=>setFiltProv(e.target.value)}>
+            <option value="">Todos los proveedores</option>
+            {proveedores.filter(p=>p.activo!==false).map(p => <option key={p.id} value={p.id}>{p.razonSocial}</option>)}
+          </select>
+          {/* Motivo */}
+          <select className={SEL} style={{width:148,padding:'5px 8px',fontSize:12}} value={filtMotivo} onChange={e=>setFiltMotivo(e.target.value)}>
+            <option value="">Todos los motivos</option>
+            {MOTIVOS_E.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+          {/* Contador + limpiar */}
+          <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">
+            {entradas.length} resultado{entradas.length !== 1 ? 's' : ''}
+          </span>
+          {hayFiltros && (
+            <Btn variant="ghost" size="sm" onClick={limpiarFiltros}>
+              <X size={12}/> Limpiar
+            </Btn>
+          )}
         </div>
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full border-collapse text-[13px]">

@@ -403,3 +403,233 @@ ${des.observaciones ? `<div class="notas"><strong>Observaciones:</strong> ${des.
 
   imprimirConIframe(html)
 }
+
+// ════════════════════════════════════════════════════════
+// PICKING LIST — Documento para almacenero
+// ════════════════════════════════════════════════════════
+export function imprimirPickingList({ des, cliente, productos, almacen, config, sesion }) {
+  const emp = config?.empresa  || 'Mi Empresa S.A.C.'
+  const ruc = config?.ruc       || ''
+
+  const filas = (des.items || []).map((item, idx) => {
+    const p = productos.find(x => x.id === item.productoId)
+    return `<tr>
+      <td style="font-weight:700;font-size:16px;color:#555;text-align:center;width:32px">${idx + 1}</td>
+      <td style="font-family:monospace;font-size:11px;color:#007a5e;font-weight:700;white-space:nowrap">${p?.sku || '—'}</td>
+      <td>
+        <strong style="font-size:13px">${p?.nombre || item.productoId}</strong>
+        ${p?.descripcion ? `<div style="font-size:10px;color:#888;margin-top:2px">${p.descripcion.slice(0,80)}</div>` : ''}
+      </td>
+      <td style="text-align:center;font-size:11px;color:#666">${almacen?.nombre || '—'}</td>
+      <td style="text-align:center;font-size:11px;color:#888;font-style:italic">—</td>
+      <td style="text-align:center;background:#fafafa;border:1px dashed #ccc;border-radius:4px">
+        <div style="font-size:20px;font-weight:700;color:#111;line-height:1.8">${item.cantidad}</div>
+        <div style="font-size:10px;color:#888">${p?.unidadMedida || 'UND'}</div>
+      </td>
+      <td style="text-align:center;min-width:80px">
+        <div style="width:24px;height:24px;border:2px solid #ccc;border-radius:4px;margin:0 auto"></div>
+      </td>
+    </tr>`
+  }).join('')
+
+  const total = des.items?.length || 0
+  const fecha = new Date().toLocaleDateString('es-PE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
+
+  const html = `<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="UTF-8">
+<title>Picking List ${des.numero}</title>
+<style>
+${CSS}
+body{font-size:12px}
+.picking-header{background:#1a1a2e;color:#fff;padding:16px 20px;border-radius:8px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+.picking-header h1{font-size:20px;font-weight:900;color:#00c896;letter-spacing:-0.5px;margin-bottom:2px}
+.picking-header .sub{color:rgba(255,255,255,0.6);font-size:11px}
+.picking-header .badge-pick{background:#00c896;color:#000;font-weight:900;font-size:13px;padding:6px 16px;border-radius:20px;letter-spacing:0.05em}
+.meta-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:20px;background:#f8fafc;border-radius:8px;padding:14px 16px;border:1px solid #e5e7eb}
+.meta-item label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;display:block;margin-bottom:2px}
+.meta-item span{font-size:13px;font-weight:600;color:#111}
+.instrucciones{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 16px;margin-bottom:18px;font-size:11px;color:#78350f}
+.instrucciones b{display:block;margin-bottom:3px;font-size:12px;color:#92400e}
+table.picking{width:100%;border-collapse:collapse;font-size:12px}
+table.picking thead th{background:#1a1a2e;color:#fff;padding:9px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+table.picking tbody tr{border-bottom:1px solid #f3f4f6}
+table.picking tbody tr:nth-child(even){background:#f9fafb}
+table.picking tbody td{padding:10px 10px;vertical-align:middle}
+.resumen{margin-top:20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;background:#f0fdf4;border-radius:8px;padding:14px 16px;border:1px solid #bbf7d0}
+.resumen-item{text-align:center}
+.resumen-item .num{font-size:24px;font-weight:900;color:#166534}
+.resumen-item .lbl{font-size:10px;color:#166534;font-weight:600;text-transform:uppercase}
+.firmas{margin-top:32px;display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.firma{text-align:center;padding-top:10px;border-top:1.5px solid #ccc;font-size:10px;color:#666;line-height:1.8}
+.footer{margin-top:16px;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:10px;color:#aaa}
+@media print{body{padding:0}@page{margin:12mm;size:A4 portrait}}
+</style>
+</head><body>
+
+<div class="picking-header">
+  <div>
+    <h1>PICKING LIST</h1>
+    <div class="sub">${emp}${ruc ? ` · RUC ${ruc}` : ''}</div>
+  </div>
+  <div class="badge-pick">N° ${des.numero}</div>
+</div>
+
+<div class="meta-grid">
+  <div class="meta-item"><label>Cliente</label><span>${cliente?.razonSocial?.slice(0,28) || '—'}</span></div>
+  <div class="meta-item"><label>Almacén origen</label><span>${almacen?.nombre || '—'}</span></div>
+  <div class="meta-item"><label>Fecha entrega</label><span>${des.fechaEntrega || des.fecha || '—'}</span></div>
+  <div class="meta-item"><label>Operario</label><span style="color:#007a5e">${sesion?.nombre || '— Asignar —'}</span></div>
+  <div class="meta-item"><label>Dirección entrega</label><span style="font-size:11px">${des.direccionEntrega || cliente?.direccion || '—'}</span></div>
+  <div class="meta-item"><label>Observaciones</label><span style="font-size:11px">${des.observaciones || '—'}</span></div>
+  <div class="meta-item"><label>Total ítems</label><span style="color:#007a5e;font-size:18px;font-weight:900">${total}</span></div>
+  <div class="meta-item"><label>Generado</label><span style="font-size:11px">${fecha}</span></div>
+</div>
+
+<div class="instrucciones">
+  <b>Instrucciones para el almacenero:</b>
+  1. Recoger cada producto en el orden listado. &nbsp; 2. Verificar cantidad exacta. &nbsp;
+  3. Marcar la casilla ✓ al recoger. &nbsp; 4. Si hay faltante, anotar la cantidad real recogida. &nbsp;
+  5. Entregar este documento firmado al supervisor antes del despacho.
+</div>
+
+<table class="picking">
+  <thead>
+    <tr>
+      <th style="width:32px">#</th>
+      <th style="width:90px">SKU</th>
+      <th>Producto</th>
+      <th style="width:110px;text-align:center">Ubicación</th>
+      <th style="width:90px;text-align:center">Lote</th>
+      <th style="width:80px;text-align:center">Cant. a recoger</th>
+      <th style="width:70px;text-align:center">Recogido ✓</th>
+    </tr>
+  </thead>
+  <tbody>${filas}</tbody>
+</table>
+
+<div class="resumen">
+  <div class="resumen-item"><div class="num">${total}</div><div class="lbl">Líneas totales</div></div>
+  <div class="resumen-item"><div class="num">${des.items?.reduce((s, i) => s + i.cantidad, 0) || 0}</div><div class="lbl">Unidades totales</div></div>
+  <div class="resumen-item"><div class="num" style="font-size:18px">___/___</div><div class="lbl">Líneas verificadas</div></div>
+</div>
+
+<div class="firmas">
+  <div class="firma">Preparado por (Almacenero)<br/><br/><br/>________________________________<br/>Nombre, firma y fecha</div>
+  <div class="firma">Supervisado / Aprobado<br/><br/><br/>________________________________<br/>Nombre, firma y fecha</div>
+</div>
+
+<div class="footer">
+  <span>Picking List generado por StockPro · ${new Date().toLocaleDateString('es-PE')}</span>
+  <span>${des.numero} · ${emp}</span>
+</div>
+
+</body></html>`
+
+  imprimirConIframe(html)
+}
+
+// ════════════════════════════════════════════════════════
+// PROFORMA / COTIZACIÓN DE VENTA
+// ════════════════════════════════════════════════════════
+export function imprimirProforma({ doc, cliente, productos, config }) {
+  const s   = config?.simboloMoneda || 'S/'
+  const emp = config?.empresa        || 'Mi Empresa S.A.C.'
+  const ruc = config?.ruc             || ''
+  const tel = config?.telefono        || ''
+  const ema = config?.email           || ''
+  const dir = config?.direccion       || ''
+
+  const filas = (doc.items || []).map(item => {
+    const p = productos.find(x => x.id === item.productoId)
+    return `<tr>
+      <td>${p?.sku || '—'}</td>
+      <td><strong>${item.descripcion || p?.nombre || '—'}</strong></td>
+      <td class="r">${item.cantidad} ${p?.unidadMedida || ''}</td>
+      <td class="r">${fm(item.precioUnitario, s)}</td>
+      <td class="r" style="font-weight:700">${fm(item.subtotal, s)}</td>
+    </tr>`
+  }).join('')
+
+  const html = `<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="UTF-8"><title>Proforma ${doc.numero}</title>
+<style>${CSS}
+.proforma-banner{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px 16px;margin-bottom:16px;text-align:center}
+.proforma-banner .pnum{font-size:22px;font-weight:900;color:#166534;letter-spacing:-0.5px}
+.proforma-banner .valid{font-size:11px;color:#4ade80;margin-top:3px}
+</style>
+</head><body>
+
+<div class="header">
+  <div>
+    <h1>${emp}</h1>
+    <div class="sub">${ruc ? `RUC: ${ruc}` : ''}${dir ? ` &nbsp;&middot;&nbsp; ${dir}` : ''}</div>
+    <div class="sub">${tel}${ema ? ` &nbsp;&middot;&nbsp; ${ema}` : ''}</div>
+  </div>
+  <div class="doc-right">
+    <div class="doc-tipo">Proforma / Cotización de Venta</div>
+    <div class="doc-num">${doc.numero}</div>
+    <span class="badge verde">${doc.estado}</span>
+    <div style="font-size:11px;color:#888;margin-top:6px">Fecha: <strong>${doc.fecha}</strong></div>
+    <div style="font-size:11px;color:#888">Válida hasta: <strong>${doc.fechaVencimiento || '—'}</strong></div>
+  </div>
+</div>
+
+<div class="grid2">
+  <div>
+    <div class="stitle">Empresa emisora</div>
+    <div class="fl"><label>Empresa</label><span>${emp}</span></div>
+    <div class="fl"><label>RUC</label><span>${ruc || '—'}</span></div>
+    <div class="fl"><label>Dirección</label><span>${dir || '—'}</span></div>
+    <div class="fl"><label>Contacto</label><span>${tel} ${ema}</span></div>
+  </div>
+  <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px 16px">
+    <div class="stitle" style="color:#166534">Dirigido a</div>
+    <div class="fl"><label>Cliente</label><span><strong>${cliente?.razonSocial || '—'}</strong></span></div>
+    <div class="fl"><label>RUC/DNI</label><span>${cliente?.ruc || '—'}</span></div>
+    <div class="fl"><label>Contacto</label><span>${cliente?.contacto || '—'}</span></div>
+    <div class="fl"><label>Dirección</label><span>${cliente?.direccion || '—'}</span></div>
+    <div class="fl"><label>Teléfono</label><span>${cliente?.telefono || '—'}</span></div>
+  </div>
+</div>
+
+<div class="stitle">Productos / Servicios cotizados</div>
+<table>
+  <thead><tr>
+    <th style="width:75px">SKU</th><th>Descripción</th>
+    <th class="r" style="width:95px">Cantidad</th>
+    <th class="r" style="width:120px">P. Unitario</th>
+    <th class="r" style="width:120px">Subtotal</th>
+  </tr></thead>
+  <tbody>${filas}</tbody>
+</table>
+
+<div class="totales">
+  <div class="trow"><label>Subtotal</label><span>${fm(doc.subtotal, s)}</span></div>
+  <div class="trow"><label>IGV (18%)</label><span>${fm(doc.igv, s)}</span></div>
+  <div class="trow grand"><label>TOTAL</label><span>${fm(doc.total, s)}</span></div>
+</div>
+
+${doc.notas ? `<div class="notas"><strong>Notas y condiciones:</strong> ${doc.notas}</div>` : ''}
+
+<div class="aviso" style="margin-top:20px">
+  <b>Validez de la proforma</b>
+  Los precios indicados son válidos hasta el <strong>${doc.fechaVencimiento || '— días a partir de la fecha'}</strong>.
+  Pasada esta fecha, los precios pueden variar sin previo aviso.
+</div>
+
+<div class="firmas" style="margin-top:36px">
+  <div class="firma">Elaborado por<br/><br/><br/>________________________________<br/><span style="font-size:9px">Nombre y firma</span></div>
+  <div class="firma" style="visibility:hidden"></div>
+  <div class="firma">Aceptado por (Cliente)<br/><br/><br/>________________________________<br/><span style="font-size:9px">Nombre, firma y sello</span></div>
+</div>
+
+<div class="footer">
+  <span>Proforma generada por StockPro &nbsp;&middot;&nbsp; ${new Date().toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit',year:'numeric'})}</span>
+  <span>${emp} &nbsp;&middot;&nbsp; ${doc.numero}</span>
+</div>
+</body></html>`
+
+  imprimirConIframe(html)
+}

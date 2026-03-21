@@ -1,52 +1,212 @@
 @import "tailwindcss";
 
-@theme {
-  /* Paleta principal */
-  --color-teal-DEFAULT: #00c896;
-  --color-teal-dark:    #009e76;
-  --color-teal-dim:     rgba(0,200,150,0.10);
+/* ═══════════════════════════════════════════════════════
+   SISTEMA DE TEMAS — StockPro v2.1
+   Aplica via: document.documentElement.setAttribute('data-theme', 'dark-teal')
+   Temas disponibles: dark-teal (default) | dark-slate | dark-midnight | light-clean
+   ═══════════════════════════════════════════════════════ */
 
-  /* Fondos */
-  --color-bg-base:    #0e1117;
-  --color-bg-surface: #141920;
-  --color-bg-card:    #161d28;
-  --color-bg-input:   #1e2835;
-  --color-bg-muted:   #1a2230;
+/* ── TEMA 1: Dark Teal (default) ─ el original optimizado */
+:root,
+[data-theme="dark-teal"] {
+  --accent:          #00c896;
+  --accent-dark:     #009e76;
+  --accent-dim:      rgba(0,200,150,0.10);
+  --accent-text:     #082e1e;
 
-  /* Bordes */
-  --color-border-DEFAULT: rgba(255,255,255,0.08);
-  --color-border-strong:  rgba(255,255,255,0.14);
+  --bg-base:         #0e1117;
+  --bg-surface:      #141920;
+  --bg-card:         #161d28;
+  --bg-input:        #1e2835;
+  --bg-muted:        #1a2230;
+  --bg-sidebar:      #0f1520;
 
-  /* Texto */
-  --color-text-primary:   #e8edf2;
-  --color-text-secondary: #9ba8b6;
-  --color-text-muted:     #5f6f80;
+  --border:          rgba(255,255,255,0.08);
+  --border-strong:   rgba(255,255,255,0.14);
 
-  /* Semáforos */
+  --text-primary:    #e8edf2;
+  --text-secondary:  #9ba8b6;
+  --text-muted:      #5f6f80;
+  --text-faint:      #3d4f60;
+
+  --sidebar-brand:   linear-gradient(160deg, #0f1a2e 0%, #0f1520 60%, #121a1f 100%);
+  --sidebar-line:    linear-gradient(90deg, #f97316, #00c896, #3b82f6);
+  --logo-glow:       rgba(249,115,22,0.25);
+
+  --scrollbar:       rgba(255,255,255,0.14);
+  --shadow-modal:    0 24px 60px rgba(0,0,0,0.6);
+}
+
+/* ── TEMA 2: Dark Slate ─ azul corporativo profundo */
+[data-theme="dark-slate"] {
+  --accent:          #6366f1;
+  --accent-dark:     #4f46e5;
+  --accent-dim:      rgba(99,102,241,0.10);
+  --accent-text:     #eef2ff;
+
+  --bg-base:         #0b0d14;
+  --bg-surface:      #111318;
+  --bg-card:         #13161f;
+  --bg-input:        #1a1e2c;
+  --bg-muted:        #161925;
+  --bg-sidebar:      #0d0f1a;
+
+  --border:          rgba(255,255,255,0.07);
+  --border-strong:   rgba(255,255,255,0.13);
+
+  --text-primary:    #e2e5f0;
+  --text-secondary:  #8892aa;
+  --text-muted:      #525f7a;
+  --text-faint:      #323b52;
+
+  --sidebar-brand:   linear-gradient(160deg, #0d1023 0%, #0d0f1a 60%, #0f1120 100%);
+  --sidebar-line:    linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
+  --logo-glow:       rgba(99,102,241,0.3);
+
+  --scrollbar:       rgba(255,255,255,0.12);
+  --shadow-modal:    0 24px 60px rgba(0,0,0,0.7);
+}
+
+/* ── TEMA 3: Dark Midnight ─ negro carbón con acento ámbar */
+[data-theme="dark-midnight"] {
+  --accent:          #f59e0b;
+  --accent-dark:     #d97706;
+  --accent-dim:      rgba(245,158,11,0.10);
+  --accent-text:     #1c1000;
+
+  --bg-base:         #080a0d;
+  --bg-surface:      #0e1014;
+  --bg-card:         #111419;
+  --bg-input:        #181c24;
+  --bg-muted:        #14181f;
+  --bg-sidebar:      #0a0c10;
+
+  --border:          rgba(255,255,255,0.07);
+  --border-strong:   rgba(255,255,255,0.12);
+
+  --text-primary:    #eaedf4;
+  --text-secondary:  #8a95a8;
+  --text-muted:      #4e5a6e;
+  --text-faint:      #2e3748;
+
+  --sidebar-brand:   linear-gradient(160deg, #0d0e12 0%, #0a0c10 60%, #0c0e14 100%);
+  --sidebar-line:    linear-gradient(90deg, #f59e0b, #f97316, #ef4444);
+  --logo-glow:       rgba(245,158,11,0.3);
+
+  --scrollbar:       rgba(255,255,255,0.10);
+  --shadow-modal:    0 24px 60px rgba(0,0,0,0.8);
+}
+
+/* ── TEMA 4: Light Clean ─ modo claro profesional */
+[data-theme="light-clean"] {
+  --accent:          #059669;
+  --accent-dark:     #047857;
+  --accent-dim:      rgba(5,150,105,0.08);
+  --accent-text:     #ffffff;
+
+  --bg-base:         #f0f2f5;
+  --bg-surface:      #ffffff;
+  --bg-card:         #ffffff;
+  --bg-input:        #f8fafc;
+  --bg-muted:        #f1f4f8;
+  --bg-sidebar:      #1e2535;
+
+  --border:          rgba(0,0,0,0.08);
+  --border-strong:   rgba(0,0,0,0.14);
+
+  --text-primary:    #111827;
+  --text-secondary:  #4b5563;
+  --text-muted:      #9ca3af;
+  --text-faint:      #d1d5db;
+
+  --sidebar-brand:   linear-gradient(160deg, #1a2032 0%, #1e2535 60%, #222a3a 100%);
+  --sidebar-line:    linear-gradient(90deg, #059669, #0891b2, #7c3aed);
+  --logo-glow:       rgba(5,150,105,0.25);
+
+  --scrollbar:       rgba(0,0,0,0.12);
+  --shadow-modal:    0 16px 48px rgba(0,0,0,0.12);
+}
+
+/* ══════════════════════════════════════════════════════
+   TOKENS LEGACY — Mapeo para compatibilidad con clases
+   hardcodeadas existentes en páginas JSX
+   ══════════════════════════════════════════════════════ */
+:root,
+[data-theme="dark-teal"],
+[data-theme="dark-slate"],
+[data-theme="dark-midnight"],
+[data-theme="light-clean"] {
+  /* Tailwind theme bridge */
+  --color-teal-DEFAULT: var(--accent);
+  --color-teal-dark:    var(--accent-dark);
+  --color-teal-dim:     var(--accent-dim);
+  --color-bg-base:      var(--bg-base);
+  --color-bg-surface:   var(--bg-surface);
+  --color-bg-card:      var(--bg-card);
+  --color-bg-input:     var(--bg-input);
+  --color-bg-muted:     var(--bg-muted);
+  --color-border-DEFAULT: var(--border);
+  --color-border-strong:  var(--border-strong);
+  --color-text-primary:   var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted:     var(--text-muted);
   --color-success: #22c55e;
   --color-warning: #f59e0b;
   --color-danger:  #ef4444;
   --color-info:    #3b82f6;
-
-  /* Fuentes */
   --font-sans: 'DM Sans', system-ui, sans-serif;
   --font-mono: 'DM Mono', 'Courier New', monospace;
 }
 
-/* ── Base ───────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════
+   OVERRIDES GLOBALES — usar variables en vez de hardcode
+   ══════════════════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; }
 
 html {
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
+  transition: color-scheme 0.2s;
 }
 
 body {
   font-family: var(--font-sans);
-  background-color: #0e1117;
-  color: #e8edf2;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
   min-height: 100vh;
   line-height: 1.5;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+/* ══════════════════════════════════════════════════════
+   FONT-MONO RENDERING — Evitar efecto borroso/blur
+   en textos monoespaciados sobre fondos oscuros.
+   El problema: font-mono + font-semibold/bold a tamaños
+   pequeños (11–13px) con colores luminosos (#00c896, etc.)
+   sobre fondo oscuro activa el suavizado de subpíxeles
+   del navegador, que en pantallas HiDPI genera un efecto
+   de "blur" visual. La solución es forzar antialiasing
+   grayscale + text-rendering optimizado en todos los
+   elementos que usen fuente monoespaciada.
+   ══════════════════════════════════════════════════════ */
+.font-mono,
+code, kbd, samp, pre,
+[class*="font-mono"] {
+  -webkit-font-smoothing:  antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering:          optimizeLegibility;
+  font-variant-numeric:    tabular-nums;
+}
+
+/* Celdas de tabla con números de documento, SKUs, etc.
+   Se aplica a cualquier td/span que combine fuente mono
+   con colores de acento del sistema */
+td.font-mono,
+span.font-mono,
+div.font-mono {
+  -webkit-font-smoothing:  antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering:          optimizeLegibility;
 }
 
 #root {
@@ -55,13 +215,70 @@ body {
   overflow: hidden;
 }
 
+/* ── Clases utilitarias que usan variables de tema ── */
+.bg-themed-base    { background-color: var(--bg-base)    !important; }
+.bg-themed-surface { background-color: var(--bg-surface) !important; }
+.bg-themed-card    { background-color: var(--bg-card)    !important; }
+.bg-themed-input   { background-color: var(--bg-input)   !important; }
+.bg-themed-muted   { background-color: var(--bg-muted)   !important; }
+.bg-themed-sidebar { background-color: var(--bg-sidebar) !important; }
+.border-themed     { border-color: var(--border)         !important; }
+.text-themed-primary   { color: var(--text-primary)   !important; }
+.text-themed-secondary { color: var(--text-secondary) !important; }
+.text-themed-muted     { color: var(--text-muted)     !important; }
+.text-accent       { color: var(--accent)             !important; }
+.bg-accent-dim     { background-color: var(--accent-dim) !important; }
+
+/* ── Override de hardcoded Tailwind colors hacia variables ── */
+/* bg-[#0e1117] → bg-base */
+.bg-\[\#0e1117\]  { background-color: var(--bg-base)    !important; }
+/* bg-[#141920] → bg-surface */
+.bg-\[\#141920\]  { background-color: var(--bg-surface) !important; }
+/* bg-[#161d28] → bg-card */
+.bg-\[\#161d28\]  { background-color: var(--bg-card)    !important; }
+/* bg-[#1e2835] → bg-input */
+.bg-\[\#1e2835\]  { background-color: var(--bg-input)   !important; }
+/* bg-[#1a2230] → bg-muted */
+.bg-\[\#1a2230\]  { background-color: var(--bg-muted)   !important; }
+/* bg-[#0f1520] → bg-sidebar */
+.bg-\[\#0f1520\]  { background-color: var(--bg-sidebar) !important; }
+
+/* text colors */
+.text-\[\#e8edf2\] { color: var(--text-primary)   !important; }
+.text-\[\#9ba8b6\] { color: var(--text-secondary) !important; }
+.text-\[\#5f6f80\] { color: var(--text-muted)     !important; }
+.text-\[\#3d4f60\] { color: var(--text-faint)     !important; }
+.text-\[\#00c896\] { color: var(--accent)         !important; }
+
+/* border colors */
+.border-white\/\[0\.08\] { border-color: var(--border)        !important; }
+.border-white\/\[0\.12\] { border-color: var(--border)        !important; }
+.border-white\/\[0\.07\] { border-color: var(--border)        !important; }
+.border-white\/\[0\.14\] { border-color: var(--border-strong) !important; }
+
+/* accent bg utilities */
+.bg-\[\#00c896\]    { background-color: var(--accent)     !important; }
+.hover\:bg-\[\#00e0aa\]:hover { background-color: var(--accent-dark) !important; }
+.focus\:border-\[\#00c896\]:focus { border-color: var(--accent) !important; }
+.focus\:ring-\[\#00c896\]\/20:focus { --tw-ring-color: var(--accent-dim) !important; }
+
+/* ── Light mode adjustments ──────────────────────── */
+[data-theme="light-clean"] .bg-black\/70 { background-color: rgba(0,0,0,0.3) !important; }
+[data-theme="light-clean"] .border-white\/10 { border-color: rgba(0,0,0,0.1) !important; }
+[data-theme="light-clean"] .border-white\/\[0\.08\] { border-color: rgba(0,0,0,0.08) !important; }
+[data-theme="light-clean"] .border-white\/\[0\.07\] { border-color: rgba(0,0,0,0.07) !important; }
+[data-theme="light-clean"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.14); }
+[data-theme="light-clean"] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234b5563' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
 /* ── Scrollbar ─────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 
-/* ── Select arrow personalizado ────────────────────── */
+/* ── Select arrow ──────────────────────────────────── */
 select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235f6f80' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -75,55 +292,30 @@ select {
   from { opacity: 0; transform: translateY(-12px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0)     scale(1); }
 }
-
 @keyframes toast-in {
   from { opacity: 0; transform: translateX(16px); }
   to   { opacity: 1; transform: translateX(0); }
 }
-
-@keyframes spin {
+@keyframes spin-slow {
   to { transform: rotate(360deg); }
 }
-
-.animate-modal-in  { animation: modal-in  0.18s ease both; }
-.animate-toast-in  { animation: toast-in  0.22s ease both; }
-.animate-spin-slow { animation: spin 0.7s linear infinite; }
-
-/* ── Recharts tooltip override ─────────────────────── */
-.recharts-tooltip-wrapper .recharts-default-tooltip {
-  background: #1a2230 !important;
-  border: 1px solid rgba(255,255,255,0.08) !important;
-  border-radius: 8px !important;
-  font-size: 12px !important;
-  color: #e8edf2 !important;
+@keyframes bounce-subtle {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.85); }
 }
 
-/* ── Input type=date — formato y estilo ──────────────── */
-input[type="date"] {
-  color-scheme: dark;
-}
+.animate-modal-in   { animation: modal-in 0.18s ease-out both; }
+.animate-toast-in   { animation: toast-in 0.2s ease-out both; }
+.animate-spin-slow  { animation: spin-slow 1.2s linear infinite; }
+.animate-bounce-subtle { animation: bounce-subtle 1s ease-in-out infinite; }
+.animate-pulse-dot  { animation: pulse-dot 1.5s ease-in-out infinite; }
 
-/* Forzar formato dd/mm/yyyy en Chrome/Edge usando la pseudo-clase de escritura */
-input[type="date"]::-webkit-datetime-edit-fields-wrapper {
-  padding: 0;
-}
-input[type="date"]::-webkit-datetime-edit-day-field,
-input[type="date"]::-webkit-datetime-edit-month-field,
-input[type="date"]::-webkit-datetime-edit-year-field {
-  color: #e8edf2;
-  padding: 0 1px;
-}
-input[type="date"]::-webkit-datetime-edit-text {
-  color: #5f6f80;
-  padding: 0 1px;
-}
-input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.5) sepia(1) saturate(0) brightness(1.2);
-  cursor: pointer;
-  opacity: 0.6;
-  padding: 0;
-  margin: 0;
-}
-input[type="date"]::-webkit-calendar-picker-indicator:hover {
-  opacity: 1;
+/* ── Theme transition suave ──────────────────────── */
+body, aside, header, main, .bg-\[\#0e1117\], .bg-\[\#141920\],
+.bg-\[\#161d28\], .bg-\[\#1a2230\], .bg-\[\#1e2835\], .bg-\[\#0f1520\] {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
 }
