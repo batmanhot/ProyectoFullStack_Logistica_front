@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import logoImg from '../../assets/logo.png'
-import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Target, Zap, Globe} from 'lucide-react'
+import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Globe, Target, Zap} from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { estadoStock, diasParaVencer } from '../../utils/helpers'
 
@@ -35,6 +35,8 @@ const NAV = [
   { label:'Reportes',             path:'/reportes',       icon:BarChart3,        modulo:'reportes'      },
   { label:'KPIs Operativos',      path:'/kpis',           icon:Target,           modulo:'kpis'          },
   { label:'SUNAT / Fact. Elect.', path:'/sunat',          icon:Zap,              modulo:'sunat'         },
+  { label:'Reportes Contables',   path:'/contabilidad',   icon:BookOpen,         modulo:'reportes'      },
+  { label:'Trazabilidad Pedidos', path:'/trazabilidad',   icon:ArrowRightLeft,   modulo:'despachos'     },
   { label:'Dashboard Financiero', path:'/financiero',   icon:TrendingUp,       modulo:'financiero'    },
   { divider:true, label:'VENTAS' },
   { label:'Proformas / Cotiz.',    path:'/proformas',    icon:FileText,         modulo:'proformas'     },
@@ -50,6 +52,8 @@ const NAV = [
   { label:'Auditoría',            path:'/auditoria',      icon:Shield,           modulo:'auditoria'     },
   { label:'Configuración',        path:'/configuracion',  icon:Settings,         modulo:'configuracion' },
   { label:'App Móvil / PWA',      path:'/pwa',            icon:Smartphone,       modulo:'pwa'           },
+  { label:'App Móvil Optimizada', path:'/pwa-movil',      icon:Smartphone,       modulo:'pwa'           },
+  { label:'Portal Proveedores B2B',path:'/portal-prov-b2b',icon:Building2,       modulo:'proveedores'   },
 ]
 
 export default function Sidebar({ collapsed, onToggle }) {

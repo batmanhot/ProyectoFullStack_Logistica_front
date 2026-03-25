@@ -31,6 +31,8 @@ const Cotizaciones    = lazy(() => import('./pages/Cotizaciones'))
 const InventarioFisico= lazy(() => import('./pages/InventarioFisico'))
 const Prevision       = lazy(() => import('./pages/Prevision'))
 const PWA             = lazy(() => import('./pages/PWA'))
+const PWAMovil        = lazy(() => import('./pages/PWAMovil'))
+const PortalProvB2B   = lazy(() => import('./pages/PortalProveedoresB2B'))
 const Clientes        = lazy(() => import('./pages/Clientes'))
 const Despachos       = lazy(() => import('./pages/Despachos'))
 const Transportes     = lazy(() => import('./pages/Transportes'))
@@ -46,6 +48,9 @@ const ListaPrecios    = lazy(() => import('./pages/ListaPrecios'))
 const KPIsOperativos  = lazy(() => import('./pages/KPIsOperativos'))
 const Sunat           = lazy(() => import('./pages/Sunat'))
 const PortalPedidos   = lazy(() => import('./pages/PortalPedidos'))
+const PortalPublico        = lazy(() => import('./pages/PortalPublico'))
+const ContabilidadReportes = lazy(() => import('./pages/ContabilidadReportes'))
+const TrazabilidadPedidos  = lazy(() => import('./pages/TrazabilidadPedidos'))
 
 // ── Títulos de página ───────────────────────────────────
 const PAGE_TITLES = {
@@ -67,6 +72,8 @@ const PAGE_TITLES = {
   '/inv-fisico':     'Inventario Físico',
   '/prevision':      'Previsión de Demanda',
   '/pwa':            'App Móvil / PWA',
+  '/pwa-movil':      'App Móvil Optimizada',
+  '/portal-prov-b2b':'Portal Proveedores B2B',
   '/clientes':       'Clientes',
   '/despachos':      'Gestión de Despachos',
   '/transportes':    'Gestión de Transportes',
@@ -81,7 +88,9 @@ const PAGE_TITLES = {
   '/lista-precios':  'Listas de Precios',
   '/kpis':           'KPIs Operativos — Fill Rate · OTIF · Perfect Order',
   '/sunat':          'Integración SUNAT / Facturación Electrónica',
-  '/portal-pedidos': 'Portal de Pedidos para Clientes',
+  '/portal-pedidos':      'Portal de Pedidos para Clientes',
+  '/contabilidad':        'Reportes Contables',
+  '/trazabilidad':        'Trazabilidad de Pedidos y OC',
   '/proveedores':    'Proveedores',
   '/maestros':       'Categorías y Almacenes',
   '/usuarios':       'Usuarios y Roles',
@@ -393,6 +402,8 @@ function AppLayout() {
             <Route path="/inv-fisico"     element={<InventarioFisico />} />
             <Route path="/prevision"      element={<Prevision />} />
             <Route path="/pwa"            element={<PWA />} />
+            <Route path="/pwa-movil"      element={<PWAMovil />} />
+            <Route path="/portal-prov-b2b" element={<PortalProvB2B />} />
             <Route path="/clientes"       element={<Clientes />} />
             <Route path="/despachos"      element={<Despachos />} />
             <Route path="/transportes"    element={<Transportes />} />
@@ -408,6 +419,9 @@ function AppLayout() {
             <Route path="/kpis"           element={<KPIsOperativos />} />
             <Route path="/sunat"          element={<Sunat />} />
             <Route path="/portal-pedidos" element={<PortalPedidos />} />
+            <Route path="/portal/:token"  element={<PortalPublico />} />
+            <Route path="/contabilidad"   element={<ContabilidadReportes />} />
+            <Route path="/trazabilidad"   element={<TrazabilidadPedidos />} />
             <Route path="/proveedores"    element={<Proveedores />} />
             <Route path="/maestros"       element={<Maestros />} />
             <Route path="/usuarios"       element={<Usuarios />} />

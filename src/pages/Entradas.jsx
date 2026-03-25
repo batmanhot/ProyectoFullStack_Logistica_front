@@ -223,7 +223,7 @@ export default function Entradas() {
                 return (
                   <tr key={m.id} className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.02]">
                     <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{formatDate(m.fecha)}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#00c896] font-semibold">{m.documento || '—'}</td>
+                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#00c896]">{m.documento || '—'}</td>
                     <td className="px-3.5 py-2.5"><div className="font-medium text-[#e8edf2]">{p?.nombre || '—'}</div><div className="text-[11px] text-[#5f6f80]">{p?.sku}</div></td>
                     <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{m.lote || '—'}</td>
                     <td className="px-3.5 py-2.5 font-mono text-[12px] text-right text-green-400 font-semibold">+{m.cantidad} <span className="text-[#5f6f80] font-normal text-[11px]">{p?.unidadMedida}</span></td>

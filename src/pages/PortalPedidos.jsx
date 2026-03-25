@@ -15,6 +15,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Globe, Copy, Check, Eye, CheckCircle, X, Plus, Package,
          Link, QrCode, Smartphone, ExternalLink, Clock, Truck } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
 import { Modal, Badge, Btn, Field, Alert, EmptyState } from '../components/ui/index'
@@ -39,6 +40,7 @@ const ESTADO_META = {
 
 export default function PortalPedidos() {
   const { clientes, productos, despachos, almacenes, simboloMoneda, sesion, config, toast, recargarDespachos } = useApp()
+  const navigate = useNavigate()
   const [pedidos,  setPedidos]  = useState(leerPortal)
   const [detalle,  setDetalle]  = useState(null)
   const [simModal, setSimModal] = useState(false)
@@ -66,7 +68,11 @@ export default function PortalPedidos() {
   // Aprobar pedido del portal → convertir a Despacho
   function aprobarYConvertir(pedido) {
     const almacen = almacenes[0]
-    const numero  = generarNumDoc('DES', despachos.map(d=>d.numero))
+    // Generar número único — buscar el siguiente disponible
+    const numerosExistentes = new Set(despachos.map(d=>d.numero||''))
+    let _n = despachos.length + 1
+    let numero
+    do { numero = `DES-001-${String(_n).padStart(4,'0')}`; _n++ } while (numerosExistentes.has(numero))
     const des = {
       numero,
       clienteId:         pedido.clienteId,
@@ -122,9 +128,20 @@ export default function PortalPedidos() {
             Cada cliente tiene un link único para hacer pedidos online, ver el estado de sus despachos y consultar su historial — sin llamar ni enviar correos. Tú recibes el pedido aquí y lo conviertes en despacho con un clic.
           </div>
         </div>
-        <Btn variant="primary" size="sm" onClick={() => setSimModal(true)}>
-          <Eye size={13}/> Ver portal del cliente
-        </Btn>
+        <div className="flex gap-2">
+          <Btn variant="ghost" size="sm" onClick={() => setSimModal(true)}>
+            <Eye size={13}/> Simulador
+          </Btn>
+          <Btn variant="primary" size="sm" onClick={() => {
+            const primerCli = clientes.find(c=>c.activo)
+            if (primerCli) {
+              const token = btoa(`${primerCli.id}:${primerCli.ruc||''}`) 
+              window.open(`/portal/${token}`, '_blank')
+            }
+          }}>
+            <ExternalLink size={13}/> Ver portal del cliente
+          </Btn>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -178,7 +195,7 @@ export default function PortalPedidos() {
                       <tr key={p.id} className="border-b border-white/[0.05] last:border-0 hover:bg-white/[0.02]">
                         <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#00c896] font-bold">{p.numero}</td>
                         <td className="px-3.5 py-2.5 font-medium text-[#e8edf2]">{cli?.razonSocial?.slice(0,22)||p.clienteNombre||'—'}</td>
-                        <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#9ba8b6]">{formatDate(p.fecha)}</td>
+                        <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#9ba8b6]">{formatDate(p.createdAt?.split('T')[0]||p.fecha||'—')}</td>
                         <td className="px-3.5 py-2.5 text-[#9ba8b6]">{p.items?.length||0}</td>
                         <td className="px-3.5 py-2.5 font-mono font-semibold text-[#e8edf2]">{formatCurrency(p.total||0,simboloMoneda)}</td>
                         <td className="px-3.5 py-2.5"><Badge variant={meta.color}>{meta.label}</Badge></td>
@@ -233,7 +250,8 @@ export default function PortalPedidos() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] font-medium text-[#e8edf2]">{c.razonSocial}</div>
-                    <div className="text-[11px] text-[#5f6f80] font-mono truncate">{link}</div>
+                    <a href={link} target="_blank" rel="noopener noreferrer"
+                className="text-[11px] text-[#00c896]/70 font-mono truncate hover:text-[#00c896] hover:underline">{link}</a>
                   </div>
                   <div className="text-[11px] text-[#5f6f80] shrink-0">{pedsCli} pedido{pedsCli!==1?'s':''}</div>
                   <div className="flex gap-2 shrink-0">

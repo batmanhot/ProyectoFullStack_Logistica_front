@@ -629,31 +629,9 @@ const DESPACHOS_DEMO = [
   },
 ]
 
-// ── Reparar números de despacho corruptos (bug generarNumDoc) ─
-function _repararNumeroDespacho(lista) {
-  // Un número corrupto contiene comas (GD-001-0001,GD-001-0002,...)
-  let changed = false
-  const usados = new Set(lista.filter(d => !d.numero?.includes(',')).map(d=>d.numero))
-  lista.forEach(d => {
-    if (d.numero && d.numero.includes(',')) {
-      // Generar número secuencial único DES-001-XXXX
-      let n = 1
-      let candidato
-      do { candidato = `DES-001-${String(n).padStart(4,'0')}`; n++ } while (usados.has(candidato))
-      d.numero = candidato
-      usados.add(candidato)
-      changed = true
-    }
-  })
-  if (changed) guardar('sp_despachos', lista)
-  return lista
-}
-
 export function getDespachos(filtros={}) {
   let data = leer('sp_despachos') || DESPACHOS_DEMO
   if (!leer('sp_despachos')) guardar('sp_despachos', DESPACHOS_DEMO)
-  // Auto-reparar números corruptos generados por bug previo
-  data = _repararNumeroDespacho(data)
   if (filtros.estado) data = data.filter(d => d.estado === filtros.estado)
   if (filtros.clienteId) data = data.filter(d => d.clienteId === filtros.clienteId)
   if (filtros.desde) data = data.filter(d => d.fecha >= filtros.desde)
