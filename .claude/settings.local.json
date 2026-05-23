@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"f:\\\\desarrollo\\\\Proyectos\\\\Proyecto FullStack Logistica\\\\front\\\\logistica\" -Force)",
+      "PowerShell(head -30)",
+      "Bash(npx vite *)"
+    ]
+  }
+}

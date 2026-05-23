@@ -1,3 +1,5 @@
+// ⚠️  SISTEMA v1 — CÓDIGO INACTIVO. No importado por App.jsx ni ninguna ruta activa.
+// El sistema activo es v2: src/store/AppContext.jsx + src/services/storage.js
 import React, { useState, useCallback } from 'react';
 import { storageGet, storageSet, storageRemove } from '../services/storageAdapter';
 import { STORAGE_KEYS } from '../services/storageKeys';

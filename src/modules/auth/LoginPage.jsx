@@ -1,3 +1,4 @@
+// ⚠️  SISTEMA v1 — CÓDIGO INACTIVO. Login activo: src/pages/Login.jsx (AppContext v2)
 import React, { useState } from 'react';
 //import { useAuth } from '../../context/AuthContext';
 import { useAuth } from '../../context/useAuth.js'; // Nuevo hook separado para evitar problemas con Fast Refresh de Vite

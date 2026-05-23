@@ -108,17 +108,33 @@ const BTN_VARIANTS = {
   danger:    'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20',
 }
 
-export function Btn({ variant = 'secondary', size = 'md', onClick, disabled, children, className = '', type = 'button' }) {
+export function Btn({ variant = 'secondary', size = 'md', onClick, disabled, children, className = '', type = 'button', title }) {
   const sizes = { sm: 'px-3 py-1.5 text-xs', md: 'px-4 py-2 text-[13px]', lg: 'px-5 py-2.5 text-sm', icon: 'p-1.5' }
-  return (
+  const btn = (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
+      aria-label={title}
       className={`inline-flex items-center gap-1.5 rounded-lg font-medium transition-all duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap ${BTN_VARIANTS[variant]} ${sizes[size]} ${className}`}
     >
       {children}
     </button>
+  )
+  if (!title) return btn
+  return (
+    <div className="relative inline-flex group/tip">
+      {btn}
+      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+                       px-2.5 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap
+                       bg-[#0b0f17] border border-white/12 text-white/90 shadow-xl
+                       opacity-0 -translate-y-1 group-hover/tip:opacity-100 group-hover/tip:translate-y-0
+                       transition-all duration-150 z-100">
+        {title}
+        <span className="absolute top-full left-1/2 -translate-x-1/2
+                         border-4 border-transparent border-t-[#0b0f17]" />
+      </span>
+    </div>
   )
 }
 

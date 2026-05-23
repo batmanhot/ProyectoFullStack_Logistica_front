@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { Package, Eye, EyeOff, LogIn, Shield } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import * as storage from '../services/storage'
+import fondoLogistica from '../assets/Logistica_fondo.webp'
 
 const ROLES_LABEL = {
   admin:      { label: 'Administrador', color: '#00c896' },
@@ -57,8 +58,33 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0e1117] flex items-center justify-center p-5">
-      <div className="w-full max-w-md">
+    <div
+      className="min-h-screen w-full flex relative"
+      style={{ backgroundImage: `url(${fondoLogistica})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+    >
+      {/* Overlay general muy sutil para no tapar la imagen */}
+      <div className="absolute inset-0 bg-black/30" />
+
+      {/* Panel izquierdo — solo texto flotante sobre la imagen (desktop) */}
+      <div className="hidden lg:flex flex-1 relative items-end pb-12 pl-12 pr-4">
+        <div className="relative z-10 max-w-md">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00c896]/20 border border-[#00c896]/40 mb-4">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00c896] animate-pulse" />
+            <span className="text-[#00c896] text-[11px] font-semibold tracking-widest uppercase">Sistema en línea</span>
+          </div>
+          <p className="text-white text-[32px] font-bold leading-tight" style={{textShadow:'0 3px 20px rgba(0,0,0,0.95)'}}>
+            Gestión inteligente<br/>de tu cadena logística
+          </p>
+          <p className="text-white/70 text-[14px] mt-3 leading-relaxed" style={{textShadow:'0 2px 10px rgba(0,0,0,0.9)'}}>
+            Control de inventario · Despachos<br/>Transportes · Reportes · KPIs
+          </p>
+        </div>
+      </div>
+
+      {/* Panel derecho — formulario con glass effect */}
+      <div className="relative z-10 w-full lg:w-auto lg:min-w-100 lg:max-w-110 flex items-center justify-center p-6"
+           style={{ background: 'rgba(14,17,23,0.88)', backdropFilter: 'blur(18px)', borderLeft: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="w-full max-w-sm">
 
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
@@ -199,6 +225,7 @@ export default function Login() {
           {' · '}
           {modoActual}
         </p>
+      </div>
       </div>
     </div>
   )

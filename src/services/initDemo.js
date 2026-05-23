@@ -26,10 +26,16 @@ const ALL_KEYS = [
   'sp_inv_fisico',
   'sp_notif',
   'sp_alertas_leidas',
-  'sp_clientes',        // ← módulo Clientes
-  'sp_despachos',       // ← módulo Despachos
-  'sp_transportistas',  // ← módulo Transportistas
-  'sp_rutas',           // ← módulo Rutas/Salidas
+  'sp_clientes',
+  'sp_despachos',
+  'sp_transportistas',
+  'sp_rutas',
+  'sp_cxc',
+  'sp_proformas',
+  'sp_empaques',
+  'sp_flota',
+  'sp_listas_precios',
+  'sp_auditoria',
   // NO incluir 'sp_session' — el usuario no debe perder sesión
 ]
 
@@ -58,10 +64,12 @@ export function initDemoData(storageFns) {
   storageFns.getDevoluciones()
   storageFns.getTransferencias()
   storageFns.getCotizaciones()
-  storageFns.getClientes()       // ← nuevo
-  storageFns.getDespachos()      // ← nuevo
-  storageFns.getTransportistas() // ← nuevo
-  storageFns.getRutas()          // ← nuevo
+  storageFns.getClientes()
+  storageFns.getDespachos()
+  storageFns.getTransportistas()
+  storageFns.getRutas()
+  storageFns.getCxC()
+  storageFns.getProformas()
 
   // ── 3. Marcar versión instalada ───────────────────────
   localStorage.setItem('sp_demo_version', DEMO_VERSION)

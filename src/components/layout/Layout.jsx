@@ -1,3 +1,4 @@
+// ⚠️  SISTEMA v1 — CÓDIGO INACTIVO. App.jsx usa su propio layout integrado con AppContext v2.
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import { Menu, LogOut, ChevronDown } from 'lucide-react';
