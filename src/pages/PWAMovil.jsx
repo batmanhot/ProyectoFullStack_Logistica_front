@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PWAMovil.jsx — App Móvil Nativa / PWA Optimizada
  *
  * Funcionalidades implementadas:
@@ -179,7 +179,7 @@ export default function PWAMovil() {
   ]
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* Header */}
       <div className="flex items-center justify-between">

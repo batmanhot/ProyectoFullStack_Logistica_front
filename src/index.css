@@ -1,17 +1,18 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════
-   SISTEMA DE TEMAS — StockPro v2.1
-   Aplica via: document.documentElement.setAttribute('data-theme', 'dark-teal')
-   Temas disponibles: dark-teal (default) | dark-slate | dark-midnight | light-clean
+   SISTEMA DE TEMAS — StockPro v2.2
+   Temas: oscuro | ocean | forest | sunset | midnight | nature | light
+   IDs legacy (dark-teal, dark-slate, dark-midnight, light-clean) se migran en JS
    ═══════════════════════════════════════════════════════ */
 
-/* ── TEMA 1: Dark Teal (default) ─ el original optimizado */
+/* ── 1. OSCURO — Verde esmeralda (default) ─────────────── */
 :root,
+[data-theme="oscuro"],
 [data-theme="dark-teal"] {
   --accent:          #00c896;
   --accent-dark:     #009e76;
-  --accent-dim:      rgba(0,200,150,0.10);
+  --accent-dim:      rgba(0,200,150,0.12);
   --accent-text:     #082e1e;
 
   --bg-base:         #0e1117;
@@ -31,55 +32,133 @@
 
   --sidebar-brand:   linear-gradient(160deg, #0f1a2e 0%, #0f1520 60%, #121a1f 100%);
   --sidebar-line:    linear-gradient(90deg, #f97316, #00c896, #3b82f6);
+  --sidebar-fg:      #d0dae6;
+  --sidebar-fg-muted: #7a8fa8;
+  --sidebar-fg-faint: #3d4f60;
+  --sidebar-fg-nav:  #8a9ab0;
+  --sidebar-surface: rgba(255,255,255,0.07);
   --logo-glow:       rgba(249,115,22,0.25);
-
   --scrollbar:       rgba(255,255,255,0.14);
   --shadow-modal:    0 24px 60px rgba(0,0,0,0.6);
 }
 
-/* ── TEMA 2: Dark Slate ─ azul corporativo profundo */
+/* ── 2. OCÉANO — Azul marino profundo ──────────────────── */
+[data-theme="ocean"],
 [data-theme="dark-slate"] {
-  --accent:          #6366f1;
-  --accent-dark:     #4f46e5;
-  --accent-dim:      rgba(99,102,241,0.10);
-  --accent-text:     #eef2ff;
+  --accent:          #0ea5e9;
+  --accent-dark:     #0284c7;
+  --accent-dim:      rgba(14,165,233,0.12);
+  --accent-text:     #001a30;
 
-  --bg-base:         #0b0d14;
-  --bg-surface:      #111318;
-  --bg-card:         #13161f;
-  --bg-input:        #1a1e2c;
-  --bg-muted:        #161925;
-  --bg-sidebar:      #0d0f1a;
+  --bg-base:         #09111f;
+  --bg-surface:      #0c1828;
+  --bg-card:         #0f1e34;
+  --bg-input:        #132540;
+  --bg-muted:        #112030;
+  --bg-sidebar:      #07101c;
 
-  --border:          rgba(255,255,255,0.07);
-  --border-strong:   rgba(255,255,255,0.13);
+  --border:          rgba(255,255,255,0.08);
+  --border-strong:   rgba(255,255,255,0.14);
 
-  --text-primary:    #e2e5f0;
-  --text-secondary:  #8892aa;
-  --text-muted:      #525f7a;
-  --text-faint:      #323b52;
+  --text-primary:    #e0eaf8;
+  --text-secondary:  #7aa2c8;
+  --text-muted:      #3d6080;
+  --text-faint:      #1e3a52;
 
-  --sidebar-brand:   linear-gradient(160deg, #0d1023 0%, #0d0f1a 60%, #0f1120 100%);
-  --sidebar-line:    linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
-  --logo-glow:       rgba(99,102,241,0.3);
-
+  --sidebar-brand:   linear-gradient(160deg, #071020 0%, #07101c 60%, #0a1525 100%);
+  --sidebar-line:    linear-gradient(90deg, #0ea5e9, #38bdf8, #6366f1);
+  --sidebar-fg:      #cce0f5;
+  --sidebar-fg-muted: #5a8ab0;
+  --sidebar-fg-faint: #1e3a52;
+  --sidebar-fg-nav:  #7aa2c8;
+  --sidebar-surface: rgba(255,255,255,0.07);
+  --logo-glow:       rgba(14,165,233,0.3);
   --scrollbar:       rgba(255,255,255,0.12);
   --shadow-modal:    0 24px 60px rgba(0,0,0,0.7);
 }
 
-/* ── TEMA 3: Dark Midnight ─ negro carbón con acento ámbar */
+/* ── 3. BOSQUE — Verde natural profundo ─────────────────── */
+[data-theme="forest"] {
+  --accent:          #22c55e;
+  --accent-dark:     #16a34a;
+  --accent-dim:      rgba(34,197,94,0.12);
+  --accent-text:     #051a0e;
+
+  --bg-base:         #091410;
+  --bg-surface:      #0d1c16;
+  --bg-card:         #10201a;
+  --bg-input:        #152a20;
+  --bg-muted:        #12221a;
+  --bg-sidebar:      #07100c;
+
+  --border:          rgba(255,255,255,0.08);
+  --border-strong:   rgba(255,255,255,0.14);
+
+  --text-primary:    #daf0e4;
+  --text-secondary:  #6aaa84;
+  --text-muted:      #346048;
+  --text-faint:      #1a3828;
+
+  --sidebar-brand:   linear-gradient(160deg, #071410 0%, #07100c 60%, #0a1510 100%);
+  --sidebar-line:    linear-gradient(90deg, #22c55e, #84cc16, #06b6d4);
+  --sidebar-fg:      #c8e8d4;
+  --sidebar-fg-muted: #5a8a6e;
+  --sidebar-fg-faint: #1a3828;
+  --sidebar-fg-nav:  #6aaa84;
+  --sidebar-surface: rgba(255,255,255,0.07);
+  --logo-glow:       rgba(34,197,94,0.3);
+  --scrollbar:       rgba(255,255,255,0.12);
+  --shadow-modal:    0 24px 60px rgba(0,0,0,0.7);
+}
+
+/* ── 4. ATARDECER — Púrpura cálido con naranja ──────────── */
+[data-theme="sunset"] {
+  --accent:          #f97316;
+  --accent-dark:     #ea580c;
+  --accent-dim:      rgba(249,115,22,0.12);
+  --accent-text:     #2d0f00;
+
+  --bg-base:         #110c1d;
+  --bg-surface:      #18102a;
+  --bg-card:         #1d1432;
+  --bg-input:        #251840;
+  --bg-muted:        #1f1635;
+  --bg-sidebar:      #0d0918;
+
+  --border:          rgba(255,255,255,0.08);
+  --border-strong:   rgba(255,255,255,0.14);
+
+  --text-primary:    #f0e8f8;
+  --text-secondary:  #a888c8;
+  --text-muted:      #6840a0;
+  --text-faint:      #38246a;
+
+  --sidebar-brand:   linear-gradient(160deg, #100c20 0%, #0d0918 60%, #120c1e 100%);
+  --sidebar-line:    linear-gradient(90deg, #f97316, #ec4899, #8b5cf6);
+  --sidebar-fg:      #ecdcf8;
+  --sidebar-fg-muted: #8060a0;
+  --sidebar-fg-faint: #38246a;
+  --sidebar-fg-nav:  #a888c8;
+  --sidebar-surface: rgba(255,255,255,0.07);
+  --logo-glow:       rgba(249,115,22,0.35);
+  --scrollbar:       rgba(255,255,255,0.12);
+  --shadow-modal:    0 24px 60px rgba(0,0,0,0.75);
+}
+
+/* ── 5. MEDIANOCHE — Negro carbón con ámbar ─────────────── */
+[data-theme="midnight"],
 [data-theme="dark-midnight"] {
   --accent:          #f59e0b;
   --accent-dark:     #d97706;
-  --accent-dim:      rgba(245,158,11,0.10);
+  --accent-dim:      rgba(245,158,11,0.12);
   --accent-text:     #1c1000;
 
-  --bg-base:         #080a0d;
-  --bg-surface:      #0e1014;
-  --bg-card:         #111419;
-  --bg-input:        #181c24;
-  --bg-muted:        #14181f;
-  --bg-sidebar:      #0a0c10;
+  --bg-base:         #08080a;
+  --bg-surface:      #0e0e12;
+  --bg-card:         #111116;
+  --bg-input:        #18181e;
+  --bg-muted:        #14141a;
+  --bg-sidebar:      #060608;
 
   --border:          rgba(255,255,255,0.07);
   --border-strong:   rgba(255,255,255,0.12);
@@ -89,16 +168,55 @@
   --text-muted:      #4e5a6e;
   --text-faint:      #2e3748;
 
-  --sidebar-brand:   linear-gradient(160deg, #0d0e12 0%, #0a0c10 60%, #0c0e14 100%);
+  --sidebar-brand:   linear-gradient(160deg, #0a0a0e 0%, #060608 60%, #080810 100%);
   --sidebar-line:    linear-gradient(90deg, #f59e0b, #f97316, #ef4444);
+  --sidebar-fg:      #e0e4f0;
+  --sidebar-fg-muted: #6a7890;
+  --sidebar-fg-faint: #2e3748;
+  --sidebar-fg-nav:  #8a95a8;
+  --sidebar-surface: rgba(255,255,255,0.06);
   --logo-glow:       rgba(245,158,11,0.3);
-
   --scrollbar:       rgba(255,255,255,0.10);
-  --shadow-modal:    0 24px 60px rgba(0,0,0,0.8);
+  --shadow-modal:    0 24px 60px rgba(0,0,0,0.85);
 }
 
-/* ── TEMA 4: Light Clean ─ modo claro profesional */
-[data-theme="light-clean"] {
+/* ── 6. NATURALEZA — Tierra cálida con lima ─────────────── */
+[data-theme="nature"] {
+  --accent:          #84cc16;
+  --accent-dark:     #65a30d;
+  --accent-dim:      rgba(132,204,22,0.12);
+  --accent-text:     #1a2800;
+
+  --bg-base:         #0f0e09;
+  --bg-surface:      #181610;
+  --bg-card:         #1c1a12;
+  --bg-input:        #242116;
+  --bg-muted:        #1f1d13;
+  --bg-sidebar:      #0c0b08;
+
+  --border:          rgba(255,255,255,0.07);
+  --border-strong:   rgba(255,255,255,0.12);
+
+  --text-primary:    #eaedd8;
+  --text-secondary:  #9aaa78;
+  --text-muted:      #5a6848;
+  --text-faint:      #383e28;
+
+  --sidebar-brand:   linear-gradient(160deg, #100e08 0%, #0c0b08 60%, #110f09 100%);
+  --sidebar-line:    linear-gradient(90deg, #84cc16, #22c55e, #f59e0b);
+  --sidebar-fg:      #dce8c8;
+  --sidebar-fg-muted: #7a8860;
+  --sidebar-fg-faint: #383e28;
+  --sidebar-fg-nav:  #9aaa78;
+  --sidebar-surface: rgba(255,255,255,0.06);
+  --logo-glow:       rgba(132,204,22,0.28);
+  --scrollbar:       rgba(255,255,255,0.10);
+  --shadow-modal:    0 24px 60px rgba(0,0,0,0.75);
+}
+
+/* ── 7. CLARO — Modo claro profesional ──────────────────── */
+[data-theme="light"],
+[data-theme="light"], [data-theme="light-clean"] {
   --accent:          #059669;
   --accent-dark:     #047857;
   --accent-dim:      rgba(5,150,105,0.08);
@@ -109,7 +227,7 @@
   --bg-card:         #ffffff;
   --bg-input:        #f8fafc;
   --bg-muted:        #f1f4f8;
-  --bg-sidebar:      #1e2535;
+  --bg-sidebar:      #f1f5f9;
 
   --border:          rgba(0,0,0,0.08);
   --border-strong:   rgba(0,0,0,0.14);
@@ -119,10 +237,14 @@
   --text-muted:      #9ca3af;
   --text-faint:      #d1d5db;
 
-  --sidebar-brand:   linear-gradient(160deg, #1a2032 0%, #1e2535 60%, #222a3a 100%);
+  --sidebar-brand:   linear-gradient(160deg, #e8eef5 0%, #f1f5f9 60%, #f8fafc 100%);
   --sidebar-line:    linear-gradient(90deg, #059669, #0891b2, #7c3aed);
+  --sidebar-fg:      #1e293b;
+  --sidebar-fg-muted: #64748b;
+  --sidebar-fg-faint: #94a3b8;
+  --sidebar-fg-nav:  #334155;
+  --sidebar-surface: rgba(0,0,0,0.06);
   --logo-glow:       rgba(5,150,105,0.25);
-
   --scrollbar:       rgba(0,0,0,0.12);
   --shadow-modal:    0 16px 48px rgba(0,0,0,0.12);
 }
@@ -132,10 +254,13 @@
    hardcodeadas existentes en páginas JSX
    ══════════════════════════════════════════════════════ */
 :root,
-[data-theme="dark-teal"],
-[data-theme="dark-slate"],
-[data-theme="dark-midnight"],
-[data-theme="light-clean"] {
+[data-theme="oscuro"],   [data-theme="dark-teal"],
+[data-theme="ocean"],    [data-theme="dark-slate"],
+[data-theme="forest"],
+[data-theme="sunset"],
+[data-theme="midnight"], [data-theme="dark-midnight"],
+[data-theme="nature"],
+[data-theme="light"],    [data-theme="light"], [data-theme="light-clean"] {
   /* Tailwind theme bridge */
   --color-teal-DEFAULT: var(--accent);
   --color-teal-dark:    var(--accent-dark);
@@ -262,15 +387,149 @@ div.font-mono {
 .focus\:border-\[\#00c896\]:focus { border-color: var(--accent) !important; }
 .focus\:ring-\[\#00c896\]\/20:focus { --tw-ring-color: var(--accent-dim) !important; }
 
-/* ── Light mode adjustments ──────────────────────── */
-[data-theme="light-clean"] .bg-black\/70 { background-color: rgba(0,0,0,0.3) !important; }
-[data-theme="light-clean"] .border-white\/10 { border-color: rgba(0,0,0,0.1) !important; }
-[data-theme="light-clean"] .border-white\/\[0\.08\] { border-color: rgba(0,0,0,0.08) !important; }
-[data-theme="light-clean"] .border-white\/\[0\.07\] { border-color: rgba(0,0,0,0.07) !important; }
+/* ══════════════════════════════════════════════════════
+   LIGHT MODE — Overrides para tema "Claro"
+   Selectores CORRECTOS: [data-theme="light"] .CLASS,
+                          [data-theme="light-clean"] .CLASS
+   ══════════════════════════════════════════════════════ */
+
+/* Scrollbar y select */
+[data-theme="light"] ::-webkit-scrollbar-thumb,
 [data-theme="light-clean"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.14); }
+
+[data-theme="light"] select,
 [data-theme="light-clean"] select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234b5563' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
+
+/* ── text-white/* → colores oscuros sobre fondo claro ── */
+[data-theme="light"] .text-white,
+[data-theme="light-clean"] .text-white      { color: var(--text-primary)   !important; }
+
+[data-theme="light"] .text-white\/90,
+[data-theme="light-clean"] .text-white\/90  { color: var(--text-primary)   !important; }
+
+[data-theme="light"] .text-white\/80,
+[data-theme="light-clean"] .text-white\/80  { color: var(--text-primary)   !important; }
+
+[data-theme="light"] .text-white\/70,
+[data-theme="light-clean"] .text-white\/70  { color: var(--text-secondary) !important; }
+
+[data-theme="light"] .text-white\/60,
+[data-theme="light-clean"] .text-white\/60  { color: var(--text-secondary) !important; }
+
+[data-theme="light"] .text-white\/50,
+[data-theme="light-clean"] .text-white\/50  { color: var(--text-secondary) !important; }
+
+[data-theme="light"] .text-white\/40,
+[data-theme="light-clean"] .text-white\/40  { color: var(--text-muted)     !important; }
+
+[data-theme="light"] .text-white\/35,
+[data-theme="light-clean"] .text-white\/35  { color: var(--text-muted)     !important; }
+
+[data-theme="light"] .text-white\/30,
+[data-theme="light-clean"] .text-white\/30  { color: var(--text-muted)     !important; }
+
+[data-theme="light"] .text-white\/25,
+[data-theme="light-clean"] .text-white\/25  { color: var(--text-muted)     !important; }
+
+[data-theme="light"] .text-white\/20,
+[data-theme="light-clean"] .text-white\/20  { color: var(--text-faint)     !important; }
+
+[data-theme="light"] .text-white\/15,
+[data-theme="light-clean"] .text-white\/15  { color: var(--text-faint)     !important; }
+
+[data-theme="light"] .text-white\/10,
+[data-theme="light-clean"] .text-white\/10  { color: var(--text-faint)     !important; }
+
+/* hover text */
+[data-theme="light"] .hover\:text-white\/80:hover,
+[data-theme="light-clean"] .hover\:text-white\/80:hover { color: var(--text-primary)   !important; }
+
+[data-theme="light"] .hover\:text-white\/70:hover,
+[data-theme="light-clean"] .hover\:text-white\/70:hover { color: var(--text-secondary) !important; }
+
+[data-theme="light"] .hover\:text-white\/60:hover,
+[data-theme="light-clean"] .hover\:text-white\/60:hover { color: var(--text-secondary) !important; }
+
+/* ── bg-white/* → tinta suave sobre blanco ── */
+[data-theme="light"] .bg-white\/3,
+[data-theme="light-clean"] .bg-white\/3  { background-color: rgba(0,0,0,0.03) !important; }
+
+[data-theme="light"] .bg-white\/4,
+[data-theme="light-clean"] .bg-white\/4  { background-color: rgba(0,0,0,0.04) !important; }
+
+[data-theme="light"] .bg-white\/5,
+[data-theme="light-clean"] .bg-white\/5  { background-color: rgba(0,0,0,0.04) !important; }
+
+[data-theme="light"] .bg-white\/6,
+[data-theme="light-clean"] .bg-white\/6  { background-color: rgba(0,0,0,0.05) !important; }
+
+[data-theme="light"] .bg-white\/8,
+[data-theme="light-clean"] .bg-white\/8  { background-color: rgba(0,0,0,0.06) !important; }
+
+[data-theme="light"] .bg-white\/10,
+[data-theme="light-clean"] .bg-white\/10 { background-color: rgba(0,0,0,0.07) !important; }
+
+[data-theme="light"] .bg-white\/12,
+[data-theme="light-clean"] .bg-white\/12 { background-color: rgba(0,0,0,0.08) !important; }
+
+[data-theme="light"] .bg-white\/15,
+[data-theme="light-clean"] .bg-white\/15 { background-color: rgba(0,0,0,0.10) !important; }
+
+[data-theme="light"] .bg-white\/20,
+[data-theme="light-clean"] .bg-white\/20 { background-color: rgba(0,0,0,0.10) !important; }
+
+/* hover bg */
+[data-theme="light"] .hover\:bg-white\/5:hover,
+[data-theme="light-clean"] .hover\:bg-white\/5:hover  { background-color: rgba(0,0,0,0.04) !important; }
+
+[data-theme="light"] .hover\:bg-white\/6:hover,
+[data-theme="light-clean"] .hover\:bg-white\/6:hover  { background-color: rgba(0,0,0,0.05) !important; }
+
+[data-theme="light"] .hover\:bg-white\/8:hover,
+[data-theme="light-clean"] .hover\:bg-white\/8:hover  { background-color: rgba(0,0,0,0.06) !important; }
+
+[data-theme="light"] .hover\:bg-white\/10:hover,
+[data-theme="light-clean"] .hover\:bg-white\/10:hover { background-color: rgba(0,0,0,0.07) !important; }
+
+[data-theme="light"] .hover\:bg-white\/12:hover,
+[data-theme="light-clean"] .hover\:bg-white\/12:hover { background-color: rgba(0,0,0,0.08) !important; }
+
+/* ── border-white/* ── */
+[data-theme="light"] .border-white\/5,
+[data-theme="light-clean"] .border-white\/5  { border-color: rgba(0,0,0,0.05) !important; }
+
+[data-theme="light"] .border-white\/6,
+[data-theme="light-clean"] .border-white\/6  { border-color: rgba(0,0,0,0.06) !important; }
+
+[data-theme="light"] .border-white\/8,
+[data-theme="light-clean"] .border-white\/8  { border-color: rgba(0,0,0,0.08) !important; }
+
+[data-theme="light"] .border-white\/10,
+[data-theme="light-clean"] .border-white\/10 { border-color: rgba(0,0,0,0.10) !important; }
+
+[data-theme="light"] .border-white\/12,
+[data-theme="light-clean"] .border-white\/12 { border-color: rgba(0,0,0,0.10) !important; }
+
+[data-theme="light"] .border-white\/\[0\.08\],
+[data-theme="light-clean"] .border-white\/\[0\.08\] { border-color: rgba(0,0,0,0.08) !important; }
+
+[data-theme="light"] .border-white\/\[0\.07\],
+[data-theme="light-clean"] .border-white\/\[0\.07\] { border-color: rgba(0,0,0,0.07) !important; }
+
+/* ── overlays de modales ── */
+[data-theme="light"] .bg-black\/70,
+[data-theme="light-clean"] .bg-black\/70 { background-color: rgba(0,0,0,0.35) !important; }
+
+[data-theme="light"] .bg-black\/60,
+[data-theme="light-clean"] .bg-black\/60 { background-color: rgba(0,0,0,0.25) !important; }
+
+[data-theme="light"] .bg-black\/30,
+[data-theme="light-clean"] .bg-black\/30 { background-color: rgba(0,0,0,0.12) !important; }
+
+[data-theme="light"] .bg-black\/20,
+[data-theme="light-clean"] .bg-black\/20 { background-color: rgba(0,0,0,0.08) !important; }
 
 /* ── Scrollbar ─────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -285,6 +544,18 @@ select {
   background-position: right 10px center;
   -webkit-appearance: none;
   appearance: none;
+}
+
+/* ── Logo sidebar sin fondo ────────────────────────── */
+/* mix-blend-mode:screen funde los píxeles oscuros del logo
+   con el fondo del sidebar, eliminando visualmente el recuadro.
+   En el tema claro se revierte a normal. */
+aside img {
+  mix-blend-mode: screen;
+}
+[data-theme="light"] aside img,
+[data-theme="light-clean"] aside img {
+  mix-blend-mode: normal;
 }
 
 /* ── Animaciones ───────────────────────────────────── */
@@ -315,7 +586,7 @@ select {
 .animate-pulse-dot  { animation: pulse-dot 1.5s ease-in-out infinite; }
 
 /* ── Theme transition suave ──────────────────────── */
-body, aside, header, main, .bg-\[\#0e1117\], .bg-\[\#141920\],
+body, aside, header, main, nav, .bg-\[\#0e1117\], .bg-\[\#141920\],
 .bg-\[\#161d28\], .bg-\[\#1a2230\], .bg-\[\#1e2835\], .bg-\[\#0f1520\] {
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.2s ease;
 }

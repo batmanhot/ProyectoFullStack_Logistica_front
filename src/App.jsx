@@ -1,11 +1,8 @@
-import React, { useState, useRef, useEffect, Suspense, lazy } from 'react'
+import React, { useState, useEffect, Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { Bell, X, AlertTriangle, Sun, Moon, Palette, Check } from 'lucide-react'
 import { AppProvider, useApp } from './store/AppContext'
 import Sidebar from './components/layout/Sidebar'
 import { ToastContainer } from './components/ui/index'
-import { estadoStock, diasParaVencer, formatCurrency } from './utils/helpers'
-import { useTheme, THEMES } from './hooks/useTheme'
 
 // ── Lazy imports de páginas ─────────────────────────────
 const Login           = lazy(() => import('./pages/Login'))
@@ -30,8 +27,7 @@ const Alertas         = lazy(() => import('./pages/Alertas'))
 const Cotizaciones    = lazy(() => import('./pages/Cotizaciones'))
 const InventarioFisico= lazy(() => import('./pages/InventarioFisico'))
 const Prevision       = lazy(() => import('./pages/Prevision'))
-const PWA             = lazy(() => import('./pages/PWA'))
-const PWAMovil        = lazy(() => import('./pages/PWAMovil'))
+
 const PortalProvB2B   = lazy(() => import('./pages/PortalProveedoresB2B'))
 const Clientes        = lazy(() => import('./pages/Clientes'))
 const Despachos       = lazy(() => import('./pages/Despachos'))
@@ -47,10 +43,12 @@ const Empaque         = lazy(() => import('./pages/Empaque'))
 const ListaPrecios    = lazy(() => import('./pages/ListaPrecios'))
 const KPIsOperativos  = lazy(() => import('./pages/KPIsOperativos'))
 const Sunat           = lazy(() => import('./pages/Sunat'))
-const PortalPedidos   = lazy(() => import('./pages/PortalPedidos'))
+const PortalPedidos      = lazy(() => import('./pages/PortalPedidos'))
+const PedidosInternos    = lazy(() => import('./pages/PedidosInternos'))
 const PortalPublico        = lazy(() => import('./pages/PortalPublico'))
 const ContabilidadReportes = lazy(() => import('./pages/ContabilidadReportes'))
 const TrazabilidadPedidos  = lazy(() => import('./pages/TrazabilidadPedidos'))
+const ColaSincronizacion   = lazy(() => import('./pages/ColaSincronizacion'))
 
 // ── Títulos de página ───────────────────────────────────
 const PAGE_TITLES = {
@@ -71,8 +69,7 @@ const PAGE_TITLES = {
   '/alertas':        'Centro de Alertas',
   '/inv-fisico':     'Inventario Físico',
   '/prevision':      'Previsión de Demanda',
-  '/pwa':            'App Móvil / PWA',
-  '/pwa-movil':      'App Móvil Optimizada',
+
   '/portal-prov-b2b':'Portal Proveedores B2B',
   '/clientes':       'Clientes',
   '/despachos':      'Gestión de Despachos',
@@ -91,13 +88,13 @@ const PAGE_TITLES = {
   '/portal-pedidos':      'Portal de Pedidos para Clientes',
   '/contabilidad':        'Reportes Contables',
   '/trazabilidad':        'Trazabilidad de Pedidos y OC',
+  '/cola-sync':           'Cola de Sincronización',
+  '/pedidos-internos':'Pedidos Internos',
   '/proveedores':    'Proveedores',
   '/maestros':       'Categorías y Almacenes',
   '/usuarios':       'Usuarios y Roles',
   '/configuracion':  'Configuración',
 }
-
-const ROLES_LABEL = { admin:'Administrador', supervisor:'Supervisor', almacenero:'Almacenero' }
 
 // ── Error Boundary ──────────────────────────────────────
 class ErrorBoundary extends React.Component {
@@ -135,235 +132,37 @@ function PageLoader() {
   )
 }
 
-// ── Generador de notificaciones automáticas ─────────────
-function generarNotifAuto(productos, ordenes, config, simboloMoneda) {
-  const notifs = []
-  // ── Alerta WhatsApp automática si está configurada ─────
-  function enviarWhatsAppAlerta(mensaje) {
-    const tel = config?.whatsappResponsable
-    if (!tel || !config?.alertasAutoWhatsApp) return
-    const url = `https://wa.me/${tel.replace(/[^0-9]/g,'')}?text=${encodeURIComponent('🚨 StockPro Alerta:\n'+mensaje)}`
-    // Solo abrir si no se abrió en los últimos 60 min (evitar spam)
-    const lastSent = sessionStorage.getItem('sp_wa_last')
-    const now = Date.now()
-    if (!lastSent || now - parseInt(lastSent) > 3600000) {
-      window.open(url, '_blank')
-      sessionStorage.setItem('sp_wa_last', now.toString())
-    }
-  }
-  const diasAlerta = config?.diasAlertaVencimiento || 30
-  productos.filter(p => p.activo !== false).forEach(p => {
-    const e = estadoStock(p.stockActual, p.stockMinimo)
-    if (p.stockActual <= 0) {
-      notifs.push({ tipo:'danger', titulo:'Sin stock', msg:p.nombre, sub:`SKU: ${p.sku}`, path:'/inventario' })
-    } else if (e.estado === 'critico') {
-      notifs.push({ tipo:'warning', titulo:'Stock crítico', msg:p.nombre, sub:`${p.stockActual}/${p.stockMinimo} ${p.unidadMedida}`, path:'/inventario' })
-    }
-    if (p.tieneVencimiento && p.fechaVencimiento) {
-      const d = diasParaVencer(p.fechaVencimiento)
-      if (d !== null && d < 0) {
-        notifs.push({ tipo:'danger', titulo:'Producto VENCIDO', msg:p.nombre, sub:`Venció hace ${Math.abs(d)} días`, path:'/vencimientos' })
-      } else if (d !== null && d <= diasAlerta) {
-        notifs.push({ tipo:'warning', titulo:'Próximo a vencer', msg:p.nombre, sub:`Vence en ${d} días`, path:'/vencimientos' })
-      }
-    }
-  })
-  ordenes.filter(o => o.estado === 'PENDIENTE').forEach(o => {
-    notifs.push({ tipo:'info', titulo:'OC pendiente', msg:`OC ${o.numero}`, sub:`Total: ${formatCurrency(o.total, simboloMoneda)}`, path:'/ordenes' })
-  })
-  // Auto-enviar WhatsApp si hay alertas críticas
-  const dangers = notifs.filter(n => n.tipo === 'danger')
-  if (dangers.length > 0) {
-    const msg = dangers.slice(0,3).map(n=>`• ${n.titulo}: ${n.msg}`).join('\n')
-    enviarWhatsAppAlerta(msg)
-  }
-  return notifs.slice(0, 20)
-}
-
-// ── Panel de Notificaciones ─────────────────────────────
-function PanelNotificaciones({ open, onClose, notifs }) {
-  const ref = useRef(null)
-  useEffect(() => {
-    function h(e) { if (ref.current && !ref.current.contains(e.target)) onClose() }
-    if (open) document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [open, onClose])
-
-  if (!open) return null
-
-  return (
-    <div ref={ref}
-      className="absolute top-full right-0 mt-1 w-[380px] bg-[#141920] border border-white/[0.12] rounded-xl shadow-2xl z-[9999] overflow-hidden"
-      style={{ maxHeight:'80vh' }}>
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.08] bg-[#0f1520]">
-        <div className="flex items-center gap-2">
-          <Bell size={14} className="text-[#00c896]"/>
-          <span className="text-[13px] font-semibold text-[#e8edf2]">Notificaciones</span>
-          {notifs.length > 0 && (
-            <span className="text-[10px] font-bold bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">{notifs.length}</span>
-          )}
-        </div>
-        <button onClick={onClose} className="text-[#5f6f80] hover:text-[#9ba8b6] transition-colors p-1 rounded-lg hover:bg-white/[0.05]">
-          <X size={13}/>
-        </button>
-      </div>
-      <div className="overflow-y-auto" style={{ maxHeight:'calc(80vh - 52px)' }}>
-        {notifs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 gap-3">
-            <Bell size={24} className="text-[#00c896] opacity-30"/>
-            <p className="text-[12px] text-[#5f6f80]">Sin notificaciones activas</p>
-          </div>
-        ) : notifs.map((n, i) => {
-          const bgRow = n.tipo==='danger' ? 'bg-red-500/[0.03]' : ''
-          const txtColor = n.tipo==='danger' ? 'text-red-400' : n.tipo==='warning' ? 'text-amber-400' : 'text-blue-400'
-          const bgIcon   = n.tipo==='danger' ? 'bg-red-500/15' : n.tipo==='warning' ? 'bg-amber-500/15' : 'bg-blue-500/15'
-          return (
-            <a key={i} href={n.path} onClick={onClose}
-              className={`flex items-start gap-3 px-4 py-3 border-b border-white/[0.05] last:border-0 hover:bg-white/[0.03] transition-colors no-underline ${bgRow}`}>
-              <div className={`w-8 h-8 rounded-lg ${bgIcon} flex items-center justify-center shrink-0`}>
-                <AlertTriangle size={14} className={txtColor}/>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className={`text-[10px] font-bold uppercase tracking-wide mb-0.5 ${txtColor}`}>{n.titulo}</div>
-                <div className="text-[12px] font-medium text-[#e8edf2] truncate">{n.msg}</div>
-                <div className="text-[11px] text-[#5f6f80]">{n.sub}</div>
-              </div>
-              <span className="text-[10px] text-[#3d4f60] shrink-0 mt-1">→</span>
-            </a>
-          )
-        })}
-      </div>
-      {notifs.filter(n => n.tipo === 'danger').length > 0 && (
-        <div className="px-4 py-2.5 bg-[#0f1520] border-t border-white/[0.06]">
-          <a
-            href={`https://wa.me/?text=${encodeURIComponent('🚨 ALERTA StockPro:\n' + notifs.filter(n=>n.tipo==='danger').slice(0,3).map(n=>`• ${n.titulo}: ${n.msg}`).join('\n'))}`}
-            target="_blank" rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 py-1.5 rounded-lg bg-green-500/10 text-green-400 text-[12px] font-semibold hover:bg-green-500/20 transition-colors no-underline">
-            📱 Enviar alerta por WhatsApp
-          </a>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── PageHeader ──────────────────────────────────────────
-function ThemeToggle() {
-  const { current, toggleDark, applyTheme, themes } = useTheme()
-  const [open, setOpen] = useState(false)
-  const ref = useRef(null)
-
-  useEffect(() => {
-    function h(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
-    if (open) document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [open])
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen(o => !o)}
-        title={current.dark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-        className={`relative w-9 h-9 flex items-center justify-center rounded-lg transition-all ${open ? 'bg-[#00c896]/15 text-[#00c896]' : 'text-[#5f6f80] hover:text-[#9ba8b6] hover:bg-white/[0.05]'}`}>
-        {current.dark ? <Moon size={15}/> : <Sun size={15}/>}
-      </button>
-      {open && (
-        <div className="absolute top-full right-0 mt-1 w-[220px] bg-[#141920] border border-white/[0.12] rounded-xl shadow-2xl z-[9999] overflow-hidden p-2">
-          <div className="px-2 pt-1 pb-2 text-[10px] font-bold text-[#5f6f80] uppercase tracking-[0.1em]">Tema de color</div>
-          {themes.map(t => (
-            <button
-              key={t.id}
-              onClick={() => { applyTheme(t.id); setOpen(false) }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.05] transition-colors text-left">
-              {/* Preview dots */}
-              <div className="flex gap-1 shrink-0">
-                {t.preview.map((c, i) => (
-                  <div key={i} className="w-3.5 h-3.5 rounded-full border border-white/20" style={{ background: c }}/>
-                ))}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[12px] font-semibold" style={{ color: current.id === t.id ? t.accent : '#e8edf2' }}>{t.label}</div>
-                <div className="text-[10px] text-[#5f6f80]">{t.desc}</div>
-              </div>
-              {current.id === t.id && <Check size={13} style={{ color: t.accent, flexShrink: 0 }}/>}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 function PageHeader() {
   const location = useLocation()
-  const { config, sesion, logout, productos, ordenes, simboloMoneda } = useApp()
-  const [panelOpen, setPanelOpen] = useState(false)
   const title = PAGE_TITLES[location.pathname] || 'StockPro'
 
-  const notifs = React.useMemo(() =>
-    sesion ? generarNotifAuto(productos || [], ordenes || [], config, simboloMoneda) : []
-  , [productos, ordenes, config, sesion, simboloMoneda])
-
-  const cantDanger = notifs.filter(n => n.tipo === 'danger').length
-  const cantTotal  = notifs.length
-  const badgeColor = cantDanger > 0 ? 'bg-red-500' : cantTotal > 0 ? 'bg-amber-500' : ''
-
   return (
-    <div className="h-[52px] flex items-center px-6 border-b border-white/[0.08] bg-[#141920] shrink-0 gap-3">
-      <h1 className="flex-1 text-[16px] font-semibold text-[#e8edf2]">{title}</h1>
-      <div className="flex items-center gap-2">
-        {config?.empresa && (
-          <span className="hidden sm:flex items-center gap-1.5 text-[12px] text-[#5f6f80]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00c896] inline-block"/>
-            {config.empresa}
-          </span>
-        )}
-        {sesion && (
-          <div className="relative">
-            <button
-              onClick={() => setPanelOpen(o => !o)}
-              title="Notificaciones"
-              className={`relative w-9 h-9 flex items-center justify-center rounded-lg transition-all ${panelOpen ? 'bg-[#00c896]/15 text-[#00c896]' : 'text-[#5f6f80] hover:text-[#9ba8b6] hover:bg-white/[0.05]'}`}>
-              <Bell size={16} className={cantDanger > 0 && !panelOpen ? 'animate-bounce' : ''}/>
-              {cantTotal > 0 && (
-                <span className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 ${badgeColor} text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1`}>
-                  {cantTotal > 9 ? '9+' : cantTotal}
-                </span>
-              )}
-            </button>
-            <PanelNotificaciones open={panelOpen} onClose={() => setPanelOpen(false)} notifs={notifs}/>
-          </div>
-        )}
-        {sesion && (
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-lg">
-              <div className="w-5 h-5 rounded-full bg-[#00c896]/15 flex items-center justify-center text-[#00c896] text-[10px] font-bold">
-                {sesion.nombre.charAt(0)}
-              </div>
-              <span className="text-[12px] text-[#9ba8b6]">{sesion.nombre}</span>
-              <span className="text-[10px] text-[#5f6f80]">·</span>
-              <span className="text-[11px] text-[#5f6f80]">{ROLES_LABEL[sesion.rol] || sesion.rol}</span>
-            </div>
-            <button onClick={logout}
-              className="text-[12px] text-[#5f6f80] hover:text-red-400 transition-colors px-2 py-1.5"
-              title="Cerrar sesión">
-              Salir
-            </button>
-          </div>
-        )}
-        <ThemeToggle/>
-        <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-[#00c896]/10 text-[#00c896] font-semibold tracking-wide">
-          {config?.version || 'StockPro v2.0'}
-        </span>
-      </div>
+    <div className="h-[52px] flex items-center px-6 border-b border-white/[0.08] bg-[#141920] shrink-0">
+      <h1 className="text-[16px] font-semibold text-[#e8edf2]">{title}</h1>
     </div>
   )
 }
 
 // ── AppLayout ───────────────────────────────────────────
+const MOBILE_BP = 768
+
 function AppLayout() {
   const { sesion } = useApp()
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => window.innerWidth < MOBILE_BP)
+
+  useEffect(() => {
+    let wasMobile = window.innerWidth < MOBILE_BP
+    function onResize() {
+      const isMobile = window.innerWidth < MOBILE_BP
+      if (isMobile !== wasMobile) {
+        setCollapsed(isMobile)
+        wasMobile = isMobile
+      }
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   if (!sesion) {
     return (
@@ -401,8 +200,6 @@ function AppLayout() {
             <Route path="/alertas"        element={<Alertas />} />
             <Route path="/inv-fisico"     element={<InventarioFisico />} />
             <Route path="/prevision"      element={<Prevision />} />
-            <Route path="/pwa"            element={<PWA />} />
-            <Route path="/pwa-movil"      element={<PWAMovil />} />
             <Route path="/portal-prov-b2b" element={<PortalProvB2B />} />
             <Route path="/clientes"       element={<Clientes />} />
             <Route path="/despachos"      element={<Despachos />} />
@@ -418,10 +215,12 @@ function AppLayout() {
             <Route path="/lista-precios"  element={<ListaPrecios />} />
             <Route path="/kpis"           element={<KPIsOperativos />} />
             <Route path="/sunat"          element={<Sunat />} />
-            <Route path="/portal-pedidos" element={<PortalPedidos />} />
+            <Route path="/portal-pedidos"   element={<PortalPedidos />} />
+            <Route path="/pedidos-internos" element={<PedidosInternos />} />
             <Route path="/portal/:token"  element={<PortalPublico />} />
             <Route path="/contabilidad"   element={<ContabilidadReportes />} />
             <Route path="/trazabilidad"   element={<TrazabilidadPedidos />} />
+            <Route path="/cola-sync"      element={<ColaSincronizacion />} />
             <Route path="/proveedores"    element={<Proveedores />} />
             <Route path="/maestros"       element={<Maestros />} />
             <Route path="/usuarios"       element={<Usuarios />} />

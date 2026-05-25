@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+﻿import { useState, useEffect, useMemo } from 'react'
 import { Plus, Edit2, Trash2, Tag, Warehouse, MapPin } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import * as storage from '../services/storage'
@@ -10,7 +10,7 @@ export default function Maestros() {
   const [tab, setTab] = useState('categorias')
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
       <div className="flex gap-0.5 border-b border-white/[0.08]">
         {[
           ['categorias', 'Categorías',  Tag],
@@ -31,7 +31,7 @@ export default function Maestros() {
 }
 
 /* ── Tab Categorías ────────────────────────────────── */
-function TabCategorias() {
+export function TabCategorias() {
   const { categorias, recargarCategorias, recargarProductos, toast } = useApp()
   const [modal, setModal]           = useState(false)
   const [editando, setEditando]     = useState(null)
@@ -141,7 +141,7 @@ function ModalCategoria({ open, onClose, editando, onSave }) {
 }
 
 /* ── Tab Almacenes ─────────────────────────────────── */
-function TabAlmacenes() {
+export function TabAlmacenes() {
   const { almacenes, recargarAlmacenes, toast } = useApp()
   const [modal, setModal]           = useState(false)
   const [editando, setEditando]     = useState(null)

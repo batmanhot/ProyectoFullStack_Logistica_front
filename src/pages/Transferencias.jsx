@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { Plus, Search, ArrowRightLeft, Warehouse, Eye, Trash2, ChevronUp, ChevronDown, Download, FileText, X } from 'lucide-react'
 
 import { useApp } from '../store/AppContext'
@@ -123,8 +123,8 @@ export default function Transferencias() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
-      <div className="grid grid-cols-3 gap-3.5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {almacenes.slice(0,3).map(alm => {
           const count = transferencias.filter(t=>t.almacenOrigenId===alm.id||t.almacenDestinoId===alm.id).length
           const prods = productos.filter(p=>p.almacenId===alm.id).length

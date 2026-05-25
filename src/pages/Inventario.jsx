@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+﻿import { useState, useMemo, useEffect } from 'react'
 import { Plus, Search, Edit2, Trash2, Eye, Package,
          AlertTriangle, DollarSign, TrendingDown, Clock} from 'lucide-react'
 import { useApp } from '../store/AppContext'
@@ -80,10 +80,10 @@ export default function Inventario() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
           { label:'Valor del inventario',    val: formatCurrency(kpis.valorTotal, simboloMoneda), sub: `${kpis.total} productos · ${formulaValorizacion}`, color:'#00c896',  icon:DollarSign,   mono:true  },
           { label:'Agotados / Críticos',      val: `${kpis.agotados} / ${kpis.criticos}`,         sub: `${kpis.agotados} agotados · ${kpis.criticos} bajo mínimo`,  color:'#ef4444',  icon:AlertTriangle },
@@ -244,7 +244,7 @@ export default function Inventario() {
             </p>
 
             {/* Estados que reservan */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
               {[
                 { estado:'PEDIDO',   desc:'Pedido registrado, pendiente de aprobación',   color:'#5f6f80' },
                 { estado:'APROBADO', desc:'Aprobado, pendiente de preparación',           color:'#3b82f6' },
@@ -440,7 +440,7 @@ function ModalProducto({ open, onClose, editando, categorias, almacenes, proveed
           onChange={e => f('descripcion', e.target.value)} placeholder="Descripción opcional..."/>
       </Field>
 
-      <div className="grid grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         <Field label="Categoría *" error={err.categoriaId}>
           <select className={SEL} value={form.categoriaId || ''}
             onChange={e => f('categoriaId', e.target.value)}>
@@ -463,7 +463,7 @@ function ModalProducto({ open, onClose, editando, categorias, almacenes, proveed
         </Field>
       </div>
 
-      <div className="grid grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         <Field label="Stock Mínimo">
           <input type="number" className={SI} value={form.stockMinimo ?? 0}
             onChange={e => f('stockMinimo', e.target.value)} min="0"/>

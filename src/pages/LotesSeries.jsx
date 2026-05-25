@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { Search, Layers, ArrowDownToLine, ArrowUpFromLine, Hash } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, diasParaVencer } from '../utils/helpers'
@@ -44,7 +44,7 @@ export default function LotesSeries() {
   }, [prod, lotes])
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
         <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">Seleccionar Producto</div>

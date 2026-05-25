@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { Plus, ClipboardList, CheckCircle, SlidersHorizontal, Download } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
@@ -118,7 +118,7 @@ export default function InventarioFisico() {
   const almNombre = id => almacenes.find(a => a.id === id)?.nombre  || 'Todos'
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* Inventarios anteriores */}
       {!activo && (

@@ -3,7 +3,11 @@
     "allow": [
       "Bash(Get-ChildItem -Path \"f:\\\\desarrollo\\\\Proyectos\\\\Proyecto FullStack Logistica\\\\front\\\\logistica\" -Force)",
       "PowerShell(head -30)",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(Get-ChildItem -Path \"f:\\\\desarrollo\\\\Proyectos\\\\Proyecto FullStack Logistica\\\\front\\\\logistica\\\\src\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "Bash(npm run *)"
     ]
   }
 }

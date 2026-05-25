@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+﻿import { useMemo, useState } from 'react'
 import { AlertTriangle, CheckCircle, Package, Eye, XCircle, Calendar, Hash, DollarSign, Layers, Info, Clock, Download, FileText, X, Search } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, diasParaVencer, fechaHoy, generarNumDoc } from '../utils/helpers'
@@ -104,10 +104,10 @@ export default function Vencimientos() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* Semáforo */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         {RANGOS.map(r => (
           <button key={r.key}
             onClick={() => setFiltroRango(filtroRango === r.key ? 'all' : r.key)}

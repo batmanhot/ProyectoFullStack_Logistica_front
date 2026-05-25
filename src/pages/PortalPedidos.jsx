@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PortalPedidos.jsx — Portal de Pedidos para Clientes (vista interna)
  *
  * Esta es la vista de ADMINISTRACIÓN del portal.
@@ -115,7 +115,7 @@ export default function PortalPedidos() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* Banner explicativo */}
       <div className="bg-gradient-to-r from-[#00c896]/10 to-[#3b82f6]/10 border border-[#00c896]/20 rounded-xl p-5 flex items-start gap-4">
@@ -145,7 +145,7 @@ export default function PortalPedidos() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
           { label:'Total pedidos portal', val:kpis.total,       color:'#3b82f6' },
           { label:'Nuevos por revisar',   val:kpis.nuevos,      color:'#f59e0b' },

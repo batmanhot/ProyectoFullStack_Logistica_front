@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+﻿import { useMemo, useState } from 'react'
 import { TrendingUp, TrendingDown, Activity, AlertTriangle, Info } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts'
 import { useApp } from '../store/AppContext'
@@ -99,7 +99,7 @@ export default function Prevision() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* Selector */}
       <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">

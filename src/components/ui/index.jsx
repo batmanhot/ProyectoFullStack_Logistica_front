@@ -125,14 +125,26 @@ export function Btn({ variant = 'secondary', size = 'md', onClick, disabled, chi
   return (
     <div className="relative inline-flex group/tip">
       {btn}
-      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2
-                       px-2.5 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap
-                       bg-[#0b0f17] border border-white/12 text-white/90 shadow-xl
-                       opacity-0 -translate-y-1 group-hover/tip:opacity-100 group-hover/tip:translate-y-0
-                       transition-all duration-150 z-100">
+      <span
+        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+                   opacity-0 -translate-y-1 group-hover/tip:opacity-100 group-hover/tip:translate-y-0
+                   transition-all duration-150 z-[200]"
+        style={{
+          background:    '#1e2533',
+          color:         '#ffffff',
+          border:        '1px solid rgba(255,255,255,0.22)',
+          boxShadow:     '0 4px 20px rgba(0,0,0,0.65)',
+          padding:       '5px 10px',
+          borderRadius:  '8px',
+          fontSize:      '11px',
+          fontWeight:    500,
+          whiteSpace:    'nowrap',
+          lineHeight:    '1.4',
+        }}
+      >
         {title}
-        <span className="absolute top-full left-1/2 -translate-x-1/2
-                         border-4 border-transparent border-t-[#0b0f17]" />
+        <span className="absolute top-full left-1/2 -translate-x-1/2"
+              style={{ borderWidth:'4px', borderStyle:'solid', borderColor:'transparent', borderTopColor:'#1e2533' }} />
       </span>
     </div>
   )

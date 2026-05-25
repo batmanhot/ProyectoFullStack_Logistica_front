@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+﻿import { useState, useEffect, useMemo } from 'react'
 import { Plus, Search, Edit2, Trash2, Building2, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import * as storage from '../services/storage'
@@ -38,7 +38,7 @@ export default function Proveedores() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
       <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
         <div className="flex items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-3 min-w-0">

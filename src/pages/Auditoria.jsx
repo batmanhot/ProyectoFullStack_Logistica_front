@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import {
   Shield, Search, Download, Trash2, Filter,
   LogIn, LogOut, Plus, Edit2, Trash, FileText,
@@ -97,10 +97,10 @@ export default function Auditoria() {
   const tieneHayFiltros = busqueda || filtAccion || filtModulo || filtUser || filtDesde || filtHasta
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
           ['Total de eventos', kpis.total, '#00c896', Shield],
           ['Eventos hoy', kpis.hoy, '#3b82f6', FileText],

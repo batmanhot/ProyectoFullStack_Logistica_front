@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { Plus, Search, ArrowUpFromLine, FileText, Eye, XCircle, DollarSign, Calendar, TrendingDown, ShoppingBag, Download, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
@@ -113,19 +113,19 @@ export default function Salidas() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
 
         <div className="relative bg-[#161d28] border border-white/[0.08] rounded-xl px-5 py-4 overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl bg-red-500"/>
           <div className="absolute top-3 right-4 opacity-[0.06]"><DollarSign size={44}/></div>
           <div className="flex items-center gap-2 mb-2">
             <DollarSign size={13} className="text-red-400"/>
-            <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em]">Costo total despachado</span>
+            <span className="text-[10px] sm:text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em]">Costo total despachado</span>
           </div>
-          <div className="text-[20px] font-semibold text-[#e8edf2] font-mono">{formatCurrency(kpis.costoTotal, simboloMoneda)}</div>
+          <div className="text-[18px] sm:text-[20px] font-semibold text-[#e8edf2] font-mono">{formatCurrency(kpis.costoTotal, simboloMoneda)}</div>
           <div className="text-[11px] text-[#5f6f80] mt-1">{kpis.countTotal} salidas registradas</div>
         </div>
 
@@ -134,9 +134,9 @@ export default function Salidas() {
           <div className="absolute top-3 right-4 opacity-[0.06]"><Calendar size={44}/></div>
           <div className="flex items-center gap-2 mb-2">
             <Calendar size={13} className="text-amber-400"/>
-            <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em]">Últimos 30 días</span>
+            <span className="text-[10px] sm:text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em]">Últimos 30 días</span>
           </div>
-          <div className="text-[20px] font-semibold text-[#e8edf2] font-mono">{formatCurrency(kpis.costo30, simboloMoneda)}</div>
+          <div className="text-[18px] sm:text-[20px] font-semibold text-[#e8edf2] font-mono">{formatCurrency(kpis.costo30, simboloMoneda)}</div>
           <div className="text-[11px] text-[#5f6f80] mt-1">{kpis.count30} salidas · {formulaValorizacion}</div>
         </div>
 
@@ -145,9 +145,9 @@ export default function Salidas() {
           <div className="absolute top-3 right-4 opacity-[0.06]"><ArrowUpFromLine size={44}/></div>
           <div className="flex items-center gap-2 mb-2">
             <ArrowUpFromLine size={13} className="text-orange-400"/>
-            <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em]">Salidas hoy</span>
+            <span className="text-[10px] sm:text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em]">Salidas hoy</span>
           </div>
-          <div className="text-[28px] font-semibold text-[#e8edf2]">{kpis.salidasHoy}</div>
+          <div className="text-[24px] sm:text-[28px] font-semibold text-[#e8edf2]">{kpis.salidasHoy}</div>
           <div className="text-[11px] text-[#5f6f80] mt-1">
             {kpis.salidasHoy > 0 ? formatCurrency(kpis.costoHoy, simboloMoneda) : 'Sin movimientos hoy'}
           </div>
@@ -158,9 +158,9 @@ export default function Salidas() {
           <div className="absolute top-3 right-4 opacity-[0.06]"><ShoppingBag size={44}/></div>
           <div className="flex items-center gap-2 mb-2">
             <ShoppingBag size={13} className="text-purple-400"/>
-            <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em]">Unidades despachadas</span>
+            <span className="text-[10px] sm:text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em]">Unidades despachadas</span>
           </div>
-          <div className="text-[28px] font-semibold text-[#e8edf2]">{kpis.totalUnidades.toLocaleString('es-PE')}</div>
+          <div className="text-[24px] sm:text-[28px] font-semibold text-[#e8edf2]">{kpis.totalUnidades.toLocaleString('es-PE')}</div>
           <div className="text-[11px] text-[#5f6f80] mt-1 truncate" title={kpis.topProd}>Top: {kpis.topProd}</div>
         </div>
 

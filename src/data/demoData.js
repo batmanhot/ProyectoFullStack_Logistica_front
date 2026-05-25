@@ -1,8 +1,14 @@
 /**
- * demoData.js — Dataset demo v2.5 (Distribuidora Lima Norte S.A.C.)
+ * demoData.js — Dataset demo v2.5 (Multi-Tenant)
  * Extraído de storage.js para mantener separación entre lógica y datos.
  * Importado exclusivamente desde storage.js.
  */
+
+// ── Empresas demo (tenants) ───────────────────────────────────
+export const EMPRESAS_DEMO = [
+  { id:'dlnorte', nombre:'Distribuidora Lima Norte S.A.C.', ruc:'20512345678', plan:'pro',     activo:true, createdAt:'2024-01-15T00:00:00Z' },
+  { id:'acme',    nombre:'ACME Distribuciones E.I.R.L.',    ruc:'20598765432', plan:'starter', activo:true, createdAt:'2024-03-01T00:00:00Z' },
+]
 
 // ── Helper para construir movimientos de forma compacta ──
 const _m = (id,tipo,pId,aId,cant,cu,ct,lote,fecha,motivo,doc,notas='') => ({
@@ -10,13 +16,27 @@ const _m = (id,tipo,pId,aId,cant,cu,ct,lote,fecha,motivo,doc,notas='') => ({
   lote,fecha,motivo,documento:doc,notas,usuarioId:'usr1',createdAt:`${fecha}T10:00:00Z`
 })
 
+// Base genérica — usada para tenants nuevos creados por registro
 export const CONFIG_DEFAULT = {
-  empresa:'Distribuidora Lima Norte S.A.C.',ruc:'20512345678',
-  direccion:'Av. Universitaria 2650, Los Olivos, Lima',telefono:'01-537-8900',
-  email:'operaciones@dlnorte.pe',logo:null,moneda:'PEN',simboloMoneda:'S/',
+  empresa:'',ruc:'',
+  direccion:'',telefono:'',email:'',logo:null,moneda:'PEN',simboloMoneda:'S/',
   formulaValorizacion:'PMP',alertaStockMinimo:true,alertaVencimiento:true,
   diasAlertaVencimiento:30,serieOC:'OC',serieMov:'MOV',
   whatsappResponsable:'',emailResponsable:'',alertasAutoWhatsApp:false,
+}
+
+// Datos iniciales por tenant demo — sobrescriben CONFIG_DEFAULT en el primer acceso
+export const CONFIGS_DEMO = {
+  dlnorte: {
+    empresa:'Distribuidora Lima Norte S.A.C.',ruc:'20512345678',
+    direccion:'Av. Universitaria 2650, Los Olivos, Lima',telefono:'01-537-8900',
+    email:'operaciones@dlnorte.pe',
+  },
+  acme: {
+    empresa:'ACME Distribuciones E.I.R.L.',ruc:'20598765432',
+    direccion:'Calle Los Pinos 342, Santiago de Surco, Lima',telefono:'01-445-7200',
+    email:'logistica@acme.pe',
+  },
 }
 
 export const CAT = [
@@ -219,16 +239,47 @@ export const OC = [
 ]
 
 export const ROLES = {
-  admin:     { label:'Administrador', permisos:['*','auditoria'] },
-  supervisor:{ label:'Supervisor',    permisos:['dashboard','inventario','movimientos','reportes','ordenes','proveedores','kardex','vencimientos','reorden','prevision','alertas','cotizaciones','clientes','despachos','transportes','cxc','proformas','mapa-almacen','lotes-series','financiero','kpis','sunat','portal-pedidos'] },
-  almacenero:{ label:'Almacenero',    permisos:['dashboard','inventario','entradas','salidas','ajustes','devoluciones','transferencias','kardex','vencimientos','inv-fisico','alertas','despachos','clientes','transportes'] },
+  admin: { label:'Administrador', permisos:['*'] },
+
+  supervisor: { label:'Supervisor', permisos:[
+    'dashboard','alertas',
+    'inventario','kardex','inv-fisico',
+    'entradas','salidas','ajustes','devoluciones','transferencias',
+    'ordenes','cotizaciones','proveedores',
+    'clientes','despachos','pedidos-internos','empaque','transportes',
+    'movimientos','vencimientos','reorden','prevision','reportes','kpis','sunat','financiero',
+    'proformas','cxc','portal-pedidos',
+    'mapa-almacen','lotes-series','lista-precios',
+    'cola-sync',
+  ]},
+
+  almacenero: { label:'Almacenero', permisos:[
+    'dashboard','alertas',
+    'inventario','kardex','inv-fisico',
+    'entradas','salidas','ajustes','devoluciones','transferencias',
+    'clientes','despachos','pedidos-internos','empaque','transportes',
+    'movimientos','vencimientos','reorden',
+    'mapa-almacen','lotes-series',
+  ]},
+
+  solicitante: { label:'Solicitante', permisos:['pedidos-internos'] },
 }
 
+// Tenant dlnorte — usuarios propios (se almacenan en sp_dlnorte_usuarios)
 export const USR = [
-  {id:'usr1',nombre:'Gerardo Ramos Vega',   email:'admin@dlnorte.pe',  password:'admin123',  rol:'admin',      activo:true,createdAt:'2024-08-01T00:00:00Z'},
-  {id:'usr2',nombre:'Carlos Huamán Torres', email:'carlos@dlnorte.pe', password:'carlos123', rol:'almacenero', activo:true,createdAt:'2024-08-01T00:00:00Z'},
-  {id:'usr3',nombre:'Ana Lucía Paredes',    email:'ana@dlnorte.pe',    password:'ana123',    rol:'supervisor', activo:true,createdAt:'2024-09-01T00:00:00Z'},
-  {id:'usr4',nombre:'Miguel Ángel Cáceres', email:'miguel@dlnorte.pe', password:'miguel123', rol:'almacenero', activo:true,createdAt:'2025-01-15T00:00:00Z'},
+  {id:'usr1',nombre:'Gerardo Ramos Vega',   email:'admin@dlnorte.pe',    password:'admin123',  rol:'admin',        areaId:'area6', empresaId:'dlnorte',activo:true,createdAt:'2024-08-01T00:00:00Z'},
+  {id:'usr2',nombre:'Carlos Huamán Torres', email:'carlos@dlnorte.pe',   password:'carlos123', rol:'almacenero',   areaId:'area5', empresaId:'dlnorte',activo:true,createdAt:'2024-08-01T00:00:00Z'},
+  {id:'usr3',nombre:'Ana Lucía Paredes',    email:'ana@dlnorte.pe',       password:'ana123',    rol:'supervisor',   areaId:'area5', empresaId:'dlnorte',activo:true,createdAt:'2024-09-01T00:00:00Z'},
+  {id:'usr4',nombre:'Miguel Ángel Cáceres', email:'miguel@dlnorte.pe',   password:'miguel123', rol:'almacenero',   areaId:'area5', empresaId:'dlnorte',activo:true,createdAt:'2025-01-15T00:00:00Z'},
+  // Solicitantes — clientes internos (solo pueden crear y ver sus propios pedidos)
+  {id:'usr5',nombre:'Patricia Luna Ríos',   email:'patricia@dlnorte.pe', password:'pat123',    rol:'solicitante',  areaId:'area2', empresaId:'dlnorte',activo:true,createdAt:'2025-01-20T00:00:00Z'},
+  {id:'usr6',nombre:'Omar Huamaní Díaz',    email:'omar@dlnorte.pe',     password:'omar123',   rol:'solicitante',  areaId:'area4', empresaId:'dlnorte',activo:true,createdAt:'2025-02-01T00:00:00Z'},
+]
+
+// Tenant acme — usuarios propios (se almacenan en sp_acme_usuarios)
+export const USR_ACME = [
+  {id:'acm1',nombre:'Valeria Quispe Flores',email:'admin@acme.pe',    password:'acme123',   rol:'admin',      empresaId:'acme',activo:true,createdAt:'2024-03-01T00:00:00Z'},
+  {id:'acm2',nombre:'Roberto Salinas Cruz', email:'roberto@acme.pe',  password:'rob123',    rol:'almacenero', empresaId:'acme',activo:true,createdAt:'2024-03-15T00:00:00Z'},
 ]
 
 export const AJ = [
@@ -315,4 +366,94 @@ export const CXC_DEMO = [
 export const PROF_DEMO = [
   {id:'prof1',numero:'PRO-001-0001',clienteId:'cli1',fecha:'2025-03-10',fechaVencimiento:'2025-03-24',estado:'ENVIADA', items:[{productoId:'prod1',descripcion:'Laptop HP 15"',cantidad:2,precioUnitario:3200,subtotal:6400},{productoId:'prod2',descripcion:'Monitor LG 24"',cantidad:2,precioUnitario:550,subtotal:1100}],subtotal:7500,igv:1350,total:8850,notas:'Precios válidos por 14 días.',createdAt:'2025-03-10T09:00:00Z'},
   {id:'prof2',numero:'PRO-001-0002',clienteId:'cli3',fecha:'2025-03-12',fechaVencimiento:'2025-03-26',estado:'BORRADOR',items:[{productoId:'prod7',descripcion:'Papel Bond A4',cantidad:10,precioUnitario:28,subtotal:280}],subtotal:280,igv:50.4,total:330.4,notas:'',createdAt:'2025-03-12T11:00:00Z'},
+]
+
+// ── Áreas internas (clientes internos del almacén) ──────────────
+export const AREAS_DEMO = [
+  {id:'area1',codigo:'ADM',nombre:'Administración',       descripcion:'Gestión administrativa y secretaría',            responsableId:'usr1',email:'admin@dlnorte.pe',  activo:true,createdAt:'2024-08-01T00:00:00Z'},
+  {id:'area2',codigo:'CON',nombre:'Contabilidad',          descripcion:'Contabilidad, finanzas y tesorería',             responsableId:'usr3',email:'contab@dlnorte.pe', activo:true,createdAt:'2024-08-01T00:00:00Z'},
+  {id:'area3',codigo:'RRH',nombre:'Recursos Humanos',      descripcion:'Gestión del personal y bienestar',               responsableId:'usr3',email:'rrhh@dlnorte.pe',   activo:true,createdAt:'2024-08-01T00:00:00Z'},
+  {id:'area4',codigo:'OPE',nombre:'Operaciones',           descripcion:'Operaciones de campo y producción',              responsableId:'usr2',email:'oper@dlnorte.pe',   activo:true,createdAt:'2024-08-01T00:00:00Z'},
+  {id:'area5',codigo:'LOG',nombre:'Logística',             descripcion:'Coordinación logística y distribución',          responsableId:'usr2',email:'log@dlnorte.pe',    activo:true,createdAt:'2024-08-01T00:00:00Z'},
+  {id:'area6',codigo:'GER',nombre:'Gerencia General',      descripcion:'Dirección y gerencia general de la empresa',     responsableId:'usr1',email:'gerencia@dlnorte.pe',activo:true,createdAt:'2024-08-01T00:00:00Z'},
+]
+
+// ── Pedidos Internos demo ────────────────────────────────────────
+// Estados: BORRADOR → ENVIADO → APROBADO → PICKING → ENTREGADO | RECHAZADO
+// Prioridades: NORMAL | URGENTE | CRÍTICO
+export const PI_DEMO = [
+  {
+    id:'pi1',numero:'NDI-001-0001',estado:'ENTREGADO',prioridad:'NORMAL',
+    areaId:'area1',usuarioSolicitaId:'usr2',almacenId:'alm1',
+    fecha:'2025-02-05',fechaRequerida:'2025-02-07',
+    fechaAprobacion:'2025-02-06',fechaEntrega:'2025-02-07',
+    items:[
+      {productoId:'prod11',cantidad:10,unidadMedida:'RESMA',notas:''},
+      {productoId:'prod12',cantidad:2, unidadMedida:'CJA',  notas:'Para archivado mensual'},
+    ],
+    notasSolicitud:'Reposición mensual de papelería para el área.',
+    notasAprobacion:'Aprobado. Stock disponible.',
+    motivoRechazo:'',
+    usuarioAprobadorId:'usr3',
+    createdAt:'2025-02-05T09:00:00Z',updatedAt:'2025-02-07T14:00:00Z',
+  },
+  {
+    id:'pi2',numero:'NDI-001-0002',estado:'ENVIADO',prioridad:'URGENTE',
+    areaId:'area4',usuarioSolicitaId:'usr2',almacenId:'alm2',
+    fecha:'2025-03-14',fechaRequerida:'2025-03-16',
+    fechaAprobacion:null,fechaEntrega:null,
+    items:[
+      {productoId:'prod21',cantidad:5,unidadMedida:'UND',notas:'Para nuevos operarios'},
+      {productoId:'prod22',cantidad:3,unidadMedida:'CJA',notas:'Reposición urgente'},
+    ],
+    notasSolicitud:'URGENTE: ingreso de nuevos operarios el lunes, necesitan EPP básico.',
+    notasAprobacion:'',
+    motivoRechazo:'',
+    usuarioAprobadorId:null,
+    createdAt:'2025-03-14T08:00:00Z',updatedAt:'2025-03-14T08:00:00Z',
+  },
+  {
+    id:'pi3',numero:'NDI-001-0003',estado:'APROBADO',prioridad:'CRÍTICO',
+    areaId:'area3',usuarioSolicitaId:'usr3',almacenId:'alm1',
+    fecha:'2025-03-12',fechaRequerida:'2025-03-14',
+    fechaAprobacion:'2025-03-12',fechaEntrega:null,
+    items:[
+      {productoId:'prod14',cantidad:12,unidadMedida:'UND',notas:'Stock agotado en piso'},
+      {productoId:'prod15',cantidad:8, unidadMedida:'UND',notas:''},
+    ],
+    notasSolicitud:'Insumos de limpieza CRÍTICOS. Área de trabajo sin stock desde ayer.',
+    notasAprobacion:'Aprobado con prioridad. Coordinar picking inmediato.',
+    motivoRechazo:'',
+    usuarioAprobadorId:'usr1',
+    createdAt:'2025-03-12T07:30:00Z',updatedAt:'2025-03-12T10:00:00Z',
+  },
+  {
+    id:'pi4',numero:'NDI-001-0004',estado:'BORRADOR',prioridad:'NORMAL',
+    areaId:'area2',usuarioSolicitaId:'usr3',almacenId:'alm1',
+    fecha:'2025-03-15',fechaRequerida:'2025-03-20',
+    fechaAprobacion:null,fechaEntrega:null,
+    items:[
+      {productoId:'prod13',cantidad:2,unidadMedida:'UND',notas:'Impresora de contabilidad'},
+      {productoId:'prod11',cantidad:5,unidadMedida:'RESMA',notas:''},
+    ],
+    notasSolicitud:'',
+    notasAprobacion:'',
+    motivoRechazo:'',
+    usuarioAprobadorId:null,
+    createdAt:'2025-03-15T11:00:00Z',updatedAt:'2025-03-15T11:00:00Z',
+  },
+  {
+    id:'pi5',numero:'NDI-001-0005',estado:'RECHAZADO',prioridad:'URGENTE',
+    areaId:'area5',usuarioSolicitaId:'usr2',almacenId:'alm2',
+    fecha:'2025-03-10',fechaRequerida:'2025-03-12',
+    fechaAprobacion:null,fechaEntrega:null,
+    items:[
+      {productoId:'prod7',cantidad:10,unidadMedida:'UND',notas:''},
+    ],
+    notasSolicitud:'Se necesitan cintas métricas para inventario de campo.',
+    notasAprobacion:'',
+    motivoRechazo:'Stock insuficiente en este momento. Reintente en 2 semanas cuando llegue reposición.',
+    usuarioAprobadorId:'usr1',
+    createdAt:'2025-03-10T09:00:00Z',updatedAt:'2025-03-11T10:00:00Z',
+  },
 ]

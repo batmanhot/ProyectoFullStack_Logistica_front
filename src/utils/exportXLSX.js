@@ -1,74 +1,10 @@
-/**
- * exportXLSX.js — Exportación a Excel FORMATEADA
- * Usa ExcelJS cargado dinámicamente desde CDN
- * ExcelJS sí soporta estilos (colores, negrita, bordes, autofit) a diferencia
- * de SheetJS free que ignora la propiedad .s en el output
- *
- * Formato igual a la imagen de referencia:
- *   - Fila 1 título del reporte (merge, verde oscuro, texto blanco grande)
- *   - Fila 2 metadata (empresa, fecha, total registros) gris
- *   - Fila 3 vacía separadora
- *   - Fila 4 cabeceras: fondo #0F4C35, texto blanco, negrita, centrado
- *   - Filas de datos: alternadas #1E2835 / #161D28, texto claro
- *   - Fila final TOTALES: fondo #0F4C35, texto verde, negrita
- *   - Columnas con autofit según contenido
- *   - Freeze primera fila de cabeceras
- *   - Bordes sutiles en todas las celdas de datos
- */
-
-let _ExcelJS = null
-
-async function loadExcelJS() {
-  if (_ExcelJS) return _ExcelJS
-  if (window.ExcelJS) { _ExcelJS = window.ExcelJS; return _ExcelJS }
-  await new Promise((res, rej) => {
-    const s = document.createElement('script')
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js'
-    s.onload = res
-    s.onerror = rej
-    document.head.appendChild(s)
-  })
-  _ExcelJS = window.ExcelJS
-  if (!_ExcelJS) throw new Error('ExcelJS no pudo cargarse')
-  return _ExcelJS
-}
-
-// ── Paleta de colores ─────────────────────────────────
-const COLOR = {
-  headerBg:    '0F4C35',   // verde oscuro cabecera
-  headerFg:    'FFFFFF',   // texto blanco
-  titleBg:     '082E1E',   // verde muy oscuro título
-  titleFg:     '00C896',   // verde acento
-  metaBg:      '1A2230',   // fondo meta
-  metaFg:      '9BA8B6',   // texto gris
-  rowEven:     '161D28',   // fila par
-  rowOdd:      '1E2835',   // fila impar
-  rowFg:       'E8EDF2',   // texto filas
-  rowFgMuted:  '9BA8B6',   // texto secundario
-  totalBg:     '0F4C35',   // fondo totales
-  totalFg:     '00C896',   // texto totales
-  borderColor: '2A3748',   // borde sutil
-}
-
-function borderStyle() {
-  const b = { style:'thin', color:{ argb:'FF'+COLOR.borderColor } }
-  return { top:b, left:b, bottom:b, right:b }
-}
-
-function fillSolid(hex) {
-  return { type:'pattern', pattern:'solid', fgColor:{ argb:'FF'+hex } }
-}
+import * as XLSX from 'xlsx'
+import { mostrarPreviewExport } from './exportPreview'
 
 /**
- * Función principal de exportación formateada
- * @param {string} titulo        Nombre del reporte
- * @param {string[]} cabeceras   Array de nombres de columna
- * @param {Array[]} filas        Array de arrays con datos
- * @param {string[]} totales     Fila de totales (opcional)
- * @param {string} empresa       Nombre de empresa
- * @param {string} nombreArchivo Nombre del archivo sin extensión
- * @param {Object} opciones      { anchos: number[] opcional }
+ * exportXLSX.js — Exportación a Excel usando SheetJS (xlsx) instalado como paquete npm
  */
+
 export async function exportarExcel({
   titulo,
   cabeceras,
@@ -78,123 +14,33 @@ export async function exportarExcel({
   nombreArchivo,
   opciones = {}
 }) {
-  const EJS = await loadExcelJS()
-  const wb  = new EJS.Workbook()
-  wb.creator  = 'StockPro v2.0'
-  wb.created  = new Date()
+  const ok = await mostrarPreviewExport({ titulo, cabeceras, filas, totales, empresa, tipo: 'excel' })
+  if (!ok) return
 
-  const ws = wb.addWorksheet(titulo.slice(0, 31), {
-    views: [{ state:'frozen', ySplit:4 }]  // freeze hasta fila 4 (inicio de datos)
-  })
+  const wb = XLSX.utils.book_new()
 
-  const nCols = cabeceras.length
-
-  // ── Fila 1: Título del reporte ────────────────────
-  ws.addRow([titulo])
-  const titleRow = ws.getRow(1)
-  titleRow.height = 28
-  ws.mergeCells(1, 1, 1, nCols)
-  const titleCell = ws.getCell('A1')
-  titleCell.value = titulo.toUpperCase()
-  titleCell.fill  = fillSolid(COLOR.titleBg)
-  titleCell.font  = { bold:true, size:13, color:{ argb:'FF'+COLOR.titleFg }, name:'Arial' }
-  titleCell.alignment = { horizontal:'left', vertical:'middle', indent:1 }
-  titleCell.border = borderStyle()
-
-  // ── Fila 2: Metadata ──────────────────────────────
   const hoy = new Date().toLocaleDateString('es-PE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
-  ws.addRow([`${empresa || 'StockPro'}   ·   Generado: ${hoy}   ·   ${filas.length} registros`])
-  const metaRow = ws.getRow(2)
-  metaRow.height = 16
-  ws.mergeCells(2, 1, 2, nCols)
-  const metaCell = ws.getCell('A2')
-  metaCell.fill  = fillSolid(COLOR.metaBg)
-  metaCell.font  = { size:8, color:{ argb:'FF'+COLOR.metaFg }, name:'Arial' }
-  metaCell.alignment = { horizontal:'left', vertical:'middle', indent:1 }
+  const meta = `${empresa || 'StockPro'}   ·   Generado: ${hoy}   ·   ${filas.length} registros`
 
-  // ── Fila 3: Vacía separadora ──────────────────────
-  ws.addRow([])
-  ws.getRow(3).height = 4
-  for (let c = 1; c <= nCols; c++) {
-    ws.getCell(3, c).fill = fillSolid(COLOR.metaBg)
-  }
+  const data = [
+    [titulo.toUpperCase()],
+    [meta],
+    [],
+    cabeceras,
+    ...filas,
+  ]
+  if (totales && totales.length) data.push(totales)
 
-  // ── Fila 4: Cabeceras ─────────────────────────────
-  ws.addRow(cabeceras)
-  const hdrRow = ws.getRow(4)
-  hdrRow.height = 22
-  hdrRow.eachCell((cell, colNum) => {
-    cell.value     = cell.value
-    cell.fill      = fillSolid(COLOR.headerBg)
-    cell.font      = { bold:true, size:9, color:{ argb:'FF'+COLOR.headerFg }, name:'Arial' }
-    cell.alignment = { horizontal:'center', vertical:'middle', wrapText:false }
-    cell.border    = borderStyle()
+  const ws = XLSX.utils.aoa_to_sheet(data)
+
+  ws['!cols'] = cabeceras.map((cab, ci) => {
+    const maxData = filas.reduce((mx, row) => Math.max(mx, String(row[ci] ?? '').length), 0)
+    const w = Math.min(40, Math.max(10, Math.max(String(cab).length, maxData) + 2))
+    return { wch: w }
   })
 
-  // ── Filas de datos ────────────────────────────────
-  filas.forEach((fila, rowIdx) => {
-    ws.addRow(fila)
-    const row    = ws.getRow(rowIdx + 5)  // filas empiezan en fila 5
-    const isEven = rowIdx % 2 === 0
-    row.height   = 16
-    row.eachCell({ includeEmpty:true }, (cell, colNum) => {
-      cell.fill   = fillSolid(isEven ? COLOR.rowEven : COLOR.rowOdd)
-      cell.font   = { size:8.5, color:{ argb:'FF'+COLOR.rowFg }, name:'Arial' }
-      cell.alignment = { vertical:'middle', indent:1 }
-      cell.border = borderStyle()
-
-      // Alinear números a la derecha
-      const val = cell.value
-      if (typeof val === 'number') {
-        cell.alignment = { horizontal:'right', vertical:'middle' }
-        cell.numFmt = '#,##0.00'
-      } else if (typeof val === 'string' && /^\d{2}\/\d{2}\/\d{4}/.test(val)) {
-        // Fechas centradas
-        cell.alignment = { horizontal:'center', vertical:'middle' }
-      }
-    })
-  })
-
-  // ── Fila de TOTALES ───────────────────────────────
-  if (totales && totales.length) {
-    ws.addRow(totales)
-    const totalRow = ws.getRow(filas.length + 5)
-    totalRow.height = 20
-    totalRow.eachCell({ includeEmpty:true }, (cell, colNum) => {
-      cell.fill      = fillSolid(COLOR.totalBg)
-      cell.font      = { bold:true, size:9, color:{ argb:'FF'+COLOR.totalFg }, name:'Arial' }
-      cell.alignment = typeof cell.value === 'number'
-        ? { horizontal:'right', vertical:'middle' }
-        : { horizontal:'left', vertical:'middle', indent:1 }
-      cell.border = borderStyle()
-      if (typeof cell.value === 'number') {
-        cell.numFmt = '#,##0.00'
-      }
-    })
-  }
-
-  // ── Autofit de columnas ───────────────────────────
-  // Calcular ancho por contenido de cabecera + datos
-  const anchos = cabeceras.map((cab, ci) => {
-    const maxData = filas.reduce((mx, row) => {
-      const len = String(row[ci] ?? '').length
-      return len > mx ? len : mx
-    }, 0)
-    const cabLen = String(cab).length
-    const raw    = Math.max(cabLen, maxData)
-    return opciones.anchos?.[ci] ?? Math.min(40, Math.max(8, raw + 2))
-  })
-  ws.columns = anchos.map(w => ({ width: w }))
-
-  // ── Descargar ─────────────────────────────────────
-  const buffer = await wb.xlsx.writeBuffer()
-  const blob   = new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-  const url    = URL.createObjectURL(blob)
-  const a      = document.createElement('a')
-  a.href       = url
-  a.download   = `${nombreArchivo}_${new Date().toISOString().split('T')[0]}.xlsx`
-  a.click()
-  URL.revokeObjectURL(url)
+  XLSX.utils.book_append_sheet(wb, ws, titulo.slice(0, 31))
+  XLSX.writeFile(wb, `${nombreArchivo}_${new Date().toISOString().split('T')[0]}.xlsx`)
 }
 
 // ══════════════════════════════════════════════════════

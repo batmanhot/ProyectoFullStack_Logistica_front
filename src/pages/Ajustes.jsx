@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { Plus, Search, SlidersHorizontal, TrendingUp, TrendingDown, Eye, Trash2, Download, FileText, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
@@ -105,9 +105,9 @@ export default function Ajustes() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
       {/* KPIs */}
-      <div className="grid grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {[
           ['Ajustes positivos', totales.positivos, '#22c55e', TrendingUp],
           ['Ajustes negativos', totales.negativos, '#ef4444', TrendingDown],

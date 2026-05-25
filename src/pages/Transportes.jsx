@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+﻿import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Plus, Search, Edit2, Trash2, Truck, MapPin, Clock,
   CheckCircle, X, Eye, Navigation as NavIcon, Package, AlertTriangle,
@@ -35,7 +35,7 @@ export default function Transportes() {
   const [tab, setTab] = useState('rutas')
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* Tabs */}
       <div className="flex gap-0.5 border-b border-white/[0.08]">
@@ -232,7 +232,7 @@ function TabRutas() {
   return (
     <>
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
           ['Programadas',  kpis.programadas, '#5f6f80', Clock      ],
           ['En Ruta',      kpis.enRuta,      '#3b82f6', NavIcon   ],
@@ -824,7 +824,7 @@ function TabTransportistas() {
 
   return (
     <>
-      <div className="grid grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {[
           ['Total',        kpis.total,    '#00c896'],
           ['Propios',      kpis.propios,  '#3b82f6'],

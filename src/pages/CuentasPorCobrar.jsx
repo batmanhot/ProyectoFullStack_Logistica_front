@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { Plus, Search, DollarSign, AlertTriangle, CheckCircle, Clock, Edit2, Trash2, FileText, Download, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy } from '../utils/helpers'
@@ -74,9 +74,9 @@ export default function CuentasPorCobrar() {
   function cliNombre(id) { return clientes.find(c=>c.id===id)?.razonSocial || '—' }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
           { label:'Por cobrar',      val:formatCurrency(kpis.total, simboloMoneda), color:'#3b82f6', Icon:DollarSign, mono:true },
           { label:'En mora',         val:formatCurrency(kpis.mora,  simboloMoneda), color:'#ef4444', Icon:AlertTriangle, mono:true },

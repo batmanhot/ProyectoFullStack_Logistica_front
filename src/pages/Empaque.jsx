@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Empaque.jsx — Módulo de Empaque y Packing
  *
  * LÓGICA:
@@ -158,10 +158,10 @@ export default function Empaque() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
           { label:'Sin empaque',      val:kpis.sinEmpaque, color:'#ef4444', onClick:()=>setFiltEmp('sin')        },
           { label:'Empaque pendiente',val:kpis.pendiente,  color:'#f59e0b', onClick:()=>setFiltEmp('pendiente')  },

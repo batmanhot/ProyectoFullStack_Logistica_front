@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PortalProveedoresB2B.jsx — Portal de Proveedores (B2B)
  *
  * ESTRUCTURA:
@@ -397,7 +397,7 @@ export default function PortalProveedoresB2B() {
   const ocSinFac   = ocVigentes.filter(o=>!facturas.some(f=>f.ocId===o.id))
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* ── Banner explicativo — idéntico al de PortalPedidos ── */}
       <div className="flex items-center gap-4 px-5 py-4 rounded-xl"
@@ -417,7 +417,7 @@ export default function PortalProveedoresB2B() {
       </div>
 
       {/* ── KPIs ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label:'Proveedores con OC', val:provConOC.length,    color:'#00c896' },
           { label:'OC vigentes',        val:ocVigentes.length,   color:'#3b82f6' },

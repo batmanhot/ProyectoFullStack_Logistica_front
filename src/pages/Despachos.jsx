@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { Plus, Search, Eye, Truck, Package, CheckCircle, X,
          ClipboardList, ArrowRight, FileText, MapPin, MessageCircle, Mail, ChevronUp, ChevronDown, Printer } from 'lucide-react'
 
@@ -205,10 +205,10 @@ export default function Despachos() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         {[
           ['Pedidos',     kpis.pedidos,    '#5f6f80', ClipboardList],
           ['En proceso',  kpis.enProceso,  '#f59e0b', Package      ],

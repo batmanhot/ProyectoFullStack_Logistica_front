@@ -1,4 +1,4 @@
-/**
+﻿/**
  * MapaAlmacen.jsx — Mapa Visual de Almacén
  *
  * CÓMO FUNCIONA:
@@ -145,10 +145,10 @@ export default function MapaAlmacen() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
           { label:'Total ubicaciones', val:kpis.total,         color:'#3b82f6' },
           { label:'Ocupadas',          val:kpis.ocupadas,      color:'#00c896' },

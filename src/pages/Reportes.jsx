@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+﻿import { useMemo, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
          LineChart, Line, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
 import { Download, TrendingUp, TrendingDown, DollarSign, Percent, Package } from 'lucide-react'
@@ -152,7 +152,7 @@ export default function Reportes() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* Tabs */}
       <div className="flex gap-0.5 border-b border-white/[0.08] overflow-x-auto">
@@ -172,7 +172,7 @@ export default function Reportes() {
         <div className="flex flex-col gap-5">
 
           {/* KPIs */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {[
               { label:'Ingresos totales', val: formatCurrency(kpisRent.totalIngresos, simboloMoneda), color:'#3b82f6',  icon:DollarSign, mono:true },
               { label:'Costo de ventas',  val: formatCurrency(kpisRent.totalCosto,    simboloMoneda), color:'#ef4444',  icon:Package,    mono:true },

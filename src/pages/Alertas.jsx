@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+﻿import { useMemo, useState } from 'react'
 import {
   Bell, CheckCheck, AlertTriangle, Clock, TrendingDown,
   ShoppingCart, Package, CheckCircle, X, Eye,
@@ -134,17 +134,17 @@ export default function Alertas() {
   }, [alertas])
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* KPIs por tipo */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        {[['Todas', 'all', Bell], ...Object.entries(TIPOS).map(([k,v]) => [v.label, k, v.icon])].map(([label, key, Icon]) => {
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
+        {[['Todas', 'all', Bell], ...Object.entries(TIPOS).map(([k,v]) => [v.label, k, v.icon])].map(([label, key]) => {
           const count  = key === 'all' ? conteos.all : (conteos[key] || 0)
           const activo = filtroTipo === key
           const meta   = key !== 'all' ? TIPOS[key] : null
           return (
             <button key={key} onClick={() => setFiltroTipo(key)}
-              className="relative text-left p-4 rounded-xl border transition-all overflow-hidden"
+              className="relative text-left p-3.5 sm:p-4 rounded-xl border transition-all overflow-hidden"
               style={{
                 background:  activo ? 'rgba(0,200,150,0.08)' : '#161d28',
                 borderColor: activo ? '#00c896' : 'rgba(255,255,255,0.08)',
@@ -152,15 +152,14 @@ export default function Alertas() {
               <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl"
                 style={{ background: activo ? '#00c896' : 'transparent' }}/>
               <div className="flex items-center justify-between mb-2">
-                <Icon size={14} className={activo ? 'text-[#00c896]' : (meta?.txt || 'text-[#5f6f80]')}/>
                 {count > 0 && (
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${meta?.bg || 'bg-red-500/15'} ${meta?.txt || 'text-red-400'}`}>
                     {count}
                   </span>
                 )}
               </div>
-              <div className="text-[22px] font-semibold text-[#e8edf2]">{count}</div>
-              <div className="text-[11px] text-[#5f6f80] mt-0.5 leading-tight">{label}</div>
+              <div className="text-[20px] sm:text-[22px] font-semibold text-[#e8edf2]">{count}</div>
+              <div className="text-[10px] sm:text-[11px] text-[#5f6f80] mt-0.5 leading-tight">{label}</div>
             </button>
           )
         })}

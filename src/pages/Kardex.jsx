@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+﻿import { useState, useMemo, useRef, useEffect } from 'react'
 import { Search, Download, BookOpen, ArrowDownToLine, ArrowUpFromLine,
          SlidersHorizontal, RotateCcw, ArrowRightLeft, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
@@ -131,7 +131,7 @@ export default function Kardex() {
   const catNombre = id => categorias.find(c => c.id === id)?.nombre || '—'
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* ── Selector de producto con buscador autocomplete ── */}
       <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">

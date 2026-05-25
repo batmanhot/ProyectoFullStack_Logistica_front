@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { Search, Download, Boxes, ArrowDownToLine, ArrowUpFromLine, FileSpreadsheet, FileText } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { jsPDF } from 'jspdf'
@@ -179,8 +179,8 @@ export default function Movimientos() {
 
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
-      <div className="grid grid-cols-3 gap-3.5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {[['Entradas (filtradas)', formatCurrency(totales.entradas, simboloMoneda), '#22c55e'], ['Salidas (filtradas)', formatCurrency(totales.salidas, simboloMoneda), '#ef4444'], ['Movimientos', totales.count, '#3b82f6']].map(([l, v, c]) => (
           <div key={l} className="relative bg-[#161d28] border border-white/[0.08] rounded-xl px-5 py-4 overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ background: c }} />

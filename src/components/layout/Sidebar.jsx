@@ -1,63 +1,133 @@
 import { NavLink } from 'react-router-dom'
-import logoImg from '../../assets/logo.png'
-import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Globe, Target, Zap} from 'lucide-react'
+import { useMemo, useState, useRef, useEffect } from 'react'
+import logoImg from '../../assets/logo.webp'
+import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Globe, Target, Zap, Palette, Check, RefreshCw} from 'lucide-react'
 import { useApp } from '../../store/AppContext'
+import { useTheme } from '../../hooks/useTheme'
 import { estadoStock, diasParaVencer } from '../../utils/helpers'
+import StorageWidget from '../ui/StorageWidget'
+import OfflineBanner from '../ui/OfflineBanner'
+
+const ROLES_LABEL = { admin:'Administrador', supervisor:'Supervisor', almacenero:'Almacenero', solicitante:'Solicitante' }
 
 const NAV = [
-  { label:'Dashboard',            path:'/',               icon:LayoutDashboard,  modulo:'dashboard'     },
-  { label:'Alertas',              path:'/alertas',        icon:Bell,             modulo:'alertas',      badge:'alertas' },
+  { label:'Dashboard',             path:'/',                icon:LayoutDashboard,  modulo:'dashboard',      color:'#3b82f6' },
+  { label:'Alertas',               path:'/alertas',         icon:Bell,             modulo:'alertas',        color:'#ef4444', badge:'alertas' },
   { divider:true, label:'INVENTARIO' },
-  { label:'Inventario',           path:'/inventario',     icon:Package,          modulo:'inventario',   badge:'stock' },
-  { label:'Kardex',               path:'/kardex',         icon:BookOpen,         modulo:'kardex'        },
-  { label:'Inventario Físico',    path:'/inv-fisico',     icon:ClipboardList,    modulo:'inv-fisico'    },
+  { label:'Inventario',            path:'/inventario',      icon:Package,          modulo:'inventario',     color:'#f59e0b', badge:'stock' },
+  { label:'Kardex',                path:'/kardex',          icon:BookOpen,         modulo:'kardex',         color:'#8b5cf6' },
+  { label:'Inventario Físico',     path:'/inv-fisico',      icon:ClipboardList,    modulo:'inv-fisico',     color:'#06b6d4' },
   { divider:true, label:'OPERACIONES' },
-  { label:'Entradas',             path:'/entradas',       icon:ArrowDownToLine,  modulo:'entradas'      },
-  { label:'Salidas',              path:'/salidas',        icon:ArrowUpFromLine,  modulo:'salidas'       },
-  { label:'Ajustes',              path:'/ajustes',        icon:SlidersHorizontal,modulo:'ajustes'       },
-  { label:'Devoluciones',         path:'/devoluciones',   icon:RotateCcw,        modulo:'devoluciones'  },
-  { label:'Transferencias',       path:'/transferencias', icon:ArrowRightLeft,   modulo:'transferencias'},
+  { label:'Entradas',              path:'/entradas',        icon:ArrowDownToLine,  modulo:'entradas',       color:'#10b981' },
+  { label:'Salidas',               path:'/salidas',         icon:ArrowUpFromLine,  modulo:'salidas',        color:'#f43f5e' },
+  { label:'Ajustes',               path:'/ajustes',         icon:SlidersHorizontal,modulo:'ajustes',        color:'#6366f1' },
+  { label:'Devoluciones',          path:'/devoluciones',    icon:RotateCcw,        modulo:'devoluciones',   color:'#f97316' },
+  { label:'Transferencias',        path:'/transferencias',  icon:ArrowRightLeft,   modulo:'transferencias', color:'#a855f7' },
   { divider:true, label:'COMPRAS' },
-  { label:'Órdenes de Compra',    path:'/ordenes',        icon:ShoppingCart,     modulo:'ordenes'       },
-  { label:'Cotizaciones',         path:'/cotizaciones',   icon:FileText,         modulo:'cotizaciones'  },
-  { label:'Proveedores',          path:'/proveedores',    icon:Building2,        modulo:'proveedores'   },
+  { label:'Órdenes de Compra',     path:'/ordenes',         icon:ShoppingCart,     modulo:'ordenes',        color:'#0ea5e9' },
+  { label:'Cotizaciones',          path:'/cotizaciones',    icon:FileText,         modulo:'cotizaciones',   color:'#84cc16' },
+  { label:'Proveedores',           path:'/proveedores',     icon:Building2,        modulo:'proveedores',    color:'#f59e0b' },
   { divider:true, label:'DESPACHOS' },
-  { label:'Clientes',             path:'/clientes',       icon:Users,            modulo:'clientes'      },
-  { label:'Despachos',            path:'/despachos',      icon:Truck,            modulo:'despachos'     },
-  { label:'Empaque / Packing',     path:'/empaque',        icon:Package,          modulo:'empaque'       },
-  { label:'Transportes',          path:'/transportes',    icon:NavIcon,          modulo:'transportes'   },
-  { label:'Flota y Mantenimiento',  path:'/flota',       icon:Wrench,           modulo:'flota'         },
+  { label:'Clientes',              path:'/clientes',        icon:Users,            modulo:'clientes',       color:'#10b981' },
+  { label:'Despachos',             path:'/despachos',       icon:Truck,            modulo:'despachos',      color:'#3b82f6' },
+  { label:'Pedidos Internos',      path:'/pedidos-internos',icon:ClipboardList,    modulo:'pedidos-internos', color:'#f97316', badge:'pedidos-internos' },
+  { label:'Empaque / Packing',     path:'/empaque',         icon:Package,          modulo:'empaque',        color:'#06b6d4' },
+  { label:'Transportes',           path:'/transportes',     icon:NavIcon,          modulo:'transportes',    color:'#0ea5e9' },
+  { label:'Flota y Mantenimiento', path:'/flota',           icon:Wrench,           modulo:'flota',          color:'#94a3b8' },
   { divider:true, label:'ANÁLISIS' },
-  { label:'Movimientos',          path:'/movimientos',    icon:Boxes,            modulo:'movimientos'   },
-  { label:'Vencimientos',         path:'/vencimientos',   icon:Clock,            modulo:'vencimientos'  },
-  { label:'Punto de Reorden',     path:'/reorden',        icon:TrendingDown,     modulo:'reorden'       },
-  { label:'Previsión de Demanda', path:'/prevision',      icon:Activity,         modulo:'prevision'     },
-  { label:'Reportes',             path:'/reportes',       icon:BarChart3,        modulo:'reportes'      },
-  { label:'KPIs Operativos',      path:'/kpis',           icon:Target,           modulo:'kpis'          },
-  { label:'SUNAT / Fact. Elect.', path:'/sunat',          icon:Zap,              modulo:'sunat'         },
-  { label:'Reportes Contables',   path:'/contabilidad',   icon:BookOpen,         modulo:'reportes'      },
-  { label:'Trazabilidad Pedidos', path:'/trazabilidad',   icon:ArrowRightLeft,   modulo:'despachos'     },
-  { label:'Dashboard Financiero', path:'/financiero',   icon:TrendingUp,       modulo:'financiero'    },
+  { label:'Movimientos',           path:'/movimientos',     icon:Boxes,            modulo:'movimientos',    color:'#8b5cf6' },
+  { label:'Vencimientos',          path:'/vencimientos',    icon:Clock,            modulo:'vencimientos',   color:'#ef4444' },
+  { label:'Punto de Reorden',      path:'/reorden',         icon:TrendingDown,     modulo:'reorden',        color:'#f59e0b' },
+  { label:'Previsión de Demanda',  path:'/prevision',       icon:Activity,         modulo:'prevision',      color:'#6366f1' },
+  { label:'Reportes',              path:'/reportes',        icon:BarChart3,        modulo:'reportes',       color:'#3b82f6' },
+  { label:'KPIs Operativos',       path:'/kpis',            icon:Target,           modulo:'kpis',           color:'#10b981' },
+  { label:'SUNAT / Fact. Elect.',  path:'/sunat',           icon:Zap,              modulo:'sunat',          color:'#eab308' },
+  { label:'Reportes Contables',    path:'/contabilidad',    icon:BookOpen,         modulo:'reportes',       color:'#a855f7' },
+  { label:'Trazabilidad Pedidos',  path:'/trazabilidad',    icon:ArrowRightLeft,   modulo:'despachos',      color:'#06b6d4' },
+  { label:'Dashboard Financiero',  path:'/financiero',      icon:TrendingUp,       modulo:'financiero',     color:'#22c55e' },
   { divider:true, label:'VENTAS' },
-  { label:'Proformas / Cotiz.',    path:'/proformas',    icon:FileText,         modulo:'proformas'     },
-  { label:'Cuentas por Cobrar',   path:'/cxc',          icon:DollarSign,       modulo:'cxc'           },
-  { label:'Portal de Pedidos',    path:'/portal-pedidos',icon:Globe,            modulo:'portal-pedidos'},
+  { label:'Proformas / Cotiz.',    path:'/proformas',       icon:FileText,         modulo:'proformas',      color:'#84cc16' },
+  { label:'Cuentas por Cobrar',    path:'/cxc',             icon:DollarSign,       modulo:'cxc',            color:'#f43f5e' },
+  { label:'Portal de Pedidos',     path:'/portal-pedidos',  icon:Globe,            modulo:'portal-pedidos', color:'#0ea5e9' },
   { divider:true, label:'ALMACÉN' },
-  { label:'Mapa de Almacén',      path:'/mapa-almacen', icon:Grid3x3,          modulo:'mapa-almacen'  },
-  { label:'Lotes y Series',       path:'/lotes-series', icon:Layers,           modulo:'lotes-series'  },
-  { label:'Lista de Precios',     path:'/lista-precios',icon:Tag,              modulo:'lista-precios' },
+  { label:'Mapa de Almacén',       path:'/mapa-almacen',    icon:Grid3x3,          modulo:'mapa-almacen',   color:'#8b5cf6' },
+  { label:'Lotes y Series',        path:'/lotes-series',    icon:Layers,           modulo:'lotes-series',   color:'#f97316' },
+  { label:'Lista de Precios',      path:'/lista-precios',   icon:Tag,              modulo:'lista-precios',  color:'#eab308' },
   { divider:true, label:'ADMINISTRACIÓN' },
-  { label:'Categ. / Almacenes',   path:'/maestros',       icon:Tag,              modulo:'maestros'      },
-  { label:'Usuarios y Roles',     path:'/usuarios',       icon:Users,            modulo:'usuarios'      },
-  { label:'Auditoría',            path:'/auditoria',      icon:Shield,           modulo:'auditoria'     },
-  { label:'Configuración',        path:'/configuracion',  icon:Settings,         modulo:'configuracion' },
-  { label:'App Móvil / PWA',      path:'/pwa',            icon:Smartphone,       modulo:'pwa'           },
-  { label:'App Móvil Optimizada', path:'/pwa-movil',      icon:Smartphone,       modulo:'pwa'           },
-  { label:'Portal Proveedores B2B',path:'/portal-prov-b2b',icon:Building2,       modulo:'proveedores'   },
+  { label:'Usuarios y Roles',      path:'/usuarios',        icon:Users,            modulo:'usuarios',       color:'#6366f1' },
+  { label:'Auditoría',             path:'/auditoria',       icon:Shield,           modulo:'auditoria',      color:'#ef4444' },
+  { label:'Cola de Sincronización',path:'/cola-sync',       icon:RefreshCw,        modulo:'cola-sync',      color:'#f59e0b' },
+  { label:'Configuración',         path:'/configuracion',   icon:Settings,         modulo:'configuracion',  color:'#94a3b8' },
+
+  { label:'Portal Proveedores B2B',path:'/portal-prov-b2b', icon:Building2,        modulo:'proveedores',    color:'#0ea5e9' },
 ]
 
+function SidebarThemeButton({ collapsed }) {
+  const { current, applyTheme, themes } = useTheme()
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    function h(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    if (open) document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative px-2 py-1">
+      <button
+        onClick={() => setOpen(o => !o)}
+        title="Cambiar tema de apariencia"
+        className={`w-full flex items-center gap-3 mx-0 rounded-lg transition-all duration-150 overflow-hidden whitespace-nowrap
+          ${collapsed ? 'px-0 justify-center h-10' : 'px-3 py-2'}
+          ${open ? 'bg-white/8' : 'hover:bg-white/5'}`}
+        style={{ color: open ? 'var(--sidebar-fg-muted)' : 'var(--sidebar-fg-nav)' }}>
+        <Palette size={16} className="shrink-0" style={{ opacity: 0.75 }}/>
+        {!collapsed && (
+          <>
+            <span className="flex-1 text-[13.5px] font-medium text-left">Apariencia</span>
+            <span className="text-[11px] font-semibold shrink-0" style={{ color: current.accent }}>
+              {current.emoji} {current.label}
+            </span>
+          </>
+        )}
+      </button>
+      {open && (
+        <div
+          className="absolute z-[9999] border border-white/12 rounded-xl shadow-2xl overflow-hidden p-1.5"
+          style={{
+            background: 'var(--bg-surface)',
+            ...(collapsed
+              ? { left: '100%', marginLeft: 8, bottom: 0, minWidth: 220 }
+              : { bottom: '100%', left: 0, right: 0, marginBottom: 4 })
+          }}>
+          <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest"
+            style={{ color: 'var(--sidebar-fg-faint)' }}>Tema de color</div>
+          {themes.map(t => (
+            <button key={t.id} onClick={() => { applyTheme(t.id); setOpen(false) }}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-white/5 transition-colors text-left">
+              <div className="flex gap-1 shrink-0">
+                {t.preview.map((c, i) => (
+                  <div key={i} className="w-3 h-3 rounded-full border border-white/20" style={{ background: c }}/>
+                ))}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[12px] font-semibold" style={{ color: current.id === t.id ? t.accent : 'var(--text-primary)' }}>
+                  {t.emoji} {t.label}
+                </div>
+                <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{t.desc}</div>
+              </div>
+              {current.id === t.id && <Check size={12} style={{ color: t.accent, flexShrink: 0 }}/>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Sidebar({ collapsed, onToggle }) {
-  const { productos, sesion, logout, tienePermiso, config } = useApp()
+  const { productos, pedidosInternos, sesion, logout, tienePermiso, config } = useApp()
 
   const stockCritico = productos.filter(p => {
     const e = estadoStock(p.stockActual, p.stockMinimo)
@@ -72,112 +142,131 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   const totalAlertas = stockCritico + alertasVenc
 
+  const pedidosBadge = useMemo(() => {
+    if (!sesion || !pedidosInternos?.length) return 0
+    if (sesion.rol === 'solicitante') {
+      return pedidosInternos.filter(p =>
+        p.areaId === sesion.areaId && p.estado === 'ENTREGADO' && !p.reciboConfirmado
+      ).length
+    }
+    return pedidosInternos.filter(p => p.estado === 'ENVIADO').length
+  }, [pedidosInternos, sesion])
+
+  const navVisible = useMemo(() => {
+    if (!sesion) return NAV
+    const marked = NAV.map(item => {
+      if (item.divider) return item
+      if (!tienePermiso(item.modulo)) return null
+      return item
+    })
+    const result = []
+    for (let i = 0; i < marked.length; i++) {
+      const item = marked[i]
+      if (!item) continue
+      if (item.divider) {
+        let hasItems = false
+        for (let j = i + 1; j < marked.length; j++) {
+          if (marked[j]?.divider) break
+          if (marked[j] !== null) { hasItems = true; break }
+        }
+        if (hasItems) result.push(item)
+      } else {
+        result.push(item)
+      }
+    }
+    return result
+  }, [sesion, tienePermiso])
+
   return (
-    <aside className={`flex flex-col bg-[#0f1520] border-r border-white/[0.07] transition-all duration-250 shrink-0 overflow-y-auto z-10 ${collapsed ? 'w-[60px]' : 'w-[252px]'}`}>
+    <aside
+      className={`flex flex-col border-r border-white/[0.07] transition-all duration-250 shrink-0 overflow-y-auto z-10 ${collapsed ? 'w-15' : 'w-63'}`}
+      style={{ background: 'var(--bg-sidebar)' }}>
 
       {/* ── CABECERA / LOGO ──────────────────────────── */}
       {collapsed ? (
-        /* Modo colapsado — solo logo pequeño + botón expandir */
-        <div className="flex flex-col items-center border-b border-white/[0.07] shrink-0 sticky top-0 bg-[#0f1520] z-10 py-3 gap-2">
+        <div className="flex flex-col items-center border-b border-white/[0.07] shrink-0 sticky top-0 z-10 py-3 gap-2"
+          style={{ background: 'var(--bg-sidebar)' }}>
           <img src={logoImg} alt="StockPro" className="w-9 h-9 object-contain rounded-lg" style={{ filter:'brightness(1.1)' }}/>
           <button onClick={onToggle} title="Expandir menú"
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#5f6f80] hover:text-[#e8edf2] hover:bg-white/[0.06] transition-all">
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/6 transition-all"
+            style={{ color: 'var(--sidebar-fg-muted)' }}>
             <ChevronRight size={15}/>
           </button>
         </div>
       ) : (
-        /* Modo expandido — cabecera de alto impacto */
-        <div className="shrink-0 sticky top-0 z-10 overflow-hidden"
-          style={{ background:'linear-gradient(160deg, #0f1a2e 0%, #0f1520 60%, #121a1f 100%)' }}>
+        <div className="shrink-0 sticky top-0 z-10" style={{ background: 'var(--sidebar-brand)' }}>
 
-          {/* Línea superior decorativa */}
-          <div className="h-[2px] w-full" style={{ background:'linear-gradient(90deg, #f97316, #00c896, #3b82f6)' }}/>
+          {/* Barra acento superior */}
+          <div style={{ height: 2, background: 'var(--sidebar-line)' }}/>
 
-          {/* Contenido principal */}
+          {/* Bloque — Identidad de la app */}
           <div className="flex items-center gap-3 px-4 pt-3.5 pb-3">
 
-            {/* Logo image */}
-            <div className="relative shrink-0">
-              <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center"
-                style={{ background:'radial-gradient(circle at 40% 40%, #1a2a3a, #0a1020)', boxShadow:'0 0 20px rgba(249,115,22,0.25), 0 4px 12px rgba(0,0,0,0.5)' }}>
-                <img src={logoImg} alt="Logo" className="w-11 h-11 object-contain" style={{ filter:'brightness(1.05) contrast(1.05)' }}/>
-              </div>
-              {/* Badge live */}
-              <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#00c896] border-2 border-[#0f1520]"
-                style={{ boxShadow:'0 0 6px rgba(0,200,150,0.8)' }}/>
+            <div className="w-11 h-11 shrink-0 flex items-center justify-center overflow-hidden">
+              <img src={logoImg} alt="Logo" className="w-11 h-11 object-contain" style={{ filter:'brightness(1.08)' }}/>
             </div>
 
-            {/* Textos */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-baseline gap-1 leading-none mb-1">
-                <span className="text-[20px] font-black text-white tracking-tight"
-                  style={{ fontFamily:"'DM Sans','Inter',system-ui", letterSpacing:'-0.04em', textShadow:'0 0 20px rgba(249,115,22,0.3)' }}>
-                  Stock
-                </span>
-                <span className="text-[20px] font-black tracking-tight"
-                  style={{ fontFamily:"'DM Sans','Inter',system-ui", letterSpacing:'-0.04em', color:'#f97316', textShadow:'0 0 16px rgba(249,115,22,0.5)' }}>
-                  Pro
-                </span>
+              <div className="text-[13.5px] font-bold truncate leading-snug" style={{ color: 'var(--sidebar-fg)' }}>
+                {config?.empresa || 'Mi Empresa'}
               </div>
-              <div className="text-[9px] font-bold tracking-[0.22em] uppercase"
-                style={{ color:'#00c896', opacity:0.8, letterSpacing:'0.2em' }}>
-                Gestión Logística
+              <div className="flex items-center gap-1.5 mt-0.75">
+                <span className="text-[10px] font-bold uppercase tracking-[0.06em]"
+                  style={{ color: 'var(--accent)', opacity: 0.75 }}>StockPro</span>
+                <span className="text-[9px] px-1.5 py-px rounded font-semibold"
+                  style={{ color: 'var(--sidebar-fg-muted)', background: 'var(--sidebar-surface)', letterSpacing: '0.03em' }}>
+                  {config?.version ? config.version.replace(/stockpro\s*/i, '') : 'v2.0'}
+                </span>
               </div>
             </div>
 
-            {/* Botón colapsar */}
             <button onClick={onToggle} title="Colapsar menú"
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-[#3d4f60] hover:text-[#9ba8b6] hover:bg-white/[0.06] transition-all shrink-0">
-              <ChevronLeft size={14}/>
+              className="w-7 h-7 flex items-center justify-center rounded-lg transition-all shrink-0"
+              style={{ color: 'var(--sidebar-fg-muted)', background: 'var(--sidebar-surface)', border: '1px solid var(--border)' }}>
+              <ChevronLeft size={15}/>
             </button>
           </div>
 
-          {/* Versión/modo pill */}
-          {config?.modoSistema && (
-            <div className="px-4 pb-2.5 flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#00c896] animate-pulse shrink-0"/>
-              <span className="text-[10px] font-medium tracking-wide" style={{ color:'rgba(0,200,150,0.65)' }}>
-                {config.version || 'v2.0'} · {config.modoSistema?.split('—')[0]?.trim()}
-              </span>
-            </div>
-          )}
-
-          {/* Línea inferior degradada */}
-          <div className="h-px" style={{ background:'linear-gradient(90deg, rgba(249,115,22,0.3), rgba(0,200,150,0.2), transparent)' }}/>
+          <div style={{ height: 1, background: 'var(--border)' }}/>
         </div>
       )}
 
-
-
-      {/* Nav */}
+      {/* ── NAV ──────────────────────────────────────── */}
       <nav className="flex-1 py-2">
-        {NAV.map((item, i) => {
+        {navVisible.map((item, i) => {
           if (item.divider) return (
             <div key={i} className="mt-1">
-              <div className="h-px bg-white/[0.05] mx-3 mb-1"/>
+              <div className="h-px bg-white/5 mx-3 mb-1"/>
               {!collapsed && item.label && (
-                <div className="px-4 py-1 text-[9.5px] font-bold text-[#3d4f60] uppercase tracking-[0.14em]">{item.label}</div>
+                <div className="px-4 py-1 text-[9.5px] font-bold uppercase tracking-[0.14em]"
+                  style={{ color: 'var(--sidebar-fg-faint)' }}>{item.label}</div>
               )}
             </div>
           )
-          if (sesion) {
-            const libre = ['configuracion','pwa','auditoria','flota','financiero'].includes(item.modulo)
-            if (!libre && !tienePermiso(item.modulo)) return null
-            if (item.modulo === 'auditoria' && sesion.rol !== 'admin') return null
-          }
           const Icon = item.icon
-          const badgeCount = item.badge === 'stock' ? stockCritico : item.badge === 'alertas' ? totalAlertas : 0
+          const badgeCount = item.badge === 'stock' ? stockCritico
+            : item.badge === 'alertas' ? totalAlertas
+            : item.badge === 'pedidos-internos' ? pedidosBadge
+            : 0
           return (
             <NavLink key={item.path} to={item.path} end={item.path === '/'} title={collapsed ? item.label : undefined}
               className={({ isActive }) =>
-                `flex items-center gap-3 mx-2 my-[2px] rounded-lg transition-all duration-150 no-underline overflow-hidden whitespace-nowrap relative
-                ${collapsed ? 'px-0 justify-center h-10' : 'px-3 py-[8px]'}
-                ${isActive ? 'bg-[#00c896]/12 text-[#00c896]' : 'text-[#7a8fa8] hover:text-[#d0dae6] hover:bg-white/[0.05]'}`
-              }>
+                `flex items-center gap-3 mx-2 my-0.5 rounded-lg transition-all duration-150 no-underline overflow-hidden whitespace-nowrap relative
+                ${collapsed ? 'px-0 justify-center h-10' : 'px-3 py-2'}
+                ${isActive ? '' : 'hover:bg-white/5'}`
+              }
+              style={({ isActive }) => isActive
+                ? { background: 'var(--accent-dim)', color: 'var(--accent)' }
+                : { color: 'var(--sidebar-fg-nav)' }}>
               {({ isActive }) => (<>
-                {isActive && !collapsed && <div className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full bg-[#00c896]"/>}
-                <Icon size={16} className="shrink-0" style={{ opacity: isActive ? 1 : 0.65 }}/>
-                {!collapsed && <span className="flex-1 text-[13.5px] font-medium overflow-hidden text-ellipsis leading-snug">{item.label}</span>}
+                {isActive && !collapsed && (
+                  <div className="absolute left-0 top-1 bottom-1 w-0.75 rounded-full" style={{ background: 'var(--accent)' }}/>
+                )}
+                <Icon size={16} className="shrink-0"
+                  style={{ color: isActive ? 'var(--accent)' : item.color, opacity: isActive ? 1 : 0.85 }}/>
+                {!collapsed && (
+                  <span className="flex-1 text-[13.5px] font-medium overflow-hidden text-ellipsis leading-snug">{item.label}</span>
+                )}
                 {badgeCount > 0 && (
                   collapsed
                     ? <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500"/>
@@ -189,29 +278,47 @@ export default function Sidebar({ collapsed, onToggle }) {
         })}
       </nav>
 
-      {/* Footer */}
+      {/* ── FOOTER ───────────────────────────────────── */}
       {sesion && (
-        <div className={`border-t border-white/[0.07] sticky bottom-0 bg-[#0f1520] ${collapsed ? 'p-2' : 'px-3 py-3'}`}>
-          {collapsed ? (
-            <button onClick={logout} title="Cerrar sesión"
-              className="w-full h-10 flex items-center justify-center text-[#5f6f80] hover:text-red-400 transition-colors rounded-lg hover:bg-white/[0.04]">
-              <LogOut size={15}/>
-            </button>
-          ) : (
-            <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/[0.03] transition-colors">
-              <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background:'linear-gradient(135deg,#00c896,#008f6b)' }}>
-                {sesion.nombre.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-medium text-[#c8d8e8] truncate leading-tight">{sesion.nombre}</div>
-                <div className="text-[10px] text-[#3d4f60] truncate">{sesion.email}</div>
-              </div>
+        <div className="sticky bottom-0" style={{ background: 'var(--bg-sidebar)' }}>
+          <div className="h-px bg-white/5 mx-3"/>
+
+          {/* Indicador sin conexión / cola pendiente */}
+          <OfflineBanner collapsed={collapsed}/>
+
+          {/* Monitor de almacenamiento */}
+          <StorageWidget collapsed={collapsed}/>
+
+          <div className="h-px bg-white/5 mx-3"/>
+
+          <SidebarThemeButton collapsed={collapsed}/>
+
+          <div className="h-px bg-white/5 mx-3"/>
+
+          <div className={`${collapsed ? 'p-2' : 'px-3 py-3'}`}>
+            {collapsed ? (
               <button onClick={logout} title="Cerrar sesión"
-                className="p-1.5 text-[#3d4f60] hover:text-red-400 transition-colors rounded-lg hover:bg-white/[0.06] shrink-0">
-                <LogOut size={13}/>
+                className="w-full h-10 flex items-center justify-center text-[#9ba8b6] hover:text-red-400 hover:bg-red-500/8 transition-colors rounded-lg">
+                <LogOut size={16}/>
               </button>
-            </div>
-          )}
+            ) : (
+              <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/3 transition-colors">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                  style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))' }}>
+                  {sesion.nombre.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-medium truncate leading-tight" style={{ color: 'var(--sidebar-fg)' }}>{sesion.nombre}</div>
+                  <div className="text-[10px] truncate" style={{ color: 'var(--sidebar-fg-muted)' }}>{sesion.email}</div>
+                </div>
+                <button onClick={logout} title="Cerrar sesión"
+                  className="p-1.5 hover:text-red-400 hover:bg-red-500/8 transition-colors rounded-lg shrink-0"
+                  style={{ color: 'var(--sidebar-fg-muted)' }}>
+                  <LogOut size={15}/>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </aside>

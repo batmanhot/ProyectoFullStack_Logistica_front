@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+﻿import { useState, useEffect, useMemo } from 'react'
 import {
   Plus, Search, Edit2, Trash2, Users, Eye,
   CheckCircle, DollarSign, Truck, Clock,
@@ -102,9 +102,9 @@ export default function Clientes() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
         {[
           { label:'Total clientes',    val:kpis.total,                                      color:'#00c896', Icon:Users        },
           { label:'Activos',           val:kpis.activos,                                    color:'#22c55e', Icon:CheckCircle  },
@@ -274,7 +274,7 @@ export default function Clientes() {
             <div className="text-[#5f6f80] leading-relaxed mb-4">
               El sistema clasifica a los clientes <strong className="text-[#00c896]">automáticamente</strong> basándose en el valor total facturado y su comportamiento comercial.
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 { nivel:"Premium",  color:"#f59e0b", desc:"S/ 50,000+ Facturados. Prioridad máxima en atención." },
                 { nivel:"Activo",   color:"#22c55e", desc:"S/ 20,000+ Facturados. Relación comercial vigente." },
@@ -325,7 +325,7 @@ function PerfilCliente({ cliente, despachos, devoluciones, simboloMoneda, onVolv
   const maxValor = Math.max(...volumenMensual.map(m => m.valor), 1)
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
       <div className="flex items-center gap-3">
         <Btn variant="ghost" size="sm" onClick={onVolver}><ArrowLeft size={13}/> Volver</Btn>
         <div className="flex items-center gap-3 flex-1">
@@ -353,7 +353,7 @@ function PerfilCliente({ cliente, despachos, devoluciones, simboloMoneda, onVolv
 
       <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
         <div className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">Información de contacto</div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { Icon:Users,  label:'Contacto',  val:cliente.contacto||'—' },
             { Icon:Phone,  label:'Teléfono',  val:cliente.telefono||'—' },
@@ -379,7 +379,7 @@ function PerfilCliente({ cliente, despachos, devoluciones, simboloMoneda, onVolv
         )}
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         {[
           { label:'Total pedidos',   val:kpi.total,                                       color:'#00c896' },
           { label:'Entregados',      val:kpi.entregados,                                  color:'#22c55e' },

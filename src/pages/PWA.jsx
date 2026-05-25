@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { Smartphone, Wifi, WifiOff, Download, CheckCircle, Monitor, RefreshCw, Info } from 'lucide-react'
 import { Badge, Alert } from '../components/ui/index'
 
@@ -47,7 +47,7 @@ export default function PWA() {
   const storage = useMemo_simple_calculo()
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* Estado actual */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">

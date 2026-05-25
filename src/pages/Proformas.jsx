@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+﻿import { useState, useMemo, useEffect } from 'react'
 import { Plus, Search, Eye, Edit2, Trash2, FileText, Send, CheckCircle, Copy, Download, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
@@ -68,9 +68,9 @@ export default function Proformas() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
           { label:'Total proformas',  val:kpis.total,    color:'#00c896' },
           { label:'Enviadas',         val:kpis.enviadas, color:'#3b82f6' },
@@ -256,7 +256,7 @@ function ModalProforma({ open, onClose, editando, clientes, productos, simboloMo
   return (
     <Modal open={open} onClose={onClose} title={editando?'Editar Proforma':'Nueva Proforma'} size="xl"
       footer={<><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn variant="primary" disabled={!form.clienteId||!form.items?.length} onClick={handleSave}>Guardar</Btn></>}>
-      <div className="grid grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         <Field label="N° Proforma"><input className={SI} value={form.numero} onChange={e=>f('numero',e.target.value)}/></Field>
         <Field label="Cliente *">
           <select className={SEL} value={form.clienteId} onChange={e=>f('clienteId',e.target.value)}>

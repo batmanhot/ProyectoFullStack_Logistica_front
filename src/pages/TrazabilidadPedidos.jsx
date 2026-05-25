@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TrazabilidadPedidos.jsx — Trazabilidad de Pedidos y OC
  *
  * Vista unificada para consultar el estado y recorrido de:
@@ -153,7 +153,7 @@ function CardDespacho({ des, clientes, almacenes=[], productos, simboloMoneda })
           <LineaTiempo flujo={FLUJO_DESPACHO} estadoActual={des.estado} cancelado={cancelado}/>
 
           {/* Datos clave */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4 mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4 mb-3">
             {[
               { k:'Almacén',         v: almacenes.find(a=>a.id===des.almacenId)?.nombre || des.almacenId||'—' },
               { k:'Transportista',   v: des.transportista||'Por asignar' },
@@ -353,7 +353,7 @@ export default function TrazabilidadPedidos() {
   const registros = tipo === 'clientes' ? pedidosFiltrados.length : ocFiltradas.length
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* Header */}
       <div>
@@ -387,7 +387,7 @@ export default function TrazabilidadPedidos() {
 
       {/* KPIs */}
       {tipo === 'clientes' ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             { l:'Total pedidos',   v:kpisClientes.total,       c:'#5f6f80' },
             { l:'En proceso',      v:kpisClientes.activos,     c:'#f59e0b' },
@@ -402,7 +402,7 @@ export default function TrazabilidadPedidos() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             { l:'Total OC',        v:kpisOC.total,      c:'#5f6f80' },
             { l:'Pendientes',      v:kpisOC.pendientes, c:'#f59e0b' },

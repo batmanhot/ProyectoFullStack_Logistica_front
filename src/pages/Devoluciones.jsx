@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { Plus, Search, RotateCcw, ArrowDownToLine, ArrowUpFromLine, Eye, Trash2, ChevronUp, ChevronDown, Download, FileText, X } from 'lucide-react'
 
 import { useApp } from '../store/AppContext'
@@ -149,8 +149,8 @@ export default function Devoluciones() {
   const provNombre = id => proveedores.find(p=>p.id===id)?.razonSocial||'—'
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
-      <div className="grid grid-cols-3 gap-3.5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {[
           ['Dev. de clientes',   totales.clientes,    '#3b82f6', ArrowDownToLine],
           ['Dev. a proveedores', totales.proveedores, '#f59e0b', ArrowUpFromLine],

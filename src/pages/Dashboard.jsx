@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+﻿import { useMemo } from 'react'
 import {
   Package, TrendingUp, AlertTriangle, ShoppingCart, Activity,
   ArrowDownToLine, ArrowUpFromLine, Truck, Users, MapPin,
@@ -22,17 +22,17 @@ const PIE_COLORS = ['#00c896','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#06b6d4',
 function KPI({ label, value, sub, color = '#00c896', icon: Icon, onClick, mono }) {
   return (
     <div onClick={onClick}
-      className={`relative bg-[#161d28] border border-white/[0.08] rounded-xl px-5 py-4 overflow-hidden
+      className={`relative bg-[#161d28] border border-white/[0.08] rounded-xl px-4 sm:px-5 py-4 overflow-hidden
         ${onClick ? 'cursor-pointer hover:border-white/[0.16] transition-all' : ''}`}>
       <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ background: color }}/>
       <div className="absolute top-3 right-4 opacity-[0.06]">
         {Icon && <Icon size={44}/>}
       </div>
-      <div className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-[0.08em] mb-2 flex items-center gap-1.5">
+      <div className="text-[9px] sm:text-[10px] font-semibold text-[#5f6f80] uppercase tracking-[0.08em] mb-2 flex items-center gap-1.5">
         {Icon && <Icon size={11} style={{ color, opacity:0.8 }}/>}
         {label}
       </div>
-      <div className={`text-[22px] font-bold text-[#e8edf2] leading-none ${mono ? 'font-mono text-[16px]' : ''}`}>
+      <div className={`text-[20px] sm:text-[22px] font-bold text-[#e8edf2] leading-none ${mono ? 'font-mono text-[15px] sm:text-[16px]' : ''}`}>
         {value}
       </div>
       {sub && <div className="text-[10px] text-[#5f6f80] mt-1.5 leading-snug">{sub}</div>}
@@ -176,7 +176,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* Saludo */}
       <div className="flex items-center justify-between">
@@ -203,7 +203,7 @@ export default function Dashboard() {
       {/* ── FILA 1 · KPIs Inventario ──────────────────── */}
       <div>
         <div className="text-[9.5px] font-bold text-[#3d4f60] uppercase tracking-[0.14em] mb-2.5">Inventario</div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <KPI label="Total productos"    value={kpis.totalProductos}                       color="#00c896" icon={Package}       onClick={()=>nav('/inventario')}/>
           <KPI label="Valor del stock"    value={formatCurrency(kpis.valorTotal,simboloMoneda)} color="#3b82f6" icon={DollarSign} mono sub={`Método: ${formulaValorizacion}`}/>
           <KPI label="Stock crítico/agotado" value={kpis.criticos} color={kpis.criticos>0?'#ef4444':'#22c55e'} icon={AlertTriangle} onClick={()=>nav('/inventario')} sub={kpis.criticos>0?'Requiere reposición':'Todo en orden'}/>
@@ -214,7 +214,7 @@ export default function Dashboard() {
       {/* ── FILA 2 · KPIs Operaciones hoy ────────────── */}
       <div>
         <div className="text-[9.5px] font-bold text-[#3d4f60] uppercase tracking-[0.14em] mb-2.5">Operaciones de Hoy</div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <KPI label="Movimientos hoy"   value={kpis.movHoy}                                color="#00c896"  icon={Activity}        sub="Entradas + Salidas + Ajustes"/>
           <KPI label="Entradas hoy"      value={formatCurrency(kpis.entradasHoy,simboloMoneda)} color="#22c55e" icon={ArrowDownToLine} mono sub="Valor ingresado"/>
           <KPI label="Salidas hoy"       value={formatCurrency(kpis.salidasHoy,simboloMoneda)}  color="#ef4444" icon={ArrowUpFromLine} mono sub="Valor despachado"/>
@@ -815,7 +815,7 @@ function DashboardAlmacenero({ productos, despachos, kpis, nav, simboloMoneda })
   const paraDespachar    = despachos.filter(d => d.estado === 'LISTO')
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-[18px] font-bold text-[#e8edf2]">Panel de Almacén 📦</h1>
@@ -857,7 +857,7 @@ function DashboardAlmacenero({ productos, despachos, kpis, nav, simboloMoneda })
       )}
 
       {/* KPIs simples */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label:'En picking ahora',  val:pendientePicking.length, color:'#f59e0b', onClick:()=>nav('/despachos') },
           { label:'Listos despachar',  val:paraDespachar.length,    color:'#00c896', onClick:()=>nav('/despachos') },

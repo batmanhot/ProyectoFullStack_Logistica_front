@@ -1,4 +1,4 @@
-/**
+﻿/**
  * KPIsOperativos.jsx — Panel de KPIs de Gestión Logística en Tiempo Real
  *
  * Métricas clave:
@@ -184,7 +184,7 @@ export default function KPIsOperativos() {
   const SI_PERIODO = 'px-3 py-1.5 bg-[#1a2230] border border-white/[0.08] rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] pr-7'
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-6">
 
       {/* Header + selector período */}
       <div className="flex items-center justify-between">
@@ -209,7 +209,7 @@ export default function KPIsOperativos() {
         <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-5">
           Indicadores clave de rendimiento
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="flex flex-col items-center gap-3">
             <Gauge value={kpis.fillRate} color={kpis.fillRate>=95?'#22c55e':kpis.fillRate>=85?'#f59e0b':'#ef4444'} label="Fill Rate" sub="Objetivo: ≥95%"/>
             <div className="text-center">
@@ -242,7 +242,7 @@ export default function KPIsOperativos() {
       </div>
 
       {/* KPIs numéricos */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         <KPICard label="Fill Rate"       value={`${kpis.fillRate.toFixed(1)}%`}   color={kpis.fillRate>=95?'#22c55e':'#f59e0b'} icon={Target}        sub={`${kpis.desCompletos}/${kpis.desTotal} despachos`}/>
         <KPICard label="OTIF"            value={`${kpis.otif.toFixed(1)}%`}        color={kpis.otif>=90?'#22c55e':'#f59e0b'}   icon={Zap}           sub="On Time In Full"/>
         <KPICard label="Cycle Time"      value={kpis.cycleTime ? `${kpis.cycleTime}d` : '—'} color="#3b82f6" icon={Clock} sub="Pedido → Entregado"/>

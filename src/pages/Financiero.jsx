@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+﻿import { useMemo, useState } from 'react'
 import { DollarSign, TrendingUp, TrendingDown, BarChart2,
          ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -117,7 +117,7 @@ export default function Financiero() {
   const mesLabel = { '3':'Últimos 3 meses', '6':'Últimos 6 meses', '12':'Últimos 12 meses' }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* Selector período */}
       <div className="flex items-center justify-between">
@@ -138,7 +138,7 @@ export default function Financiero() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <KPI label="Ingresos totales"  val={formatCurrency(kpis.totalIngresos, simboloMoneda)} color="#3b82f6"
           icon={DollarSign} sub={kpis.tendIngresos !== null ? `${kpis.tendIngresos > 0 ? '+' : ''}${kpis.tendIngresos}% vs mes anterior` : undefined}
           trend={kpis.tendIngresos > 0 ? 'up' : 'down'}/>
@@ -150,7 +150,7 @@ export default function Financiero() {
           sub="Stock valorizado a costo"/>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <KPI label="Total compras (OC)" val={formatCurrency(kpis.totalCompras, simboloMoneda)} color="#f59e0b" icon={TrendingDown}
           sub="OC aprobadas y recibidas"/>
         <KPI label="Devoluciones" val={formatCurrency(kpis.totalDev, simboloMoneda)}

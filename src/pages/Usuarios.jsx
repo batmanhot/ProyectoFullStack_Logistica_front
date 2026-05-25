@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+﻿import { useState, useEffect, useMemo } from 'react'
 import { Plus, Edit2, Trash2, Users, Shield, Eye, EyeOff,
          CheckSquare, Square, ChevronDown, ChevronUp, Lock, Key } from 'lucide-react'
 import { useApp } from '../store/AppContext'
@@ -16,75 +16,132 @@ const MODULOS_GRUPOS = [
     grupo: 'General',
     color: '#00c896',
     items: [
-      { id:'dashboard',    label:'Dashboard',           desc:'Panel principal con KPIs'        },
-      { id:'alertas',      label:'Alertas',             desc:'Centro de notificaciones'        },
+      { id:'dashboard',      label:'Dashboard',           desc:'Panel principal con KPIs'          },
+      { id:'alertas',        label:'Alertas',             desc:'Centro de notificaciones'          },
     ]
   },
   {
     grupo: 'Inventario',
     color: '#3b82f6',
     items: [
-      { id:'inventario',   label:'Inventario',          desc:'Catálogo y stock de productos'   },
-      { id:'entradas',     label:'Entradas',            desc:'Registro de ingresos de stock'   },
-      { id:'salidas',      label:'Salidas',             desc:'Registro de egresos de stock'    },
-      { id:'ajustes',      label:'Ajustes',             desc:'Ajustes de inventario'           },
-      { id:'devoluciones', label:'Devoluciones',        desc:'Devoluciones cliente/proveedor'  },
-      { id:'transferencias',label:'Transferencias',     desc:'Entre almacenes'                 },
-      { id:'inv-fisico',   label:'Inventario Físico',   desc:'Conteo cíclico y ajuste masivo'  },
+      { id:'inventario',     label:'Inventario',          desc:'Catálogo y stock de productos'     },
+      { id:'kardex',         label:'Kardex',              desc:'Historial valorizado por producto' },
+      { id:'inv-fisico',     label:'Inventario Físico',   desc:'Conteo cíclico y ajuste masivo'    },
+    ]
+  },
+  {
+    grupo: 'Operaciones',
+    color: '#22c55e',
+    items: [
+      { id:'entradas',       label:'Entradas',            desc:'Registro de ingresos de stock'     },
+      { id:'salidas',        label:'Salidas',             desc:'Registro de egresos de stock'      },
+      { id:'ajustes',        label:'Ajustes',             desc:'Ajustes de inventario'             },
+      { id:'devoluciones',   label:'Devoluciones',        desc:'Devoluciones cliente/proveedor'    },
+      { id:'transferencias', label:'Transferencias',      desc:'Traslados entre almacenes'         },
     ]
   },
   {
     grupo: 'Compras',
     color: '#f59e0b',
     items: [
-      { id:'ordenes',      label:'Órdenes de Compra',   desc:'Ciclo de compras a proveedores'  },
-      { id:'cotizaciones', label:'Cotizaciones',        desc:'RFQ y comparativa de precios'    },
-      { id:'proveedores',  label:'Proveedores',         desc:'Gestión de proveedores'          },
+      { id:'ordenes',        label:'Órdenes de Compra',   desc:'Ciclo de compras a proveedores'    },
+      { id:'cotizaciones',   label:'Cotizaciones',        desc:'RFQ y comparativa de precios'      },
+      { id:'proveedores',    label:'Proveedores',         desc:'Gestión de proveedores'            },
     ]
   },
   {
     grupo: 'Despachos',
     color: '#8b5cf6',
     items: [
-      { id:'clientes',     label:'Clientes',            desc:'Gestión de clientes'             },
-      { id:'despachos',    label:'Despachos',           desc:'Pedidos y guías de remisión'     },
-      { id:'transportes',  label:'Transportes',         desc:'Rutas, transportistas y tracking'},
+      { id:'clientes',       label:'Clientes',            desc:'Gestión de clientes'               },
+      { id:'despachos',      label:'Despachos',           desc:'Pedidos y guías de remisión'       },
+      { id:'pedidos-internos',label:'Pedidos Internos',   desc:'Solicitudes internas al almacén'   },
+      { id:'empaque',        label:'Empaque / Packing',   desc:'Control de empaque y embalaje'     },
+      { id:'transportes',    label:'Transportes',         desc:'Rutas, transportistas y tracking'  },
+      { id:'flota',          label:'Flota',               desc:'Vehículos y mantenimiento'         },
     ]
   },
   {
     grupo: 'Análisis',
     color: '#06b6d4',
     items: [
-      { id:'kardex',       label:'Kardex',              desc:'Historial valorizado por producto'},
-      { id:'vencimientos', label:'Vencimientos',        desc:'Control de fechas de vencimiento' },
-      { id:'reorden',      label:'Punto de Reorden',    desc:'Alertas de reposición'            },
-      { id:'prevision',    label:'Previsión',           desc:'Proyección de demanda'            },
-      { id:'reportes',     label:'Reportes',            desc:'ABC, rotación, valorizado'        },
-      { id:'movimientos',  label:'Movimientos',         desc:'Historial de todos los movimientos'},
+      { id:'movimientos',    label:'Movimientos',         desc:'Historial de todos los movimientos'},
+      { id:'vencimientos',   label:'Vencimientos',        desc:'Control de fechas de vencimiento'  },
+      { id:'reorden',        label:'Punto de Reorden',    desc:'Alertas de reposición'             },
+      { id:'prevision',      label:'Previsión',           desc:'Proyección de demanda'             },
+      { id:'reportes',       label:'Reportes',            desc:'ABC, rotación, valorizado'         },
+      { id:'kpis',           label:'KPIs Operativos',     desc:'Indicadores clave de operaciones'  },
+      { id:'sunat',          label:'SUNAT / Fact.',       desc:'Facturación electrónica'           },
+      { id:'financiero',     label:'Financiero',          desc:'Dashboard financiero'              },
+    ]
+  },
+  {
+    grupo: 'Ventas',
+    color: '#ec4899',
+    items: [
+      { id:'proformas',      label:'Proformas',           desc:'Cotizaciones comerciales'          },
+      { id:'cxc',            label:'Cuentas por Cobrar',  desc:'Seguimiento de cobranzas'          },
+      { id:'portal-pedidos', label:'Portal de Pedidos',   desc:'Portal web para clientes'          },
+    ]
+  },
+  {
+    grupo: 'Almacén',
+    color: '#84cc16',
+    items: [
+      { id:'mapa-almacen',   label:'Mapa de Almacén',     desc:'Vista visual del almacén'          },
+      { id:'lotes-series',   label:'Lotes y Series',      desc:'Trazabilidad de lotes'             },
+      { id:'lista-precios',  label:'Lista de Precios',    desc:'Gestión de precios de venta'       },
     ]
   },
   {
     grupo: 'Administración',
     color: '#ef4444',
     items: [
-      { id:'maestros',     label:'Categ. / Almacenes',  desc:'Categorías y almacenes'           },
-      { id:'usuarios',     label:'Usuarios y Roles',    desc:'Gestión de accesos'               },
-      { id:'configuracion',label:'Configuración',       desc:'Parámetros del sistema'           },
+      { id:'usuarios',       label:'Usuarios y Roles',    desc:'Gestión de accesos'                },
+      { id:'auditoria',      label:'Auditoría',           desc:'Registro de actividades'           },
+      { id:'cola-sync',      label:'Cola de Sincronización', desc:'Monitoreo de operaciones pendientes de sincronizar' },
+      { id:'configuracion',  label:'Configuración',       desc:'Parámetros del sistema'            },
     ]
   },
 ]
 
 const TODOS_MODULOS = MODULOS_GRUPOS.flatMap(g => g.items.map(i => i.id))
 
-// ── Roles predefinidos base (no editables, sirven como plantilla) ──
+// ── Roles predefinidos base — permisos editables, nombre/desc no ──
 const ROLES_BASE = {
-  admin:      { label:'Administrador', color:'#ef4444', permisos:['*'],             desc:'Acceso total sin restricciones' },
-  supervisor: { label:'Supervisor',    color:'#3b82f6', permisos:['dashboard','inventario','movimientos','reportes',
-                  'ordenes','proveedores','kardex','vencimientos','reorden','prevision',
-                  'alertas','cotizaciones','clientes','despachos','transportes'],    desc:'Operaciones + análisis + compras' },
-  almacenero: { label:'Almacenero',    color:'#22c55e', permisos:['dashboard','inventario','entradas','salidas',
-                  'ajustes','devoluciones','transferencias','kardex','vencimientos',
-                  'inv-fisico','alertas','despachos','clientes','transportes'],      desc:'Operaciones de almacén' },
+  admin: {
+    label:'Administrador', color:'#ef4444', desc:'Acceso total sin restricciones',
+    permisos:['*'],
+  },
+  supervisor: {
+    label:'Supervisor', color:'#3b82f6', desc:'Operaciones + análisis + compras',
+    permisos:[
+      'dashboard','alertas',
+      'inventario','kardex','inv-fisico',
+      'entradas','salidas','ajustes','devoluciones','transferencias',
+      'ordenes','cotizaciones','proveedores',
+      'clientes','despachos','pedidos-internos','empaque','transportes',
+      'movimientos','vencimientos','reorden','prevision','reportes','kpis','sunat','financiero',
+      'proformas','cxc','portal-pedidos',
+      'mapa-almacen','lotes-series','lista-precios',
+      'cola-sync',
+    ],
+  },
+  almacenero: {
+    label:'Almacenero', color:'#22c55e', desc:'Operaciones de almacén',
+    permisos:[
+      'dashboard','alertas',
+      'inventario','kardex','inv-fisico',
+      'entradas','salidas','ajustes','devoluciones','transferencias',
+      'clientes','despachos','pedidos-internos','empaque','transportes',
+      'movimientos','vencimientos','reorden',
+      'mapa-almacen','lotes-series',
+    ],
+  },
+  solicitante: {
+    label:'Solicitante', color:'#a855f7', desc:'Solo pedidos internos',
+    permisos:['pedidos-internos'],
+  },
 }
 
 // ── Helpers ──────────────────────────────────────────────
@@ -170,7 +227,7 @@ export default function Usuarios() {
   const rolLabel = id => roles[id]?.label || id
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* ── Tabs ──────────────────────────────────────── */}
       <div className="flex gap-0.5 border-b border-white/[0.08]">
@@ -192,7 +249,7 @@ export default function Usuarios() {
       {tab === 'usuarios' && (
         <>
           {/* KPIs rápidos */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               ['Total',    usuarios.length,                                '#00c896'],
               ['Activos',  usuarios.filter(u => u.activo).length,          '#22c55e'],
@@ -374,10 +431,10 @@ export default function Usuarios() {
                               return (
                                 <div key={mod.id}
                                   className="flex items-center gap-1.5 text-[11px]"
-                                  style={{ color: tiene ? '#e8edf2' : '#374151', opacity: tiene ? 1 : 0.5 }}>
+                                  style={{ color: tiene ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                                   {tiene
                                     ? <CheckSquare size={12} style={{ color: grupo.color }} className="shrink-0"/>
-                                    : <Square size={12} className="text-[#374151] shrink-0"/>
+                                    : <Square size={12} className="shrink-0" style={{ color: 'var(--text-muted)' }}/>
                                   }
                                   {mod.label}
                                 </div>
@@ -508,7 +565,7 @@ function ModalUsuario({ open, onClose, editando, onSave, sesionId, roles }) {
               {MODULOS_GRUPOS.flatMap(g => g.items).map(mod => {
                 const tiene = rolSeleccionado.permisos?.includes(mod.id)
                 return (
-                  <div key={mod.id} className={`flex items-center gap-1.5 text-[11px] ${tiene ? 'text-[#e8edf2]' : 'text-[#374151] opacity-40'}`}>
+                  <div key={mod.id} className={`flex items-center gap-1.5 text-[11px] ${tiene ? 'text-[#e8edf2]' : 'text-[#5f6f80]'}`}>
                     {tiene
                       ? <CheckSquare size={11} style={{ color: rolSeleccionado.color||'#00c896' }}/>
                       : <Square size={11}/>
@@ -680,7 +737,7 @@ function ModalRol({ open, onClose, editando, onSave }) {
                   {/* Cabecera del grupo — clic selecciona/deselecciona todos */}
                   <button type="button"
                     className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-white/[0.03] transition-colors text-left"
-                    onClick={() => !esBase && toggleGrupo(grupo)}>
+                    onClick={() => toggleGrupo(grupo)}>
                     <div className="flex items-center gap-2.5">
                       <div className="w-5 h-5 rounded flex items-center justify-center"
                         style={{ background: grupo.color+'22' }}>
@@ -688,7 +745,7 @@ function ModalRol({ open, onClose, editando, onSave }) {
                           ? <CheckSquare size={14} style={{ color: grupo.color }}/>
                           : algunoMarcado
                             ? <div className="w-2.5 h-2.5 rounded-sm" style={{ background: grupo.color, opacity: 0.6 }}/>
-                            : <Square size={14} className="text-[#374151]"/>
+                            : <Square size={14} style={{ color: 'var(--text-muted)' }}/>
                         }
                       </div>
                       <span className="text-[12px] font-semibold" style={{ color: grupo.color }}>
@@ -706,9 +763,9 @@ function ModalRol({ open, onClose, editando, onSave }) {
                         <label key={mod.id}
                           className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-all ${
                             activo ? 'bg-white/[0.04]' : 'hover:bg-white/[0.02]'
-                          } ${esBase ? 'pointer-events-none' : ''}`}>
+                          }`}>
                           <input type="checkbox" checked={activo}
-                            onChange={() => !esBase && toggleModulo(mod.id)}
+                            onChange={() => toggleModulo(mod.id)}
                             className="mt-0.5 shrink-0 accent-[#00c896]"/>
                           <div>
                             <div className={`text-[12px] font-medium ${activo ? 'text-[#e8edf2]' : 'text-[#5f6f80]'}`}>
@@ -728,8 +785,8 @@ function ModalRol({ open, onClose, editando, onSave }) {
       )}
 
       {esBase && (
-        <div className="flex items-center gap-2 px-4 py-3 bg-[#1a2230] rounded-xl border border-white/[0.06] text-[12px] text-[#5f6f80]">
-          <Lock size={13}/> Los roles base solo se pueden visualizar, no modificar. Para personalizar, crea un nuevo rol.
+        <div className="flex items-center gap-2 px-4 py-3 bg-blue-500/10 rounded-xl border border-blue-500/20 text-[12px] text-blue-300">
+          <Lock size={13}/> Nombre y descripción bloqueados en roles base. Puedes modificar libremente los permisos.
         </div>
       )}
     </Modal>

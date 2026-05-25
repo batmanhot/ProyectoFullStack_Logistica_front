@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { Plus, Search, CheckCircle, X, Eye, ShoppingCart, FileText, MessageCircle, Mail, ChevronUp, ChevronDown, Download } from 'lucide-react'
 
 import { useApp } from '../store/AppContext'
@@ -144,9 +144,9 @@ export default function Ordenes() {
   }), [ordenes])
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
           ['OC Pendientes',  kpis.pendientes, '#f59e0b'],
           ['OC Aprobadas',   kpis.aprobadas,  '#3b82f6'],
@@ -309,7 +309,7 @@ function ModalNuevaOC({open,onClose,productos,proveedores,onSaved,simboloMoneda}
   return(
     <Modal open={open} onClose={onClose} title="Nueva Orden de Compra" size="xl"
       footer={<><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn variant="primary" onClick={handleSave} disabled={!form.proveedorId||!items.length}>Crear OC</Btn></>}>
-      <div className="grid grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         <Field label="Proveedor *"><select className={SEL} value={form.proveedorId} onChange={e=>f('proveedorId',e.target.value)}><option value="">Seleccionar...</option>{proveedores.map(p=><option key={p.id} value={p.id}>{p.razonSocial}</option>)}</select></Field>
         <Field label="Fecha"><input type="date" className={SI} value={form.fecha} onChange={e=>f('fecha',e.target.value)}/></Field>
         <Field label="Fecha de Entrega"><input type="date" className={SI} value={form.fechaEntrega} onChange={e=>f('fechaEntrega',e.target.value)}/></Field>
