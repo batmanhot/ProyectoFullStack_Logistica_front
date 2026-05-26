@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { Save, RefreshCw, Trash2, Building2, Settings, Bell, DollarSign, Database,
          Upload, FileSpreadsheet, CheckCircle, XCircle, AlertTriangle, Download,
-         Users, Plus, Eye, EyeOff, X, Pencil, Layers, Tag, Warehouse } from 'lucide-react'
+         Plus, X, Pencil, Layers, Tag, Warehouse } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useApp } from '../store/AppContext'
 import { FORMULAS_VALORIZACION } from '../utils/valorizacion'
@@ -17,7 +17,6 @@ const TABS = [
   ['areas-internas',    'Áreas Internas',    Layers],
   ['categorias',        'Categorías',        Tag],
   ['almacenes',         'Almacenes',         Warehouse],
-  ['clientes-internos', 'Clientes Internos', Users],
   ['importar',          'Importar Datos',    Upload],
   ['datos',             'Datos / Reset',     Database],
 ]
@@ -30,194 +29,8 @@ const MONEDAS = [
 
 const SI = 'px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 w-full font-[inherit] placeholder-[#5f6f80]'
 const SEL = SI + ' pr-8'
-
-// ── Pestaña Clientes Internos ────────────────────────────────
-const SI_CI = 'px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 w-full font-[inherit] placeholder-[#5f6f80]'
+const SI_CI = SI
 const DS_CI = { colorScheme: 'dark' }
-
-const FORM_VACIO = { nombre:'', email:'', password:'', areaId:'', activo:true }
-
-function TabClientesInternos({ toast }) {
-  const { areas } = useApp()
-  const [usuarios,    setUsuarios]    = useState([])
-  const [modal,       setModal]       = useState(false)
-  const [editando,    setEditando]    = useState(null)   // null = nuevo
-  const [form,        setForm]        = useState(FORM_VACIO)
-  const [showPass,    setShowPass]    = useState(false)
-  const [error,       setError]       = useState('')
-
-  useEffect(() => {
-    const todos = storage.getUsuarios().data || []
-    setUsuarios(todos.filter(u => u.rol === 'solicitante'))
-  }, [])
-
-  function reload() {
-    const todos = storage.getUsuarios().data || []
-    setUsuarios(todos.filter(u => u.rol === 'solicitante'))
-  }
-
-  function abrirNuevo() {
-    setEditando(null)
-    setForm(FORM_VACIO)
-    setError('')
-    setModal(true)
-  }
-  function abrirEditar(u) {
-    setEditando(u)
-    setForm({ nombre: u.nombre, email: u.email, password: u.password, areaId: u.areaId || '', activo: u.activo })
-    setError('')
-    setModal(true)
-  }
-
-  function handleGuardar() {
-    setError('')
-    if (!form.nombre.trim())   { setError('El nombre es obligatorio'); return }
-    if (!form.email.trim())    { setError('El email es obligatorio'); return }
-    if (!form.password.trim()) { setError('La contraseña es obligatoria'); return }
-    if (!form.areaId)          { setError('Selecciona un área'); return }
-    const r = storage.saveUsuario({
-      ...(editando ? { id: editando.id } : {}),
-      ...form,
-      rol: 'solicitante',
-    })
-    if (r.error) { setError(r.error); return }
-    toast(editando ? 'Solicitante actualizado' : 'Solicitante creado', 'success')
-    setModal(false)
-    reload()
-  }
-
-  function toggleActivo(u) {
-    storage.saveUsuario({ ...u, activo: !u.activo })
-    reload()
-  }
-
-  const areaMap = Object.fromEntries((areas||[]).map(a => [a.id, a]))
-
-  return (
-    <div className="flex flex-col gap-5">
-      <div className="bg-[#161d28] border border-white/8 rounded-xl overflow-hidden">
-        {/* Cabecera */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
-          <div>
-            <div className="text-[14px] font-semibold text-white">Usuarios Solicitantes</div>
-            <div className="text-[11px] text-white/35 mt-0.5">
-              Clientes internos que pueden crear sus propios pedidos al almacén
-            </div>
-          </div>
-          <button onClick={abrirNuevo}
-            className="flex items-center gap-2 px-3 py-2 bg-[#00c896] hover:bg-[#009e76] text-[#082e1e] text-[12px] font-semibold rounded-lg transition-colors">
-            <Plus size={13}/> Nuevo solicitante
-          </button>
-        </div>
-
-        {/* Lista */}
-        {usuarios.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-2 text-white/25">
-            <Users size={30}/>
-            <div className="text-[13px]">No hay solicitantes registrados</div>
-          </div>
-        ) : (
-          <div className="divide-y divide-white/[0.05]">
-            {usuarios.map(u => {
-              const area = areaMap[u.areaId]
-              return (
-                <div key={u.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-white/[0.02] transition-colors">
-                  <div className="w-9 h-9 rounded-full bg-purple-500/15 flex items-center justify-center text-[13px] font-bold text-purple-400 shrink-0">
-                    {u.nombre.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-medium text-white/85 truncate">{u.nombre}</span>
-                      {!u.activo && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 font-semibold">Inactivo</span>}
-                    </div>
-                    <div className="text-[11px] text-white/35 truncate mt-0.5">
-                      {u.email} · {area?.nombre || u.areaId || '—'}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={() => abrirEditar(u)}
-                      className="p-1.5 text-white/30 hover:text-[#00c896] hover:bg-white/5 rounded transition-colors" title="Editar">
-                      <Pencil size={13}/>
-                    </button>
-                    <button onClick={() => toggleActivo(u)}
-                      className={`text-[11px] px-2.5 py-1 rounded-lg font-medium transition-colors ${u.activo ? 'bg-white/5 text-white/40 hover:bg-red-500/10 hover:text-red-400' : 'bg-[#00c896]/10 text-[#00c896] hover:bg-[#00c896]/20'}`}>
-                      {u.activo ? 'Desactivar' : 'Activar'}
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      <p className="text-[11px] text-white/25 leading-relaxed">
-        Los solicitantes solo pueden ver y crear pedidos internos de su propia área. No tienen acceso a otras funciones del sistema.
-      </p>
-
-      {/* Modal crear / editar */}
-      {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#0e1117] border border-white/10 rounded-2xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
-              <h2 className="text-[15px] font-semibold text-white">
-                {editando ? 'Editar solicitante' : 'Nuevo solicitante'}
-              </h2>
-              <button onClick={() => setModal(false)} className="text-white/30 hover:text-white/60"><X size={18}/></button>
-            </div>
-            <div className="px-6 py-5 flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wide">Nombre completo *</label>
-                <input className={SI_CI} placeholder="Ej: María García López"
-                  value={form.nombre} onChange={e => setForm(f => ({...f, nombre: e.target.value}))} autoFocus/>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wide">Email *</label>
-                <input type="email" className={SI_CI} placeholder="usuario@empresa.pe"
-                  value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))}/>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wide">Contraseña *</label>
-                <div className="relative">
-                  <input type={showPass ? 'text' : 'password'} className={SI_CI + ' pr-10'}
-                    placeholder="••••••••"
-                    value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))}/>
-                  <button type="button" onClick={() => setShowPass(p => !p)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">
-                    {showPass ? <EyeOff size={14}/> : <Eye size={14}/>}
-                  </button>
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wide">Área asignada *</label>
-                <select className={SI_CI} style={DS_CI} value={form.areaId}
-                  onChange={e => setForm(f => ({...f, areaId: e.target.value}))}>
-                  <option value="">Selecciona área...</option>
-                  {(areas||[]).filter(a => a.activo).map(a => (
-                    <option key={a.id} value={a.id}>{a.nombre} ({a.codigo})</option>
-                  ))}
-                </select>
-              </div>
-              <Toggle label="Usuario activo"
-                checked={form.activo} onChange={v => setForm(f => ({...f, activo: v}))}/>
-              {error && (
-                <div className="px-3 py-2 bg-red-500/10 border border-red-500/25 rounded-lg text-[13px] text-red-400">{error}</div>
-              )}
-            </div>
-            <div className="flex items-center justify-end gap-2 px-6 pb-5">
-              <button onClick={() => setModal(false)}
-                className="px-4 py-2 text-[13px] text-white/50 hover:text-white/80 transition-colors">Cancelar</button>
-              <button onClick={handleGuardar}
-                className="px-5 py-2 bg-[#00c896] hover:bg-[#009e76] text-[#082e1e] text-[13px] font-semibold rounded-lg transition-colors">
-                {editando ? 'Guardar cambios' : 'Crear solicitante'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ── Pestaña Áreas Internas ───────────────────────────────────
 const FORM_AREA_VACIO = { codigo:'', nombre:'', descripcion:'', email:'', activo:true }
@@ -783,9 +596,6 @@ export default function Configuracion() {
       {/* ── Almacenes ───────────────────────────────── */}
       {tab === 'almacenes' && <TabAlmacenes />}
 
-      {/* ── Clientes Internos ───────────────────────── */}
-      {tab === 'clientes-internos' && <TabClientesInternos toast={toast} />}
-
       {/* ── Importar Datos ───────────────────────────── */}
       {tab === 'importar' && (
         <div className="flex flex-col gap-5">
@@ -1018,7 +828,7 @@ export default function Configuracion() {
       )}
 
       {/* Botón guardar */}
-      {tab !== 'datos' && tab !== 'importar' && tab !== 'areas-internas' && tab !== 'categorias' && tab !== 'almacenes' && tab !== 'clientes-internos' && (
+      {tab !== 'datos' && tab !== 'importar' && tab !== 'areas-internas' && tab !== 'categorias' && tab !== 'almacenes' && (
         <div className="flex justify-end">
           <Btn variant="primary" size="lg" onClick={() => saveConfig(form)}>
             <Save size={15} /> Guardar Configuración

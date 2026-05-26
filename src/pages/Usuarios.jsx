@@ -109,6 +109,10 @@ const TODOS_MODULOS = MODULOS_GRUPOS.flatMap(g => g.items.map(i => i.id))
 
 // ── Roles predefinidos base — permisos editables, nombre/desc no ──
 const ROLES_BASE = {
+  owner: {
+    label:'Propietario', color:'#f59e0b', desc:'Dueño del negocio — acceso total sin restricciones',
+    permisos:['*'],
+  },
   admin: {
     label:'Administrador', color:'#ef4444', desc:'Acceso total sin restricciones',
     permisos:['*'],
@@ -494,7 +498,8 @@ export default function Usuarios() {
 // MODAL USUARIO
 // ════════════════════════════════════════════════════════
 function ModalUsuario({ open, onClose, editando, onSave, sesionId, roles }) {
-  const init = { nombre:'', email:'', password:'', rol:'almacenero', activo:true }
+  const { areas } = useApp()
+  const init = { nombre:'', email:'', password:'', rol:'almacenero', areaId:'', activo:true }
   const [form,     setForm]     = useState(init)
   const [showPass, setShowPass] = useState(false)
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
@@ -506,7 +511,10 @@ function ModalUsuario({ open, onClose, editando, onSave, sesionId, roles }) {
 
   const rolSeleccionado = roles[form.rol]
   const esAdmin = rolSeleccionado?.permisos?.includes('*')
-  const canSave = form.nombre.trim() && form.email.trim() && (editando || form.password.trim())
+  const necesitaArea = form.rol === 'solicitante'
+  const canSave = form.nombre.trim() && form.email.trim()
+    && (editando || form.password.trim())
+    && (!necesitaArea || form.areaId)
 
   return (
     <Modal open={open} onClose={onClose}
@@ -546,6 +554,21 @@ function ModalUsuario({ open, onClose, editando, onSave, sesionId, roles }) {
           ))}
         </select>
       </Field>
+
+      {/* Área asignada — solo para solicitantes */}
+      {form.rol === 'solicitante' && (
+        <Field label="Área asignada *">
+          <select className={SEL} value={form.areaId || ''} onChange={e => f('areaId', e.target.value)}>
+            <option value="">Selecciona un área...</option>
+            {(areas || []).filter(a => a.activo).map(a => (
+              <option key={a.id} value={a.id}>{a.nombre} ({a.codigo})</option>
+            ))}
+          </select>
+          <span className="text-[10px] text-[#5f6f80] mt-1">
+            El solicitante solo verá pedidos internos de esta área
+          </span>
+        </Field>
+      )}
 
       {/* Vista previa de permisos del rol */}
       {rolSeleccionado && (

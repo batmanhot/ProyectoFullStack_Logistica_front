@@ -16,7 +16,7 @@ import {
   CONFIG_DEFAULT, CONFIGS_DEMO, CAT, ALM, PROV, PROD, MOV, OC,
   ROLES, USR, USR_ACME, AJ, DEV, TR, COT,
   CLIENTES_DEMO, DESPACHOS_DEMO, TRANSPORTISTAS_DEMO, RUTAS_DEMO,
-  CXC_DEMO, PROF_DEMO, EMPRESAS_DEMO, AREAS_DEMO, PI_DEMO,
+  CXC_DEMO, PROF_DEMO, EMPRESAS_DEMO, AREAS_DEMO, PI_DEMO, SAAS_ADMIN,
 } from '../data/demoData'
 import {
   validateProducto, validateMovimiento, validateOrden,
@@ -249,12 +249,33 @@ export function loginUsuario(email,password){
   const l=getUsuarios().data||[]
   const u=l.find(x=>x.email===email&&x.password===password&&x.activo)
   if(!u){
+    // Fallback: tenant registrado en AdminSaaS pero sin usuarios propios aún
+    // Autentica con el email+password del negocio registrado como acceso admin inicial
+    try {
+      const negocios = JSON.parse(localStorage.getItem('saas_negocios')||'[]')
+      const neg = negocios.find(n => n.empresaId===_tenantId && n.email===email && n.password===password && n.estado!=='cancelado')
+      if(neg){
+        const nombre = neg.contacto?.trim() || neg.nombre?.trim() || 'Propietario'
+        const s={id:`owner_${_tenantId}`,nombre,email:neg.email,rol:'owner',empresaId:_tenantId,loginAt:new Date().toISOString()}
+        guardar(SK.session,s)
+        return ok(s)
+      }
+    } catch {}
     registrarAuditoria({usuarioId:'desconocido',usuarioNombre:email,accion:'LOGIN_FAILED',modulo:'auth',detalle:`Intento de acceso fallido: ${email}`})
     return err('Credenciales incorrectas o usuario inactivo')
   }
   const s={...u,loginAt:new Date().toISOString(),empresaId:_tenantId}
   guardar(SK.session,s)
   registrarAuditoria({usuarioId:u.id,usuarioNombre:u.nombre,accion:'LOGIN',modulo:'auth',detalle:'Inicio de sesión exitoso'})
+  return ok(s)
+}
+export function loginSuperAdmin(email, password) {
+  const stored = leer('sp_saas_admin') || SAAS_ADMIN
+  if (stored.email !== email || stored.password !== password || !stored.activo) {
+    return err('Credenciales de administrador incorrectas')
+  }
+  const s = { ...stored, loginAt: new Date().toISOString() }
+  guardar(SK.session, s)
   return ok(s)
 }
 export function getSession(){return ok(leer(SK.session))}

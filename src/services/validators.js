@@ -115,7 +115,7 @@ export function validateTransferencia(tr, { productos = [], almacenes = [] }) {
 }
 
 // ── Usuarios ──────────────────────────────────────────────
-export function validateUsuario(u, { rolesValidos = ['admin', 'supervisor', 'almacenero'] } = {}) {
+export function validateUsuario(u, { rolesValidos = ['owner', 'admin', 'supervisor', 'almacenero', 'solicitante'] } = {}) {
   if (!u.nombre?.trim())
     return 'El nombre es obligatorio'
   if (!u.email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.email.trim()))

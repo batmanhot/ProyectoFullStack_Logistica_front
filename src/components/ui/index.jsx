@@ -57,30 +57,39 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, message, danger
 }
 
 /* ── Toast Container ─────────────────────────────────── */
-const TOAST_ICONS = {
-  success: <CheckCircle2 size={15} className="text-green-400 shrink-0" />,
-  error:   <XCircle      size={15} className="text-red-400  shrink-0" />,
-  warning: <AlertTriangle size={15} className="text-amber-400 shrink-0" />,
-  info:    <Info          size={15} className="text-blue-400  shrink-0" />,
-}
-
-const TOAST_STYLES = {
-  success: 'bg-[#081e12] border-green-500/30',
-  error:   'bg-[#250a0a] border-red-500/30',
-  warning: 'bg-[#251600] border-amber-500/30',
-  info:    'bg-[#091a35] border-blue-500/30',
+const TOAST_CONFIGS = {
+  success: { icon: <CheckCircle2  size={15} style={{ color:'#10b981', flexShrink:0 }} />, border:'rgba(16,185,129,0.45)',  strip:'#10b981' },
+  error:   { icon: <XCircle       size={15} style={{ color:'#ef4444', flexShrink:0 }} />, border:'rgba(239,68,68,0.45)',   strip:'#ef4444' },
+  warning: { icon: <AlertTriangle size={15} style={{ color:'#f59e0b', flexShrink:0 }} />, border:'rgba(245,158,11,0.45)',  strip:'#f59e0b' },
+  info:    { icon: <Info          size={15} style={{ color:'#3b82f6', flexShrink:0 }} />, border:'rgba(59,130,246,0.45)',  strip:'#3b82f6' },
 }
 
 export function ToastContainer() {
   const { toasts } = useApp()
   return (
     <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-[2000] pointer-events-none">
-      {toasts.map(t => (
-        <div key={t.id} className={`animate-toast-in flex items-center gap-2.5 px-4 py-3 rounded-xl border text-[13px] font-medium text-[#e8edf2] shadow-xl min-w-[260px] max-w-sm ${TOAST_STYLES[t.tipo] || TOAST_STYLES.info}`}>
-          {TOAST_ICONS[t.tipo] || TOAST_ICONS.info}
-          <span className="flex-1">{t.mensaje}</span>
-        </div>
-      ))}
+      {toasts.map(t => {
+        const cfg = TOAST_CONFIGS[t.tipo] || TOAST_CONFIGS.info
+        return (
+          <div
+            key={t.id}
+            className="animate-toast-in flex items-center gap-2.5 rounded-xl text-[13px] font-medium min-w-[260px] max-w-sm overflow-hidden"
+            style={{
+              background:  'var(--bg-surface)',
+              border:      `1px solid ${cfg.border}`,
+              color:       'var(--text-primary)',
+              boxShadow:   '0 8px 32px rgba(0,0,0,0.18)',
+            }}
+          >
+            {/* Barra lateral de color */}
+            <div style={{ width: 4, alignSelf:'stretch', background: cfg.strip, flexShrink:0 }} />
+            <div className="flex items-center gap-2.5 px-3 py-3 flex-1 min-w-0">
+              {cfg.icon}
+              <span className="flex-1 leading-snug">{t.mensaje}</span>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

@@ -1,14 +1,18 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useMemo, useState, useRef, useEffect } from 'react'
 import logoImg from '../../assets/logo.webp'
-import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Globe, Target, Zap, Palette, Check, RefreshCw} from 'lucide-react'
+import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Globe, Target, Zap, Palette, Check, RefreshCw, Crown} from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { useTheme } from '../../hooks/useTheme'
 import { estadoStock, diasParaVencer } from '../../utils/helpers'
 import StorageWidget from '../ui/StorageWidget'
 import OfflineBanner from '../ui/OfflineBanner'
 
-const ROLES_LABEL = { admin:'Administrador', supervisor:'Supervisor', almacenero:'Almacenero', solicitante:'Solicitante' }
+const ROLES_LABEL = { saas_admin:'Super Admin', owner:'Propietario', admin:'Administrador', supervisor:'Supervisor', almacenero:'Almacenero', solicitante:'Solicitante' }
+
+const NAV_SAAS_ADMIN = [
+  { label:'Administración SaaS', path:'/admin-saas', icon:Crown, modulo:'admin', color:'#f59e0b' },
+]
 
 const NAV = [
   { label:'Dashboard',             path:'/',                icon:LayoutDashboard,  modulo:'dashboard',      color:'#3b82f6' },
@@ -128,6 +132,17 @@ function SidebarThemeButton({ collapsed }) {
 
 export default function Sidebar({ collapsed, onToggle }) {
   const { productos, pedidosInternos, sesion, logout, tienePermiso, config } = useApp()
+  const navigate = useNavigate()
+
+  function handleLogout() {
+    const empresaId = sesion?.empresaId
+    logout()
+    if (empresaId) {
+      navigate(`/app/${empresaId}`, { replace: true })
+    } else {
+      navigate('/', { replace: true })
+    }
+  }
 
   const stockCritico = productos.filter(p => {
     const e = estadoStock(p.stockActual, p.stockMinimo)
@@ -154,6 +169,8 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   const navVisible = useMemo(() => {
     if (!sesion) return NAV
+    // SuperAdmin ve solo su panel exclusivo
+    if (sesion.rol === 'saas_admin') return NAV_SAAS_ADMIN
     const marked = NAV.map(item => {
       if (item.divider) return item
       if (!tienePermiso(item.modulo)) return null
@@ -297,7 +314,7 @@ export default function Sidebar({ collapsed, onToggle }) {
 
           <div className={`${collapsed ? 'p-2' : 'px-3 py-3'}`}>
             {collapsed ? (
-              <button onClick={logout} title="Cerrar sesión"
+              <button onClick={handleLogout} title="Cerrar sesión"
                 className="w-full h-10 flex items-center justify-center text-[#9ba8b6] hover:text-red-400 hover:bg-red-500/8 transition-colors rounded-lg">
                 <LogOut size={16}/>
               </button>
@@ -311,7 +328,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                   <div className="text-[13px] font-medium truncate leading-tight" style={{ color: 'var(--sidebar-fg)' }}>{sesion.nombre}</div>
                   <div className="text-[10px] truncate" style={{ color: 'var(--sidebar-fg-muted)' }}>{sesion.email}</div>
                 </div>
-                <button onClick={logout} title="Cerrar sesión"
+                <button onClick={handleLogout} title="Cerrar sesión"
                   className="p-1.5 hover:text-red-400 hover:bg-red-500/8 transition-colors rounded-lg shrink-0"
                   style={{ color: 'var(--sidebar-fg-muted)' }}>
                   <LogOut size={15}/>

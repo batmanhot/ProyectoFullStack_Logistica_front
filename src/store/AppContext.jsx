@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useEffect, useCallback, useState } from 'react'
 import * as storage from '../services/storage'
-import { setTenant } from '../services/storage'
+import { setTenant, loginSuperAdmin } from '../services/storage'
 import { getStorageInfo, necesitaRespaldo, textoUltimoRespaldo, registrarRespaldo } from '../utils/storageMonitor'
 import { contarPendientes } from '../services/offlineQueue'
 
@@ -162,6 +162,14 @@ export function AppProvider({ children }) {
     return result
   }, [])
 
+  // loginAdmin: superadmin SaaS — sin tenant, sin datos de empresa
+  const loginAdmin = useCallback((email, password) => {
+    const result = loginSuperAdmin(email, password)
+    if (result.error) return result
+    dispatch({ type: 'SET_SESION', payload: result.data })
+    return result
+  }, [])
+
   const logout = useCallback(() => {
     storage.logout()
     dispatch({ type: 'SET_SESION', payload: null })
@@ -177,7 +185,7 @@ export function AppProvider({ children }) {
     ...state,
     get formulaValorizacion() { return state.config?.formulaValorizacion || 'PMP' },
     get simboloMoneda()       { return state.config?.simboloMoneda || 'S/' },
-    get esAdmin()             { return state.sesion?.rol === 'admin' },
+    get esAdmin()             { return ['admin','owner','supervisor'].includes(state.sesion?.rol) },
     get empresaId()           { return state.sesion?.empresaId || null },
     get stockReservado() {
       const ESTADOS = ['PEDIDO','APROBADO','PICKING','LISTO']
@@ -194,7 +202,7 @@ export function AppProvider({ children }) {
     recargarAjustes, recargarDevoluciones, recargarTransferencias, recargarUsuarios,
     recargarClientes, recargarDespachos, recargarTransportistas, recargarRutas,
     recargarAreas, recargarPedidosInternos,
-    saveConfig, toast, login, logout, tienePermiso,
+    saveConfig, toast, login, loginAdmin, logout, tienePermiso,
     // Storage / offline
     online, storageInfo, pendientesSinc,
     necesitaRespaldo, textoUltimoRespaldo,

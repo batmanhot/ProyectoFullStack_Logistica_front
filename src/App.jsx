@@ -49,6 +49,7 @@ const PortalPublico        = lazy(() => import('./pages/PortalPublico'))
 const ContabilidadReportes = lazy(() => import('./pages/ContabilidadReportes'))
 const TrazabilidadPedidos  = lazy(() => import('./pages/TrazabilidadPedidos'))
 const ColaSincronizacion   = lazy(() => import('./pages/ColaSincronizacion'))
+const AdminSaaS            = lazy(() => import('./pages/AdminSaaS'))
 
 // ── Títulos de página ───────────────────────────────────
 const PAGE_TITLES = {
@@ -94,6 +95,8 @@ const PAGE_TITLES = {
   '/maestros':       'Categorías y Almacenes',
   '/usuarios':       'Usuarios y Roles',
   '/configuracion':  'Configuración',
+  '/admin-saas':     'Administración SaaS — Negocios, Planes y Facturación',
+  '/admin':          'Panel de Administración',
 }
 
 // ── Error Boundary ──────────────────────────────────────
@@ -144,11 +147,32 @@ function PageHeader() {
   )
 }
 
+// ── SuperAdminLayout ────────────────────────────────────
+function SuperAdminLayout() {
+  return (
+    <div className="flex w-full h-screen overflow-hidden bg-[#0e1117]">
+      <Sidebar collapsed={false} onToggle={() => {}} />
+      <div className="flex flex-col flex-1 overflow-hidden min-w-0">
+        <PageHeader />
+        <ErrorBoundary>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="*" element={<AdminSaaS />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
+      </div>
+      <ToastContainer />
+    </div>
+  )
+}
+
 // ── AppLayout ───────────────────────────────────────────
 const MOBILE_BP = 768
 
 function AppLayout() {
   const { sesion } = useApp()
+  const location = useLocation()
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < MOBILE_BP)
 
   useEffect(() => {
@@ -164,11 +188,39 @@ function AppLayout() {
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
+  // /app/:orgId siempre muestra el Login del tenant — sin importar quién esté logueado.
+  // Si el usuario ya tiene sesión en ESE tenant específico, redirige al dashboard.
+  const isTenantRoute = location.pathname.startsWith('/app/')
+  if (isTenantRoute) {
+    const orgId = location.pathname.replace('/app/', '').split('/')[0]
+    if (sesion && sesion.rol !== 'saas_admin' && sesion.empresaId === orgId) {
+      return <Navigate to="/" replace />
+    }
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/app/:orgId" element={<Login />} />
+          </Routes>
+        </Suspense>
+        <ToastContainer />
+      </ErrorBoundary>
+    )
+  }
+
+  // SuperAdmin: layout exclusivo sin datos de empresa
+  if (sesion?.rol === 'saas_admin') {
+    return <SuperAdminLayout />
+  }
+
   if (!sesion) {
     return (
       <ErrorBoundary>
         <Suspense fallback={<PageLoader />}>
-          <Routes><Route path="*" element={<Login />}/></Routes>
+          <Routes>
+            <Route path="/admin" element={<Login adminMode />} />
+            <Route path="*"      element={<Login />} />
+          </Routes>
         </Suspense>
         <ToastContainer />
       </ErrorBoundary>
@@ -225,6 +277,7 @@ function AppLayout() {
             <Route path="/maestros"       element={<Maestros />} />
             <Route path="/usuarios"       element={<Usuarios />} />
             <Route path="/configuracion"  element={<Configuracion />} />
+            <Route path="/admin-saas"     element={<AdminSaaS />} />
             <Route path="*"               element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

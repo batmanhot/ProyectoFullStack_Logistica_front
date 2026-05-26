@@ -6,8 +6,8 @@
 
 // ── Empresas demo (tenants) ───────────────────────────────────
 export const EMPRESAS_DEMO = [
-  { id:'dlnorte', nombre:'Distribuidora Lima Norte S.A.C.', ruc:'20512345678', plan:'pro',     activo:true, createdAt:'2024-01-15T00:00:00Z' },
-  { id:'acme',    nombre:'ACME Distribuciones E.I.R.L.',    ruc:'20598765432', plan:'starter', activo:true, createdAt:'2024-03-01T00:00:00Z' },
+  { id:'dlnorte', nombre:'Distribuidora Lima Norte S.A.C.', ruc:'20512345678', plan:'profesional', activo:true, fechaRegistro:'2024-01-15', fechaVencimiento:'2027-01-15', createdAt:'2024-01-15T00:00:00Z' },
+  { id:'acme',    nombre:'ACME Distribuciones E.I.R.L.',    ruc:'20598765432', plan:'basico',       activo:true, fechaRegistro:'2024-03-01', fechaVencimiento:'2027-03-01', createdAt:'2024-03-01T00:00:00Z' },
 ]
 
 // ── Helper para construir movimientos de forma compacta ──
@@ -239,7 +239,9 @@ export const OC = [
 ]
 
 export const ROLES = {
-  admin: { label:'Administrador', permisos:['*'] },
+  saas_admin: { label:'Super Administrador', permisos:['admin'] },
+  owner:      { label:'Propietario',         permisos:['*'] },
+  admin:      { label:'Administrador',       permisos:['*'] },
 
   supervisor: { label:'Supervisor', permisos:[
     'dashboard','alertas',
@@ -281,6 +283,16 @@ export const USR_ACME = [
   {id:'acm1',nombre:'Valeria Quispe Flores',email:'admin@acme.pe',    password:'acme123',   rol:'admin',      empresaId:'acme',activo:true,createdAt:'2024-03-01T00:00:00Z'},
   {id:'acm2',nombre:'Roberto Salinas Cruz', email:'roberto@acme.pe',  password:'rob123',    rol:'almacenero', empresaId:'acme',activo:true,createdAt:'2024-03-15T00:00:00Z'},
 ]
+
+// Superadmin SaaS — credenciales globales del sistema (clave sp_saas_admin)
+export const SAAS_ADMIN = {
+  id: 'saas_001',
+  nombre: 'Administrador del Sistema',
+  email: 'admin@sistema.pe',
+  password: 'sistema2024',
+  rol: 'saas_admin',
+  activo: true,
+}
 
 export const AJ = [
   {id:'aj1',productoId:'prod14',almacenId:'alm1',tipo:'NEGATIVO',cantidad:50,motivo:'Faltante en conteo físico',    documento:'AJ-001-0001',fecha:'2024-12-28',costoUnitario:8.5, costoTotal:425, usuarioId:'usr1',notas:'Inventario cierre 2024',      createdAt:'2024-12-28T09:00:00Z'},
