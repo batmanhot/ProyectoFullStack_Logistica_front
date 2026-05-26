@@ -87,6 +87,12 @@ const LANDING_INIT = {
 
 const ESTADO_BADGE = { activo:'success', trial:'info', suspendido:'warning', vencido:'danger', cancelado:'neutral' }
 
+function estadoEfectivo(n) {
+  if (n.estado === 'cancelado' || n.estado === 'suspendido') return n.estado
+  if (n.fechaVencimiento && new Date(n.fechaVencimiento) < new Date(new Date().toDateString())) return 'vencido'
+  return n.estado
+}
+
 // ══════════════════════════════════════════════════════════
 // MAIN PAGE
 // ══════════════════════════════════════════════════════════
@@ -171,7 +177,7 @@ function TabNegocios({ negocios, setNegocios, planes, setRenovaciones, toast }) 
       const d = differenceInDays(new Date(n.fechaVencimiento), new Date())
       return d >= 0 && d <= 30
     }).length,
-    vencidos: negocios.filter(n => n.estado === 'vencido').length,
+    vencidos: negocios.filter(n => estadoEfectivo(n) === 'vencido').length,
   }), [negocios])
 
   const filtered = useMemo(() => {
@@ -180,7 +186,7 @@ function TabNegocios({ negocios, setNegocios, planes, setRenovaciones, toast }) 
       const q = search.toLowerCase()
       r = r.filter(n => n.nombre.toLowerCase().includes(q) || n.ruc?.includes(q) || n.email?.toLowerCase().includes(q) || n.empresaId?.toLowerCase().includes(q))
     }
-    if (filtroEstado !== 'todos') r = r.filter(n => n.estado === filtroEstado)
+    if (filtroEstado !== 'todos') r = r.filter(n => estadoEfectivo(n) === filtroEstado)
     if (filtroPlan   !== 'todos') r = r.filter(n => n.plan   === filtroPlan)
     return r
   }, [negocios, search, filtroEstado, filtroPlan])
@@ -195,11 +201,11 @@ function TabNegocios({ negocios, setNegocios, planes, setRenovaciones, toast }) 
 
   function openNew() {
     setEditItem(null)
-    setForm({ nombre:'', ruc:'', contacto:'', email:'', telefono:'', plan:'trial', estado:'trial', fechaRegistro:today(), fechaVencimiento:format(addDays(new Date(), 30), 'yyyy-MM-dd'), empresaId:'', password:'', notas:'' })
+    setForm({ nombre:'', ruc:'', contacto:'', email:'', telefono:'', plan:'trial', estado:'trial', fechaRegistro:today(), fechaVencimiento:format(addDays(new Date(), 30), 'yyyy-MM-dd'), empresaId:'', password:'', notas:'', version:'StockPro v2.0' })
     setModal(true)
   }
 
-  function openEdit(item) { setEditItem(item); setForm({ ...item }); setModal(true) }
+  function openEdit(item) { setEditItem(item); setForm({ version:'StockPro v2.0', ...item }); setModal(true) }
 
   function save() {
     if (!form.nombre?.trim()) { toast('El nombre es requerido', 'error'); return }
@@ -210,6 +216,13 @@ function TabNegocios({ negocios, setNegocios, planes, setRenovaciones, toast }) 
     } else {
       setNegocios(prev => [...prev, { ...form, id: `neg_${uid()}` }])
       toast('Negocio registrado correctamente', 'success')
+    }
+    if (form.version?.trim() && form.empresaId?.trim()) {
+      try {
+        const key = `sp_${form.empresaId}_config`
+        const existing = JSON.parse(localStorage.getItem(key) || 'null') || {}
+        localStorage.setItem(key, JSON.stringify({ ...existing, version: form.version.trim() }))
+      } catch {}
     }
     setModal(false)
   }
@@ -280,7 +293,7 @@ function TabNegocios({ negocios, setNegocios, planes, setRenovaciones, toast }) 
                         </span>
                       )}
                     </Td>
-                    <Td><Badge variant={ESTADO_BADGE[n.estado] || 'neutral'}>{n.estado}</Badge></Td>
+                    <Td><Badge variant={ESTADO_BADGE[estadoEfectivo(n)] || 'neutral'}>{estadoEfectivo(n)}</Badge></Td>
                     <Td>
                       {dias !== null ? (
                         <div>
@@ -379,7 +392,7 @@ function TabNegocios({ negocios, setNegocios, planes, setRenovaciones, toast }) 
           </Field>
           <Field label="Estado">
             <select className={inp} value={form.estado||'trial'} onChange={e => f('estado',e.target.value)}>
-              {['trial','activo','suspendido','vencido','cancelado'].map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+              {['trial','activo','suspendido','cancelado'].map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
             </select>
           </Field>
           <Field label="Fecha de registro">
@@ -393,6 +406,9 @@ function TabNegocios({ negocios, setNegocios, planes, setRenovaciones, toast }) 
               <textarea rows={2} className={`${inp} resize-y`} value={form.notas||''} onChange={e => f('notas',e.target.value)} placeholder="Observaciones, acuerdos especiales…" />
             </Field>
           </div>
+          <Field label="Versión del sistema" hint="Se propaga al Sidebar, Login y Configuración de esta empresa">
+            <input className={inp} value={form.version||'StockPro v2.0'} onChange={e => f('version',e.target.value)} placeholder="StockPro v2.0" />
+          </Field>
         </div>
       </Modal>
 
@@ -1001,7 +1017,7 @@ function TabAlertas({ alertas, setAlertas, negocios, planes, toast }) {
                       {n.dias <= 0 ? 'VENCIDO' : `${n.dias} días`}
                     </span>
                   </Td>
-                  <Td><Badge variant={ESTADO_BADGE[n.estado]||'neutral'}>{n.estado}</Badge></Td>
+                  <Td><Badge variant={ESTADO_BADGE[estadoEfectivo(n)]||'neutral'}>{estadoEfectivo(n)}</Badge></Td>
                   <Td>
                     <div className="flex flex-wrap gap-1">
                       {n.reglasActivas.length > 0

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AppProvider, useApp } from './store/AppContext'
 import Sidebar from './components/layout/Sidebar'
 import { ToastContainer } from './components/ui/index'
+import { AlertTriangle, X } from 'lucide-react'
 
 // ── Lazy imports de páginas ─────────────────────────────
 const Login           = lazy(() => import('./pages/Login'))
@@ -96,7 +97,7 @@ const PAGE_TITLES = {
   '/usuarios':       'Usuarios y Roles',
   '/configuracion':  'Configuración',
   '/admin-saas':     'Administración SaaS — Negocios, Planes y Facturación',
-  '/admin':          'Panel de Administración',
+  '/superadmin':     'Panel de Administración',
 }
 
 // ── Error Boundary ──────────────────────────────────────
@@ -135,6 +136,91 @@ function PageLoader() {
   )
 }
 
+
+function PlanVencidoScreen({ negocio }) {
+  const { logout } = useApp()
+  const dias = negocio?.fechaVencimiento
+    ? Math.floor((new Date(negocio.fechaVencimiento) - new Date()) / 86400000)
+    : null
+
+  return (
+    <div className="flex flex-col items-center justify-center flex-1 h-screen bg-[#0e1117] gap-6 p-8 text-center">
+      <div className="w-20 h-20 rounded-2xl bg-red-500/10 flex items-center justify-center">
+        <AlertTriangle size={40} className="text-red-400" />
+      </div>
+      <div>
+        <h1 className="text-[22px] font-bold text-[#e8edf2] mb-2">Plan vencido</h1>
+        <p className="text-[14px] text-[#9ba8b6] max-w-sm leading-relaxed">
+          El plan <strong className="text-[#e8edf2]">{negocio?.plan || 'contratado'}</strong> de{' '}
+          <strong className="text-[#e8edf2]">{negocio?.nombre}</strong> venció el{' '}
+          <strong className="text-red-400">{negocio?.fechaVencimiento}</strong>{' '}
+          {dias !== null && `(hace ${Math.abs(dias)} día${Math.abs(dias) === 1 ? '' : 's'})`}.
+        </p>
+        <p className="text-[13px] text-[#5f6f80] mt-3">
+          Contacta al administrador para renovar tu acceso.
+        </p>
+        {negocio?.contacto && (
+          <p className="text-[12px] text-[#5f6f80] mt-1">
+            Contacto: <span className="text-[#9ba8b6]">{negocio.contacto}</span>
+            {negocio.email && <> · <span className="text-[#00c896]">{negocio.email}</span></>}
+          </p>
+        )}
+      </div>
+      <button
+        onClick={logout}
+        className="px-5 py-2.5 bg-[#1e2835] border border-white/[0.08] text-[#e8edf2] text-[13px] font-medium rounded-lg hover:bg-[#263040] transition-colors">
+        Cerrar sesión
+      </button>
+    </div>
+  )
+}
+
+function PlanVencimientoBanner({ empresaId }) {
+  const hoy = new Date()
+  const DISMISS_KEY = `sp_plan_banner_dismiss_${empresaId}`
+
+  const [visible, setVisible] = useState(() => {
+    const dismissed = sessionStorage.getItem(DISMISS_KEY)
+    if (dismissed === hoy.toDateString()) return false
+    try {
+      const negocios = JSON.parse(localStorage.getItem('saas_negocios') || '[]')
+      const negocio  = negocios.find(n => n.empresaId === empresaId)
+      if (!negocio?.fechaVencimiento) return false
+      const dias = Math.floor((new Date(negocio.fechaVencimiento) - hoy) / 86400000)
+      return dias <= 7
+    } catch { return false }
+  })
+
+  if (!visible) return null
+
+  const negocios = (() => { try { return JSON.parse(localStorage.getItem('saas_negocios') || '[]') } catch { return [] } })()
+  const negocio  = negocios.find(n => n.empresaId === empresaId)
+  const dias     = negocio?.fechaVencimiento
+    ? Math.floor((new Date(negocio.fechaVencimiento) - hoy) / 86400000)
+    : null
+
+  const vencido  = dias !== null && dias < 0
+  const mensaje  = vencido
+    ? 'Tu plan ha vencido. Contacta al administrador para renovar tu acceso.'
+    : `Tu plan vence en ${dias} día${dias === 1 ? '' : 's'}. Contacta al administrador para renovarlo.`
+
+  function cerrar() {
+    sessionStorage.setItem(DISMISS_KEY, hoy.toDateString())
+    setVisible(false)
+  }
+
+  return (
+    <div className={`flex items-center justify-between gap-3 px-5 py-2 text-[13px] shrink-0 ${vencido ? 'bg-red-500/15 border-b border-red-500/30 text-red-300' : 'bg-amber-500/12 border-b border-amber-500/25 text-amber-300'}`}>
+      <div className="flex items-center gap-2">
+        <AlertTriangle size={14} className="shrink-0" />
+        <span>{mensaje}</span>
+      </div>
+      <button onClick={cerrar} className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors" title="Cerrar">
+        <X size={13} />
+      </button>
+    </div>
+  )
+}
 
 function PageHeader() {
   const location = useLocation()
@@ -213,12 +299,31 @@ function AppLayout() {
     return <SuperAdminLayout />
   }
 
+  // Bloqueo por plan vencido
+  if (sesion?.empresaId) {
+    try {
+      const negocios = JSON.parse(localStorage.getItem('saas_negocios') || '[]')
+      const negocio  = negocios.find(n => n.empresaId === sesion.empresaId)
+      const estadosBloqueados = ['suspendido', 'vencido', 'cancelado']
+      const fechaVencida = negocio?.fechaVencimiento &&
+        new Date(negocio.fechaVencimiento) < new Date(new Date().toDateString())
+      if (negocio && (estadosBloqueados.includes(negocio.estado) || fechaVencida)) {
+        return (
+          <ErrorBoundary>
+            <PlanVencidoScreen negocio={negocio} />
+            <ToastContainer />
+          </ErrorBoundary>
+        )
+      }
+    } catch {}
+  }
+
   if (!sesion) {
     return (
       <ErrorBoundary>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            <Route path="/admin" element={<Login adminMode />} />
+            <Route path="/superadmin" element={<Login adminMode />} />
             <Route path="*"      element={<Login />} />
           </Routes>
         </Suspense>
@@ -232,6 +337,7 @@ function AppLayout() {
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(p => !p)} />
       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
         <PageHeader />
+        <PlanVencimientoBanner empresaId={sesion?.empresaId} />
         <ErrorBoundary>
         <Suspense fallback={<PageLoader />}>
           <Routes>

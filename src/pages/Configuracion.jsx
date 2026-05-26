@@ -744,8 +744,8 @@ export default function Configuracion() {
             </p>
             <div className="grid grid-cols-2 gap-2 mb-4 text-[12px]">
               {[
-                ['Conserva', ['Configuración empresa','Categorías','Almacenes','Usuarios y roles'], 'text-emerald-400'],
-                ['Elimina',  ['Productos · Proveedores','Movimientos (entradas/salidas)','Órdenes · Cotizaciones','Clientes · Despachos · Transportes'], 'text-red-400'],
+                ['Conserva', ['Configuración empresa','Categorías','Almacenes','Usuarios y roles','Áreas internas'], 'text-emerald-400'],
+                ['Elimina',  ['Productos · Proveedores','Movimientos (entradas/salidas)','Órdenes · Cotizaciones','Clientes · Despachos · Transportes','Pedidos Internos · Auditoría'], 'text-red-400'],
               ].map(([titulo, items, color]) => (
                 <div key={titulo} className="bg-black/20 rounded-lg p-3">
                   <p className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${color}`}>{titulo}</p>
@@ -775,28 +775,30 @@ export default function Configuracion() {
           <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
             <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">Información del Sistema</div>
 
-            {/* Versión — editable */}
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-3.5">
                 <Field label="Versión del Sistema">
-                  <input
-                    className={SI}
-                    value={form.version || 'StockPro v2.0'}
-                    onChange={e => setForm(p => ({ ...p, version: e.target.value }))}
-                    placeholder="StockPro v2.0"
-                  />
+                  <div className={`${SI} flex items-center justify-between opacity-70 cursor-not-allowed select-none`}>
+                    <span>{config?.version || 'StockPro v2.0'}</span>
+                    <span className="text-[11px] text-[#5f6f80] shrink-0 ml-2">desde AdminSaaS</span>
+                  </div>
                 </Field>
                 <Field label="Modo / Entorno">
-                  <select
-                    className={SEL}
-                    value={form.modoSistema || 'Maqueta — localStorage'}
-                    onChange={e => setForm(p => ({ ...p, modoSistema: e.target.value }))}
-                  >
-                    <option value="Maqueta — localStorage">Maqueta — localStorage</option>
-                    <option value="Desarrollo — API local">Desarrollo — API local</option>
-                    <option value="Staging — API test">Staging — API test</option>
-                    <option value="Producción — API live">Producción — API live</option>
-                  </select>
+                  <div className="flex gap-2">
+                    <select
+                      className={SEL}
+                      value={form.modoSistema || 'Maqueta — localStorage'}
+                      onChange={e => setForm(p => ({ ...p, modoSistema: e.target.value }))}
+                    >
+                      <option value="Maqueta — localStorage">Maqueta — localStorage</option>
+                      <option value="Desarrollo — API local">Desarrollo — API local</option>
+                      <option value="Staging — API test">Staging — API test</option>
+                      <option value="Producción — API live">Producción — API live</option>
+                    </select>
+                    <Btn variant="primary" onClick={() => saveConfig({ modoSistema: form.modoSistema })}>
+                      <Save size={13}/>
+                    </Btn>
+                  </div>
                 </Field>
               </div>
 
@@ -819,8 +821,8 @@ export default function Configuracion() {
               </div>
 
               <p className="text-[11px] text-[#5f6f80] leading-relaxed">
-                La <strong>versión</strong> y el <strong>modo</strong> son etiquetas informativas que se muestran
-                en la barra lateral y en el encabezado. No afectan el funcionamiento del sistema.
+                La <strong>versión</strong> se establece desde la sección <strong>AdminSaaS → Negocios</strong> y se refleja automáticamente en la barra lateral y en el encabezado de login.
+                El <strong>modo/entorno</strong> es una etiqueta informativa local — guárdala con el botón de la derecha.
               </p>
             </div>
           </div>

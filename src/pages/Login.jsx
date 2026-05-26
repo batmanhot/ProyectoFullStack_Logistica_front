@@ -178,8 +178,16 @@ export default function Login({ adminMode = false }) {
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
 
-  const modoActual  = config?.modoSistema || 'Maqueta — localStorage'
-  const mostrarDemo = MODOS_DEMO.includes(modoActual)
+  // Lee config del tenant de la URL (puede no haber sesión activa aún)
+  const configTenant = (() => {
+    const id = orgId || empresa?.id
+    if (!id) return config
+    try { return JSON.parse(localStorage.getItem(`sp_${id}_config`) || 'null') || config } catch { return config }
+  })()
+
+  const versionActual   = configTenant?.version   || config?.version   || 'StockPro v2.0'
+  const modoActual      = configTenant?.modoSistema|| config?.modoSistema|| 'Maqueta — localStorage'
+  const mostrarDemo     = MODOS_DEMO.includes(modoActual)
 
   // Auto-seleccionar empresa si viene por URL /app/:orgId
   useEffect(() => {
@@ -282,7 +290,7 @@ export default function Login({ adminMode = false }) {
               }
             </div>
             <h1 className="text-[24px] font-semibold text-white">
-              {adminMode ? 'Admin Sistema' : (config?.version || 'StockPro v2.0')}
+              {adminMode ? 'Admin Sistema' : versionActual}
             </h1>
             <p className="text-[13px] text-white/40 mt-1">
               {adminMode ? 'Acceso exclusivo administrador' : 'Sistema de Gestión Logística'}
@@ -502,7 +510,7 @@ export default function Login({ adminMode = false }) {
 
           {/* Pie */}
           <p className="text-center text-[11px] text-white/20 mt-5">
-            {config?.version || 'StockPro v2.0'} · {modoActual}
+            {versionActual} · {modoActual}
           </p>
         </div>
       </div>

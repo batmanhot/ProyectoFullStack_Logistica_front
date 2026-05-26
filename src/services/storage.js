@@ -371,7 +371,7 @@ export function marcarTodasLeidas(){guardar(k('notif'),(leer(k('notif'))||[]).ma
 // RESET Y EXPORTACIÓN
 // ═══════════════════════════════════════════════════════════
 
-// Claves operativas del tenant activo
+// Claves operativas del tenant activo (se limpian con limpiarDatosOperativos)
 function operationalKeys() {
   return [
     k('productos'), k('proveedores'), k('movimientos'), k('ordenes'),
@@ -380,14 +380,17 @@ function operationalKeys() {
     k('rutas'), k('notif'), k('alertas_leidas'),
     k('cxc'), k('proformas'),
     k('empaques'), k('flota'), k('listas_precios'),
-    k('areas'), k('pedidos_internos'),
+    k('pedidos_internos'),
     k('auditoria'),
   ]
 }
 
 export function resetDemo(){
-  [...operationalKeys(), KEYS.config, KEYS.categorias, KEYS.almacenes, KEYS.usuarios, SK.session, k('demo_version')]
-    .forEach(key => localStorage.removeItem(key))
+  // resetDemo limpia TODO: operativos + configuración + áreas (para re-sembrar desde demo)
+  [...operationalKeys(),
+    KEYS.config, KEYS.categorias, KEYS.almacenes, KEYS.usuarios,
+    k('areas'), SK.session, k('demo_version'),
+  ].forEach(key => localStorage.removeItem(key))
   return ok(true)
 }
 
