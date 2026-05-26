@@ -5,6 +5,7 @@ import { useApp } from '../store/AppContext'
 import { formatDate } from '../utils/helpers'
 import * as storage from '../services/storage'
 import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field } from '../components/ui/index'
+import { usePlanLimits } from '../hooks/usePlanLimits'
 
 // ── Estilos ──────────────────────────────────────────────
 const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
@@ -168,6 +169,7 @@ function getTodosRoles() {
 // ════════════════════════════════════════════════════════
 export default function Usuarios() {
   const { usuarios, sesion, recargarUsuarios, toast } = useApp()
+  const planLimits = usePlanLimits()
   const [tab,        setTab]        = useState('usuarios')
   const [modal,      setModal]      = useState(false)
   const [editando,   setEditando]   = useState(null)
@@ -272,9 +274,23 @@ export default function Usuarios() {
           <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Usuarios del Sistema</span>
-              <Btn variant="primary" size="sm" onClick={() => { setEditando(null); setModal(true) }}>
-                <Plus size={13}/> Nuevo Usuario
-              </Btn>
+              <div className="flex items-center gap-2">
+                {planLimits.usuarios.maximo !== -1 && (
+                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                    !planLimits.usuarios.permitido ? 'bg-red-500/20 text-red-400' :
+                    planLimits.usuarios.porcentaje >= 80 ? 'bg-amber-500/20 text-amber-400' :
+                    'bg-white/6 text-[#5f6f80]'
+                  }`}>
+                    {planLimits.usuarios.actual}/{planLimits.usuarios.maximo}
+                  </span>
+                )}
+                <Btn variant="primary" size="sm"
+                  disabled={!planLimits.usuarios.permitido}
+                  title={planLimits.usuarios.mensaje || undefined}
+                  onClick={() => { setEditando(null); setModal(true) }}>
+                  <Plus size={13}/> Nuevo Usuario
+                </Btn>
+              </div>
             </div>
             <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
               <table className="w-full border-collapse text-[13px]">

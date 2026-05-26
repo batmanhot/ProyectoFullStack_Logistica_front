@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, Tag, Warehouse, MapPin } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import * as storage from '../services/storage'
 import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field } from '../components/ui/index'
+import { usePlanLimits } from '../hooks/usePlanLimits'
 
 const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
 
@@ -143,6 +144,7 @@ function ModalCategoria({ open, onClose, editando, onSave }) {
 /* ── Tab Almacenes ─────────────────────────────────── */
 export function TabAlmacenes() {
   const { almacenes, recargarAlmacenes, toast } = useApp()
+  const planLimits = usePlanLimits()
   const [modal, setModal]           = useState(false)
   const [editando, setEditando]     = useState(null)
   const [confirmDel, setConfirmDel] = useState(null)
@@ -173,9 +175,23 @@ export function TabAlmacenes() {
           <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">
             Almacenes
           </span>
-          <Btn variant="primary" size="sm" onClick={() => { setEditando(null); setModal(true) }}>
-            <Plus size={13}/> Nuevo Almacén
-          </Btn>
+          <div className="flex items-center gap-2">
+            {planLimits.almacenes.maximo !== -1 && (
+              <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                !planLimits.almacenes.permitido ? 'bg-red-500/20 text-red-400' :
+                planLimits.almacenes.porcentaje >= 80 ? 'bg-amber-500/20 text-amber-400' :
+                'bg-white/6 text-[#5f6f80]'
+              }`}>
+                {planLimits.almacenes.actual}/{planLimits.almacenes.maximo}
+              </span>
+            )}
+            <Btn variant="primary" size="sm"
+              disabled={!planLimits.almacenes.permitido}
+              title={planLimits.almacenes.mensaje || undefined}
+              onClick={() => { setEditando(null); setModal(true) }}>
+              <Plus size={13}/> Nuevo Almacén
+            </Btn>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

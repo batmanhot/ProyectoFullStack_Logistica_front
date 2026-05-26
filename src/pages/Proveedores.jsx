@@ -3,6 +3,7 @@ import { Plus, Search, Edit2, Trash2, Building2, Download, FileText } from 'luci
 import { useApp } from '../store/AppContext'
 import * as storage from '../services/storage'
 import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field } from '../components/ui/index'
+import { usePlanLimits } from '../hooks/usePlanLimits'
 import { exportarProveedoresXLSX } from '../utils/exportXLSX'
 import { exportarProveedoresPDF } from '../utils/exportPDF'
 
@@ -11,6 +12,7 @@ const SI = 'px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[1
 
 export default function Proveedores() {
   const { proveedores, recargarProveedores } = useApp()
+  const planLimits = usePlanLimits()
   const [modal,      setModal]      = useState(false)
   const [editando,   setEditando]   = useState(null)
   const [confirmDel, setConfirmDel] = useState(null)
@@ -56,7 +58,23 @@ export default function Proveedores() {
             <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarProveedoresPDF(proveedores, config?.empresa) }}>
               <FileText size={13}/> PDF
             </Btn>
-            <Btn variant="primary" size="sm" onClick={() => { setEditando(null); setModal(true) }}><Plus size={13}/> Nuevo Proveedor</Btn>
+            <div className="flex items-center gap-2">
+              {planLimits.proveedores.maximo !== -1 && (
+                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                  !planLimits.proveedores.permitido ? 'bg-red-500/20 text-red-400' :
+                  planLimits.proveedores.porcentaje >= 80 ? 'bg-amber-500/20 text-amber-400' :
+                  'bg-white/6 text-[#5f6f80]'
+                }`}>
+                  {planLimits.proveedores.actual}/{planLimits.proveedores.maximo}
+                </span>
+              )}
+              <Btn variant="primary" size="sm"
+                disabled={!planLimits.proveedores.permitido}
+                title={planLimits.proveedores.mensaje || undefined}
+                onClick={() => { setEditando(null); setModal(true) }}>
+                <Plus size={13}/> Nuevo Proveedor
+              </Btn>
+            </div>
           </div>
         </div>
 

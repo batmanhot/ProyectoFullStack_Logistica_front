@@ -2,6 +2,7 @@
 import { Plus, Search, Edit2, Trash2, Eye, Package,
          AlertTriangle, DollarSign, TrendingDown, Clock} from 'lucide-react'
 import { useApp } from '../store/AppContext'
+import { usePlanLimits } from '../hooks/usePlanLimits'
 import { formatCurrency, estadoStock, formatDate, diasParaVencer } from '../utils/helpers'
 import { valorarStock, calcularPMP } from '../utils/valorizacion'
 import * as storage from '../services/storage'
@@ -17,10 +18,11 @@ const UMs = ['UND','KG','LT','MT','CJA','PAQ','RESMA','DOC','JGO','SET','SACO','
 export default function Inventario() {
   const {
     productos, categorias, almacenes, proveedores,
-    recargarProductos, toast,
+    recargarProductos, recargarCategorias, recargarAlmacenes, recargarProveedores, toast,
     formulaValorizacion, simboloMoneda,
     stockReservado,
   } = useApp()
+  const planLimits = usePlanLimits()
 
   const [busqueda,   setBusqueda]   = useState('')
   const [filtCat,    setFiltCat]    = useState('')
@@ -30,6 +32,40 @@ export default function Inventario() {
   const [modalDet,   setModalDet]   = useState(null)
   const [editando,   setEditando]   = useState(null)
   const [confirmDel, setConfirmDel] = useState(null)
+
+  const [quickCat,  setQuickCat]  = useState({ open: false, cb: null })
+  const [quickAlm,  setQuickAlm]  = useState({ open: false, cb: null })
+  const [quickProv, setQuickProv] = useState({ open: false, cb: null })
+
+  function handleQuickCat(nombre) {
+    const res = storage.saveCategoria({ nombre: nombre.trim(), descripcion: '', activo: true })
+    recargarCategorias()
+    if (res.data?.id && quickCat.cb) quickCat.cb(res.data.id)
+    setQuickCat({ open: false, cb: null })
+    toast('Categoría creada', 'success')
+  }
+  function handleQuickAlm(nombre) {
+    if (!planLimits.almacenes.permitido) {
+      toast(planLimits.almacenes.mensaje || 'Límite de almacenes alcanzado. Actualiza tu plan.', 'error')
+      return
+    }
+    const res = storage.saveAlmacen({ nombre: nombre.trim(), codigo: '', ubicacion: '', activo: true })
+    recargarAlmacenes()
+    if (res.data?.id && quickAlm.cb) quickAlm.cb(res.data.id)
+    setQuickAlm({ open: false, cb: null })
+    toast('Almacén creado', 'success')
+  }
+  function handleQuickProv(data) {
+    if (!planLimits.proveedores.permitido) {
+      toast(planLimits.proveedores.mensaje || 'Límite de proveedores alcanzado. Actualiza tu plan.', 'error')
+      return
+    }
+    const res = storage.saveProveedor({ ...data, activo: true })
+    recargarProveedores()
+    if (res.data?.id && quickProv.cb) quickProv.cb(res.data.id)
+    setQuickProv({ open: false, cb: null })
+    toast('Proveedor creado', 'success')
+  }
 
   const filtered = useMemo(() => {
     let d = productos.filter(p => p.activo !== false)
@@ -107,9 +143,23 @@ export default function Inventario() {
       <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Inventario de Productos</span>
-          <Btn variant="primary" size="sm" onClick={abrirNuevo}>
-            <Plus size={13}/> Nuevo Producto
-          </Btn>
+          <div className="flex items-center gap-2">
+            {planLimits.productos.maximo !== -1 && (
+              <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                !planLimits.productos.permitido ? 'bg-red-500/20 text-red-400' :
+                planLimits.productos.porcentaje >= 80 ? 'bg-amber-500/20 text-amber-400' :
+                'bg-white/6 text-[#5f6f80]'
+              }`}>
+                {planLimits.productos.actual}/{planLimits.productos.maximo}
+              </span>
+            )}
+            <Btn variant="primary" size="sm"
+              disabled={!planLimits.productos.permitido}
+              title={planLimits.productos.mensaje || undefined}
+              onClick={abrirNuevo}>
+              <Plus size={13}/> Nuevo Producto
+            </Btn>
+          </div>
         </div>
 
         {/* Filtros */}
@@ -315,6 +365,25 @@ export default function Inventario() {
         almacenes={almacenes}
         proveedores={proveedores}
         onSaved={handleSaved}
+        onAddCategoria={cb => setQuickCat({ open: true, cb })}
+        onAddAlmacen={cb => setQuickAlm({ open: true, cb })}
+        onAddProveedor={cb => setQuickProv({ open: true, cb })}
+      />
+
+      <ModalQuickCategoria
+        open={quickCat.open}
+        onClose={() => setQuickCat({ open: false, cb: null })}
+        onSave={handleQuickCat}
+      />
+      <ModalQuickAlmacen
+        open={quickAlm.open}
+        onClose={() => setQuickAlm({ open: false, cb: null })}
+        onSave={handleQuickAlm}
+      />
+      <ModalQuickProveedor
+        open={quickProv.open}
+        onClose={() => setQuickProv({ open: false, cb: null })}
+        onSave={handleQuickProv}
       />
 
       <ModalDetalle
@@ -366,7 +435,8 @@ function normalizarProducto(p) {
 }
 
 // ── Modal Crear / Editar Producto ─────────────────────────
-function ModalProducto({ open, onClose, editando, categorias, almacenes, proveedores, onSaved }) {
+function ModalProducto({ open, onClose, editando, categorias, almacenes, proveedores, onSaved, onAddCategoria, onAddAlmacen, onAddProveedor }) {
+  const planLimits = usePlanLimits()
   const [form, setForm] = useState(INIT_PRODUCTO)
   const [err,  setErr]  = useState({})
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
@@ -442,24 +512,49 @@ function ModalProducto({ open, onClose, editando, categorias, almacenes, proveed
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         <Field label="Categoría *" error={err.categoriaId}>
-          <select className={SEL} value={form.categoriaId || ''}
-            onChange={e => f('categoriaId', e.target.value)}>
-            <option value="">Seleccionar...</option>
-            {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-          </select>
+          <div className="flex gap-1.5">
+            <select className={SEL + ' flex-1'} value={form.categoriaId || ''}
+              onChange={e => f('categoriaId', e.target.value)}>
+              <option value="">Seleccionar...</option>
+              {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            </select>
+            <button type="button" title="Nueva categoría"
+              className="shrink-0 w-8.5 flex items-center justify-center bg-[#00c896]/10 hover:bg-[#00c896]/20 border border-[#00c896]/30 hover:border-[#00c896]/50 rounded-lg text-[#00c896] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#00c896]/10 disabled:hover:border-[#00c896]/30"
+              onClick={() => onAddCategoria?.(id => f('categoriaId', id))}>
+              <Plus size={13}/>
+            </button>
+          </div>
         </Field>
         <Field label="Almacén">
-          <select className={SEL} value={form.almacenId || ''}
-            onChange={e => f('almacenId', e.target.value)}>
-            {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
+          <div className="flex gap-1.5">
+            <select className={SEL + ' flex-1'} value={form.almacenId || ''}
+              onChange={e => f('almacenId', e.target.value)}>
+              {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+            </select>
+            <button type="button"
+              title={!planLimits.almacenes.permitido ? planLimits.almacenes.mensaje : 'Nuevo almacén'}
+              disabled={!planLimits.almacenes.permitido}
+              className="shrink-0 w-8.5 flex items-center justify-center bg-[#00c896]/10 hover:bg-[#00c896]/20 border border-[#00c896]/30 hover:border-[#00c896]/50 rounded-lg text-[#00c896] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#00c896]/10 disabled:hover:border-[#00c896]/30"
+              onClick={() => onAddAlmacen?.(id => f('almacenId', id))}>
+              <Plus size={13}/>
+            </button>
+          </div>
         </Field>
         <Field label="Proveedor">
-          <select className={SEL} value={form.proveedorId || ''}
-            onChange={e => f('proveedorId', e.target.value)}>
-            <option value="">Sin proveedor</option>
-            {proveedores.map(p => <option key={p.id} value={p.id}>{p.razonSocial}</option>)}
-          </select>
+          <div className="flex gap-1.5">
+            <select className={SEL + ' flex-1'} value={form.proveedorId || ''}
+              onChange={e => f('proveedorId', e.target.value)}>
+              <option value="">Sin proveedor</option>
+              {proveedores.map(p => <option key={p.id} value={p.id}>{p.razonSocial}</option>)}
+            </select>
+            <button type="button"
+              title={!planLimits.proveedores.permitido ? planLimits.proveedores.mensaje : 'Nuevo proveedor'}
+              disabled={!planLimits.proveedores.permitido}
+              className="shrink-0 w-8.5 flex items-center justify-center bg-[#00c896]/10 hover:bg-[#00c896]/20 border border-[#00c896]/30 hover:border-[#00c896]/50 rounded-lg text-[#00c896] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#00c896]/10 disabled:hover:border-[#00c896]/30"
+              onClick={() => onAddProveedor?.(id => f('proveedorId', id))}>
+              <Plus size={13}/>
+            </button>
+          </div>
         </Field>
       </div>
 
@@ -499,6 +594,74 @@ function ModalProducto({ open, onClose, editando, categorias, almacenes, proveed
           </label>
         )}
       </div>
+    </Modal>
+  )
+}
+
+// ── Modales Rápidos (Categoría / Almacén / Proveedor) ────────
+function ModalQuickCategoria({ open, onClose, onSave }) {
+  const [nombre, setNombre] = useState('')
+  useEffect(() => { if (open) setNombre('') }, [open])
+  return (
+    <Modal open={open} onClose={onClose} title="Nueva Categoría" size="sm" zIndex={60}
+      footer={<>
+        <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+        <Btn variant="primary" onClick={() => nombre.trim() && onSave(nombre)} disabled={!nombre.trim()}>Crear</Btn>
+      </>}>
+      <Field label="Nombre *">
+        <input className={SI} value={nombre} onChange={e => setNombre(e.target.value)}
+          placeholder="Electrónica, Herramientas..." autoFocus/>
+      </Field>
+    </Modal>
+  )
+}
+
+function ModalQuickAlmacen({ open, onClose, onSave }) {
+  const [nombre, setNombre] = useState('')
+  useEffect(() => { if (open) setNombre('') }, [open])
+  return (
+    <Modal open={open} onClose={onClose} title="Nuevo Almacén" size="sm" zIndex={60}
+      footer={<>
+        <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+        <Btn variant="primary" onClick={() => nombre.trim() && onSave(nombre)} disabled={!nombre.trim()}>Crear</Btn>
+      </>}>
+      <Field label="Nombre *">
+        <input className={SI} value={nombre} onChange={e => setNombre(e.target.value)}
+          placeholder="Almacén Principal, Depósito B..." autoFocus/>
+      </Field>
+    </Modal>
+  )
+}
+
+function ModalQuickProveedor({ open, onClose, onSave }) {
+  const init = { razonSocial: '', ruc: '', contacto: '', telefono: '' }
+  const [form, setForm] = useState(init)
+  const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
+  useEffect(() => { if (open) setForm(init) }, [open])  // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Modal open={open} onClose={onClose} title="Nuevo Proveedor" size="sm" zIndex={60}
+      footer={<>
+        <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+        <Btn variant="primary" onClick={() => form.razonSocial.trim() && onSave(form)} disabled={!form.razonSocial.trim()}>Crear</Btn>
+      </>}>
+      <Field label="Razón Social *">
+        <input className={SI} value={form.razonSocial} onChange={e => f('razonSocial', e.target.value)}
+          placeholder="Importaciones XYZ S.A.C." autoFocus/>
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="RUC">
+          <input className={SI} value={form.ruc} onChange={e => f('ruc', e.target.value)}
+            placeholder="20123456789" maxLength={11}/>
+        </Field>
+        <Field label="Teléfono">
+          <input className={SI} value={form.telefono} onChange={e => f('telefono', e.target.value)}
+            placeholder="987654321"/>
+        </Field>
+      </div>
+      <Field label="Contacto">
+        <input className={SI} value={form.contacto} onChange={e => f('contacto', e.target.value)}
+          placeholder="Nombre del contacto"/>
+      </Field>
     </Modal>
   )
 }

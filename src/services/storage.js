@@ -122,28 +122,60 @@ export function getConfig(){
   if (!stored) guardar(KEYS.config, base)  // seed on first access
   return ok({ ...base, ...(stored || {}) })
 }
-export function saveConfig(cfg){const c=leer(KEYS.config)||{};guardar(KEYS.config,{...c,...cfg});return ok(true)}
+export function saveConfig(cfg){
+  const c=leer(KEYS.config)||{}
+  guardar(KEYS.config,{...c,...cfg})
+  _audit('UPDATE','configuracion','Configuración del sistema actualizada')
+  return ok(true)
+}
 
 // ═══════════════════════════════════════════════════════════
 // CATÁLOGOS
 // ═══════════════════════════════════════════════════════════
 export function getCategorias(){const d=leer(KEYS.categorias)||demo(CAT);if(!leer(KEYS.categorias))guardar(KEYS.categorias,demo(CAT));return ok(d)}
-export function saveCategoria(c){const l=leer(KEYS.categorias)||demo(CAT);if(c.id){const i=l.findIndex(x=>x.id===c.id);if(i>=0)l[i]=c;else return err('No encontrado')}else l.push({...c,id:newId(),activo:true});guardar(KEYS.categorias,l);return ok(true)}
-export function deleteCategoria(id){guardar(KEYS.categorias,(leer(KEYS.categorias)||[]).filter(c=>c.id!==id));return ok(true)}
+export function saveCategoria(c){
+  const l=leer(KEYS.categorias)||demo(CAT);const esNueva=!c.id
+  let saved
+  if(c.id){const i=l.findIndex(x=>x.id===c.id);if(i>=0){l[i]=c;saved=c}else return err('No encontrado')}
+  else{saved={...c,id:newId(),activo:true};l.push(saved)}
+  guardar(KEYS.categorias,l)
+  _audit(esNueva?'CREATE':'UPDATE','categorias',`Categoría ${esNueva?'creada':'modificada'} — ${c.nombre||c.id}`)
+  return ok(saved)
+}
+export function deleteCategoria(id){
+  const cat=(leer(KEYS.categorias)||[]).find(c=>c.id===id)
+  guardar(KEYS.categorias,(leer(KEYS.categorias)||[]).filter(c=>c.id!==id))
+  _audit('DELETE','categorias',`Categoría eliminada — ${cat?.nombre||id}`)
+  return ok(true)
+}
 export function getCategoriasAll(){return getCategorias()}
 
 export function getAlmacenes(){const d=leer(KEYS.almacenes)||demo(ALM);if(!leer(KEYS.almacenes))guardar(KEYS.almacenes,demo(ALM));return ok(d)}
-export function saveAlmacen(a){const l=leer(KEYS.almacenes)||demo(ALM);if(a.id){const i=l.findIndex(x=>x.id===a.id);if(i>=0)l[i]=a;else l.push({...a,id:newId(),activo:true})}else l.push({...a,id:newId(),activo:true});guardar(KEYS.almacenes,l);return ok(true)}
-export function deleteAlmacen(id){guardar(KEYS.almacenes,(leer(KEYS.almacenes)||[]).filter(a=>a.id!==id));return ok(true)}
+export function saveAlmacen(a){
+  const l=leer(KEYS.almacenes)||demo(ALM);const esNuevo=!a.id
+  let saved
+  if(a.id){const i=l.findIndex(x=>x.id===a.id);if(i>=0){l[i]=a;saved=a}else{saved={...a,id:newId(),activo:true};l.push(saved)}}
+  else{saved={...a,id:newId(),activo:true};l.push(saved)}
+  guardar(KEYS.almacenes,l)
+  _audit(esNuevo?'CREATE':'UPDATE','almacenes',`Almacén ${esNuevo?'creado':'modificado'} — ${a.nombre||a.id}`)
+  return ok(saved)
+}
+export function deleteAlmacen(id){
+  const alm=(leer(KEYS.almacenes)||[]).find(a=>a.id===id)
+  guardar(KEYS.almacenes,(leer(KEYS.almacenes)||[]).filter(a=>a.id!==id))
+  _audit('DELETE','almacenes',`Almacén eliminado — ${alm?.nombre||id}`)
+  return ok(true)
+}
 
 export function getProveedores(){const d=leer(KEYS.proveedores)||demo(PROV);if(!leer(KEYS.proveedores))guardar(KEYS.proveedores,demo(PROV));return ok(d)}
 export function saveProveedor(p){
   const l=leer(KEYS.proveedores)||demo(PROV);const esNuevo=!p.id
-  if(p.id){const i=l.findIndex(x=>x.id===p.id);if(i>=0)l[i]=p;else l.push({...p,id:newId(),activo:true})}
-  else l.push({...p,id:newId(),activo:true})
+  let saved
+  if(p.id){const i=l.findIndex(x=>x.id===p.id);if(i>=0){l[i]=p;saved=p}else{saved={...p,id:newId(),activo:true};l.push(saved)}}
+  else{saved={...p,id:newId(),activo:true};l.push(saved)}
   guardar(KEYS.proveedores,l)
   _audit(esNuevo?'CREATE':'UPDATE','proveedores',`Proveedor ${esNuevo?'creado':'modificado'} — ${p.razonSocial}`)
-  return ok(true)
+  return ok(saved)
 }
 export function deleteProveedor(id){
   const p=(leer(KEYS.proveedores)||[]).find(x=>x.id===id)
@@ -303,18 +335,35 @@ export function tienePermiso(rol,modulo){
 // AJUSTES
 // ═══════════════════════════════════════════════════════════
 export function getAjustes(f={}){let d=leer(k('ajustes'))||demo(AJ);if(!leer(k('ajustes')))guardar(k('ajustes'),demo(AJ));if(f.productoId)d=d.filter(a=>a.productoId===f.productoId);if(f.desde)d=d.filter(a=>a.fecha>=f.desde);if(f.hasta)d=d.filter(a=>a.fecha<=f.hasta);return ok([...d].sort((a,b)=>b.fecha.localeCompare(a.fecha)))}
-export function registrarAjuste(a){const l=leer(k('ajustes'))||[];l.push({...a,id:newId(),createdAt:new Date().toISOString()});guardar(k('ajustes'),l);return ok(true)}
+export function registrarAjuste(a){
+  const l=leer(k('ajustes'))||[]
+  const nuevo={...a,id:newId(),createdAt:new Date().toISOString()}
+  l.push(nuevo);guardar(k('ajustes'),l)
+  const prods=leer(KEYS.productos)||[]
+  const prod=prods.find(p=>p.id===a.productoId)
+  _audit('CREATE','ajustes',`Ajuste registrado — ${prod?.nombre||a.productoId} · Cantidad: ${a.cantidad} · Motivo: ${a.motivo||'—'}`)
+  return ok(true)
+}
 
 // DEVOLUCIONES
 export function getDevoluciones(f={}){let d=leer(k('devoluciones'))||demo(DEV);if(!leer(k('devoluciones')))guardar(k('devoluciones'),demo(DEV));if(f.tipo)d=d.filter(x=>x.tipo===f.tipo);if(f.desde)d=d.filter(x=>x.fecha>=f.desde);return ok([...d].sort((a,b)=>b.fecha.localeCompare(a.fecha)))}
-export function registrarDevolucion(dev){const l=leer(k('devoluciones'))||[];l.push({...dev,id:newId(),createdAt:new Date().toISOString()});guardar(k('devoluciones'),l);return ok(true)}
+export function registrarDevolucion(dev){
+  const l=leer(k('devoluciones'))||[]
+  l.push({...dev,id:newId(),createdAt:new Date().toISOString()});guardar(k('devoluciones'),l)
+  _audit('CREATE','devoluciones',`Devolución registrada — Tipo: ${dev.tipo||'—'} · Doc: ${dev.documento||'—'} · ${dev.motivo||''}`)
+  return ok(true)
+}
 
 // TRANSFERENCIAS
 export function getTransferencias(f={}){let d=leer(k('transferencias'))||demo(TR);if(!leer(k('transferencias')))guardar(k('transferencias'),demo(TR));if(f.productoId)d=d.filter(t=>t.productoId===f.productoId);if(f.desde)d=d.filter(t=>t.fecha>=f.desde);if(f.hasta)d=d.filter(t=>t.fecha<=f.hasta);return ok([...d].sort((a,b)=>b.fecha.localeCompare(a.fecha)))}
 export function registrarTransferencia(tr){
   const vErr=validateTransferencia(tr,{productos:leer(KEYS.productos)||[],almacenes:leer(KEYS.almacenes)||demo(ALM)})
   if(vErr) return err(vErr)
-  const l=leer(k('transferencias'))||[];l.push({...tr,id:newId(),createdAt:new Date().toISOString()});guardar(k('transferencias'),l);return ok(true)
+  const l=leer(k('transferencias'))||[];l.push({...tr,id:newId(),createdAt:new Date().toISOString()});guardar(k('transferencias'),l)
+  const prods=leer(KEYS.productos)||[]
+  const prod=prods.find(p=>p.id===tr.productoId)
+  _audit('CREATE','transferencias',`Transferencia registrada — ${prod?.nombre||tr.productoId} · ${tr.cantidad} ${prod?.unidadMedida||''} · ${tr.almacenOrigenId} → ${tr.almacenDestinoId}`)
+  return ok(true)
 }
 
 // KARDEX
@@ -355,11 +404,25 @@ export function getKardex(pId){
 
 // COTIZACIONES
 export function getCotizaciones(f={}){let d=leer(k('cotizaciones'))||demo(COT);if(!leer(k('cotizaciones')))guardar(k('cotizaciones'),demo(COT));if(f.estado)d=d.filter(c=>c.estado===f.estado);return ok([...d].sort((a,b)=>b.createdAt.localeCompare(a.createdAt)))}
-export function saveCotizacion(c){const l=leer(k('cotizaciones'))||[];const t=new Date().toISOString();if(c.id){const i=l.findIndex(x=>x.id===c.id);if(i>=0)l[i]={...c,updatedAt:t};else l.push({...c,updatedAt:t})}else l.push({...c,id:newId(),createdAt:t});guardar(k('cotizaciones'),l);return ok(true)}
+export function saveCotizacion(c){
+  const l=leer(k('cotizaciones'))||[];const t=new Date().toISOString();const esNueva=!c.id
+  if(c.id){const i=l.findIndex(x=>x.id===c.id);if(i>=0)l[i]={...c,updatedAt:t};else l.push({...c,updatedAt:t})}
+  else l.push({...c,id:newId(),createdAt:t})
+  guardar(k('cotizaciones'),l)
+  _audit(esNueva?'CREATE':'UPDATE','cotizaciones',`Cotización ${esNueva?'creada':'modificada'} — ${c.numero||'—'} · Estado: ${c.estado||'—'}`)
+  return ok(true)
+}
 
 // INVENTARIO FÍSICO
 export function getInventariosFisicos(){return ok([...(leer(k('inv_fisico'))||[])].sort((a,b)=>b.createdAt.localeCompare(a.createdAt)))}
-export function saveInventarioFisico(inv){const l=leer(k('inv_fisico'))||[];const t=new Date().toISOString();if(inv.id){const i=l.findIndex(x=>x.id===inv.id);if(i>=0)l[i]={...inv,updatedAt:t};else l.push({...inv,updatedAt:t})}else l.push({...inv,id:newId(),createdAt:t});guardar(k('inv_fisico'),l);return ok(true)}
+export function saveInventarioFisico(inv){
+  const l=leer(k('inv_fisico'))||[];const t=new Date().toISOString();const esNuevo=!inv.id
+  if(inv.id){const i=l.findIndex(x=>x.id===inv.id);if(i>=0)l[i]={...inv,updatedAt:t};else l.push({...inv,updatedAt:t})}
+  else l.push({...inv,id:newId(),createdAt:t})
+  guardar(k('inv_fisico'),l)
+  _audit(esNuevo?'CREATE':'UPDATE','inv-fisico',`Inventario físico ${esNuevo?'iniciado':'actualizado'} — ${inv.nombre||inv.fecha||'—'} · Estado: ${inv.estado||'—'}`)
+  return ok(true)
+}
 
 // NOTIFICACIONES
 export function getNotificaciones(){return ok(leer(k('notif'))||[])}
@@ -507,6 +570,7 @@ export function getTransportistas(filtros={}) {
 export function saveTransportista(tra) {
   const lista = leer(k('transportistas')) || demo(TRANSPORTISTAS_DEMO)
   const ahora = new Date().toISOString()
+  const esNuevo = !tra.id
   if (tra.id) {
     const idx = lista.findIndex(t => t.id === tra.id)
     if (idx >= 0) lista[idx] = { ...tra, updatedAt: ahora }
@@ -515,11 +579,14 @@ export function saveTransportista(tra) {
     lista.push({ ...tra, id: newId(), createdAt: ahora, activo: true })
   }
   guardar(k('transportistas'), lista)
+  _audit(esNuevo?'CREATE':'UPDATE','transportistas',`Transportista ${esNuevo?'creado':'modificado'} — ${tra.nombre||tra.razonSocial||tra.id}`)
   return ok(true)
 }
 
 export function deleteTransportista(id) {
+  const tra = (leer(k('transportistas')) || []).find(t => t.id === id)
   guardar(k('transportistas'), (leer(k('transportistas')) || []).filter(t => t.id !== id))
+  _audit('DELETE','transportistas',`Transportista eliminado — ${tra?.nombre||tra?.razonSocial||id}`)
   return ok(true)
 }
 
@@ -538,6 +605,7 @@ export function getRutas(filtros={}) {
 export function saveRuta(ruta) {
   const lista = leer(k('rutas')) || []
   const ahora = new Date().toISOString()
+  const esNueva = !ruta.id
   if (ruta.id) {
     const idx = lista.findIndex(r => r.id === ruta.id)
     if (idx >= 0) lista[idx] = { ...ruta, updatedAt: ahora }
@@ -546,6 +614,7 @@ export function saveRuta(ruta) {
     lista.push({ ...ruta, id: newId(), createdAt: ahora })
   }
   guardar(k('rutas'), lista)
+  _audit(esNueva?'CREATE':'UPDATE','rutas',`Ruta ${esNueva?'creada':'modificada'} — ${ruta.numero||ruta.nombre||'—'} · Estado: ${ruta.estado||'—'}`)
   return ok(true)
 }
 
@@ -625,15 +694,39 @@ export function limpiarAuditoria() {
 // CUENTAS POR COBRAR
 // ═══════════════════════════════════════════════════════════
 export function getCxC(){let d=leer(k('cxc'))||demo(CXC_DEMO);if(!leer(k('cxc')))guardar(k('cxc'),demo(CXC_DEMO));return ok([...d].sort((a,b)=>b.createdAt.localeCompare(a.createdAt)))}
-export function saveCxC(doc){const l=leer(k('cxc'))||demo(CXC_DEMO);const t=new Date().toISOString();if(doc.id){const i=l.findIndex(x=>x.id===doc.id);if(i>=0)l[i]={...doc,updatedAt:t};else l.push({...doc,id:newId(),createdAt:t})}else l.push({...doc,id:newId(),createdAt:t});guardar(k('cxc'),l);_audit('SAVE','cxc',`CxC ${doc.numero}`);return ok(true)}
-export function deleteCxC(id){guardar(k('cxc'),(leer(k('cxc'))||[]).filter(x=>x.id!==id));return ok(true)}
+export function saveCxC(doc){
+  const l=leer(k('cxc'))||demo(CXC_DEMO);const t=new Date().toISOString();const esNuevo=!doc.id
+  if(doc.id){const i=l.findIndex(x=>x.id===doc.id);if(i>=0)l[i]={...doc,updatedAt:t};else l.push({...doc,id:newId(),createdAt:t})}
+  else l.push({...doc,id:newId(),createdAt:t})
+  guardar(k('cxc'),l)
+  _audit(esNuevo?'CREATE':'UPDATE','cxc',`CxC ${esNuevo?'creada':'modificada'} — ${doc.numero||'—'} · Estado: ${doc.estado||'—'}`)
+  return ok(true)
+}
+export function deleteCxC(id){
+  const doc=(leer(k('cxc'))||[]).find(x=>x.id===id)
+  guardar(k('cxc'),(leer(k('cxc'))||[]).filter(x=>x.id!==id))
+  _audit('DELETE','cxc',`CxC eliminada — ${doc?.numero||id}`)
+  return ok(true)
+}
 
 // ═══════════════════════════════════════════════════════════
 // PROFORMAS
 // ═══════════════════════════════════════════════════════════
 export function getProformas(){let d=leer(k('proformas'))||demo(PROF_DEMO);if(!leer(k('proformas')))guardar(k('proformas'),demo(PROF_DEMO));return ok([...d].sort((a,b)=>b.createdAt.localeCompare(a.createdAt)))}
-export function saveProforma(p){const l=leer(k('proformas'))||demo(PROF_DEMO);const t=new Date().toISOString();if(p.id){const i=l.findIndex(x=>x.id===p.id);if(i>=0)l[i]={...p,updatedAt:t};else l.push({...p,id:newId(),createdAt:t})}else l.push({...p,id:newId(),createdAt:t});guardar(k('proformas'),l);_audit('SAVE','proformas',`Proforma ${p.numero}`);return ok(true)}
-export function deleteProforma(id){guardar(k('proformas'),(leer(k('proformas'))||[]).filter(x=>x.id!==id));return ok(true)}
+export function saveProforma(p){
+  const l=leer(k('proformas'))||demo(PROF_DEMO);const t=new Date().toISOString();const esNueva=!p.id
+  if(p.id){const i=l.findIndex(x=>x.id===p.id);if(i>=0)l[i]={...p,updatedAt:t};else l.push({...p,id:newId(),createdAt:t})}
+  else l.push({...p,id:newId(),createdAt:t})
+  guardar(k('proformas'),l)
+  _audit(esNueva?'CREATE':'UPDATE','proformas',`Proforma ${esNueva?'creada':'modificada'} — ${p.numero||'—'} · Estado: ${p.estado||'—'}`)
+  return ok(true)
+}
+export function deleteProforma(id){
+  const p=(leer(k('proformas'))||[]).find(x=>x.id===id)
+  guardar(k('proformas'),(leer(k('proformas'))||[]).filter(x=>x.id!==id))
+  _audit('DELETE','proformas',`Proforma eliminada — ${p?.numero||id}`)
+  return ok(true)
+}
 
 // ═══════════════════════════════════════════════════════════
 // LOTES Y SERIES

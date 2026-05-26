@@ -2,13 +2,13 @@ import { X, CheckCircle2, AlertTriangle, Info, XCircle, Package } from 'lucide-r
 import { useApp } from '../../store/AppContext'
 
 /* ── Modal ─────────────────────────────────────────── */
-export function Modal({ open, onClose, title, size = 'md', children, footer }) {
+export function Modal({ open, onClose, title, size = 'md', children, footer, zIndex }) {
   if (!open) return null
   const widths = { sm:'max-w-md', md:'max-w-xl', lg:'max-w-3xl', xl:'max-w-5xl' }
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-content-center p-5 bg-black/70 backdrop-blur-sm"
-      style={{ alignItems: 'center', justifyContent: 'center' }}
+      style={{ alignItems: 'center', justifyContent: 'center', ...(zIndex ? { zIndex } : {}) }}
     >
       <div className={`animate-modal-in bg-[#161d28] border border-white/10 rounded-2xl w-full ${widths[size]} max-h-[92vh] flex flex-col shadow-2xl`}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.08] shrink-0">

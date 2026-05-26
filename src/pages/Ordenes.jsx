@@ -2,6 +2,7 @@
 import { Plus, Search, CheckCircle, X, Eye, ShoppingCart, FileText, MessageCircle, Mail, ChevronUp, ChevronDown, Download } from 'lucide-react'
 
 import { useApp } from '../store/AppContext'
+import { usePlanLimits } from '../hooks/usePlanLimits'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
 import * as storage from '../services/storage'
 import { Modal, ConfirmDialog, EmptyState, EstadoOCBadge, Badge, Btn, Field, Alert } from '../components/ui/index'
@@ -18,6 +19,7 @@ const SEL=SI+' pr-8'
 
 export default function Ordenes() {
   const { ordenes, productos, proveedores, almacenes, recargarProductos, recargarMovimientos, recargarOrdenes, toast, sesion, simboloMoneda, config } = useApp()
+  const planLimits = usePlanLimits()
   const [modal, setModal]       = useState(false)
   const [detalle, setDetalle]   = useState(null)
   const [recepcion, setRecepcion] = useState(null)
@@ -172,7 +174,23 @@ export default function Ordenes() {
             <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarOrdenesPDF(filtered, proveedores, simboloMoneda, config?.empresa) }}>
               <FileText size={13}/> PDF
             </Btn>
-            <Btn variant="primary" size="sm" onClick={()=>setModal(true)}><Plus size={13}/> Nueva OC</Btn>
+            <div className="flex items-center gap-2">
+              {planLimits.ordenesMes.maximo !== -1 && (
+                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                  !planLimits.ordenesMes.permitido ? 'bg-red-500/20 text-red-400' :
+                  planLimits.ordenesMes.porcentaje >= 80 ? 'bg-amber-500/20 text-amber-400' :
+                  'bg-white/6 text-[#5f6f80]'
+                }`}>
+                  {planLimits.ordenesMes.actual}/{planLimits.ordenesMes.maximo} este mes
+                </span>
+              )}
+              <Btn variant="primary" size="sm"
+                disabled={!planLimits.ordenesMes.permitido}
+                title={planLimits.ordenesMes.mensaje || undefined}
+                onClick={() => setModal(true)}>
+                <Plus size={13}/> Nueva OC
+              </Btn>
+            </div>
           </div>
         </div>
 

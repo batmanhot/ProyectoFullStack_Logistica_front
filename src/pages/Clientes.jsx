@@ -6,6 +6,7 @@ import {
   RotateCcw, XCircle, Star, X, Download, FileText
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
+import { usePlanLimits } from '../hooks/usePlanLimits'
 import { formatCurrency, formatDate } from '../utils/helpers'
 import * as storage from '../services/storage'
 import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field, Alert } from '../components/ui/index'
@@ -40,6 +41,7 @@ function clasificarCliente(valorTotal) {
 
 export default function Clientes() {
   const { clientes, recargarClientes, config, despachos, devoluciones, simboloMoneda } = useApp()
+  const planLimits = usePlanLimits()
   const nav = useNavigate()
   const [modal,      setModal]      = useState(false)
   const [editando,   setEditando]   = useState(null)
@@ -135,7 +137,23 @@ export default function Clientes() {
             <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarClientesPDF(clientes, config?.empresa) }}>
               <FileText size={13}/> PDF
             </Btn>
-            <Btn variant="primary" size="sm" onClick={() => { setEditando(null); setModal(true) }}><Plus size={13}/> Nuevo Cliente</Btn>
+            <div className="flex items-center gap-2">
+              {planLimits.clientes.maximo !== -1 && (
+                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                  !planLimits.clientes.permitido ? 'bg-red-500/20 text-red-400' :
+                  planLimits.clientes.porcentaje >= 80 ? 'bg-amber-500/20 text-amber-400' :
+                  'bg-white/6 text-[#5f6f80]'
+                }`}>
+                  {planLimits.clientes.actual}/{planLimits.clientes.maximo}
+                </span>
+              )}
+              <Btn variant="primary" size="sm"
+                disabled={!planLimits.clientes.permitido}
+                title={planLimits.clientes.mensaje || undefined}
+                onClick={() => { setEditando(null); setModal(true) }}>
+                <Plus size={13}/> Nuevo Cliente
+              </Btn>
+            </div>
           </div>
         </div>
 
