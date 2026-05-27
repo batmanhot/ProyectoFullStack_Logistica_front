@@ -48,7 +48,7 @@ const LANDING_DEFAULT = {
   contacto: { email: 'ventas@stockpro.com', telefono: '+51 1 234 5678', whatsapp: '+51999000111', direccion: 'Lima, Perú' },
   redesSociales: { linkedin: '', twitter: '', facebook: '', instagram: '', youtube: '' },
   seo: { titulo: 'StockPro — Sistema Logístico SaaS', descripcion: 'Gestiona tu inventario, despachos y logística con StockPro. Prueba gratis.', keywords: 'logística, inventario, saas, gestión almacén, peru' },
-  footer: { textoLegal: '© 2026 StockPro. Todos los derechos reservados.', mostrarPrecios: true, moneda: 'PEN', probarGratisDias: 14 },
+  footer: { textoLegal: '© 2026 StockPro. Todos los derechos reservados.', mostrarPrecios: true, moneda: 'PEN', probarGratisDias: 30 },
 }
 
 const PLANES_DEFAULT = [
@@ -297,8 +297,8 @@ export default function LandingPage() {
       ══════════════════════════════════════════════════ */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? 'bg-[#0e1117]/96 backdrop-blur-md border-b border-white/[0.08] shadow-xl shadow-black/30'
-          : 'bg-transparent'
+          ? 'bg-[#0a0e14] border-b border-white/[0.08] shadow-xl shadow-black/50'
+          : 'bg-[#0a0e14]/90 backdrop-blur-md border-b border-white/[0.05]'
       }`}>
         <div className="max-w-6xl mx-auto px-6 h-[70px] flex items-center justify-between">
 
@@ -331,7 +331,7 @@ export default function LandingPage() {
 
           {/* Desktop CTAs */}
           <div className="hidden md:flex items-center gap-3">
-            <button onClick={() => navigate('/superadmin')}
+            <button onClick={() => navigate('/login')}
               className="px-4 py-2 text-[13px] font-medium text-[#9ba8b6] hover:text-white transition-colors">
               Iniciar sesión
             </button>
@@ -365,7 +365,7 @@ export default function LandingPage() {
               </button>
             ))}
             <div className="pt-4 flex flex-col gap-2.5">
-              <button onClick={() => { setMenuOpen(false); navigate('/superadmin') }}
+              <button onClick={() => { setMenuOpen(false); navigate('/login') }}
                 className="w-full py-3 rounded-xl text-[13px] font-semibold text-[#e8edf2] bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
                 Iniciar sesión
               </button>
@@ -441,7 +441,7 @@ export default function LandingPage() {
               <ArrowRight size={17}/>
             </button>
             <button
-              onClick={() => navigate('/superadmin')}
+              onClick={() => navigate('/login')}
               className="flex items-center justify-center gap-2.5 px-9 py-4 rounded-2xl text-[15px] font-semibold text-[#e8edf2] bg-white/[0.05] border border-white/10 hover:bg-white/10 transition-all hover:scale-[1.02]">
               {hero?.ctaTexto2 || 'Iniciar sesión'}
               <ChevronRight size={17}/>
@@ -922,7 +922,7 @@ export default function LandingPage() {
               {redesSociales?.facebook  && <a href={redesSociales.facebook}  target="_blank" rel="noopener noreferrer" className="p-2 text-[#5f6f80] hover:text-white transition-colors"><Facebook  size={17}/></a>}
               {redesSociales?.instagram && <a href={redesSociales.instagram} target="_blank" rel="noopener noreferrer" className="p-2 text-[#5f6f80] hover:text-white transition-colors"><Instagram size={17}/></a>}
               {redesSociales?.youtube   && <a href={redesSociales.youtube}   target="_blank" rel="noopener noreferrer" className="p-2 text-[#5f6f80] hover:text-white transition-colors"><Youtube   size={17}/></a>}
-              <button onClick={() => navigate('/superadmin')}
+              <button onClick={() => navigate('/login')}
                 className="ml-2 px-4 py-2 rounded-lg text-[12px] font-semibold border border-white/10 text-[#9ba8b6] hover:text-white hover:border-white/20 transition-all">
                 Iniciar sesión
               </button>
