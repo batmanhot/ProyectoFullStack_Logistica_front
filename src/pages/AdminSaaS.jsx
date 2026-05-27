@@ -75,9 +75,10 @@ const LANDING_INIT = {
     { id:'cf_1', icono:'📦', titulo:'Inventario en Tiempo Real', descripcion:'Control de stock con alertas automáticas y kardex valorizado completo.' },
     { id:'cf_2', icono:'🚚', titulo:'Gestión de Despachos', descripcion:'Planifica rutas, controla tu flota y rastrea entregas en tiempo real.' },
     { id:'cf_3', icono:'📊', titulo:'Reportes y KPIs', descripcion:'Dashboards con indicadores clave: OTIF, Fill Rate, Perfect Order y más.' },
-    { id:'cf_4', icono:'🔗', titulo:'Integración SUNAT', descripcion:'Facturación electrónica integrada con validación automática de comprobantes.' },
+    { id:'cf_4', icono:'🌐', titulo:'Portal B2B de Clientes', descripcion:'Tus clientes hacen pedidos directamente desde un portal personalizado. Sin llamadas, sin errores, con trazabilidad en tiempo real.' },
     { id:'cf_5', icono:'👥', titulo:'Multi-usuario', descripcion:'Gestión de roles y permisos por módulo para todo tu equipo.' },
-    { id:'cf_6', icono:'☁️', titulo:'100% en la Nube', descripcion:'Accede desde cualquier dispositivo, sin instalaciones ni actualizaciones.' }
+    { id:'cf_6', icono:'☁️', titulo:'100% en la Nube', descripcion:'Accede desde cualquier dispositivo, sin instalaciones ni actualizaciones.' },
+    { id:'cf_7', icono:'🔮', titulo:'Previsión de Demanda', descripcion:'Anticipa la demanda con análisis histórico de movimientos. Reabastécete antes de que el stock se agote y reduce el capital inmovilizado.' }
   ],
   contacto: { email:'ventas@stockpro.com', telefono:'+51 1 234 5678', whatsapp:'+51 999 000 111', direccion:'Lima, Perú' },
   redesSociales: { linkedin:'', twitter:'', facebook:'', instagram:'', youtube:'' },

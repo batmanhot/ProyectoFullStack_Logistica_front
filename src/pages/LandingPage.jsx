@@ -1,12 +1,18 @@
 /**
- * LandingPage.jsx — Landing Page pública de StockPro
+ * LandingPage.jsx — Landing Page pública de StockPro (v2.0)
  *
- * Lee dinámicamente desde localStorage:
- *   - saas_landing  → configurada por SuperADMIN (AdminSaaS → tab "Landing Page")
- *   - saas_planes   → planes activos con precios y características
+ * Optimización comercial completa orientada a conversión:
+ *   - Hero con headline de resultados empresariales
+ *   - Sección "Problema Empresarial" (nueva)
+ *   - Beneficios orientados a impacto (no funcionalidades)
+ *   - Sección "Así funciona" con mockups visuales por módulo (nueva)
+ *   - CTA sticky en mobile
+ *   - SEO comercial mejorado con OpenGraph
+ *
+ * Carga dinámicamente desde localStorage:
+ *   - saas_landing  → configurada por SuperADMIN (AdminSaaS → "Landing Page")
+ *   - saas_planes   → planes activos con precios
  *   - saas_limites  → límites por plan
- *
- * Accesible en / y /landing sin autenticación.
  */
 import { useMemo, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -14,67 +20,141 @@ import {
   Package, ArrowRight, Phone, Mail, MessageCircle,
   MapPin, Zap, ChevronRight, Menu, X,
   CheckCircle, Linkedin, Facebook, Instagram,
-  Twitter, Youtube, Star, Shield, Globe, TrendingUp
+  Twitter, Youtube, Star, Shield, Globe,
 } from 'lucide-react'
 
 // ─────────────────────────────────────────────────────────────
-// Datos por defecto (se usan si aún no hay config en localStorage)
+// Datos por defecto — se usan si no hay config en localStorage
 // ─────────────────────────────────────────────────────────────
 const LANDING_DEFAULT = {
   sitio: {
     nombre: 'StockPro',
-    tagline: 'Logística inteligente para tu empresa',
+    tagline: 'La plataforma logística diseñada para empresas que necesitan control total.',
     descripcion: 'Sistema SaaS de gestión de inventario, despachos y operaciones logísticas para empresas modernas.',
     colorPrimario: '#00c896',
     logoUrl: '',
   },
   hero: {
-    titulo: 'Controla tu logística con precisión',
-    subtitulo: 'Sistema completo de gestión de inventario, pedidos y despachos para empresas que quieren crecer sin límites.',
-    ctaTexto: 'Comenzar prueba gratis',
+    titulo: 'Digitaliza toda tu operación logística desde una sola plataforma',
+    subtitulo: 'Centraliza inventarios, pedidos, almacenes, distribución y trazabilidad. Reduce errores operativos, automatiza procesos y toma decisiones en tiempo real.',
+    ctaTexto: 'Solicitar Demo Gratis',
     ctaUrl: '#planes',
-    ctaTexto2: 'Iniciar sesión',
-    ctaUrl2: '/login',
+    ctaTexto2: 'Ver Planes',
+    ctaUrl2: '#planes',
     imagenUrl: '',
   },
   caracteristicas: [
-    { id: 'cf_1', icono: '📦', titulo: 'Inventario en Tiempo Real', descripcion: 'Control de stock con alertas automáticas y kardex valorizado completo.' },
-    { id: 'cf_2', icono: '🚚', titulo: 'Gestión de Despachos', descripcion: 'Planifica rutas, controla tu flota y rastrea entregas en tiempo real.' },
-    { id: 'cf_3', icono: '📊', titulo: 'Reportes y KPIs', descripcion: 'Dashboards con indicadores clave: OTIF, Fill Rate, Perfect Order y más.' },
-    { id: 'cf_4', icono: '🤝', titulo: 'Gestión de Proveedores', descripcion: 'Centraliza proveedores, condiciones comerciales e historial de compras. Evalúa desempeño y optimiza tu abastecimiento.' },
-    { id: 'cf_5', icono: '👥', titulo: 'Multi-usuario', descripcion: 'Gestión de roles y permisos por módulo para todo tu equipo.' },
-    { id: 'cf_6', icono: '☁️', titulo: '100% en la Nube', descripcion: 'Accede desde cualquier dispositivo, sin instalaciones ni actualizaciones.' },
+    { id: 'cf_1', icono: '📦', titulo: 'Reduce Errores de Inventario hasta 85%', descripcion: 'Control total de stock con trazabilidad completa, alertas automáticas y kardex valorizado. Elimina las discrepancias entre sistema y almacén.' },
+    { id: 'cf_2', icono: '🚚', titulo: 'Acelera tus Despachos hasta un 40%', descripcion: 'Planifica rutas, controla tu flota y rastrea cada entrega en tiempo real. Más OTIF, menos reclamos, clientes más satisfechos.' },
+    { id: 'cf_3', icono: '📊', titulo: 'Visibilidad Total en Tiempo Real', descripcion: 'Dashboards ejecutivos con KPIs logísticos: OTIF, Fill Rate, Perfect Order. Decisiones basadas en datos, no en suposiciones.' },
+    { id: 'cf_4', icono: '🌐', titulo: 'Portal B2B de Clientes y Pedidos', descripcion: 'Tus clientes hacen pedidos directamente desde un portal personalizado. Sin llamadas, sin errores y con trazabilidad en tiempo real desde el momento en que el pedido entra al sistema.' },
+    { id: 'cf_5', icono: '👥', titulo: 'Equipo Sincronizado, Sin Silos', descripcion: 'Multi-usuario con roles y permisos granulares por módulo. Todo tu equipo trabajando sobre la misma fuente de verdad.' },
+    { id: 'cf_6', icono: '☁️', titulo: 'Escala sin Límites, 99.9% Uptime', descripcion: 'Plataforma cloud con SLA garantizado. Sin instalaciones ni actualizaciones manuales. Crece sin perder el control.' },
+    { id: 'cf_7', icono: '🔮', titulo: 'Previsión de Demanda Inteligente', descripcion: 'Anticipa la demanda con análisis histórico de movimientos. Reabastécete antes de que el stock se agote y reduce el capital inmovilizado en inventario parado.' },
   ],
   contacto: { email: 'ventas@stockpro.com', telefono: '+51 1 234 5678', whatsapp: '+51999000111', direccion: 'Lima, Perú' },
   redesSociales: { linkedin: '', twitter: '', facebook: '', instagram: '', youtube: '' },
-  seo: { titulo: 'StockPro — Sistema Logístico SaaS', descripcion: 'Gestiona tu inventario, despachos y logística con StockPro. Prueba gratis.', keywords: 'logística, inventario, saas, gestión almacén, peru' },
+  seo: {
+    titulo: 'StockPro — Software Logístico SaaS | Inventario, Almacenes y Despachos',
+    descripcion: 'Digitaliza tu operación logística con StockPro. Software ERP logístico para gestión de inventario, almacenes, pedidos y trazabilidad en tiempo real. Prueba 30 días gratis sin tarjeta.',
+    keywords: 'software logístico, sistema logístico, gestión de inventario, control de almacenes, trazabilidad logística, ERP logístico, software distribución, logística empresarial, plataforma logística, saas logística peru',
+  },
   footer: { textoLegal: '© 2026 StockPro. Todos los derechos reservados.', mostrarPrecios: true, moneda: 'PEN', probarGratisDias: 30 },
 }
 
 const PLANES_DEFAULT = [
-  { id: 'trial',       nombre: 'Prueba Gratuita', descripcion: 'Evalúa el sistema sin compromiso',               precioMensual: 0,   precioAnual: 0,    moneda: 'PEN', color: '#6366f1', destacado: false, activo: true, vigenciaDias: 30, caracteristicas: ['1 usuario', 'Hasta 100 productos', '1 almacén', 'Soporte email', 'Solo modo demo'] },
-  { id: 'basico',      nombre: 'Básico',           descripcion: 'Para pequeñas empresas en crecimiento',          precioMensual: 49,  precioAnual: 490,  moneda: 'PEN', color: '#3b82f6', destacado: false, activo: true, vigenciaDias: 30, caracteristicas: ['Hasta 3 usuarios', 'Hasta 500 productos', '2 almacenes', 'Soporte email', 'Exportación básica'] },
-  { id: 'profesional', nombre: 'Profesional',      descripcion: 'Ideal para empresas en expansión',               precioMensual: 99,  precioAnual: 990,  moneda: 'PEN', color: '#00c896', destacado: true,  activo: true, vigenciaDias: 30, caracteristicas: ['Hasta 10 usuarios', 'Hasta 2,000 productos', '5 almacenes', 'Soporte prioritario', 'Reportes avanzados', 'Exportación avanzada'] },
-  { id: 'empresarial', nombre: 'Empresarial',      descripcion: 'Potencia sin límites para grandes operaciones',  precioMensual: 199, precioAnual: 1990, moneda: 'PEN', color: '#f59e0b', destacado: false, activo: true, vigenciaDias: 30, caracteristicas: ['Usuarios ilimitados', 'Productos ilimitados', 'Almacenes ilimitados', 'Multi-empresa', 'API Access', 'SLA garantizado', 'Soporte 24/7', 'Onboarding dedicado'] },
+  { id: 'trial',       nombre: 'Prueba Gratuita', descripcion: 'Evalúa el sistema sin compromiso',              precioMensual: 0,   precioAnual: 0,    moneda: 'PEN', color: '#6366f1', destacado: false, activo: true, vigenciaDias: 30, caracteristicas: ['1 usuario', 'Hasta 100 productos', '1 almacén', 'Soporte email', 'Solo modo demo'] },
+  { id: 'basico',      nombre: 'Básico',           descripcion: 'Para pequeñas empresas en crecimiento',         precioMensual: 49,  precioAnual: 490,  moneda: 'PEN', color: '#3b82f6', destacado: false, activo: true, vigenciaDias: 30, caracteristicas: ['Hasta 3 usuarios', 'Hasta 500 productos', '2 almacenes', 'Soporte email', 'Exportación básica'] },
+  { id: 'profesional', nombre: 'Profesional',      descripcion: 'Ideal para empresas en expansión',              precioMensual: 99,  precioAnual: 990,  moneda: 'PEN', color: '#00c896', destacado: true,  activo: true, vigenciaDias: 30, caracteristicas: ['Hasta 10 usuarios', 'Hasta 2,000 productos', '5 almacenes', 'Soporte prioritario', 'Reportes avanzados', 'Exportación avanzada'] },
+  { id: 'empresarial', nombre: 'Empresarial',      descripcion: 'Potencia sin límites para grandes operaciones', precioMensual: 199, precioAnual: 1990, moneda: 'PEN', color: '#f59e0b', destacado: false, activo: true, vigenciaDias: 30, caracteristicas: ['Usuarios ilimitados', 'Productos ilimitados', 'Almacenes ilimitados', 'Multi-empresa', 'API Access', 'SLA garantizado', 'Soporte 24/7', 'Onboarding dedicado'] },
 ]
 
 const STATS = [
-  { valor: '500+',  label: 'Empresas activas',         icono: '🏢' },
-  { valor: '99.9%', label: 'Uptime garantizado',        icono: '⚡' },
-  { valor: '50K+',  label: 'Pedidos procesados/mes',    icono: '📦' },
-  { valor: '24/7',  label: 'Soporte disponible',        icono: '🛡️' },
+  { valor: '500+',  label: 'Empresas activas',              icono: '🏢' },
+  { valor: '99.9%', label: 'Uptime garantizado',             icono: '⚡' },
+  { valor: '50K+',  label: 'Pedidos procesados al mes',      icono: '📦' },
+  { valor: '85%',   label: 'Reducción de errores promedio',  icono: '🎯' },
 ]
 
 const PASOS = [
-  { num: '01', icono: '🏢', titulo: 'Registra tu empresa', desc: 'Crea tu cuenta en minutos. Sin tarjeta de crédito para la prueba gratuita de 14 días.' },
-  { num: '02', icono: '📋', titulo: 'Configura tu inventario', desc: 'Agrega tus productos, categorías y almacenes. Importa desde Excel fácilmente.' },
-  { num: '03', icono: '🚀', titulo: 'Optimiza tu operación', desc: 'Gestiona pedidos, despachos y genera reportes en tiempo real desde cualquier dispositivo.' },
+  { num: '01', icono: '🏢', titulo: 'Registra tu empresa en minutos', desc: 'Crea tu cuenta sin tarjeta de crédito. Configura tu empresa, usuarios y estructura operativa de forma guiada en menos de 15 minutos.' },
+  { num: '02', icono: '📋', titulo: 'Importa tu inventario y almacenes', desc: 'Carga tus productos, categorías y almacenes. Importación masiva desde Excel en un solo clic, sin perder datos.' },
+  { num: '03', icono: '🚀', titulo: 'Opera y escala con control total', desc: 'Gestiona pedidos, despachos y genera reportes ejecutivos en tiempo real desde cualquier dispositivo.' },
 ]
 
 const TESTIMONIOS = [
-  { nombre: 'Carlos Mendoza', cargo: 'Gerente de Operaciones', empresa: 'Distribuidora Lima Norte', texto: 'StockPro transformó nuestra operación. Redujimos los errores de inventario en un 85% y el tiempo de despacho en un 40%.', rating: 5, avatar: 'CM' },
-  { nombre: 'María Rodríguez', cargo: 'Directora Logística', empresa: 'ACME Distribuciones', texto: 'La integración con SUNAT y los reportes en tiempo real son increíbles. Ahora tenemos visibilidad total de nuestra cadena de suministro.', rating: 5, avatar: 'MR' },
-  { nombre: 'Pedro Torres', cargo: 'Propietario', empresa: 'Ferretería San Martín', texto: 'Empezamos con el plan básico y en 3 meses ya pasamos al profesional. El ROI fue inmediato.', rating: 5, avatar: 'PT' },
+  { nombre: 'Carlos Mendoza', cargo: 'Gerente de Operaciones', empresa: 'Distribuidora Lima Norte', texto: 'StockPro transformó nuestra operación. Redujimos los errores de inventario en un 85% y el tiempo de despacho en un 40%. El ROI fue visible desde el primer mes.', rating: 5, avatar: 'CM' },
+  { nombre: 'María Rodríguez', cargo: 'Directora Logística', empresa: 'ACME Distribuciones', texto: 'El portal B2B para nuestros clientes cambió todo. Los pedidos entran directamente al sistema sin intermediarios. Los reportes en tiempo real nos dieron la visibilidad que nunca habíamos tenido. Nunca más operamos a ciegas.', rating: 5, avatar: 'MR' },
+  { nombre: 'Pedro Torres', cargo: 'Propietario', empresa: 'Ferretería San Martín', texto: 'Empezamos con el plan básico y en 3 meses ya pasamos al profesional. El ROI fue inmediato. Dejamos de perder dinero por errores de stock que no veíamos antes.', rating: 5, avatar: 'PT' },
+]
+
+const PROBLEMAS = [
+  { icono: '⚠️', titulo: 'Errores constantes de inventario', desc: 'Diferencias entre el stock físico y el sistema generan pérdidas invisibles mes a mes.' },
+  { icono: '🐌', titulo: 'Despachos lentos y con errores', desc: 'Procesos manuales que retrasan las entregas y acumulan reclamos de clientes.' },
+  { icono: '👁️', titulo: 'Sin visibilidad en tiempo real', desc: 'Tomar decisiones sin datos actualizados significa operar completamente a ciegas.' },
+  { icono: '📑', titulo: 'Datos dispersos en Excel y papel', desc: 'Información fragmentada que nadie puede consolidar cuando más la necesita.' },
+  { icono: '💸', titulo: 'Costos operativos que no bajan', desc: 'Horas-hombre desperdiciadas en tareas repetitivas que deberían estar automatizadas.' },
+  { icono: '🔍', titulo: 'Sin trazabilidad de pedidos', desc: 'No saber dónde está cada pedido en tiempo real destruye la confianza del cliente.' },
+]
+
+// Módulos para la sección de screenshots visuales
+const MODULOS = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard Ejecutivo',
+    icono: '📊',
+    desc: 'Visión completa del negocio en un vistazo: ventas, OTIF, stock crítico y despachos del día.',
+    kpis: [
+      { val: '1,247', lbl: 'Productos activos', col: '#3b82f6', ic: '📦' },
+      { val: '94.2%', lbl: 'OTIF del mes',       col: '#00c896', ic: '🎯' },
+      { val: 'S/84K', lbl: 'Ventas del mes',     col: '#f59e0b', ic: '💰' },
+      { val: '38',    lbl: 'Despachos hoy',       col: '#a855f7', ic: '🚚' },
+    ],
+    bars: [60, 80, 55, 90, 75, 95, 70, 85, 100, 78, 88, 92],
+    metrics: [['OTIF', '94.2%', '#00c896'], ['Fill Rate', '96.4%', '#3b82f6'], ['Stock Bajo', '3', '#f59e0b']],
+  },
+  {
+    id: 'inventario',
+    label: 'Control de Inventario',
+    icono: '📦',
+    desc: 'Kardex valorizado en tiempo real, alertas de stock mínimo y trazabilidad de cada movimiento.',
+    kpis: [
+      { val: '1,247', lbl: 'SKUs en sistema', col: '#3b82f6', ic: '📦' },
+      { val: '3',     lbl: 'Alertas activas', col: '#f59e0b', ic: '⚠️' },
+      { val: '99.1%', lbl: 'Exactitud stock', col: '#00c896', ic: '✅' },
+      { val: '5',     lbl: 'Almacenes',       col: '#a855f7', ic: '🏭' },
+    ],
+    bars: [95, 88, 92, 78, 99, 85, 91, 88, 94, 97, 89, 96],
+    metrics: [['Entradas', '+127', '#00c896'], ['Salidas', '98', '#3b82f6'], ['Vencidos', '1', '#ef4444']],
+  },
+  {
+    id: 'despachos',
+    label: 'Gestión de Despachos',
+    icono: '🚚',
+    desc: 'Seguimiento de cada despacho en tiempo real, rutas optimizadas y confirmación de entrega digital.',
+    kpis: [
+      { val: '38',  lbl: 'Despachos activos',  col: '#00c896', ic: '🚚' },
+      { val: '96%', lbl: 'On-time delivery',   col: '#3b82f6', ic: '⏱️' },
+      { val: '4',   lbl: 'Rutas en curso',     col: '#f59e0b', ic: '🗺️' },
+      { val: '0',   lbl: 'Reclamos hoy',       col: '#22c55e', ic: '✅' },
+    ],
+    bars: [70, 85, 90, 88, 95, 92, 88, 96, 91, 94, 89, 98],
+    metrics: [['Entregados', '34', '#00c896'], ['En ruta', '4', '#f59e0b'], ['Pendientes', '2', '#3b82f6']],
+  },
+  {
+    id: 'reportes',
+    label: 'Reportes y KPIs',
+    icono: '📈',
+    desc: 'Indicadores logísticos clave: OTIF, Perfect Order, Fill Rate. Exporta en PDF o Excel con un clic.',
+    kpis: [
+      { val: '94%', lbl: 'Perfect Order',  col: '#00c896', ic: '🏆' },
+      { val: '96%', lbl: 'Fill Rate',      col: '#3b82f6', ic: '📊' },
+      { val: '2.1d', lbl: 'Lead time avg', col: '#f59e0b', ic: '⏱️' },
+      { val: '12',  lbl: 'Reportes listos', col: '#a855f7', ic: '📄' },
+    ],
+    bars: [75, 88, 82, 91, 85, 94, 89, 96, 92, 98, 94, 97],
+    metrics: [['OTIF', '94.2%', '#00c896'], ['Devoluc.', '0.8%', '#f59e0b'], ['Rotación', '8.3x', '#3b82f6']],
+  },
 ]
 
 // ─────────────────────────────────────────────────────────────
@@ -83,7 +163,6 @@ const TESTIMONIOS = [
 function loadLS(key, fb) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fb } catch { return fb }
 }
-
 function scrollSmoothTo(id) {
   const el = document.getElementById(id)
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -92,12 +171,15 @@ function scrollSmoothTo(id) {
 // ─────────────────────────────────────────────────────────────
 // Sub-componentes
 // ─────────────────────────────────────────────────────────────
-function FeatureCard({ icono, titulo, descripcion, primary }) {
+
+function BenefitCard({ icono, titulo, descripcion, primary }) {
   return (
-    <div className="group bg-[#141920] border border-white/[0.10] rounded-2xl p-6
+    <div className="group relative bg-[#141920] border border-white/[0.10] rounded-2xl p-6
                     hover:border-[#00c896]/50 hover:bg-[#161e2a]
                     transition-all duration-300 hover:shadow-2xl hover:shadow-[#00c896]/8
-                    hover:-translate-y-1">
+                    hover:-translate-y-1 overflow-hidden">
+      <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-0 group-hover:opacity-[0.06] transition-opacity duration-500 pointer-events-none"
+           style={{ background: primary, transform: 'translate(40%, -40%)' }}/>
       <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-[28px] mb-5 border"
            style={{ background: `${primary}18`, borderColor: `${primary}30` }}>
         {icono}
@@ -108,18 +190,67 @@ function FeatureCard({ icono, titulo, descripcion, primary }) {
   )
 }
 
+function ModuloMockup({ modulo, primary }) {
+  return (
+    <div className="bg-[#141920] border border-white/[0.08] rounded-2xl p-4 shadow-[0_40px_120px_-20px_rgba(0,0,0,0.8)]">
+      {/* Browser bar */}
+      <div className="flex items-center gap-2 mb-3 px-1">
+        <div className="flex gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-red-500/50"/>
+          <div className="w-3 h-3 rounded-full bg-amber-500/50"/>
+          <div className="w-3 h-3 rounded-full bg-green-500/50"/>
+        </div>
+        <div className="flex-1 mx-3 h-5 bg-white/[0.04] rounded-md flex items-center px-2">
+          <span className="text-[10px] text-[#5f6f80]">stockpro.pe/{modulo.id}</span>
+        </div>
+        <div className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold"
+             style={{ background: `${primary}20`, color: primary }}>
+          <div className="w-1.5 h-1.5 rounded-full" style={{ background: primary }}/>
+          EN VIVO
+        </div>
+      </div>
+      {/* KPIs */}
+      <div className="grid grid-cols-4 gap-2 mb-3">
+        {modulo.kpis.map(({ ic, val, lbl, col }) => (
+          <div key={lbl} className="bg-[#1a2230] rounded-xl p-3 text-left relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[2px] rounded-t-xl" style={{ background: col }}/>
+            <div className="text-[16px] mb-1">{ic}</div>
+            <div className="text-[14px] font-bold text-[#e8edf2]">{val}</div>
+            <div className="text-[9px] text-[#5f6f80] leading-tight">{lbl}</div>
+          </div>
+        ))}
+      </div>
+      {/* Chart + metrics */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="col-span-2 h-20 bg-[#1a2230] rounded-xl p-3 flex items-end gap-1">
+          {modulo.bars.map((h, i) => (
+            <div key={i} className="flex-1 rounded-sm"
+                 style={{ height: `${h}%`, background: i === modulo.bars.length - 1 ? primary : `${primary}35` }}/>
+          ))}
+        </div>
+        <div className="h-20 bg-[#1a2230] rounded-xl p-3 flex flex-col justify-between">
+          {modulo.metrics.map(([l, v, c]) => (
+            <div key={l} className="flex items-center justify-between">
+              <span className="text-[9px] text-[#5f6f80]">{l}</span>
+              <span className="text-[10px] font-bold" style={{ color: c }}>{v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function PlanCard({ plan, ciclo, primary, navigate, whatsapp }) {
-  const precio  = ciclo === 'anual' ? plan.precioAnual : plan.precioMensual
-  const esFree  = precio === 0
-  const ahorro  = plan.precioMensual > 0
+  const precio = ciclo === 'anual' ? plan.precioAnual : plan.precioMensual
+  const esFree = precio === 0
+  const ahorro = plan.precioMensual > 0
     ? Math.round(((plan.precioMensual * 12 - plan.precioAnual) / (plan.precioMensual * 12)) * 100)
     : 0
   const esTrial = plan.id === 'trial'
-
-  // WhatsApp con mensaje pre-cargado por plan
-  const waNum  = (whatsapp || '').replace(/\D/g, '')
-  const waMsg  = encodeURIComponent(`Hola, me interesa contratar el plan *${plan.nombre}* de StockPro. ¿Me pueden dar más información?`)
-  const waUrl  = waNum ? `https://wa.me/${waNum}?text=${waMsg}` : '#contacto'
+  const waNum = (whatsapp || '').replace(/\D/g, '')
+  const waMsg = encodeURIComponent(`Hola, me interesa contratar el plan *${plan.nombre}* de StockPro. ¿Me pueden dar más información?`)
+  const waUrl = waNum ? `https://wa.me/${waNum}?text=${waMsg}` : '#contacto'
 
   return (
     <div className={`relative flex flex-col rounded-2xl p-6 border transition-all duration-300 ${
@@ -135,7 +266,6 @@ function PlanCard({ plan, ciclo, primary, navigate, whatsapp }) {
       background: 'linear-gradient(160deg, rgba(99,102,241,0.07) 0%, rgba(20,25,32,1) 60%)',
     } : {}}>
 
-      {/* Más popular badge */}
       {plan.destacado && (
         <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1.5
                         bg-[#00c896] text-[#082e1e] text-[11px] font-extrabold
@@ -145,7 +275,6 @@ function PlanCard({ plan, ciclo, primary, navigate, whatsapp }) {
         </div>
       )}
 
-      {/* Color indicator dot */}
       <div className="flex items-center gap-2 mb-5">
         <div className="w-3 h-3 rounded-full shadow-lg" style={{ background: plan.color, boxShadow: `0 0 8px ${plan.color}60` }}/>
         <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: plan.color }}>
@@ -156,7 +285,6 @@ function PlanCard({ plan, ciclo, primary, navigate, whatsapp }) {
       <h3 className="text-[20px] font-extrabold text-[#e8edf2] mb-1">{plan.nombre}</h3>
       <p className="text-[12px] text-[#7a8a99] mb-5 min-h-[36px]">{plan.descripcion}</p>
 
-      {/* Precio */}
       <div className="mb-5">
         {esFree ? (
           <div>
@@ -184,7 +312,6 @@ function PlanCard({ plan, ciclo, primary, navigate, whatsapp }) {
         )}
       </div>
 
-      {/* Características */}
       <ul className="flex flex-col gap-2.5 mb-5 flex-1">
         {(plan.caracteristicas || []).map((c, i) => (
           <li key={i} className="flex items-start gap-2.5 text-[13px] text-[#9ba8b6]">
@@ -194,32 +321,23 @@ function PlanCard({ plan, ciclo, primary, navigate, whatsapp }) {
         ))}
       </ul>
 
-      {/* CTA principal */}
       {esTrial ? (
-        /* Trial → botón directo al demo */
         <button
           onClick={() => navigate('/app/dlnorte')}
           className="w-full py-3 rounded-xl text-[14px] font-bold transition-all
                      flex items-center justify-center gap-2
                      border border-[#6366f1]/50 text-[#a5b4fc]
-                     bg-[#6366f1]/15 hover:bg-[#6366f1]/25 hover:border-[#6366f1]/70
-                     hover:shadow-lg hover:shadow-[#6366f1]/10">
+                     bg-[#6366f1]/15 hover:bg-[#6366f1]/25 hover:border-[#6366f1]/70">
           🎯 Demo en Vivo
         </button>
       ) : (
-        <a
-          href={waUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`w-full py-3 rounded-xl text-[14px] font-bold transition-all text-center block flex items-center justify-center gap-2 ${
-            plan.destacado
-              ? 'text-[#082e1e] hover:opacity-90 shadow-lg'
-              : 'bg-white/5 text-[#e8edf2] hover:bg-white/10 border border-white/10'
-          }`}
-          style={plan.destacado
-            ? { background: primary, boxShadow: `0 6px 24px ${primary}40` }
-            : {}
-          }>
+        <a href={waUrl} target="_blank" rel="noopener noreferrer"
+           className={`w-full py-3 rounded-xl text-[14px] font-bold transition-all text-center flex items-center justify-center gap-2 ${
+             plan.destacado
+               ? 'text-[#082e1e] hover:opacity-90 shadow-lg'
+               : 'bg-white/5 text-[#e8edf2] hover:bg-white/10 border border-white/10'
+           }`}
+           style={plan.destacado ? { background: primary, boxShadow: `0 6px 24px ${primary}40` } : {}}>
           {plan.destacado ? '🚀 Contratar ahora' : '💬 Contratar plan'}
         </a>
       )}
@@ -255,12 +373,13 @@ function TestimonioCard({ t, primary }) {
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────
 export default function LandingPage() {
-  const navigate    = useNavigate()
-  const [menuOpen, setMenuOpen]   = useState(false)
-  const [ciclo,    setCiclo]      = useState('mensual')   // mensual | anual
-  const [scrolled, setScrolled]   = useState(false)
+  const navigate   = useNavigate()
+  const [menuOpen,         setMenuOpen]         = useState(false)
+  const [ciclo,            setCiclo]            = useState('mensual')
+  const [scrolled,         setScrolled]         = useState(false)
+  const [moduloActivo,     setModuloActivo]     = useState('dashboard')
+  const [showStickyMobile, setShowStickyMobile] = useState(false)
 
-  // ── Cargar config desde localStorage ──────────────────────
   const landing = useMemo(() => loadLS('saas_landing', LANDING_DEFAULT), [])
   const planes  = useMemo(() =>
     (loadLS('saas_planes', PLANES_DEFAULT) || []).filter(p => p.activo !== false)
@@ -269,31 +388,49 @@ export default function LandingPage() {
   const { sitio, hero, caracteristicas, contacto, redesSociales, footer } = landing
   const primary = sitio?.colorPrimario || '#00c896'
 
-  // ── Efectos ───────────────────────────────────────────────
   useEffect(() => {
-    if (landing?.seo?.titulo) document.title = landing.seo.titulo
-    const desc = document.querySelector('meta[name="description"]')
-    if (desc && landing?.seo?.descripcion) desc.setAttribute('content', landing.seo.descripcion)
+    // ── SEO mejorado ──────────────────────────────────────
+    const seo = landing?.seo
+    document.title = seo?.titulo || 'StockPro — Software Logístico SaaS | Inventario, Almacenes y Despachos'
 
-    const onScroll = () => setScrolled(window.scrollY > 60)
+    const setMeta = (name, content) => {
+      let el = document.querySelector(`meta[name="${name}"]`)
+      if (!el) { el = document.createElement('meta'); el.setAttribute('name', name); document.head.appendChild(el) }
+      el.setAttribute('content', content)
+    }
+    const setOG = (prop, content) => {
+      let el = document.querySelector(`meta[property="${prop}"]`)
+      if (!el) { el = document.createElement('meta'); el.setAttribute('property', prop); document.head.appendChild(el) }
+      el.setAttribute('content', content)
+    }
+
+    setMeta('description', seo?.descripcion || 'Digitaliza tu operación logística con StockPro. Software ERP logístico para gestión de inventario, almacenes, pedidos y trazabilidad en tiempo real. Prueba 30 días gratis.')
+    setMeta('keywords',    seo?.keywords    || 'software logístico, sistema logístico, gestión de inventario, control de almacenes, trazabilidad logística, ERP logístico')
+    setOG('og:title',       seo?.titulo      || 'StockPro — Software Logístico SaaS')
+    setOG('og:description', seo?.descripcion || 'Digitaliza tu operación logística')
+    setOG('og:type', 'website')
+
+    const onScroll = () => {
+      const y = window.scrollY
+      setScrolled(y > 60)
+      setShowStickyMobile(y > 500)
+    }
     window.addEventListener('scroll', onScroll)
     return () => window.removeEventListener('scroll', onScroll)
   }, [landing])
 
-  // ── Helper interno ────────────────────────────────────────
-  function goSection(id) {
-    setMenuOpen(false)
-    scrollSmoothTo(id)
-  }
+  function goSection(id) { setMenuOpen(false); scrollSmoothTo(id) }
 
-  // ─────────────────────────────────────────────────────────
-  // RENDER
+  const moduloActualData = MODULOS.find(m => m.id === moduloActivo) || MODULOS[0]
+
   // ─────────────────────────────────────────────────────────
   return (
-    <div data-landing="true" className="min-h-screen bg-[#0e1117] text-[#e8edf2] font-sans overflow-x-hidden" style={{ backgroundColor:'#0e1117', color:'#e8edf2' }}>
+    <div data-landing="true"
+         className="min-h-screen bg-[#0e1117] text-[#e8edf2] font-sans overflow-x-hidden"
+         style={{ backgroundColor: '#0e1117', color: '#e8edf2' }}>
 
       {/* ══════════════════════════════════════════════════
-          NAVBAR — fijo, scroll-aware
+          NAVBAR
       ══════════════════════════════════════════════════ */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
@@ -302,7 +439,6 @@ export default function LandingPage() {
       }`}>
         <div className="max-w-6xl mx-auto px-6 h-[70px] flex items-center justify-between">
 
-          {/* Logo */}
           <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <div className="w-9 h-9 rounded-xl flex items-center justify-center"
                  style={{ background: `${primary}20`, boxShadow: `0 0 16px ${primary}20` }}>
@@ -313,14 +449,13 @@ export default function LandingPage() {
             </span>
           </div>
 
-          {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-7">
             {[
-              ['Características', 'caracteristicas'],
-              ['Cómo funciona',   'como-funciona'],
-              ['Planes',          'planes'],
-              ['Testimonios',     'testimonios'],
-              ['Contacto',        'contacto'],
+              ['Beneficios',   'beneficios'],
+              ['Plataforma',   'plataforma'],
+              ['Planes',       'planes'],
+              ['Testimonios',  'testimonios'],
+              ['Contacto',     'contacto'],
             ].map(([label, id]) => (
               <button key={id} onClick={() => goSection(id)}
                 className="text-[13px] font-medium text-[#9ba8b6] hover:text-white transition-colors">
@@ -329,7 +464,6 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Desktop CTAs */}
           <div className="hidden md:flex items-center gap-3">
             <button onClick={() => navigate('/login')}
               className="px-4 py-2 text-[13px] font-medium text-[#9ba8b6] hover:text-white transition-colors">
@@ -338,26 +472,24 @@ export default function LandingPage() {
             <button onClick={() => navigate('/app/dlnorte')}
               className="px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all hover:opacity-90 shadow-lg"
               style={{ background: primary, color: '#082e1e', boxShadow: `0 4px 20px ${primary}40` }}>
-              Comenzar gratis
+              Solicitar Demo
             </button>
           </div>
 
-          {/* Mobile hamburger */}
           <button className="md:hidden p-2 text-[#9ba8b6] hover:text-white transition-colors"
             onClick={() => setMenuOpen(!menuOpen)}>
-            {menuOpen ? <X size={22}/> : <Menu size={22}/>}
+            {menuOpen ? <X size={22}/> : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>}
           </button>
         </div>
 
-        {/* Mobile menu */}
         {menuOpen && (
           <div className="md:hidden bg-[#141920]/98 backdrop-blur-lg border-t border-white/[0.08] px-6 py-5 flex flex-col gap-1">
             {[
-              ['Características', 'caracteristicas'],
-              ['Cómo funciona',   'como-funciona'],
-              ['Planes',          'planes'],
-              ['Testimonios',     'testimonios'],
-              ['Contacto',        'contacto'],
+              ['Beneficios',  'beneficios'],
+              ['Plataforma',  'plataforma'],
+              ['Planes',      'planes'],
+              ['Testimonios', 'testimonios'],
+              ['Contacto',    'contacto'],
             ].map(([label, id]) => (
               <button key={id} onClick={() => goSection(id)}
                 className="text-left py-3 text-[14px] font-medium text-[#9ba8b6] hover:text-white transition-colors border-b border-white/[0.05] last:border-0">
@@ -366,13 +498,13 @@ export default function LandingPage() {
             ))}
             <div className="pt-4 flex flex-col gap-2.5">
               <button onClick={() => { setMenuOpen(false); navigate('/login') }}
-                className="w-full py-3 rounded-xl text-[13px] font-semibold text-[#e8edf2] bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                className="w-full py-3 rounded-xl text-[13px] font-semibold text-[#e8edf2] bg-white/5 border border-white/10">
                 Iniciar sesión
               </button>
               <button onClick={() => { setMenuOpen(false); navigate('/app/dlnorte') }}
                 className="w-full py-3 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
                 style={{ background: primary, color: '#082e1e' }}>
-                Comenzar gratis
+                Solicitar Demo Gratis
               </button>
             </div>
           </div>
@@ -380,16 +512,17 @@ export default function LandingPage() {
       </nav>
 
       {/* ══════════════════════════════════════════════════
-          HERO
+          HERO — Orientado a resultados empresariales
       ══════════════════════════════════════════════════ */}
       <section className="relative min-h-screen flex items-center justify-center px-6 pt-20 pb-16 overflow-hidden">
 
-        {/* Fondo degradado animado */}
+        {/* Fondo con glow mejorado */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-[-10%] left-[-5%] w-[700px] h-[700px] rounded-full blur-[200px] opacity-[0.07]"
+          <div className="absolute top-[-15%] left-[-10%] w-[800px] h-[800px] rounded-full blur-[220px] opacity-[0.09]"
                style={{ background: primary }}/>
-          <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full blur-[180px] opacity-[0.04] bg-blue-500"/>
-          {/* Grid sutil */}
+          <div className="absolute bottom-[-15%] right-[-10%] w-[600px] h-[600px] rounded-full blur-[200px] opacity-[0.05] bg-blue-500"/>
+          <div className="absolute top-[40%] right-[20%] w-[300px] h-[300px] rounded-full blur-[150px] opacity-[0.04]"
+               style={{ background: primary }}/>
           <div className="absolute inset-0 opacity-[0.018]" style={{
             backgroundImage: `linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
                               linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)`,
@@ -399,24 +532,25 @@ export default function LandingPage() {
 
         <div className="relative max-w-5xl mx-auto text-center">
 
-          {/* Badge promo */}
+          {/* Badge de credibilidad */}
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/[0.04] text-[12px] text-[#9ba8b6] mb-8 backdrop-blur-sm">
             <Zap size={12} style={{ color: primary }}/>
             <span>
               {footer?.probarGratisDias
-                ? `${footer.probarGratisDias} días de prueba gratis · Sin tarjeta de crédito`
-                : 'Prueba gratuita · Sin tarjeta de crédito'
+                ? `Prueba ${footer.probarGratisDias} días gratis · Sin tarjeta de crédito · Cancela cuando quieras`
+                : 'Prueba gratuita · Sin tarjeta de crédito · Cancela cuando quieras'
               }
             </span>
           </div>
 
-          {/* Headline */}
-          <h1 className="text-[44px] sm:text-[60px] lg:text-[74px] font-extrabold leading-[1.08] tracking-tight text-[#e8edf2] mb-6">
+          {/* Headline principal — orientado a transformación */}
+          <h1 className="text-[42px] sm:text-[58px] lg:text-[72px] font-extrabold leading-[1.06] tracking-tight text-[#e8edf2] mb-6">
             {(() => {
-              const words = (hero?.titulo || 'Controla tu logística con precisión').split(' ')
-              // Highlight las 2 últimas palabras
-              const normal = words.slice(0, -2).join(' ')
-              const hl     = words.slice(-2).join(' ')
+              const titulo = hero?.titulo || 'Digitaliza toda tu operación logística desde una sola plataforma'
+              const words  = titulo.split(' ')
+              const cutoff = Math.floor(words.length * 0.6)
+              const normal = words.slice(0, cutoff).join(' ')
+              const hl     = words.slice(cutoff).join(' ')
               return (
                 <>
                   {normal}{' '}
@@ -426,39 +560,72 @@ export default function LandingPage() {
             })()}
           </h1>
 
-          {/* Subtítulo */}
+          {/* Subtítulo orientado a resultados */}
           <p className="text-[17px] sm:text-[20px] text-[#7a8a99] leading-relaxed max-w-2xl mx-auto mb-10">
-            {hero?.subtitulo || 'Sistema completo de gestión de inventario, pedidos y despachos para empresas que quieren crecer sin límites.'}
+            {hero?.subtitulo || 'Centraliza inventarios, pedidos, almacenes y trazabilidad. Reduce errores operativos, automatiza procesos y toma decisiones en tiempo real.'}
           </p>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
             <button
               onClick={() => navigate('/app/dlnorte')}
               className="flex items-center justify-center gap-2.5 px-9 py-4 rounded-2xl text-[15px] font-bold transition-all hover:opacity-90 hover:scale-[1.02] shadow-2xl"
-              style={{ background: primary, color: '#082e1e', boxShadow: `0 10px 40px ${primary}40` }}>
-              {hero?.ctaTexto || 'Comenzar prueba gratis'}
+              style={{ background: primary, color: '#082e1e', boxShadow: `0 10px 40px ${primary}45` }}>
+              {hero?.ctaTexto || 'Solicitar Demo Gratis'}
               <ArrowRight size={17}/>
             </button>
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => goSection('planes')}
               className="flex items-center justify-center gap-2.5 px-9 py-4 rounded-2xl text-[15px] font-semibold text-[#e8edf2] bg-white/[0.05] border border-white/10 hover:bg-white/10 transition-all hover:scale-[1.02]">
-              {hero?.ctaTexto2 || 'Iniciar sesión'}
+              Ver Planes y Precios
               <ChevronRight size={17}/>
             </button>
           </div>
 
           {/* Trust badges */}
-          <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-[12px] text-[#5f6f80]">
-            {['✅ Sin instalación', '✅ Datos seguros y cifrados', '✅ Soporte en español', '✅ Cancela cuando quieras'].map(t => (
+          <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-[12px] text-[#5f6f80] mb-14">
+            {['✅ Sin instalación requerida', '✅ Datos seguros y cifrados', '✅ Soporte en español', '✅ Onboarding guiado incluido'].map(t => (
               <span key={t}>{t}</span>
             ))}
           </div>
 
-          {/* Dashboard mockup */}
-          <div className="mt-16 relative max-w-3xl mx-auto">
-            <div className="bg-[#141920] border border-white/[0.08] rounded-2xl p-4 shadow-[0_40px_120px_-20px_rgba(0,0,0,0.8)]">
-              {/* Browser bar */}
+          {/* Dashboard mockup mejorado con floating cards */}
+          <div className="relative max-w-3xl mx-auto">
+
+            {/* Floating metric card — izquierda */}
+            <div className="absolute -left-8 top-12 hidden lg:flex items-center gap-3 px-4 py-3
+                            bg-[#1a2535]/90 backdrop-blur border border-white/[0.12] rounded-2xl
+                            shadow-2xl shadow-black/50 z-10">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] shrink-0"
+                   style={{ background: `${primary}20` }}>📉</div>
+              <div>
+                <div className="text-[18px] font-extrabold leading-none" style={{ color: primary }}>-85%</div>
+                <div className="text-[10px] text-[#7a8a99] mt-0.5">Errores de inventario</div>
+              </div>
+            </div>
+
+            {/* Floating metric card — derecha */}
+            <div className="absolute -right-8 top-24 hidden lg:flex items-center gap-3 px-4 py-3
+                            bg-[#1a2535]/90 backdrop-blur border border-white/[0.12] rounded-2xl
+                            shadow-2xl shadow-black/50 z-10">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] shrink-0"
+                   style={{ background: `#3b82f620` }}>⚡</div>
+              <div>
+                <div className="text-[18px] font-extrabold leading-none text-[#3b82f6]">+40%</div>
+                <div className="text-[10px] text-[#7a8a99] mt-0.5">Velocidad de despacho</div>
+              </div>
+            </div>
+
+            {/* Floating badge — abajo */}
+            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 hidden sm:flex items-center gap-2 px-4 py-2
+                            bg-[#1a2535]/90 backdrop-blur border border-white/[0.12] rounded-full
+                            shadow-2xl shadow-black/50 z-10 whitespace-nowrap">
+              <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: primary }}/>
+              <span className="text-[11px] font-semibold text-[#e8edf2]">500+ empresas operando en tiempo real</span>
+            </div>
+
+            {/* Mockup principal */}
+            <div className="bg-[#141920] border border-white/[0.08] rounded-2xl p-4 shadow-[0_40px_120px_-20px_rgba(0,0,0,0.9)]">
               <div className="flex items-center gap-2 mb-3 px-1">
                 <div className="flex gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-red-500/50"/>
@@ -470,14 +637,12 @@ export default function LandingPage() {
                 </div>
                 <Globe size={13} className="text-[#5f6f80]"/>
               </div>
-
-              {/* KPIs row */}
               <div className="grid grid-cols-4 gap-2 mb-3">
                 {[
                   { ic: '📦', val: '1,247', lbl: 'Productos', col: '#3b82f6' },
                   { ic: '🚚', val: '38',    lbl: 'Despachos hoy', col: '#00c896' },
                   { ic: '📊', val: '94.2%', lbl: 'OTIF', col: '#f59e0b' },
-                  { ic: '💰', val: 'S/84K', lbl: 'Ingresos', col: '#a855f7' },
+                  { ic: '💰', val: 'S/84K', lbl: 'Ventas mes', col: '#a855f7' },
                 ].map(({ ic, val, lbl, col }) => (
                   <div key={lbl} className="bg-[#1a2230] rounded-xl p-3 text-left relative overflow-hidden">
                     <div className="absolute top-0 left-0 right-0 h-[2px] rounded-t-xl" style={{ background: col }}/>
@@ -487,12 +652,10 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-
-              {/* Chart placeholder row */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="col-span-2 h-24 bg-[#1a2230] rounded-xl p-3 flex items-end gap-1.5">
                   {[60, 80, 55, 90, 75, 95, 70, 85, 100, 78, 88, 92].map((h, i) => (
-                    <div key={i} className="flex-1 rounded-sm transition-all"
+                    <div key={i} className="flex-1 rounded-sm"
                          style={{ height: `${h}%`, background: i === 11 ? primary : `${primary}40` }}/>
                   ))}
                 </div>
@@ -508,8 +671,68 @@ export default function LandingPage() {
             </div>
 
             {/* Glow bajo el mockup */}
-            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-2/3 h-16 blur-3xl rounded-full opacity-25"
+            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-2/3 h-16 blur-3xl rounded-full opacity-30"
                  style={{ background: primary }}/>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════
+          PROBLEMA EMPRESARIAL — Nueva sección
+      ══════════════════════════════════════════════════ */}
+      <section className="py-20 px-6 bg-[#0b0f16]">
+        <div className="max-w-5xl mx-auto">
+
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest border mb-5
+                            border-red-500/30 text-red-400 bg-red-500/08">
+              ¿Te identificas?
+            </div>
+            <h2 className="text-[34px] md:text-[44px] font-extrabold text-[#e8edf2] mb-4 leading-tight">
+              ¿Tu operación logística depende<br/>
+              <span className="text-red-400">de procesos manuales y poca visibilidad?</span>
+            </h2>
+            <p className="text-[16px] text-[#7a8a99] max-w-2xl mx-auto leading-relaxed">
+              Los errores de inventario, retrasos en despachos y el descontrol operativo
+              generan pérdidas constantes que muchas veces ni se miden.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-14">
+            {PROBLEMAS.map(({ icono, titulo, desc }) => (
+              <div key={titulo}
+                   className="flex items-start gap-4 p-5 bg-[#141920]/80 border border-red-500/[0.12]
+                              rounded-xl hover:border-red-500/25 transition-all duration-200 hover:bg-[#141920]">
+                <span className="text-[26px] shrink-0 mt-0.5">{icono}</span>
+                <div>
+                  <div className="text-[13px] font-bold text-[#e8edf2] mb-1">{titulo}</div>
+                  <div className="text-[12px] text-[#7a8a99] leading-relaxed">{desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Transición — la solución */}
+          <div className="relative rounded-2xl p-8 text-center border overflow-hidden"
+               style={{ borderColor: `${primary}25`, background: `linear-gradient(135deg, ${primary}06 0%, transparent 100%)` }}>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full blur-3xl opacity-[0.08]"
+                 style={{ background: primary }}/>
+            <div className="relative">
+              <div className="text-[40px] mb-4">💡</div>
+              <h3 className="text-[22px] md:text-[28px] font-extrabold text-[#e8edf2] mb-3">
+                Existe una forma mejor de operar
+              </h3>
+              <p className="text-[15px] text-[#7a8a99] max-w-xl mx-auto leading-relaxed mb-6">
+                <strong className="text-[#e8edf2]">StockPro centraliza toda tu operación logística</strong> en tiempo real.
+                Más control, menos errores y mayor eficiencia operativa desde el primer día.
+              </p>
+              <button
+                onClick={() => goSection('beneficios')}
+                className="inline-flex items-center gap-2 px-7 py-3 rounded-xl text-[14px] font-bold transition-all hover:opacity-90"
+                style={{ background: primary, color: '#082e1e', boxShadow: `0 6px 24px ${primary}40` }}>
+                Ver cómo funciona <ChevronRight size={16}/>
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -525,7 +748,7 @@ export default function LandingPage() {
                    style={{ background: `${primary}20`, border: `1px solid ${primary}30` }}>
                 {s.icono}
               </div>
-              <div className="text-[32px] font-extrabold leading-none mb-1" style={{ color: primary }}>
+              <div className="text-[30px] font-extrabold leading-none mb-1" style={{ color: primary }}>
                 {s.valor}
               </div>
               <div className="text-[12px] text-[#7a8a99]">{s.label}</div>
@@ -535,28 +758,29 @@ export default function LandingPage() {
       </section>
 
       {/* ══════════════════════════════════════════════════
-          CARACTERÍSTICAS
+          BENEFICIOS EMPRESARIALES — orientados a impacto
       ══════════════════════════════════════════════════ */}
-      <section id="caracteristicas" className="py-24 px-6 bg-[#0e1117]">
+      <section id="beneficios" className="py-24 px-6 bg-[#0e1117]">
         <div className="max-w-6xl mx-auto">
 
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest border mb-5"
                  style={{ color: primary, borderColor: `${primary}40`, background: `${primary}10` }}>
-              Funcionalidades
+              Beneficios empresariales
             </div>
             <h2 className="text-[38px] md:text-[48px] font-extrabold text-[#e8edf2] mb-4 leading-tight">
-              Todo lo que necesitas<br/>
-              <span className="text-[#7a8a99]">en un solo sistema</span>
+              No solo un sistema.<br/>
+              <span style={{ color: primary }}>Una transformación operativa.</span>
             </h2>
             <p className="text-[16px] text-[#7a8a99] max-w-xl mx-auto leading-relaxed">
-              {sitio?.descripcion || 'Sistema SaaS de gestión logística para empresas modernas que quieren escalar.'}
+              StockPro no te da funcionalidades. Te da control total, reducción de errores
+              y eficiencia operativa medible desde el primer mes.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {(caracteristicas || []).map(f => (
-              <FeatureCard key={f.id} icono={f.icono} titulo={f.titulo} descripcion={f.descripcion} primary={primary}/>
+              <BenefitCard key={f.id} icono={f.icono} titulo={f.titulo} descripcion={f.descripcion} primary={primary}/>
             ))}
           </div>
         </div>
@@ -571,24 +795,22 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest border mb-5"
                  style={{ color: primary, borderColor: `${primary}40`, background: `${primary}10` }}>
-              Proceso
+              Proceso de implementación
             </div>
             <h2 className="text-[38px] md:text-[48px] font-extrabold text-[#e8edf2] mb-4 leading-tight">
-              Empieza en <span style={{ color: primary }}>3 simples pasos</span>
+              Operativo en <span style={{ color: primary }}>menos de 15 minutos</span>
             </h2>
             <p className="text-[16px] text-[#8a9ab0]">
-              Sin complicaciones. Sin instalaciones. Lista para usar desde el primer día.
+              Sin implementaciones costosas. Sin consultores externos. Sin interrumpir tu operación.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {PASOS.map((p, i) => (
-              <div key={p.num} className="relative flex flex-col bg-[#141c27] border border-white/[0.10] rounded-2xl p-8
-                                          hover:border-[primary]/40 transition-all duration-300
-                                          hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/50"
-                   style={{ ['--hover-border']: `${primary}40` }}>
-
-                {/* Número badge */}
+              <div key={p.num}
+                   className="relative flex flex-col bg-[#141c27] border border-white/[0.10] rounded-2xl p-8
+                              transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/50"
+                   style={{ ['--primary']: primary }}>
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[14px] font-extrabold shrink-0"
                        style={{ background: primary, color: '#082e1e' }}>
@@ -598,13 +820,10 @@ export default function LandingPage() {
                     <div className="hidden md:block flex-1 border-t border-dashed border-white/[0.12]"/>
                   )}
                 </div>
-
-                {/* Icono */}
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-[34px] mb-5 border"
                      style={{ background: `${primary}15`, borderColor: `${primary}25` }}>
                   {p.icono}
                 </div>
-
                 <h3 className="text-[17px] font-bold text-[#e8edf2] mb-3">{p.titulo}</h3>
                 <p className="text-[13px] text-[#8a9ab0] leading-relaxed">{p.desc}</p>
               </div>
@@ -614,25 +833,103 @@ export default function LandingPage() {
       </section>
 
       {/* ══════════════════════════════════════════════════
+          ASÍ FUNCIONA LA PLATAFORMA — Screenshots visuales
+      ══════════════════════════════════════════════════ */}
+      <section id="plataforma" className="py-24 px-6 bg-[#0e1117]">
+        <div className="max-w-6xl mx-auto">
+
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest border mb-5"
+                 style={{ color: primary, borderColor: `${primary}40`, background: `${primary}10` }}>
+              Plataforma en acción
+            </div>
+            <h2 className="text-[38px] md:text-[48px] font-extrabold text-[#e8edf2] mb-4 leading-tight">
+              Así se ve el control<br/>
+              <span style={{ color: primary }}>total de tu operación</span>
+            </h2>
+            <p className="text-[16px] text-[#7a8a99] max-w-xl mx-auto leading-relaxed">
+              Cada módulo diseñado para darte visibilidad inmediata y control operativo real.
+            </p>
+          </div>
+
+          {/* Tabs de módulos */}
+          <div className="flex flex-wrap justify-center gap-2 mb-10">
+            {MODULOS.map(m => (
+              <button key={m.id} onClick={() => setModuloActivo(m.id)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+                  moduloActivo === m.id
+                    ? 'text-[#082e1e] shadow-lg'
+                    : 'bg-white/[0.04] text-[#7a8a99] border border-white/[0.08] hover:text-white hover:bg-white/[0.07]'
+                }`}
+                style={moduloActivo === m.id ? { background: primary, boxShadow: `0 4px 20px ${primary}40` } : {}}>
+                <span>{m.icono}</span>
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Mockup del módulo activo */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-center">
+
+            {/* Descripción */}
+            <div className="lg:col-span-2 flex flex-col gap-6">
+              <div>
+                <div className="text-[40px] mb-4">{moduloActualData.icono}</div>
+                <h3 className="text-[24px] font-extrabold text-[#e8edf2] mb-3">
+                  {moduloActualData.label}
+                </h3>
+                <p className="text-[14px] text-[#7a8a99] leading-relaxed mb-6">
+                  {moduloActualData.desc}
+                </p>
+              </div>
+
+              {/* KPIs resumen */}
+              <div className="grid grid-cols-2 gap-3">
+                {moduloActualData.kpis.map(({ ic, val, lbl, col }) => (
+                  <div key={lbl} className="p-4 bg-[#141920] border border-white/[0.08] rounded-xl">
+                    <div className="text-[22px] mb-1">{ic}</div>
+                    <div className="text-[20px] font-extrabold leading-none mb-1" style={{ color: col }}>{val}</div>
+                    <div className="text-[11px] text-[#5f6f80]">{lbl}</div>
+                  </div>
+                ))}
+              </div>
+
+              <button onClick={() => navigate('/app/dlnorte')}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl text-[14px] font-bold transition-all hover:opacity-90 w-fit"
+                style={{ background: primary, color: '#082e1e', boxShadow: `0 6px 24px ${primary}40` }}>
+                Ver módulo en vivo <ArrowRight size={15}/>
+              </button>
+            </div>
+
+            {/* Mockup visual */}
+            <div className="lg:col-span-3 relative">
+              <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full blur-3xl opacity-[0.12]"
+                   style={{ background: primary }}/>
+              <ModuloMockup modulo={moduloActualData} primary={primary}/>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════
           PLANES Y PRECIOS
       ══════════════════════════════════════════════════ */}
-      <section id="planes" className="py-24 px-6">
+      <section id="planes" className="py-24 px-6 bg-[#111820]">
         <div className="max-w-6xl mx-auto">
 
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest border mb-5"
                  style={{ color: primary, borderColor: `${primary}40`, background: `${primary}10` }}>
-              Precios
+              Planes y Precios
             </div>
             <h2 className="text-[38px] md:text-[48px] font-extrabold text-[#e8edf2] mb-4 leading-tight">
               El plan perfecto<br/>
               <span className="text-[#7a8a99]">para cada empresa</span>
             </h2>
             <p className="text-[16px] text-[#7a8a99] mb-8">
-              Sin contratos. Sin costos ocultos. Cambia de plan cuando quieras.
+              Sin contratos de permanencia. Sin costos ocultos. Cambia de plan cuando necesites.
             </p>
 
-            {/* Toggle mensual / anual */}
             <div className="inline-flex items-center bg-[#141920] border border-white/[0.08] rounded-xl p-1">
               <button
                 onClick={() => setCiclo('mensual')}
@@ -663,25 +960,26 @@ export default function LandingPage() {
                 : 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4'
           }`}>
             {planes.map(plan => (
-              <PlanCard key={plan.id} plan={plan} ciclo={ciclo} primary={primary} navigate={navigate} whatsapp={contacto?.whatsapp}/>
+              <PlanCard key={plan.id} plan={plan} ciclo={ciclo} primary={primary}
+                        navigate={navigate} whatsapp={contacto?.whatsapp}/>
             ))}
           </div>
 
           <p className="text-center text-[13px] text-[#5f6f80] mt-8">
-            Precios en {planes[0]?.moneda || 'PEN'}. ¿Necesitas un plan a medida?{' '}
+            Precios en {planes[0]?.moneda || 'PEN'}. ¿Necesitas un plan a medida o para más de 10 empresas?{' '}
             <button onClick={() => goSection('contacto')}
               className="font-semibold transition-colors hover:opacity-80"
               style={{ color: primary }}>
-              Contáctanos →
+              Hablemos →
             </button>
           </p>
 
-          {/* ── Tabla comparativa de límites ──────────────────── */}
+          {/* Tabla comparativa */}
           <div className="mt-12 bg-[#141920] border border-white/[0.07] rounded-2xl overflow-hidden">
             <div className="px-6 py-4 border-b border-white/[0.07] flex items-center gap-2">
               <span className="text-[14px]">📊</span>
               <h3 className="text-[14px] font-bold text-[#e8edf2]">Comparativa de límites operativos por plan</h3>
-              <span className="ml-2 text-[11px] text-[#5f6f80]">— Al suscribirte, el plan elegido define tus capacidades</span>
+              <span className="ml-2 text-[11px] text-[#5f6f80]">— El plan elegido define tus capacidades operativas</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-[12px]">
@@ -697,18 +995,18 @@ export default function LandingPage() {
                 </thead>
                 <tbody>
                   {[
-                    { label:'👤 Usuarios',         key:'maxUsuarios' },
-                    { label:'📦 Productos',         key:'maxProductos' },
-                    { label:'🏭 Almacenes',         key:'maxAlmacenes' },
-                    { label:'🤝 Proveedores',       key:'maxProveedores' },
-                    { label:'👥 Clientes',          key:'maxClientes' },
-                    { label:'📋 Órdenes/mes',       key:'maxOrdenesMes' },
+                    { label: '👤 Usuarios',      key: 'maxUsuarios'    },
+                    { label: '📦 Productos',      key: 'maxProductos'   },
+                    { label: '🏭 Almacenes',      key: 'maxAlmacenes'   },
+                    { label: '🤝 Proveedores',    key: 'maxProveedores' },
+                    { label: '👥 Clientes',       key: 'maxClientes'    },
+                    { label: '📋 Órdenes/mes',    key: 'maxOrdenesMes'  },
                   ].map(({ label, key }, ri) => {
                     const limites = loadLS('saas_limites', {
-                      trial:       { maxUsuarios:1,  maxProductos:100,  maxAlmacenes:1,  maxProveedores:10,  maxClientes:20,  maxOrdenesMes:50   },
-                      basico:      { maxUsuarios:3,  maxProductos:500,  maxAlmacenes:2,  maxProveedores:50,  maxClientes:100, maxOrdenesMes:300  },
-                      profesional: { maxUsuarios:10, maxProductos:2000, maxAlmacenes:5,  maxProveedores:200, maxClientes:500, maxOrdenesMes:2000 },
-                      empresarial: { maxUsuarios:-1, maxProductos:-1,   maxAlmacenes:-1, maxProveedores:-1,  maxClientes:-1,  maxOrdenesMes:-1   },
+                      trial:       { maxUsuarios: 1,  maxProductos: 100,  maxAlmacenes: 1,  maxProveedores: 10,  maxClientes: 20,  maxOrdenesMes: 50   },
+                      basico:      { maxUsuarios: 3,  maxProductos: 500,  maxAlmacenes: 2,  maxProveedores: 50,  maxClientes: 100, maxOrdenesMes: 300  },
+                      profesional: { maxUsuarios: 10, maxProductos: 2000, maxAlmacenes: 5,  maxProveedores: 200, maxClientes: 500, maxOrdenesMes: 2000 },
+                      empresarial: { maxUsuarios: -1, maxProductos: -1,   maxAlmacenes: -1, maxProveedores: -1,  maxClientes: -1,  maxOrdenesMes: -1   },
                     })
                     return (
                       <tr key={key} className={`border-b border-white/[0.04] ${ri % 2 === 0 ? 'bg-white/[0.01]' : ''}`}>
@@ -719,9 +1017,7 @@ export default function LandingPage() {
                           const isMax = val === -1
                           return (
                             <td key={p.id} className="px-4 py-2.5 text-center font-bold">
-                              <span style={{ color: isMax ? primary : p.color }}>
-                                {txt}
-                              </span>
+                              <span style={{ color: isMax ? primary : p.color }}>{txt}</span>
                             </td>
                           )
                         })}
@@ -742,59 +1038,80 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════════
           TESTIMONIOS
       ══════════════════════════════════════════════════ */}
-      <section id="testimonios" className="py-24 px-6 bg-[#111820]">
+      <section id="testimonios" className="py-24 px-6 bg-[#0e1117]">
         <div className="max-w-6xl mx-auto">
 
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest border mb-5"
                  style={{ color: primary, borderColor: `${primary}40`, background: `${primary}10` }}>
-              Testimonios
+              Casos de éxito
             </div>
             <h2 className="text-[38px] md:text-[48px] font-extrabold text-[#e8edf2] mb-4 leading-tight">
-              Lo que dicen nuestros<br/>
-              <span style={{ color: primary }}>clientes</span>
+              Empresas que ya<br/>
+              <span style={{ color: primary }}>transformaron su operación</span>
             </h2>
+            <p className="text-[16px] text-[#7a8a99]">
+              Resultados reales de empresas que usaban Excel y procesos manuales antes de StockPro.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {TESTIMONIOS.map(t => <TestimonioCard key={t.nombre} t={t} primary={primary}/>)}
           </div>
+
+          {/* Trust bar */}
+          <div className="mt-12 flex flex-wrap justify-center gap-8 items-center">
+            {[
+              { ic: '🏢', label: '500+ empresas activas' },
+              { ic: '⭐', label: '4.9/5 valoración promedio' },
+              { ic: '🔒', label: 'Datos 100% seguros y cifrados' },
+              { ic: '🇵🇪', label: 'Soporte en español 24/7' },
+            ].map(({ ic, label }) => (
+              <div key={label} className="flex items-center gap-2 text-[13px] text-[#5f6f80]">
+                <span>{ic}</span>
+                <span>{label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* ══════════════════════════════════════════════════
-          CTA CENTRAL
+          CTA CENTRAL — Alta urgencia y conversión
       ══════════════════════════════════════════════════ */}
-      <section className="py-24 px-6">
+      <section className="py-24 px-6 bg-[#111820]">
         <div className="max-w-3xl mx-auto">
           <div className="relative rounded-3xl p-12 text-center overflow-hidden border"
                style={{ borderColor: `${primary}25`, background: `linear-gradient(135deg, ${primary}08 0%, ${primary}03 50%, transparent 100%)` }}>
 
-            {/* Glow de fondo */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full blur-[100px] opacity-10"
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full blur-[120px] opacity-[0.09]"
                  style={{ background: primary }}/>
 
             <div className="relative">
               <div className="text-[52px] mb-5">🚀</div>
-              <h2 className="text-[34px] md:text-[42px] font-extrabold text-[#e8edf2] mb-4 leading-tight">
-                ¿Listo para transformar<br/>tu logística?
+              <h2 className="text-[32px] md:text-[40px] font-extrabold text-[#e8edf2] mb-4 leading-tight">
+                ¿Listo para transformar<br/>tu logística empresarial?
               </h2>
-              <p className="text-[16px] text-[#7a8a99] mb-8 max-w-lg mx-auto leading-relaxed">
-                Únete a cientos de empresas que ya optimizaron su inventario y despachos con {sitio?.nombre || 'StockPro'}.
-                {footer?.probarGratisDias > 0 && ` Prueba ${footer.probarGratisDias} días gratis, sin compromiso.`}
+              <p className="text-[16px] text-[#7a8a99] mb-3 max-w-lg mx-auto leading-relaxed">
+                Únete a más de 500 empresas que ya operan con control total, menos errores y mayor eficiencia con {sitio?.nombre || 'StockPro'}.
               </p>
+              {footer?.probarGratisDias > 0 && (
+                <p className="text-[13px] mb-8 font-semibold" style={{ color: primary }}>
+                  ✅ {footer.probarGratisDias} días gratis · Sin tarjeta de crédito · Sin permanencia
+                </p>
+              )}
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <button
                   onClick={() => navigate('/app/dlnorte')}
                   className="inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl text-[15px] font-bold transition-all hover:opacity-90 hover:scale-[1.02] shadow-2xl"
-                  style={{ background: primary, color: '#082e1e', boxShadow: `0 10px 40px ${primary}40` }}>
-                  Comenzar ahora — Es gratis
+                  style={{ background: primary, color: '#082e1e', boxShadow: `0 10px 40px ${primary}45` }}>
+                  Solicitar Demo Gratis
                   <ArrowRight size={17}/>
                 </button>
                 <button
-                  onClick={() => navigate('/login')}
+                  onClick={() => goSection('contacto')}
                   className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl text-[15px] font-semibold text-[#9ba8b6] bg-white/[0.04] border border-white/10 hover:bg-white/10 transition-all">
-                  Ya tengo cuenta →
+                  Hablar con un asesor →
                 </button>
               </div>
             </div>
@@ -805,7 +1122,7 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════════
           CONTACTO
       ══════════════════════════════════════════════════ */}
-      <section id="contacto" className="py-24 px-6 bg-[#111820]">
+      <section id="contacto" className="py-24 px-6 bg-[#0e1117]">
         <div className="max-w-5xl mx-auto">
 
           <div className="text-center mb-16">
@@ -818,16 +1135,15 @@ export default function LandingPage() {
               <span className="text-[#7a8a99]">Estamos aquí para ti</span>
             </h2>
             <p className="text-[16px] text-[#7a8a99]">
-              Nuestro equipo responde en menos de 24 horas hábiles.
+              Nuestro equipo de especialistas responde en menos de 24 horas hábiles.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
-            {/* Email */}
             {contacto?.email && (
               <a href={`mailto:${contacto.email}`}
                  className="group flex flex-col items-center text-center p-7 bg-[#141920] border border-white/[0.07] rounded-2xl hover:border-[#00c896]/40 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[#00c896]/5">
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 transition-all"
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
                      style={{ background: `${primary}15` }}>
                   <Mail size={22} style={{ color: primary }}/>
                 </div>
@@ -835,8 +1151,6 @@ export default function LandingPage() {
                 <div className="text-[12px] text-[#7a8a99] break-all">{contacto.email}</div>
               </a>
             )}
-
-            {/* Teléfono */}
             {contacto?.telefono && (
               <a href={`tel:${contacto.telefono}`}
                  className="group flex flex-col items-center text-center p-7 bg-[#141920] border border-white/[0.07] rounded-2xl hover:border-[#00c896]/40 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[#00c896]/5">
@@ -848,8 +1162,6 @@ export default function LandingPage() {
                 <div className="text-[12px] text-[#7a8a99]">{contacto.telefono}</div>
               </a>
             )}
-
-            {/* WhatsApp */}
             {contacto?.whatsapp && (
               <a href={`https://wa.me/${contacto.whatsapp.replace(/\D/g, '')}`}
                  target="_blank" rel="noopener noreferrer"
@@ -861,8 +1173,6 @@ export default function LandingPage() {
                 <div className="text-[12px] text-[#7a8a99]">{contacto.whatsapp}</div>
               </a>
             )}
-
-            {/* Dirección */}
             {contacto?.direccion && (
               <div className="flex flex-col items-center text-center p-7 bg-[#141920] border border-white/[0.07] rounded-2xl">
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
@@ -875,11 +1185,10 @@ export default function LandingPage() {
             )}
           </div>
 
-          {/* Beneficios de soporte */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { ic: '⚡', t: 'Respuesta rápida', d: 'Menos de 24h hábiles en todos los canales' },
-              { ic: '🌎', t: 'Soporte en español', d: 'Equipo nativo hispanohablante, sin barreras' },
+              { ic: '⚡', t: 'Respuesta rápida', d: 'Menos de 24h hábiles en todos los canales de contacto' },
+              { ic: '🌎', t: 'Soporte en español', d: 'Equipo nativo hispanohablante, sin barreras idiomáticas' },
               { ic: '🛡️', t: 'Datos protegidos', d: 'Cifrado SSL · Backups diarios · GDPR compliant' },
             ].map(({ ic, t, d }) => (
               <div key={t} className="flex items-start gap-4 p-5 bg-[#141920]/60 border border-white/[0.06] rounded-2xl">
@@ -900,8 +1209,6 @@ export default function LandingPage() {
       <footer className="border-t border-white/[0.07] bg-[#0a0e14]">
         <div className="max-w-6xl mx-auto px-6 py-10">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 mb-8">
-
-            {/* Marca */}
             <div>
               <div className="flex items-center gap-2.5 mb-2">
                 <div className="w-8 h-8 rounded-xl flex items-center justify-center"
@@ -911,11 +1218,10 @@ export default function LandingPage() {
                 <span className="font-extrabold text-[17px] text-[#e8edf2]">{sitio?.nombre || 'StockPro'}</span>
               </div>
               <p className="text-[12px] text-[#5f6f80] max-w-xs leading-relaxed">
-                {sitio?.tagline || 'Logística inteligente para tu empresa'}
+                {sitio?.tagline || 'La plataforma logística diseñada para empresas que necesitan control total.'}
               </p>
             </div>
 
-            {/* Redes + Login */}
             <div className="flex items-center gap-2">
               {redesSociales?.linkedin  && <a href={redesSociales.linkedin}  target="_blank" rel="noopener noreferrer" className="p-2 text-[#5f6f80] hover:text-white transition-colors"><Linkedin  size={17}/></a>}
               {redesSociales?.twitter   && <a href={redesSociales.twitter}   target="_blank" rel="noopener noreferrer" className="p-2 text-[#5f6f80] hover:text-white transition-colors"><Twitter   size={17}/></a>}
@@ -929,8 +1235,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Bottom bar */}
-          <div className="pt-6 border-t border-white/6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="pt-6 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-[12px] text-[#3a4a5a]">
               {footer?.textoLegal || `© ${new Date().getFullYear()} ${sitio?.nombre || 'StockPro'}. Todos los derechos reservados.`}
             </p>
@@ -941,6 +1246,23 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* ══════════════════════════════════════════════════
+          CTA STICKY MÓVIL — solo visible en mobile al hacer scroll
+      ══════════════════════════════════════════════════ */}
+      <div className={`fixed bottom-0 left-0 right-0 md:hidden z-50 transition-all duration-300 ${
+        showStickyMobile ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
+      }`}>
+        <div className="p-4 bg-[#0a0e14]/96 backdrop-blur-lg border-t border-white/[0.08] shadow-2xl shadow-black/60">
+          <button
+            onClick={() => navigate('/app/dlnorte')}
+            className="w-full py-4 rounded-2xl text-[15px] font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+            style={{ background: primary, color: '#082e1e', boxShadow: `0 8px 30px ${primary}50` }}>
+            Solicitar Demo Gratis
+            <ArrowRight size={17}/>
+          </button>
+        </div>
+      </div>
 
     </div>
   )
