@@ -51,6 +51,7 @@ const ContabilidadReportes = lazy(() => import('./pages/ContabilidadReportes'))
 const TrazabilidadPedidos  = lazy(() => import('./pages/TrazabilidadPedidos'))
 const ColaSincronizacion   = lazy(() => import('./pages/ColaSincronizacion'))
 const AdminSaaS            = lazy(() => import('./pages/AdminSaaS'))
+const LandingPage          = lazy(() => import('./pages/LandingPage'))
 
 // ── Títulos de página ───────────────────────────────────
 const PAGE_TITLES = {
@@ -98,6 +99,7 @@ const PAGE_TITLES = {
   '/configuracion':  'Configuración',
   '/admin-saas':     'Administración SaaS — Negocios, Planes y Facturación',
   '/superadmin':     'Panel de Administración',
+  '/landing':        'StockPro — Sistema Logístico SaaS',
 }
 
 // ── Error Boundary ──────────────────────────────────────
@@ -274,6 +276,20 @@ function AppLayout() {
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
+  // ── LANDING PAGE: siempre pública, sin sidebar ni header ──────────────
+  // Se intercepta ANTES de cualquier verificación de sesión o plan para
+  // garantizar que la landing tenga su propio diseño aislado.
+  if (location.pathname === '/landing') {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<PageLoader />}>
+          <LandingPage />
+        </Suspense>
+        <ToastContainer />
+      </ErrorBoundary>
+    )
+  }
+
   // /app/:orgId siempre muestra el Login del tenant — sin importar quién esté logueado.
   // Si el usuario ya tiene sesión en ESE tenant específico, redirige al dashboard.
   const isTenantRoute = location.pathname.startsWith('/app/')
@@ -323,8 +339,13 @@ function AppLayout() {
       <ErrorBoundary>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            <Route path="/superadmin" element={<Login adminMode />} />
-            <Route path="*"      element={<Login />} />
+            {/* Rutas públicas — no requieren autenticación */}
+            <Route path="/"            element={<LandingPage />} />
+            <Route path="/landing"     element={<LandingPage />} />
+            <Route path="/login"       element={<Login />} />
+            <Route path="/superadmin"  element={<Login adminMode />} />
+            {/* Cualquier otra ruta sin sesión → landing */}
+            <Route path="*"            element={<LandingPage />} />
           </Routes>
         </Suspense>
         <ToastContainer />
@@ -384,6 +405,7 @@ function AppLayout() {
             <Route path="/usuarios"       element={<Usuarios />} />
             <Route path="/configuracion"  element={<Configuracion />} />
             <Route path="/admin-saas"     element={<AdminSaaS />} />
+            <Route path="/landing"        element={<LandingPage />} />
             <Route path="*"               element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

@@ -558,6 +558,41 @@ aside img {
   mix-blend-mode: normal;
 }
 
+/* ══════════════════════════════════════════════════════
+   LANDING PAGE — Aislamiento total del sistema de temas
+   Garantiza que la landing tenga siempre su propio diseño
+   oscuro, independientemente del tema activo en la app.
+   Las reglas de override de colores hardcodeados de arriba
+   usan CSS variables: al forzarlas aquí, las resuelven al
+   valor correcto dentro de [data-landing].
+   ══════════════════════════════════════════════════════ */
+[data-landing] {
+  /* Variables base — tema oscuro forzado */
+  --bg-base:        #0e1117 !important;
+  --bg-surface:     #141920 !important;
+  --bg-card:        #161d28 !important;
+  --bg-input:       #1e2835 !important;
+  --bg-muted:       #1a2230 !important;
+  --bg-sidebar:     #0f1520 !important;
+  --border:         rgba(255,255,255,0.08) !important;
+  --border-strong:  rgba(255,255,255,0.14) !important;
+  --text-primary:   #e8edf2 !important;
+  --text-secondary: #9ba8b6 !important;
+  --text-muted:     #5f6f80 !important;
+  --text-faint:     #3d4f60 !important;
+  --accent:         #00c896 !important;
+  --accent-dark:    #009e76 !important;
+  --accent-dim:     rgba(0,200,150,0.12) !important;
+  --scrollbar:      rgba(255,255,255,0.14) !important;
+  color-scheme: dark;
+  /* Scroll propio — escapa el overflow:hidden del #root */
+  position: fixed !important;
+  inset: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  z-index: 100 !important;
+}
+
 /* ── Animaciones ───────────────────────────────────── */
 @keyframes modal-in {
   from { opacity: 0; transform: translateY(-12px) scale(0.97); }
