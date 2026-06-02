@@ -2,15 +2,15 @@
 import { Plus, Search, ArrowUpFromLine, FileText, Eye, XCircle, DollarSign, Calendar, TrendingDown, ShoppingBag, Download, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
-import { procesarSalida, calcularPMP } from '../utils/valorizacion'
-import * as storage from '../services/storage'
+import { calcularPMP } from '../utils/valorizacion'
+import { registrarSalida, anularSalida } from '../services/movimientoService'
 import { Modal, ConfirmDialog, EmptyState, Btn, Field, Badge, Alert } from '../components/ui/index'
 import { exportarMovimientosXLSX } from '../utils/exportXLSX'
 import { exportarMovimientosPDF } from '../utils/exportPDF'
+import { MOTIVOS_SALIDA } from '../config/constants'
 
 const SI  = 'px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 w-full font-[inherit] placeholder-[#5f6f80]'
 const SEL = SI + ' pr-8'
-const MOTIVOS = ['Venta','Consumo interno','Muestra','Merma','Transferencia','Devolución a proveedor','Otro']
 
 export default function Salidas() {
   const { movimientos, productos, almacenes, recargarProductos, recargarMovimientos, toast, formulaValorizacion, simboloMoneda , config } = useApp()
@@ -18,33 +18,30 @@ export default function Salidas() {
   const [verMov, setVerMov]     = useState(null)
   const [anular, setAnular]     = useState(null)
   const [busqueda,   setBusqueda]   = useState('')
-  const [filtProd,   setFiltProd]   = useState('')  // texto producto/SKU
+  const [filtProd,   setFiltProd]   = useState('')
   const [filtAlm,    setFiltAlm]    = useState('')
   const [filtMotivo, setFiltMotivo] = useState('')
+
+  const productMap = useMemo(() => new Map(productos.map(p => [p.id, p])), [productos])
 
   const salidas = useMemo(() =>
     movimientos
       .filter(m => m.tipo === 'SALIDA')
       .filter(m => {
-        const p = productos.find(x => x.id === m.productoId)
-        // Búsqueda general: nombre producto o documento
+        const p = productMap.get(m.productoId)
         if (busqueda) {
           const q = busqueda.toLowerCase()
           if (!p?.nombre.toLowerCase().includes(q) && !m.documento?.toLowerCase().includes(q)) return false
         }
-        // Filtro producto por SKU/nombre
         if (filtProd) {
           const q = filtProd.toLowerCase()
           if (!p?.nombre.toLowerCase().includes(q) && !p?.sku.toLowerCase().includes(q)) return false
         }
-        // Filtro almacén
         if (filtAlm    && m.almacenId !== filtAlm)  return false
-        // Filtro motivo
         if (filtMotivo && !m.motivo?.toLowerCase().includes(filtMotivo.toLowerCase())) return false
-        // Filtro N° documento
         return true
       })
-  , [movimientos, busqueda, filtProd, filtAlm, filtMotivo, productos])
+  , [movimientos, busqueda, filtProd, filtAlm, filtMotivo, productMap])
 
   const kpis = useMemo(() => {
     const todas  = movimientos.filter(m => m.tipo === 'SALIDA')
@@ -77,38 +74,21 @@ export default function Salidas() {
   function limpiarFiltros() { setBusqueda(''); setFiltProd(''); setFiltAlm(''); setFiltMotivo('') }
 
   function handleRegistrar(data) {
-    const prod = storage.getProductoById(data.productoId).data
-    if (!prod) return toast('Producto no encontrado', 'error')
-    if (+data.cantidad > prod.stockActual) return toast(`Stock insuficiente. Disponible: ${prod.stockActual} ${prod.unidadMedida}`, 'error')
-    let resultado
-    try { resultado = procesarSalida(prod.batches || [], +data.cantidad, formulaValorizacion) }
-    catch (e) { return toast(e.message, 'error') }
-    storage._actualizarBatchesProducto(prod.id, resultado.batches, prod.stockActual - +data.cantidad)
-    storage.registrarMovimiento({
-      tipo: 'SALIDA', productoId: data.productoId, almacenId: data.almacenId,
-      cantidad: +data.cantidad, costoUnitario: resultado.costoUnitario, costoTotal: resultado.costoTotal,
-      lote: '', fecha: data.fecha, motivo: data.motivo,
-      documento: data.documento || generarNumDoc('SAL', '001'),
-      notas: data.notas, formula: formulaValorizacion,
-    })
-    recargarProductos(); recargarMovimientos()
-    toast(`Salida registrada — ${data.cantidad} ${prod.unidadMedida} de ${prod.nombre} · Costo: ${formatCurrency(resultado.costoTotal, simboloMoneda)}`, 'success')
+    const resultado = registrarSalida(data, formulaValorizacion)
+    if (!resultado.ok) return toast(resultado.mensaje, 'error')
+    recargarProductos()
+    recargarMovimientos()
+    const prod = productMap.get(data.productoId)
+    toast(`${resultado.mensaje} · Costo: ${formatCurrency(resultado.costoTotal, simboloMoneda)}`, 'success')
     setModal(false)
   }
 
   function handleAnular(mov) {
-    const prod = storage.getProductoById(mov.productoId).data
-    if (!prod) return toast('Producto no encontrado', 'error')
-    const batch = { id: Date.now().toString(36), cantidad: mov.cantidad, costo: mov.costoUnitario, fecha: fechaHoy(), lote: `REST-${mov.documento}` }
-    storage._actualizarBatchesProducto(prod.id, [...(prod.batches || []), batch], prod.stockActual + mov.cantidad)
-    storage.registrarMovimiento({
-      tipo: 'AJUSTE', productoId: mov.productoId, almacenId: mov.almacenId,
-      cantidad: mov.cantidad, costoUnitario: mov.costoUnitario, costoTotal: mov.costoTotal,
-      lote: '', fecha: fechaHoy(), motivo: `[+ AJUSTE] Anulación salida ${mov.documento}`,
-      documento: `ANU-${mov.documento}`, notas: `Anulación de salida ${mov.documento}`,
-    })
-    recargarProductos(); recargarMovimientos()
-    toast(`Salida ${mov.documento} anulada — stock repuesto`, 'success')
+    const resultado = anularSalida(mov)
+    if (!resultado.ok) { toast(resultado.mensaje, 'error'); setAnular(null); return }
+    recargarProductos()
+    recargarMovimientos()
+    toast(resultado.mensaje, 'success')
     setAnular(null)
   }
 
@@ -209,7 +189,7 @@ export default function Salidas() {
           {/* Motivo — lista fija del formulario de registro */}
           <select className={SEL} style={{width:165,padding:'5px 8px',fontSize:12}} value={filtMotivo} onChange={e=>setFiltMotivo(e.target.value)}>
             <option value="">Todos los motivos</option>
-            {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
+            {MOTIVOS_SALIDA.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
           {/* Contador + limpiar */}
           <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">
@@ -231,7 +211,7 @@ export default function Salidas() {
             <tbody>
               {salidas.length === 0 && <tr><td colSpan={9}><EmptyState icon={ArrowUpFromLine} title="Sin salidas" description="Registra tu primera salida de stock."/></td></tr>}
               {salidas.map(m => {
-                const p = productos.find(x => x.id === m.productoId)
+                const p = productMap.get(m.productoId)
                 return (
                   <tr key={m.id} className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.02]">
                     <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{formatDate(m.fecha)}</td>
@@ -319,7 +299,7 @@ function ModalSalida({ open, onClose, onSave, productos, almacenes, formulaValor
           {totalEst > 0 && <span className="text-[11px] text-[#5f6f80] mt-1">Costo est. ({formulaValorizacion}): <span className="text-amber-400 font-semibold">{formatCurrency(totalEst,simboloMoneda)}</span></span>}
         </Field>
         <Field label="Fecha"><input type="date" className={SI} value={form.fecha} onChange={e => f('fecha',e.target.value)}/></Field>
-        <Field label="Motivo"><select className={SEL} value={form.motivo} onChange={e => f('motivo',e.target.value)}>{MOTIVOS.map(m => <option key={m}>{m}</option>)}</select></Field>
+        <Field label="Motivo"><select className={SEL} value={form.motivo} onChange={e => f('motivo',e.target.value)}>{MOTIVOS_SALIDA.map(m => <option key={m}>{m}</option>)}</select></Field>
         <Field label="N° Documento"><input className={SI} value={form.documento} onChange={e => f('documento',e.target.value)} placeholder="GR-001-0001"/></Field>
       </div>
       <Field label="Almacén"><select className={SEL} value={form.almacenId} onChange={e => f('almacenId',e.target.value)}>{almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}</select></Field>

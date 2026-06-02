@@ -3,15 +3,15 @@ import { Plus, Search, ArrowDownToLine, Eye, XCircle, Package, DollarSign, Calen
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
 import { calcularPMP } from '../utils/valorizacion'
-import * as storage from '../services/storage'
+import { registrarEntrada, anularEntrada } from '../services/movimientoService'
 import BarcodeScanner from '../components/ui/BarcodeScanner'
 import { Modal, ConfirmDialog, EmptyState, Btn, Field } from '../components/ui/index'
 import { exportarMovimientosXLSX } from '../utils/exportXLSX'
 import { exportarMovimientosPDF } from '../utils/exportPDF'
+import { MOTIVOS_ENTRADA } from '../config/constants'
 
 const SI  = 'px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 w-full font-[inherit] placeholder-[#5f6f80]'
 const SEL = SI + ' pr-8'
-const MOTIVOS_E = ['Compra','Reposición','Devolución de cliente','Ajuste positivo','Inventario inicial','Otro']
 
 export default function Entradas() {
   const { movimientos, productos, almacenes, proveedores, recargarProductos, recargarMovimientos, toast, simboloMoneda , config } = useApp()
@@ -23,26 +23,23 @@ export default function Entradas() {
   const [filtProv,  setFiltProv]  = useState('')
   const [filtMotivo,setFiltMotivo]= useState('')
 
+  const productMap = useMemo(() => new Map(productos.map(p => [p.id, p])), [productos])
+
   const entradas = useMemo(() =>
     movimientos
       .filter(m => m.tipo === 'ENTRADA')
       .filter(m => {
-        // Búsqueda general: nombre producto o documento
         if (busqueda) {
           const q = busqueda.toLowerCase()
-          const p = productos.find(x => x.id === m.productoId)
+          const p = productMap.get(m.productoId)
           if (!p?.nombre.toLowerCase().includes(q) && !m.documento?.toLowerCase().includes(q)) return false
         }
-        // Filtro almacén
         if (filtAlm   && m.almacenId   !== filtAlm)   return false
-        // Filtro proveedor
         if (filtProv  && m.proveedorId !== filtProv)  return false
-        // Filtro motivo
         if (filtMotivo && !m.motivo?.toLowerCase().includes(filtMotivo.toLowerCase())) return false
-        // Filtro N° documento
         return true
       })
-  , [movimientos, busqueda, filtAlm, filtProv, filtMotivo, productos])
+  , [movimientos, busqueda, filtAlm, filtProv, filtMotivo, productMap])
 
   const kpis = useMemo(() => {
     const todas  = movimientos.filter(m => m.tipo === 'ENTRADA')
@@ -69,40 +66,20 @@ export default function Entradas() {
   function limpiarFiltros() { setBusqueda(''); setFiltAlm(''); setFiltProv(''); setFiltMotivo('') }
 
   function handleRegistrar(data) {
-    const prod = storage.getProductoById(data.productoId).data
-    if (!prod) return toast('Producto no encontrado', 'error')
-    const batch = { id: Date.now().toString(36), cantidad: +data.cantidad, costo: +data.costoUnitario, fecha: data.fecha, lote: data.lote || '' }
-    storage._actualizarBatchesProducto(prod.id, [...(prod.batches || []), batch], prod.stockActual + +data.cantidad)
-    storage.registrarMovimiento({
-      tipo: 'ENTRADA', productoId: data.productoId, almacenId: data.almacenId,
-      cantidad: +data.cantidad, costoUnitario: +data.costoUnitario,
-      costoTotal: +(data.cantidad * data.costoUnitario).toFixed(2),
-      lote: data.lote, fecha: data.fecha, motivo: data.motivo,
-      documento: data.documento || generarNumDoc('ENT', '001'),
-      notas: data.notas, proveedorId: data.proveedorId,
-    })
-    recargarProductos(); recargarMovimientos()
-    toast(`Entrada registrada — ${data.cantidad} ${prod.unidadMedida} de ${prod.nombre}`, 'success')
+    const resultado = registrarEntrada(data)
+    if (!resultado.ok) return toast(resultado.mensaje, 'error')
+    recargarProductos()
+    recargarMovimientos()
+    toast(resultado.mensaje, 'success')
     setModal(false)
   }
 
   function handleAnular(mov) {
-    const prod = storage.getProductoById(mov.productoId).data
-    if (!prod) return toast('Producto no encontrado', 'error')
-    if (prod.stockActual < mov.cantidad) {
-      toast(`No se puede anular: stock actual (${prod.stockActual}) es menor que la cantidad ingresada (${mov.cantidad})`, 'error')
-      setAnular(null); return
-    }
-    const nuevosBatches = (prod.batches || []).filter(b => b.id !== mov.batchId)
-    storage._actualizarBatchesProducto(prod.id, nuevosBatches, prod.stockActual - mov.cantidad)
-    storage.registrarMovimiento({
-      tipo: 'AJUSTE', productoId: mov.productoId, almacenId: mov.almacenId,
-      cantidad: mov.cantidad, costoUnitario: mov.costoUnitario, costoTotal: mov.costoTotal,
-      lote: '', fecha: fechaHoy(), motivo: `[- AJUSTE] Anulación entrada ${mov.documento}`,
-      documento: `ANU-${mov.documento}`, notas: `Anulación de entrada ${mov.documento}`,
-    })
-    recargarProductos(); recargarMovimientos()
-    toast(`Entrada ${mov.documento} anulada`, 'success')
+    const resultado = anularEntrada(mov)
+    if (!resultado.ok) { toast(resultado.mensaje, 'error'); setAnular(null); return }
+    recargarProductos()
+    recargarMovimientos()
+    toast(resultado.mensaje, 'success')
     setAnular(null)
   }
 
@@ -197,7 +174,7 @@ export default function Entradas() {
           {/* Motivo */}
           <select className={SEL} style={{width:148,padding:'5px 8px',fontSize:12}} value={filtMotivo} onChange={e=>setFiltMotivo(e.target.value)}>
             <option value="">Todos los motivos</option>
-            {MOTIVOS_E.map(m => <option key={m} value={m}>{m}</option>)}
+            {MOTIVOS_ENTRADA.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
           {/* Contador + limpiar */}
           <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">
@@ -219,7 +196,7 @@ export default function Entradas() {
             <tbody>
               {entradas.length === 0 && <tr><td colSpan={9}><EmptyState icon={ArrowDownToLine} title="Sin entradas" description="Registra tu primera entrada de stock."/></td></tr>}
               {entradas.map(m => {
-                const p = productos.find(x => x.id === m.productoId)
+                const p = productMap.get(m.productoId)
                 return (
                   <tr key={m.id} className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.02]">
                     <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{formatDate(m.fecha)}</td>
@@ -483,7 +460,7 @@ function ModalEntrada({ open, onClose, onSave, productos, almacenes, proveedores
         </Field>
         <Field label="Motivo">
           <select className={SEL} value={form.motivo} onChange={e => f('motivo', e.target.value)}>
-            {MOTIVOS_E.map(m => <option key={m}>{m}</option>)}
+            {MOTIVOS_ENTRADA.map(m => <option key={m}>{m}</option>)}
           </select>
         </Field>
       </div>

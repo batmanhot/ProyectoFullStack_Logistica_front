@@ -1,5 +1,6 @@
 import { format, formatDistanceToNow, differenceInDays, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { STOCK } from '../config/constants'
 
 // ── Formateo de moneda ─────────────────────
 export function formatCurrency(n, simbolo = 'S/') {
@@ -63,10 +64,11 @@ export function fechaHoy() {
 
 // ── Semáforo de stock ──────────────────────
 export function estadoStock(stockActual, stockMinimo) {
-  if (stockActual <= 0)            return { estado: 'agotado',   label: 'Agotado',   color: '#ef4444' }
-  if (stockActual <= stockMinimo)  return { estado: 'critico',   label: 'Crítico',   color: '#f59e0b' }
-  if (stockActual <= stockMinimo * 1.5) return { estado: 'bajo', label: 'Bajo',      color: '#f59e0b' }
-  return                                 { estado: 'ok',         label: 'Normal',    color: '#22c55e' }
+  if (stockActual <= 0)            return { estado: 'agotado', label: 'Agotado', color: '#ef4444' }
+  if (stockActual <= stockMinimo)  return { estado: 'critico', label: 'Crítico', color: '#f59e0b' }
+  if (stockActual <= stockMinimo * STOCK.UMBRAL_BAJO_MULTIPLICADOR)
+                                   return { estado: 'bajo',    label: 'Bajo',    color: '#f59e0b' }
+  return                                  { estado: 'ok',      label: 'Normal',  color: '#22c55e' }
 }
 
 export function badgeClaseStock(estado) {

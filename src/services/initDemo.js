@@ -9,35 +9,25 @@
 
 const DEMO_VERSION = '2.5.0'   // ← incrementar cada vez que cambie el dataset demo
 
-// ── TODAS las claves del sistema ───────────────────────
-const ALL_KEYS = [
-  'sp_config',
-  'sp_productos',
-  'sp_categorias',
-  'sp_almacenes',
-  'sp_proveedores',
-  'sp_movimientos',
-  'sp_ordenes',
-  'sp_usuarios',
-  'sp_ajustes',
-  'sp_devoluciones',
-  'sp_transferencias',
-  'sp_cotizaciones',
-  'sp_inv_fisico',
-  'sp_notif',
-  'sp_alertas_leidas',
-  'sp_clientes',
-  'sp_despachos',
-  'sp_transportistas',
-  'sp_rutas',
-  'sp_cxc',
-  'sp_proformas',
-  'sp_empaques',
-  'sp_flota',
-  'sp_listas_precios',
-  'sp_auditoria',
-  // NO incluir 'sp_session' — el usuario no debe perder sesión
+// Tenants de demo definidos en storage.js (DEMO_TENANTS)
+const DEMO_TENANTS = ['dlnorte', 'acme']
+
+// Entidades con prefijo de tenant — patrón: sp_{tenantId}_{entidad}
+const TENANT_ENTITIES = [
+  'config', 'productos', 'categorias', 'almacenes', 'proveedores',
+  'movimientos', 'ordenes', 'usuarios', 'ajustes', 'devoluciones',
+  'transferencias', 'cotizaciones', 'inv_fisico', 'notif',
+  'alertas_leidas', 'clientes', 'despachos', 'transportistas',
+  'rutas', 'cxc', 'proformas', 'empaques', 'flota',
+  'listas_precios', 'auditoria', 'areas', 'pedidos_internos',
+  'roles_custom',
 ]
+
+// Genera las claves reales para todos los tenants demo
+// NO incluye sp_session — el usuario no debe perder sesión
+const ALL_KEYS = DEMO_TENANTS.flatMap(tid =>
+  TENANT_ENTITIES.map(entity => `sp_${tid}_${entity}`)
+)
 
 export function initDemoData(storageFns) {
   const savedVersion = localStorage.getItem('sp_demo_version')

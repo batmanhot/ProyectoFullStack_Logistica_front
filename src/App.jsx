@@ -404,7 +404,7 @@ function AppLayout() {
             <Route path="/maestros"       element={<Maestros />} />
             <Route path="/usuarios"       element={<Usuarios />} />
             <Route path="/configuracion"  element={<Configuracion />} />
-            <Route path="/admin-saas"     element={<AdminSaaS />} />
+            <Route path="/admin-saas"     element={sesion?.rol === 'saas_admin' ? <AdminSaaS /> : <Navigate to="/" replace />} />
             <Route path="/landing"        element={<LandingPage />} />
             <Route path="*"               element={<Navigate to="/" replace />} />
           </Routes>

@@ -1,12 +1,13 @@
 /**
  * api.js — Cliente HTTP centralizado para Django REST Framework
  *
- * Uso actual  : inactivo (USE_BACKEND = false en storageAdapter)
- * Uso futuro  : activar USE_BACKEND = true y mapear endpoints
- *
  * Autenticación : JWT con djangorestframework-simplejwt
  *   POST /api/auth/token/         → obtener access + refresh
  *   POST /api/auth/token/refresh/ → renovar access con refresh
+ *
+ * Multitenancy  : Header X-Tenant-ID enviado automáticamente en cada request.
+ *   El backend usa este header para aislar datos por empresa.
+ *   Fuente: localStorage 'sp_session' → campo empresaId
  *
  * Variables de entorno (.env):
  *   VITE_API_URL=http://localhost:8000/api
@@ -16,14 +17,21 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 
 const TOKEN_KEY   = 'sp_access_token'
 const REFRESH_KEY = 'sp_refresh_token'
+const SESSION_KEY = 'sp_session'
 
 // ── Gestión de tokens JWT ─────────────────────────────────
 export const tokenManager = {
-  getAccess:      ()      => localStorage.getItem(TOKEN_KEY),
-  getRefresh:     ()      => localStorage.getItem(REFRESH_KEY),
-  setTokens:      (a, r)  => { localStorage.setItem(TOKEN_KEY, a); if (r) localStorage.setItem(REFRESH_KEY, r) },
-  clearTokens:    ()      => { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(REFRESH_KEY) },
-  isExpired:      (token) => {
+  getAccess:   () => localStorage.getItem(TOKEN_KEY),
+  getRefresh:  () => localStorage.getItem(REFRESH_KEY),
+  setTokens:   (a, r) => {
+    localStorage.setItem(TOKEN_KEY, a)
+    if (r) localStorage.setItem(REFRESH_KEY, r)
+  },
+  clearTokens: () => {
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(REFRESH_KEY)
+  },
+  isExpired: (token) => {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]))
       return payload.exp * 1000 < Date.now()
@@ -31,9 +39,21 @@ export const tokenManager = {
   },
 }
 
+// ── Tenant activo ─────────────────────────────────────────
+function getTenantId() {
+  try {
+    const ses = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null')
+    return ses?.empresaId || null
+  } catch { return null }
+}
+
 // ── Núcleo HTTP ───────────────────────────────────────────
 async function _request(method, endpoint, data = null, intentoRefresh = false) {
   const headers = { 'Content-Type': 'application/json' }
+
+  // Header de tenant para aislamiento multitenant en el backend
+  const tenantId = getTenantId()
+  if (tenantId) headers['X-Tenant-ID'] = tenantId
 
   // Adjuntar token de acceso si existe
   let access = tokenManager.getAccess()
@@ -80,7 +100,6 @@ async function _request(method, endpoint, data = null, intentoRefresh = false) {
     return { data: json, error: null, status: res.status }
 
   } catch (e) {
-    // Error de red (sin conexión, timeout, CORS)
     const offline = !navigator.onLine
     return {
       data:    null,
@@ -102,22 +121,31 @@ async function _refreshToken() {
     })
     if (!res.ok) return false
     const { access } = await res.json()
-    tokenManager.setTokens(access, null) // refresh no cambia con simplejwt por defecto
+    tokenManager.setTokens(access, null)
     return true
   } catch { return false }
 }
 
 // ── API pública ───────────────────────────────────────────
 export const api = {
-  get:    (endpoint)        => _request('GET',    endpoint),
-  post:   (endpoint, data)  => _request('POST',   endpoint, data),
-  put:    (endpoint, data)  => _request('PUT',    endpoint, data),
-  patch:  (endpoint, data)  => _request('PATCH',  endpoint, data),
-  delete: (endpoint)        => _request('DELETE', endpoint),
+  get:    (endpoint)       => _request('GET',    endpoint),
+  post:   (endpoint, data) => _request('POST',   endpoint, data),
+  put:    (endpoint, data) => _request('PUT',    endpoint, data),
+  patch:  (endpoint, data) => _request('PATCH',  endpoint, data),
+  delete: (endpoint)       => _request('DELETE', endpoint),
 
   // Autenticación Django simplejwt
-  async login(email, password) {
-    const res = await _request('POST', '/auth/token/', { email, password }, true)
+  async login(empresaId, email, password) {
+    const res = await _request('POST', '/auth/token/', { empresaId, email, password }, true)
+    if (res.data?.access) {
+      tokenManager.setTokens(res.data.access, res.data.refresh)
+    }
+    return res
+  },
+
+  // Login superadmin SaaS (sin tenant)
+  async loginAdmin(email, password) {
+    const res = await _request('POST', '/auth/admin/token/', { email, password }, true)
     if (res.data?.access) {
       tokenManager.setTokens(res.data.access, res.data.refresh)
     }
@@ -129,22 +157,84 @@ export const api = {
   },
 }
 
-// ── Endpoints mapeados (referencia para la migración) ─────
-// Cuando USE_BACKEND = true, storageAdapter.js llamará a estos.
+// ── Mapa de endpoints (referencia para la migración) ──────
 //
-// PRODUCTOS       GET/POST  /productos/
-//                 GET/PUT   /productos/{id}/
-// MOVIMIENTOS     GET/POST  /movimientos/
-// ORDENES         GET/POST  /ordenes/
-//                 PATCH     /ordenes/{id}/
-// DESPACHOS       GET/POST  /despachos/
-// CLIENTES        GET/POST  /clientes/
-// PROVEEDORES     GET/POST  /proveedores/
-// USUARIOS        GET/POST  /usuarios/
-// CATEGORIAS      GET/POST  /categorias/
-// ALMACENES       GET/POST  /almacenes/
-// PEDIDOS INT.    GET/POST  /pedidos-internos/
-// AUDITORÍA       GET       /auditoria/
-// CONFIG          GET/PATCH /configuracion/
+// AUTH            POST   /auth/token/              → login tenant
+//                 POST   /auth/admin/token/        → login superadmin
+//                 POST   /auth/token/refresh/      → renovar access
+//                 POST   /auth/logout/             → invalidar refresh
+//
+// PRODUCTOS       GET    /productos/
+//                 POST   /productos/
+//                 GET    /productos/{id}/
+//                 PUT    /productos/{id}/
+//                 DELETE /productos/{id}/
+//
+// MOVIMIENTOS     GET    /movimientos/
+//                 POST   /movimientos/
+//
+// ORDENES         GET    /ordenes/
+//                 POST   /ordenes/
+//                 PATCH  /ordenes/{id}/
+//
+// DESPACHOS       GET    /despachos/
+//                 POST   /despachos/
+//                 PATCH  /despachos/{id}/
+//
+// CLIENTES        GET    /clientes/
+//                 POST   /clientes/
+//                 PUT    /clientes/{id}/
+//                 DELETE /clientes/{id}/
+//
+// PROVEEDORES     GET    /proveedores/
+//                 POST   /proveedores/
+//                 PUT    /proveedores/{id}/
+//                 DELETE /proveedores/{id}/
+//
+// CATEGORIAS      GET    /categorias/
+//                 POST   /categorias/
+//                 PUT    /categorias/{id}/
+//                 DELETE /categorias/{id}/
+//
+// ALMACENES       GET    /almacenes/
+//                 POST   /almacenes/
+//                 PUT    /almacenes/{id}/
+//                 DELETE /almacenes/{id}/
+//
+// TRANSFERENCIAS  GET    /transferencias/
+//                 POST   /transferencias/
+//
+// AJUSTES         GET    /ajustes/
+//                 POST   /ajustes/
+//
+// DEVOLUCIONES    GET    /devoluciones/
+//                 POST   /devoluciones/
+//
+// USUARIOS        GET    /usuarios/
+//                 POST   /usuarios/
+//                 PUT    /usuarios/{id}/
+//                 DELETE /usuarios/{id}/
+//
+// PEDIDOS INT.    GET    /pedidos-internos/
+//                 POST   /pedidos-internos/
+//                 PATCH  /pedidos-internos/{id}/
+//
+// ÁREAS           GET    /areas/
+//                 POST   /areas/
+//                 PUT    /areas/{id}/
+//                 DELETE /areas/{id}/
+//
+// CONFIG          GET    /configuracion/
+//                 PATCH  /configuracion/
+//
+// AUDITORÍA       GET    /auditoria/
+//
+// SAAS ADMIN      GET    /saas/negocios/
+//                 POST   /saas/negocios/
+//                 PUT    /saas/negocios/{id}/
+//                 GET    /saas/planes/
+//                 PUT    /saas/planes/{id}/
+//                 GET    /saas/renovaciones/
+//                 POST   /saas/renovaciones/
 
 export default api

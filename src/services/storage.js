@@ -12,6 +12,7 @@
  * El resto del sistema (páginas, contexto, validadores) no se toca.
  */
 import { newId, fechaHoy } from '../utils/helpers'
+import { AUDITORIA } from '../config/constants'
 import {
   CONFIG_DEFAULT, CONFIGS_DEMO, CAT, ALM, PROV, PROD, MOV, OC,
   ROLES, USR, USR_ACME, AJ, DEV, TR, COT,
@@ -72,15 +73,25 @@ function _audit(accion, modulo, detalle, datos) {
       usuarioNombre: ses?.nombre || 'Sistema',
       accion, modulo, detalle, datos: datos || null,
     })
-    if (logs.length > 500) logs.splice(500)
+    if (logs.length > AUDITORIA.MAX_LOGS) logs.splice(AUDITORIA.MAX_LOGS)
     localStorage.setItem(k('auditoria'), JSON.stringify(logs))
-  } catch(e) { /* silencioso — no interrumpir operación */ }
+  } catch(e) { _log('Error al registrar auditoría interna', e) }
 }
 
-function leer(key){try{return JSON.parse(localStorage.getItem(key)||'null')}catch{return null}}
-function guardar(key,data){try{localStorage.setItem(key,JSON.stringify(data));return true}catch{return false}}
-function ok(data){return{data,error:null}}
-function err(msg){return{data:null,error:msg}}
+function _log(msg, detail) {
+  if (import.meta.env.DEV) console.error(`[storage] ${msg}`, detail ?? '')
+}
+
+function leer(key) {
+  try { return JSON.parse(localStorage.getItem(key) || 'null') }
+  catch (e) { _log(`Error al leer clave "${key}"`, e); return null }
+}
+function guardar(key, data) {
+  try { localStorage.setItem(key, JSON.stringify(data)); return true }
+  catch (e) { _log(`Error al guardar clave "${key}"`, e); return false }
+}
+function ok(data)  { return { data, error: null } }
+function err(msg)  { return { data: null, error: msg } }
 
 // ═══════════════════════════════════════════════════════════
 // EMPRESAS — Registro global de organizaciones
@@ -292,7 +303,7 @@ export function loginUsuario(email,password){
         guardar(SK.session,s)
         return ok(s)
       }
-    } catch {}
+    } catch(e) { _log('Error en fallback de login SaaS', e) }
     registrarAuditoria({usuarioId:'desconocido',usuarioNombre:email,accion:'LOGIN_FAILED',modulo:'auth',detalle:`Intento de acceso fallido: ${email}`})
     return err('Credenciales incorrectas o usuario inactivo')
   }
@@ -320,12 +331,13 @@ export function getRoles(){
   try {
     const custom = JSON.parse(localStorage.getItem(k('roles_custom'))||'{}')
     return ok({...ROLES,...custom})
-  } catch { return ok(ROLES) }
+  } catch(e) { _log('Error al leer roles personalizados', e); return ok(ROLES) }
 }
 export function tienePermiso(rol,modulo){
   let r = ROLES[rol]
   if(!r){
-    try { const custom=JSON.parse(localStorage.getItem(k('roles_custom'))||'{}'); r=custom[rol] } catch {}
+    try { const custom=JSON.parse(localStorage.getItem(k('roles_custom'))||'{}'); r=custom[rol] }
+    catch(e) { _log('Error al leer rol personalizado', e) }
   }
   if(!r) return false
   return r.permisos.includes('*')||r.permisos.includes(modulo)
@@ -646,7 +658,7 @@ export function getStockDisponible(productoId) {
 // ═══════════════════════════════════════════════════════════
 // AUDITORÍA
 // ═══════════════════════════════════════════════════════════
-const MAX_LOGS = 500
+const MAX_LOGS = AUDITORIA.MAX_LOGS
 
 export function registrarAuditoria({ usuarioId, usuarioNombre, accion, modulo, detalle, datos = null }) {
   try {
@@ -664,7 +676,7 @@ export function registrarAuditoria({ usuarioId, usuarioNombre, accion, modulo, d
     if (logs.length > MAX_LOGS) logs.splice(MAX_LOGS)
     guardar(k('auditoria'), logs)
     return ok(nuevo)
-  } catch { return ok(null) }
+  } catch(e) { _log('Error al registrar auditoría pública', e); return ok(null) }
 }
 
 export function getAuditoria(filtros = {}) {

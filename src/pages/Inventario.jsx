@@ -80,8 +80,10 @@ export default function Inventario() {
     return d
   }, [productos, busqueda, filtCat, filtAlm, filtStock])
 
-  const catNombre = id => categorias.find(c => c.id === id)?.nombre || '—'
-  const almNombre = id => almacenes.find(a => a.id === id)?.nombre   || '—'
+  const catMap = useMemo(() => new Map(categorias.map(c => [c.id, c.nombre])), [categorias])
+  const almMap = useMemo(() => new Map(almacenes.map(a => [a.id, a.nombre])), [almacenes])
+  const catNombre = id => catMap.get(id) || '—'
+  const almNombre = id => almMap.get(id) || '—'
 
   const kpis = useMemo(() => {
     const activos    = productos.filter(p => p.activo !== false)
