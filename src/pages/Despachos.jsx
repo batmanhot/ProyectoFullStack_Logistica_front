@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Plus, Search, Eye, Truck, Package, CheckCircle, X,
          ClipboardList, ArrowRight, FileText, MapPin, ChevronUp, ChevronDown, Printer, Download } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
+import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
 import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field, Alert } from '../components/ui/index'
 import DireccionInput from '../components/ui/DireccionInput'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
@@ -413,7 +413,7 @@ export default function Despachos() {
 
 // ── Modal Nuevo Pedido ────────────────────────────────────
 export function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, almacenes, transportistas=[], simboloMoneda, saving }) {
-  const initForm = { clienteId:'', almacenId: almacenes[0]?.id || '', fecha: fechaHoy(), fechaEntrega:'', transportistaId:'', direccionEntrega:'', observaciones:'' }
+  const initForm = { clienteId:'', almacenId: almacenes[0]?.id || '', fecha: fechaHoyISO(), fechaEntrega:'', transportistaId:'', direccionEntrega:'', observaciones:'' }
   const [form, setForm]   = useState(initForm)
   const [items, setItems] = useState([])
   const [ni, setNi]       = useState({ productoId:'', cantidad:'', precioVenta:'' })

@@ -5,7 +5,7 @@ import {
   Printer, Upload, AlertTriangle, RefreshCw, Eye
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { formatDate, fechaHoy } from '../utils/helpers'
+import { formatDate, fechaHoyISO } from '../utils/helpers'
 import { EmptyState, Badge, Btn, Field, Modal } from '../components/ui/index'
 import { useUsuariosList } from '../queries/usuarios.queries'
 import { useAuditoriaList, useLimpiarAuditoria } from '../queries/auditoria.queries'
@@ -75,7 +75,7 @@ export default function Auditoria() {
 
   // KPIs
   const kpis = useMemo(() => {
-    const hoy = fechaHoy()
+    const hoy = fechaHoyISO()
     return {
       total:    apiLogs.length,
       hoy:      apiLogs.filter(l => (l.timestamp||'').slice(0,10) === hoy).length,

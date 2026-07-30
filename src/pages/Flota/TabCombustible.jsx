@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Fuel } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
-import { formatDate, fechaHoy } from '../../utils/helpers'
+import { formatDate, fechaHoyISO } from '../../utils/helpers'
 import { useFlotaCombustible, useRegistrarCombustible } from '../../queries/flota.queries'
 import { SI, SEL, toDateStr } from './constants'
 
@@ -13,7 +13,7 @@ export default function TabCombustible({ flota }) {
   const [modalOpen,  setModalOpen]  = useState(false)
   const [filtUnidad, setFiltUnidad] = useState('')
   const initForm = {
-    vehiculoId: '', fecha: fechaHoy(), litros: '', costo: '',
+    vehiculoId: '', fecha: fechaHoyISO(), litros: '', costo: '',
     kmAntes: '', kmDespues: '', tipoCombustible: 'Diesel', proveedor: '', notas: '',
   }
   const [form, setForm] = useState(initForm)

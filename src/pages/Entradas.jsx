@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Plus, Search, ArrowDownToLine, Eye, XCircle, Package, DollarSign, Calendar, TrendingUp, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
+import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
 import { Modal, ConfirmDialog, EmptyState, Btn, Field } from '../components/ui/index'
 import { useMovimientosList, useCrearMovimiento } from '../queries/movimientos.queries'
 import { useProductosList } from '../queries/productos.queries'
@@ -223,7 +223,7 @@ function ModalDetalle({ mov, productMap, proveedores, almacenes, simboloMoneda, 
 function ModalEntrada({ open, onClose, onSave, productos, almacenes, proveedores, simboloMoneda, saving }) {
   const INIT = {
     productoId:'', almacenId:'', proveedorId:'', cantidad:'', costoUnitario:'',
-    fecha: fechaHoy(), motivo: MOTIVOS_ENTRADA?.[0] || 'Compra', documento:'',
+    fecha: fechaHoyISO(), motivo: MOTIVOS_ENTRADA?.[0] || 'Compra', documento:'',
   }
   const [form, setForm] = useState(INIT)
   const [err,  setErr]  = useState({})

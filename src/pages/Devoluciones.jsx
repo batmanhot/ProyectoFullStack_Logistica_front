@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Plus, Search, RotateCcw, ArrowDownToLine, ArrowUpFromLine, Eye, X, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
+import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
 import { Modal, EmptyState, Btn, Field } from '../components/ui/index'
 import { useMovimientosList, useCrearMovimiento } from '../queries/movimientos.queries'
 import { useProductosList } from '../queries/productos.queries'
@@ -235,7 +235,7 @@ function ModalDetalle({ mov, productMap, almacenMap, proveedores, clientes, simb
 }
 
 function ModalDevolucion({ open, onClose, onSave, productos, almacenes, proveedores, clientes, simboloMoneda, saving }) {
-  const INIT = { tipoDev:'CLIENTE', productoId:'', almacenId:'', referenciaId:'', cantidad:'', costoUnitario:'', fecha: fechaHoy(), motivo: MOTIVOS_CLI[0], documento:'', estadoItem:'BUENO' }
+  const INIT = { tipoDev:'CLIENTE', productoId:'', almacenId:'', referenciaId:'', cantidad:'', costoUnitario:'', fecha: fechaHoyISO(), motivo: MOTIVOS_CLI[0], documento:'', estadoItem:'BUENO' }
   const [form, setForm] = useState(INIT)
   const [err,  setErr]  = useState({})
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))

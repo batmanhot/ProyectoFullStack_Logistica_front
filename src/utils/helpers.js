@@ -83,6 +83,17 @@ export function fechaHoy() {
   return format(new Date(), 'dd/MM/yyyy')
 }
 
+// fechaHoy() usa 'dd/MM/yyyy' (formato de UI, para texto) — no sirve como
+// valor de un <input type="date"> nativo (exige 'yyyy-MM-dd') ni para
+// comparar contra fechas ISO del backend (timestamp.slice(0,10) === hoy).
+// Encontrado en la sesión de QA: ModalNuevaRuta enviaba "30/07/2026T08:00"
+// al backend y el POST /rutas fallaba con 400 si el usuario no tocaba la
+// fecha por defecto — mismo patrón roto en varios formularios y en KPIs de
+// "hoy" que por eso siempre daban 0.
+export function fechaHoyISO() {
+  return format(new Date(), 'yyyy-MM-dd')
+}
+
 // ── Semáforo de stock ──────────────────────
 // Decimal de Prisma llega como string — coercionar acá (no en cada call site)
 // para que ningún consumidor pueda comparar "9.00" <= "10.00" lexicográficamente.

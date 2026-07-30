@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Plus, Search, ArrowRightLeft, Eye, X, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
+import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
 import { Modal, EmptyState, Btn, Field } from '../components/ui/index'
 import { useMovimientosList, useCrearMovimiento } from '../queries/movimientos.queries'
 import { useProductosList } from '../queries/productos.queries'
@@ -208,7 +208,7 @@ function ModalDetalle({ tr, productMap, almacenMap, onClose }) {
 }
 
 function ModalTransferencia({ open, onClose, onSave, productos, almacenes, simboloMoneda, saving }) {
-  const INIT = { productoId:'', almacenId:'', almacenDestinoId:'', cantidad:'', fecha: fechaHoy(), motivo: MOTIVOS[0], documento:'' }
+  const INIT = { productoId:'', almacenId:'', almacenDestinoId:'', cantidad:'', fecha: fechaHoyISO(), motivo: MOTIVOS[0], documento:'' }
   const [form, setForm] = useState(INIT)
   const [err,  setErr]  = useState({})
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))

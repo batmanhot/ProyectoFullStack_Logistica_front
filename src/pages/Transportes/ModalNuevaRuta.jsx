@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Navigation as NavIcon } from 'lucide-react'
-import { fechaHoy } from '../../utils/helpers'
+import { fechaHoyISO } from '../../utils/helpers'
 import { Modal, Btn, Field, Alert } from '../../components/ui/index'
 import { SI, SEL } from './constants'
 
 // ── Modal Nueva Ruta ─────────────────────────────────────
 export default function ModalNuevaRuta({ onClose, onSave, despachos, transportistas, clientes, almacenes, saving }) {
-  const [form, setForm]     = useState({ transportistaId:'', almacenId:'', fechaSalida: fechaHoy(), horaSalida:'08:00', costoViaje:'', observaciones:'' })
+  const [form, setForm]     = useState({ transportistaId:'', almacenId:'', fechaSalida: fechaHoyISO(), horaSalida:'08:00', costoViaje:'', observaciones:'' })
   const [optimizar, setOptimizar] = useState(false)
   const [selDes, setSelDes] = useState([])
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))

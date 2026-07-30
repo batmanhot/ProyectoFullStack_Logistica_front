@@ -12,7 +12,15 @@ import {
   clasificarABC,
   round2,
   clamp,
+  fechaHoyISO,
 } from './helpers'
+
+// ── fechaHoyISO ──────────────────────────────────────────────
+describe('fechaHoyISO', () => {
+  it('devuelve la fecha en formato yyyy-MM-dd, apto para <input type="date">', () => {
+    expect(fechaHoyISO()).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+})
 
 // ── formatCurrency ───────────────────────────────────────────
 describe('formatCurrency', () => {

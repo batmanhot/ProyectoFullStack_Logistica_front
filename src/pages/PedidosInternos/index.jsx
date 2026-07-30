@@ -5,7 +5,7 @@ import {
   Bell, Check, X, Info,
 } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
-import { fechaHoy } from '../../utils/helpers'
+import { fechaHoyISO } from '../../utils/helpers'
 import { Btn } from '../../components/ui'
 import { useAreasInternasList } from '../../queries/areas-internas.queries'
 import { useProductosList } from '../../queries/productos.queries'
@@ -69,7 +69,7 @@ export default function PedidosInternos() {
     return {
       total:     base.length,
       pendientes:base.filter(p => ['ENVIADO','APROBADO','PICKING'].includes(p.estado)).length,
-      hoy:       base.filter(p => (p.fecha || p.createdAt || '').startsWith(fechaHoy())).length,
+      hoy:       base.filter(p => (p.fecha || p.createdAt || '').startsWith(fechaHoyISO())).length,
       criticos:  base.filter(p => p.prioridad === 'CRITICO' && !['ENTREGADO','RECHAZADO'].includes(p.estado)).length,
     }
   }, [pedidosInternos, esSolicitante, areaDelUsuario])
