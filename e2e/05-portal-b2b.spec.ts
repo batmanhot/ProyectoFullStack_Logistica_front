@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { loginComoDemo } from './helpers'
+import { checkA11y } from './a11y'
 
 // Flujo B2B de punta a punta: el admin genera un link de portal para un
 // cliente real (dlnorte), el "cliente" (pestaña de navegador sin sesión de
@@ -24,6 +25,7 @@ test('Portal B2B — pedido de cliente, aprobación y conversión atómica a Des
   const clientPage = await adminPage.context().newPage()
   await clientPage.goto(href!)
   await expect(clientPage.getByText('Hacer un pedido')).toBeVisible()
+  await checkA11y(clientPage, 'Portal público del cliente — Nuevo Pedido')
 
   await clientPage.getByRole('button', { name: 'Agregar producto' }).click()
   await clientPage.locator('select').first().selectOption({ index: 1 })

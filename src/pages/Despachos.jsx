@@ -250,11 +250,11 @@ export default function Despachos() {
             <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar número, cliente, guía..."
               value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select className={SEL} style={{ width:155, padding:'5px 8px', fontSize:12 }} value={filtEst} onChange={e => setFiltEst(e.target.value)}>
+          <select aria-label="Filtrar por estado" className={SEL} style={{ width:155, padding:'5px 8px', fontSize:12 }} value={filtEst} onChange={e => setFiltEst(e.target.value)}>
             <option value="">Todos los estados</option>
             {Object.entries(ESTADOS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
-          <select className={SEL} style={{ width:165, padding:'5px 8px', fontSize:12 }} value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
+          <select aria-label="Filtrar por almacén" className={SEL} style={{ width:165, padding:'5px 8px', fontSize:12 }} value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
             <option value="">Todos los almacenes</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
           </select>

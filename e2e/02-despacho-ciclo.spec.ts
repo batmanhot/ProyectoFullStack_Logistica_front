@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { loginComoDemo } from './helpers'
+import { checkA11y } from './a11y'
 
 // DESP-00001 (seed dlnorte, ver DatosService.sembrarDlNorte): PEDIDO, 5x
 // OFI-003 (Archivador) + 3x LIMP-006. Sigue el ciclo completo de estados y
@@ -28,6 +29,7 @@ test('ciclo completo de Despacho — de Pedido a Entregado, con baja real de sto
   await buscar.fill(NUMERO)
   const fila = page.locator('tr', { hasText: NUMERO })
   await expect(fila).toBeVisible()
+  await checkA11y(page, 'Despachos — listado')
 
   // PEDIDO -> APROBADO -> PICKING -> LISTO -> DESPACHADO
   for (const [accion, estadoEsperado] of [
@@ -44,6 +46,7 @@ test('ciclo completo de Despacho — de Pedido a Entregado, con baja real de sto
   await fila.getByRole('button', { name: 'Confirmar Entrega' }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
+  await checkA11y(page, 'Despachos — modal Confirmar Entrega')
   await dialog.getByPlaceholder('Nombre completo de quien recibe').fill('Recepción E2E')
   await dialog.getByRole('button', { name: 'Confirmar Entrega' }).click()
 

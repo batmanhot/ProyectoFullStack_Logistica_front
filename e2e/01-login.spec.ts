@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { ORG_CODE } from './config'
+import { checkA11y } from './a11y'
 
 test.describe('Login', () => {
   test('código de organización inválido muestra error y no avanza', async ({ page }) => {
@@ -10,6 +11,7 @@ test.describe('Login', () => {
     // res.error del backend (401 "Empresa no encontrada o inactiva") pisa el
     // fallback genérico de Login.jsx — ver api.js: normaliza {statusCode,message}
     await expect(page.getByText(/Empresa no encontrada o inactiva/)).toBeVisible()
+    await checkA11y(page, 'Login — paso código de organización')
   })
 
   test('acceso rápido con usuario demo lleva al Dashboard con datos reales', async ({ page }) => {
@@ -23,5 +25,6 @@ test.describe('Login', () => {
     await expect(page.getByText(/Bienvenido/)).toBeVisible()
     // El Dashboard trae KPIs reales del backend, no placeholders
     await expect(page.locator('body')).not.toContainText('No existe ninguna organización')
+    await checkA11y(page, 'Dashboard')
   })
 })

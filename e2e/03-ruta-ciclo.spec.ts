@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { loginComoDemo } from './helpers'
 import { getFieldControlE2E } from './helpers-fields'
+import { checkA11y } from './a11y'
 
 // DESP-00012 (seed dlnorte): LISTO, con una parada "fantasma" en RUTA-00004
 // (CANCELADA) — no bloquea una asignación nueva (ver comentario en
@@ -9,6 +10,7 @@ import { getFieldControlE2E } from './helpers-fields'
 test('ciclo completo de Ruta — crear, iniciar, entregar parada y cerrar', async ({ page }) => {
   await loginComoDemo(page, /Admin DL Norte/)
   await page.goto('/transportes')
+  await checkA11y(page, 'Transportes — listado de rutas')
 
   await page.getByRole('button', { name: 'Nueva Ruta' }).click()
   const dialog = page.getByRole('dialog')

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { loginComoDemo } from './helpers'
+import { checkA11y } from './a11y'
 
 // DESP-00005 (seed dlnorte): DESPACHADO sin guiaNumero — sembrado a propósito
 // para ejercitar este botón (ver comentario en DatosService.sembrarDlNorte).
@@ -17,6 +18,7 @@ test('asignar guía de remisión a un despacho que salió sin ella', async ({ pa
   await fila.getByRole('button', { name: 'Asignar guía de remisión' }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
+  await checkA11y(page, 'Despachos — modal Asignar Guía')
 
   const input = dialog.locator('input[type="text"], input:not([type])').first()
   await expect(input).not.toHaveValue('') // prellenado con generarNumDoc('GR')

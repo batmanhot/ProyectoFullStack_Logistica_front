@@ -315,16 +315,16 @@ export default function PortalPublico() {
                   {/* Campos adicionales */}
                   <div className="grid grid-cols-1 gap-3">
                     <div>
-                      <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
+                      <label htmlFor="portal-fecha-entrega" className="text-[11px] font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
                         Fecha de entrega deseada
                       </label>
-                      <input type="date" className={SI_PUB} value={fechaDes} onChange={e=>setFechaDes(e.target.value)}/>
+                      <input id="portal-fecha-entrega" type="date" className={SI_PUB} value={fechaDes} onChange={e=>setFechaDes(e.target.value)}/>
                     </div>
                     <div>
-                      <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
+                      <label htmlFor="portal-observaciones" className="text-[11px] font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
                         Observaciones
                       </label>
-                      <textarea className={SI_PUB+' resize-y min-h-[60px]'} value={obs}
+                      <textarea id="portal-observaciones" className={SI_PUB+' resize-y min-h-[60px]'} value={obs}
                         onChange={e=>setObs(e.target.value)} placeholder="Instrucciones de entrega, contacto, referencias..."/>
                     </div>
                   </div>

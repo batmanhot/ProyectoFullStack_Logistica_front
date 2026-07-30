@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import { loginComoDemo } from './helpers'
 import { getFieldControlE2E } from './helpers-fields'
 import { ORG_CODE } from './config'
+import { checkA11y } from './a11y'
 
 const SUFIJO = Date.now()
 const ROL_LABEL = `QA Sin Permisos E2E ${SUFIJO}`
@@ -11,6 +12,7 @@ const PASSWORD = 'Password123'
 test('un rol sin un permiso recibe 403 al consultar el módulo correspondiente', async ({ page }) => {
   await loginComoDemo(page, /Admin DL Norte/)
   await page.goto('/usuarios')
+  await checkA11y(page, 'Usuarios — listado')
 
   // Rol nuevo con el mínimo por defecto (solo 'dashboard') — a propósito no
   // se le da el permiso 'panel-auditoria', que gatea la clase completa del
