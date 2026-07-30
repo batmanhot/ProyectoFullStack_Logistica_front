@@ -368,7 +368,7 @@ function normalizarProducto(p) {
 }
 
 // ── Modal Crear / Editar Producto ─────────────────────────────
-function ModalProducto({ open, onClose, editando, categorias, almacenes, proveedores, onSaved, saving, onAddCategoria, onAddAlmacen, onAddProveedor }) {
+export function ModalProducto({ open, onClose, editando, categorias, almacenes, proveedores, onSaved, saving, onAddCategoria, onAddAlmacen, onAddProveedor }) {
   const planLimits = usePlanLimits()
   const [form, setForm] = useState(INIT_PRODUCTO)
   const [err,  setErr]  = useState({})
