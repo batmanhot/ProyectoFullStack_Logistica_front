@@ -1,24 +1,27 @@
-﻿import { useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { DollarSign, TrendingUp, TrendingDown, BarChart2,
          ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
          LineChart, Line, CartesianGrid, ComposedChart, Area } from 'recharts'
-import { useApp } from '../store/AppContext'
 import { formatCurrency, fechaHoy } from '../utils/helpers'
-import { calcularPMP } from '../utils/valorizacion'
+import { useProductosList } from '../queries/productos.queries'
+import { useMovimientosList } from '../queries/movimientos.queries'
+import { useDespachosList } from '../queries/despachos.queries'
+import { useOrdenesCompraList } from '../queries/ordenes-compra.queries'
 
+const simboloMoneda = 'S/'
 const TT = { background:'#1a2230', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, fontSize:12, color:'#e8edf2' }
 
 function KPI({ label, val, sub, color, icon:Icon, trend }) {
   return (
-    <div className="relative bg-[#161d28] border border-white/[0.08] rounded-xl px-5 py-4 overflow-hidden">
-      <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ background: color }}/>
+    <div className="relative bg-[#161d28] border border-white/8 rounded-xl px-5 py-4 overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 h-0.75 rounded-t-xl" style={{ background: color }}/>
       <div className="absolute top-3 right-4 opacity-[0.06]"><Icon size={44}/></div>
       <div className="flex items-center gap-1.5 mb-2">
         <Icon size={11} style={{ color, opacity: 0.8 }}/>
         <span className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-[0.07em]">{label}</span>
       </div>
-      <div className="text-[18px] font-bold font-mono text-[#e8edf2] leading-none">{val}</div>
+      <div className="text-[17px] font-semibold font-mono text-[#e8edf2] leading-none">{val}</div>
       {sub && <div className="text-[11px] text-[#5f6f80] mt-1.5 flex items-center gap-1">
         {trend === 'up'   && <ArrowUpRight size={11} className="text-green-400"/>}
         {trend === 'down' && <ArrowDownRight size={11} className="text-red-400"/>}
@@ -29,9 +32,17 @@ function KPI({ label, val, sub, color, icon:Icon, trend }) {
 }
 
 export default function Financiero() {
-  const { productos, movimientos, despachos, ordenes, devoluciones, simboloMoneda } = useApp()
+  const { data: productos    = [] } = useProductosList()
+  const { data: movimientos  = [] } = useMovimientosList({})
+  const { data: despachos    = [] } = useDespachosList()
+  const { data: ordenes      = [] } = useOrdenesCompraList()
 
   const [periodo, setPeriodo] = useState('6') // meses hacia atrás
+
+  // Devoluciones derivadas de movimientos (sin endpoint propio)
+  const devoluciones = useMemo(() =>
+    movimientos.filter(m => m.tipo === 'DEVOLUCION' || (m.motivo || '').toLowerCase().includes('devoluc'))
+  , [movimientos])
 
   // ── Construir P&L mensual ─────────────────────────────
   const plMensual = useMemo(() => {
@@ -51,18 +62,19 @@ export default function Financiero() {
         return s + (m.cantidad * (p?.precioVenta || 0))
       }, 0)
 
-      // Costo de ventas = costo real de las salidas
-      const costoVentas = salidasMes.reduce((s, m) => s + (m.costoTotal || 0), 0)
+      // Costo de ventas = costoUnitario × cantidad (costoTotal no existe en backend)
+      const costoVentas = salidasMes.reduce((s, m) =>
+        s + ((m.costoUnitario || 0) * (m.cantidad || 0)), 0)
 
       // Compras del mes (OC recibidas o APROBADAS)
       const comprasMes = ordenes
         .filter(o => o.fecha?.startsWith(clave) && ['APROBADA','RECIBIDA','PARCIAL'].includes(o.estado))
-        .reduce((s, o) => s + (o.total || 0), 0)
+        .reduce((s, o) => s + Number(o.total || 0), 0)
 
-      // Devoluciones de clientes del mes
+      // Devoluciones del mes
       const devMes = devoluciones
-        .filter(dv => dv.fecha?.startsWith(clave) && dv.tipo === 'CLIENTE')
-        .reduce((s, dv) => s + (dv.costoTotal || 0), 0)
+        .filter(dv => dv.fecha?.startsWith(clave))
+        .reduce((s, dv) => s + ((dv.costoUnitario || 0) * (dv.cantidad || 0)), 0)
 
       const margenBruto = ingresos - costoVentas - devMes
       const margenPct   = ingresos > 0 ? (margenBruto / ingresos) * 100 : 0
@@ -92,11 +104,9 @@ export default function Financiero() {
       ? ((mesAct?.ingresos - mesPrev?.ingresos) / mesPrev.ingresos * 100).toFixed(1)
       : null
 
-    // Valor del stock actual (inventario en mano)
-    const valorStock = productos.reduce((s, p) => {
-      const pmp = calcularPMP(p.batches || [])
-      return s + (pmp * p.stockActual)
-    }, 0)
+    // Valor del stock actual usando precioCompra (batches no existe en backend)
+    const valorStock = productos.reduce((s, p) =>
+      s + ((p.precioCompra || 0) * (p.stockActual || 0)), 0)
 
     return { totalIngresos, totalCosto, totalCompras, totalDev, margenBruto, margenPct, tendIngresos, valorStock }
   }, [plMensual, productos])
@@ -106,7 +116,7 @@ export default function Financiero() {
     return productos
       .filter(p => p.precioVenta > 0)
       .map(p => {
-        const pmp    = calcularPMP(p.batches || [])
+        const pmp    = p.precioCompra || 0
         const margen = p.precioVenta > 0 ? ((p.precioVenta - pmp) / p.precioVenta * 100) : 0
         return { ...p, pmp, margen }
       })
@@ -129,7 +139,7 @@ export default function Financiero() {
           {['3','6','12'].map(p => (
             <button key={p} onClick={() => setPeriodo(p)}
               className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all border ${
-                periodo === p ? 'bg-[#00c896]/15 text-[#00c896] border-[#00c896]/30' : 'text-[#5f6f80] border-white/[0.06] hover:border-white/[0.14]'
+                periodo === p ? 'bg-[#00c896]/15 text-[#00c896] border-[#00c896]/30' : 'text-[#5f6f80] border-white/6 hover:border-white/14'
               }`}>
               {p}M
             </button>
@@ -163,7 +173,7 @@ export default function Financiero() {
       </div>
 
       {/* Gráfico P&L mensual */}
-      <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+      <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">
             Ingresos vs Costo de Ventas — {mesLabel[periodo]}
@@ -196,18 +206,18 @@ export default function Financiero() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* Tabla mensual */}
-        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+        <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
           <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">Estado de Resultados Mensual</div>
-          <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+          <div className="overflow-x-auto rounded-xl border border-white/8">
             <table className="w-full border-collapse text-[12px]">
               <thead><tr>
                 {['Mes','Ingresos','Costo','Devoluc.','Margen','%'].map(h => (
-                  <th key={h} className="bg-[#1a2230] px-3 py-2 text-[10px] font-semibold text-[#5f6f80] uppercase border-b border-white/[0.08] text-right first:text-left whitespace-nowrap">{h}</th>
+                  <th key={h} className="bg-[#1a2230] px-3 py-2 text-[10px] font-semibold text-[#5f6f80] uppercase border-b border-white/8 text-right first:text-left whitespace-nowrap">{h}</th>
                 ))}
               </tr></thead>
               <tbody>
                 {plMensual.map(m => (
-                  <tr key={m.clave} className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.02] ${m.esMesActual ? 'bg-[#00c896]/5' : ''}`}>
+                  <tr key={m.clave} className={`border-b border-white/5 last:border-0 hover:bg-white/2 ${m.esMesActual ? 'bg-[#00c896]/5' : ''}`}>
                     <td className={`px-3 py-2 font-medium ${m.esMesActual ? 'text-[#00c896]' : 'text-[#e8edf2]'}`}>{m.mes}</td>
                     <td className="px-3 py-2 text-right font-mono text-[#3b82f6]">{formatCurrency(m.ingresos, simboloMoneda)}</td>
                     <td className="px-3 py-2 text-right font-mono text-[#ef4444]">{formatCurrency(m.costoVentas, simboloMoneda)}</td>
@@ -222,7 +232,7 @@ export default function Financiero() {
                 ))}
               </tbody>
               <tfoot>
-                <tr className="bg-[#1a2230] border-t border-white/[0.1]">
+                <tr className="bg-[#1a2230] border-t border-white/10">
                   <td className="px-3 py-2 text-[10px] font-bold text-[#5f6f80] uppercase">TOTAL</td>
                   <td className="px-3 py-2 text-right font-mono font-bold text-[#3b82f6]">{formatCurrency(kpis.totalIngresos, simboloMoneda)}</td>
                   <td className="px-3 py-2 text-right font-mono font-bold text-[#ef4444]">{formatCurrency(kpis.totalCosto, simboloMoneda)}</td>
@@ -236,7 +246,7 @@ export default function Financiero() {
         </div>
 
         {/* Top 5 productos más rentables */}
-        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+        <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
           <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">Top 5 Productos — Mayor Margen %</div>
           {topRentables.length === 0 ? (
             <p className="text-[12px] text-[#5f6f80] text-center py-8">Configura precios de venta en Inventario para ver este reporte</p>
@@ -248,7 +258,7 @@ export default function Financiero() {
                     <div className="flex items-center gap-2">
                       <span className="w-5 h-5 rounded-full bg-[#00c896]/10 text-[#00c896] text-[10px] font-bold flex items-center justify-center shrink-0">{i+1}</span>
                       <div>
-                        <div className="text-[12px] font-medium text-[#e8edf2] truncate max-w-[200px]">{p.nombre}</div>
+                        <div className="text-[12px] font-medium text-[#e8edf2] truncate max-w-50">{p.nombre}</div>
                         <div className="text-[10px] text-[#5f6f80]">{p.sku} · Costo: {formatCurrency(p.pmp, simboloMoneda)} → Venta: {formatCurrency(p.precioVenta, simboloMoneda)}</div>
                       </div>
                     </div>
@@ -266,8 +276,8 @@ export default function Financiero() {
               ))}
             </div>
           )}
-          <div className="mt-4 pt-3 border-t border-white/[0.06] text-[11px] text-[#5f6f80]">
-            💡 El margen se calcula: (Precio Venta − Costo PMP) / Precio Venta × 100
+          <div className="mt-4 pt-3 border-t border-white/6 text-[11px] text-[#5f6f80]">
+            💡 El margen se calcula: (Precio Venta − Costo Compra) / Precio Venta × 100
           </div>
         </div>
       </div>

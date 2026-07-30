@@ -46,6 +46,12 @@ export function formatDateTime(fecha) {
   return format(d, 'dd/MM/yyyy HH:mm', { locale: es })
 }
 
+export function formatTime(fecha) {
+  const d = safeParseDate(fecha)
+  if (!d || isNaN(d.getTime())) return null
+  return format(d, 'HH:mm', { locale: es })
+}
+
 export function timeAgo(fecha) {
   const d = safeParseDate(fecha)
   if (!d || isNaN(d.getTime())) return '—'
@@ -58,12 +64,31 @@ export function diasParaVencer(fechaVencimiento) {
   return differenceInDays(d, new Date())
 }
 
+// El vencimiento vive en LoteProducto (no en Producto — ver schema.prisma,
+// Fase 1: "Corrige el patrón de anidar batches[] dentro del producto"),
+// así que Vencimientos.jsx/Alertas.jsx necesitan cruzar productos con lotes.
+// Un producto con varios lotes usa la fecha más próxima (la más urgente).
+export function vencimientoMasUrgentePorProducto(lotes) {
+  const m = {}
+  lotes.forEach(l => {
+    if (!l.fechaVencimiento) return
+    if (!m[l.productoId] || new Date(l.fechaVencimiento) < new Date(m[l.productoId])) {
+      m[l.productoId] = l.fechaVencimiento
+    }
+  })
+  return m
+}
+
 export function fechaHoy() {
   return format(new Date(), 'dd/MM/yyyy')
 }
 
 // ── Semáforo de stock ──────────────────────
-export function estadoStock(stockActual, stockMinimo) {
+// Decimal de Prisma llega como string — coercionar acá (no en cada call site)
+// para que ningún consumidor pueda comparar "9.00" <= "10.00" lexicográficamente.
+export function estadoStock(stockActualRaw, stockMinimoRaw) {
+  const stockActual  = Number(stockActualRaw)  || 0
+  const stockMinimo  = Number(stockMinimoRaw)  || 0
   if (stockActual <= 0)            return { estado: 'agotado', label: 'Agotado', color: '#ef4444' }
   if (stockActual <= stockMinimo)  return { estado: 'critico', label: 'Crítico', color: '#f59e0b' }
   if (stockActual <= stockMinimo * STOCK.UMBRAL_BAJO_MULTIPLICADOR)
@@ -115,3 +140,18 @@ export function clasificarABC(productos) {
 // ── Clamp / round ─────────────────────────
 export function round2(n)   { return Math.round(n * 100) / 100 }
 export function clamp(n, min, max) { return Math.min(Math.max(n, min), max) }
+
+// ── JWT (portales públicos: cliente y proveedor) ───────────
+// Decodifica el payload de un JWT (sin verificar firma — solo para leer
+// datos de display antes de que el backend valide el token real).
+// atob() decodifica a "binary string" (1 byte = 1 char code) — un JSON.parse
+// directo sobre eso corrompe cualquier UTF-8 multibyte (tildes, ñ). Hay que
+// re-interpretar esos bytes como UTF-8 con TextDecoder antes de parsear.
+export function decodeJwtPayload(token) {
+  const parts = token.split('.')
+  if (parts.length !== 3) return null
+  const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+  const binary = atob(base64)
+  const bytes  = Uint8Array.from(binary, c => c.charCodeAt(0))
+  return JSON.parse(new TextDecoder('utf-8').decode(bytes))
+}

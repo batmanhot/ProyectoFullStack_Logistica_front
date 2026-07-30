@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useMemo, useState, useRef, useEffect } from 'react'
 import logoImg from '../../assets/logo.webp'
-import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Globe, Target, Zap, Palette, Check, RefreshCw, Crown} from 'lucide-react'
+import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, ShieldCheck, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Globe, Target, Zap, Palette, Check, RefreshCw, Crown} from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { useTheme } from '../../hooks/useTheme'
 import { estadoStock, diasParaVencer } from '../../utils/helpers'
@@ -60,6 +60,7 @@ const NAV = [
   { divider:true, label:'ADMINISTRACIÓN' },
   { label:'Usuarios y Roles',      path:'/usuarios',        icon:Users,            modulo:'usuarios',       color:'#6366f1' },
   { label:'Auditoría',             path:'/auditoria',       icon:Shield,           modulo:'auditoria',      color:'#ef4444' },
+  { label:'Panel de Auditoría',    path:'/panel-auditoria', icon:ShieldCheck,      modulo:'panel-auditoria', color:'#06b6d4' },
   { label:'Cola de Sincronización',path:'/cola-sync',       icon:RefreshCw,        modulo:'cola-sync',      color:'#f59e0b' },
   { label:'Configuración',         path:'/configuracion',   icon:Settings,         modulo:'configuracion',  color:'#94a3b8' },
 
@@ -131,46 +132,24 @@ function SidebarThemeButton({ collapsed }) {
 }
 
 export default function Sidebar({ collapsed, onToggle }) {
-  const { productos, pedidosInternos, sesion, logout, tienePermiso, config } = useApp()
+  const { sesion, logout, tienePermiso } = useApp()
   const navigate = useNavigate()
 
   function handleLogout() {
-    const empresaId = sesion?.empresaId
     logout()
-    if (empresaId) {
-      navigate(`/app/${empresaId}`, { replace: true })
-    } else {
-      navigate('/', { replace: true })
-    }
+    navigate('/login', { replace: true })
   }
 
-  const stockCritico = productos.filter(p => {
-    const e = estadoStock(p.stockActual, p.stockMinimo)
-    return e.estado === 'critico' || e.estado === 'agotado'
-  }).length
-
-  const alertasVenc = productos.filter(p => {
-    if (!p.tieneVencimiento || !p.fechaVencimiento) return false
-    const d = diasParaVencer(p.fechaVencimiento)
-    return d !== null && d <= 30
-  }).length
-
-  const totalAlertas = stockCritico + alertasVenc
-
-  const pedidosBadge = useMemo(() => {
-    if (!sesion || !pedidosInternos?.length) return 0
-    if (sesion.rol === 'solicitante') {
-      return pedidosInternos.filter(p =>
-        p.areaId === sesion.areaId && p.estado === 'ENTREGADO' && !p.reciboConfirmado
-      ).length
-    }
-    return pedidosInternos.filter(p => p.estado === 'ENVIADO').length
-  }, [pedidosInternos, sesion])
+  // Badges: en 0 mientras los módulos no estén migrados a TanStack Query
+  const stockCritico  = 0
+  const alertasVenc   = 0
+  const totalAlertas  = 0
+  const pedidosBadge  = 0
 
   const navVisible = useMemo(() => {
     if (!sesion) return NAV
     // SuperAdmin ve solo su panel exclusivo
-    if (sesion.rol === 'saas_admin') return NAV_SAAS_ADMIN
+    if (sesion.rol?.codigo === 'saas_admin') return NAV_SAAS_ADMIN
     const marked = NAV.map(item => {
       if (item.divider) return item
       if (!tienePermiso(item.modulo)) return null
@@ -196,12 +175,12 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   return (
     <aside
-      className={`flex flex-col border-r border-white/[0.07] transition-all duration-250 shrink-0 overflow-y-auto z-10 ${collapsed ? 'w-15' : 'w-63'}`}
+      className={`flex flex-col border-r border-white/7 transition-all duration-250 shrink-0 overflow-y-auto z-10 ${collapsed ? 'w-15' : 'w-63'}`}
       style={{ background: 'var(--bg-sidebar)' }}>
 
       {/* ── CABECERA / LOGO ──────────────────────────── */}
       {collapsed ? (
-        <div className="flex flex-col items-center border-b border-white/[0.07] shrink-0 sticky top-0 z-10 py-3 gap-2"
+        <div className="flex flex-col items-center border-b border-white/7 shrink-0 sticky top-0 z-10 py-3 gap-2"
           style={{ background: 'var(--bg-sidebar)' }}>
           <img src={logoImg} alt="StockPro" className="w-9 h-9 object-contain rounded-lg" style={{ filter:'brightness(1.1)' }}/>
           <button onClick={onToggle} title="Expandir menú"
@@ -225,14 +204,14 @@ export default function Sidebar({ collapsed, onToggle }) {
 
             <div className="flex-1 min-w-0">
               <div className="text-[13.5px] font-bold truncate leading-snug" style={{ color: 'var(--sidebar-fg)' }}>
-                {config?.empresa || 'Mi Empresa'}
+                {sesion?.empresaId ? 'Mi Empresa' : 'StockPro'}
               </div>
               <div className="flex items-center gap-1.5 mt-0.75">
                 <span className="text-[10px] font-bold uppercase tracking-[0.06em]"
                   style={{ color: 'var(--accent)', opacity: 0.75 }}>StockPro</span>
                 <span className="text-[9px] px-1.5 py-px rounded font-semibold"
                   style={{ color: 'var(--sidebar-fg-muted)', background: 'var(--sidebar-surface)', letterSpacing: '0.03em' }}>
-                  {config?.version ? config.version.replace(/stockpro\s*/i, '') : 'v2.0'}
+                  v2.0
                 </span>
               </div>
             </div>

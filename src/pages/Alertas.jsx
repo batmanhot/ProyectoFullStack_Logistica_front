@@ -5,10 +5,13 @@ import {
   ArrowRight, Calendar, Hash, Layers
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useApp } from '../store/AppContext'
-
-import { formatDate, formatCurrency, diasParaVencer, estadoStock } from '../utils/helpers'
+import { formatDate, formatCurrency, diasParaVencer, estadoStock, vencimientoMasUrgentePorProducto } from '../utils/helpers'
 import { Badge, Btn, Modal } from '../components/ui/index'
+import { useProductosList } from '../queries/productos.queries'
+import { useOrdenesCompraList } from '../queries/ordenes-compra.queries'
+import { useCategoriasList } from '../queries/categorias.queries'
+import { useAlmacenesList } from '../queries/almacenes.queries'
+import { useLotesList } from '../queries/lotes.queries'
 
 const TIPOS = {
   stock_agotado: { label:'Agotado',       color:'danger',  icon:Package,       bg:'bg-red-500/15',    txt:'text-red-400'   },
@@ -18,7 +21,7 @@ const TIPOS = {
   oc_pendiente:  { label:'OC pendiente',  color:'info',    icon:ShoppingCart,  bg:'bg-blue-500/15',   txt:'text-blue-400'  },
 }
 
-function generarAlertas(productos, ordenes, config, categorias, almacenes, simboloMoneda) {
+function generarAlertas(productos, ordenes, vencPorProducto, config, categorias, almacenes, simboloMoneda) {
   const alertas = []
   const diasAlerta = config?.diasAlertaVencimiento || 30
 
@@ -54,27 +57,28 @@ function generarAlertas(productos, ordenes, config, categorias, almacenes, simbo
       })
     }
 
-    if (p.tieneVencimiento && p.fechaVencimiento) {
-      const dias = diasParaVencer(p.fechaVencimiento)
+    const fechaVencimiento = vencPorProducto[p.id]
+    if (fechaVencimiento) {
+      const dias = diasParaVencer(fechaVencimiento)
       if (dias !== null && dias < 0) {
         alertas.push({ ...base, tipo:'vencimiento', prioridad:1,
           titulo:`${p.nombre} — VENCIDO`,
-          detalle:`Venció hace ${Math.abs(dias)} días. Fecha: ${formatDate(p.fechaVencimiento)}.`,
+          detalle:`Venció hace ${Math.abs(dias)} días. Fecha: ${formatDate(fechaVencimiento)}.`,
           diasVencimiento: dias,
-          fechaVencimiento: p.fechaVencimiento,
+          fechaVencimiento,
           accion:'Gestionar baja',
           accionPath:'/vencimientos',
-          fecha: p.fechaVencimiento,
+          fecha: fechaVencimiento,
         })
       } else if (dias !== null && dias <= diasAlerta) {
         alertas.push({ ...base, tipo:'vencimiento', prioridad: dias <= 15 ? 1 : 2,
           titulo:`${p.nombre} — Próximo a vencer`,
-          detalle:`Vence en ${dias} días (${formatDate(p.fechaVencimiento)}).`,
+          detalle:`Vence en ${dias} días (${formatDate(fechaVencimiento)}).`,
           diasVencimiento: dias,
-          fechaVencimiento: p.fechaVencimiento,
+          fechaVencimiento,
           accion:'Ver Vencimientos',
           accionPath:'/vencimientos',
-          fecha: p.fechaVencimiento,
+          fecha: fechaVencimiento,
         })
       }
     }
@@ -99,7 +103,13 @@ function generarAlertas(productos, ordenes, config, categorias, almacenes, simbo
 
 // ════════════════════════════════════════════════════════
 export default function Alertas() {
-  const { productos, ordenes, config, categorias, almacenes, simboloMoneda } = useApp()
+  const { data: productos  = [] } = useProductosList()
+  const { data: ordenes    = [] } = useOrdenesCompraList()
+  const { data: categorias = [] } = useCategoriasList()
+  const { data: almacenes  = [] } = useAlmacenesList()
+  const { data: lotes      = [] } = useLotesList(undefined, { enabled: true })
+  const config        = null   // sin config de empresa; diasAlertaVencimiento usa default 30
+  const simboloMoneda = 'S/'
   const navigate = useNavigate()
   const [filtroTipo, setFiltroTipo] = useState('all')
 
@@ -108,9 +118,11 @@ export default function Alertas() {
     try { return JSON.parse(localStorage.getItem('sp_alertas_leidas') || '[]') } catch { return [] }
   })
 
+  const vencPorProducto = useMemo(() => vencimientoMasUrgentePorProducto(lotes), [lotes])
+
   const alertas = useMemo(() =>
-    generarAlertas(productos, ordenes, config, categorias, almacenes, simboloMoneda)
-  , [productos, ordenes, config, categorias, almacenes, simboloMoneda])
+    generarAlertas(productos, ordenes, vencPorProducto, config, categorias, almacenes, simboloMoneda)
+  , [productos, ordenes, vencPorProducto, config, categorias, almacenes, simboloMoneda])
 
   const filtered = useMemo(() =>
     filtroTipo === 'all' ? alertas : alertas.filter(a => a.tipo === filtroTipo)
@@ -146,8 +158,8 @@ export default function Alertas() {
             <button key={key} onClick={() => setFiltroTipo(key)}
               className="relative text-left p-3.5 sm:p-4 rounded-xl border transition-all overflow-hidden"
               style={{
-                background:  activo ? 'rgba(0,200,150,0.08)' : '#161d28',
-                borderColor: activo ? '#00c896' : 'rgba(255,255,255,0.08)',
+                background:  activo ? 'rgba(0,200,150,0.08)' : 'var(--bg-card)',
+                borderColor: activo ? '#00c896' : 'var(--border)',
               }}>
               <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl"
                 style={{ background: activo ? '#00c896' : 'transparent' }}/>
@@ -158,7 +170,7 @@ export default function Alertas() {
                   </span>
                 )}
               </div>
-              <div className="text-[20px] sm:text-[22px] font-semibold text-[#e8edf2]">{count}</div>
+              <div className="text-[28px] font-semibold text-[#e8edf2]">{count}</div>
               <div className="text-[10px] sm:text-[11px] text-[#5f6f80] mt-0.5 leading-tight">{label}</div>
             </button>
           )
@@ -166,7 +178,7 @@ export default function Alertas() {
       </div>
 
       {/* Lista de alertas */}
-      <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+      <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">
@@ -199,14 +211,14 @@ export default function Alertas() {
               const meta   = TIPOS[alerta.tipo]
               const Icon   = meta?.icon || Bell
               const esLeida = leidas.includes(alerta.titulo)
-              const color  = alerta.prioridad === 1 ? { bg:'bg-red-500/[0.04]', border:'border-red-500/20', hborder:'hover:border-red-500/40', dot:'bg-red-400' }
-                           : alerta.prioridad === 2 ? { bg:'bg-amber-500/[0.04]', border:'border-amber-500/20', hborder:'hover:border-amber-500/35', dot:'bg-amber-400' }
-                           : { bg:'bg-blue-500/[0.03]', border:'border-blue-500/15', hborder:'hover:border-blue-500/30', dot:'bg-blue-400' }
+              const color  = alerta.prioridad === 1 ? { bg:'bg-red-500/4', border:'border-red-500/20', hborder:'hover:border-red-500/40', dot:'bg-red-400' }
+                           : alerta.prioridad === 2 ? { bg:'bg-amber-500/4', border:'border-amber-500/20', hborder:'hover:border-amber-500/35', dot:'bg-amber-400' }
+                           : { bg:'bg-blue-500/3', border:'border-blue-500/15', hborder:'hover:border-blue-500/30', dot:'bg-blue-400' }
               return (
                 <div key={i}
                   onClick={() => { setVerAlerta(alerta); marcarLeida(alerta.titulo) }}
                   className={`flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer group ${
-                    esLeida ? 'bg-transparent border-white/[0.04] opacity-45'
+                    esLeida ? 'bg-transparent border-white/4 opacity-45'
                     : `${color.bg} ${color.border} ${color.hborder}`
                   }`}>
 

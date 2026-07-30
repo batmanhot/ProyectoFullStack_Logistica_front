@@ -60,7 +60,7 @@ export default function PWA() {
            swStatus === 'activo' ? 'Service Worker funcionando' : 'Ejecutar npm run build'],
           [`${storage.usado} MB usados`, 'info', Monitor, `de ~${storage.disponible} MB disponibles`],
         ].map(([label, color, Icon, hint]) => (
-          <div key={label} className="relative bg-[#161d28] border border-white/[0.08] rounded-xl px-5 py-4 overflow-hidden">
+          <div key={label} className="relative bg-[#161d28] border border-white/8 rounded-xl px-5 py-4 overflow-hidden">
             <div className={`absolute top-0 left-0 right-0 h-[3px] rounded-t-xl ${color === 'success' ? 'bg-green-500' : color === 'danger' ? 'bg-red-500' : color === 'info' ? 'bg-blue-500' : 'bg-[#5f6f80]'}`}/>
             <div className="flex items-center gap-2 mb-2">
               <Icon size={15} className={color === 'success' ? 'text-green-400' : color === 'danger' ? 'text-red-400' : 'text-[#5f6f80]'}/>
@@ -91,7 +91,7 @@ export default function PWA() {
       )}
 
       {/* Capacidades offline */}
-      <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+      <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">
           Funcionalidades Offline
         </div>
@@ -127,7 +127,7 @@ export default function PWA() {
       </div>
 
       {/* Instrucciones de instalación manual */}
-      <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+      <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">
           Instalación Manual por Dispositivo
         </div>

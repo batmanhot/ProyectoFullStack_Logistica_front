@@ -1,38 +1,37 @@
 /**
  * PortalPublico.jsx — Portal público del cliente
  *
- * Acceso via /portal/:token  (token = btoa(clienteId:ruc))
- * Sin login de admin. El cliente puede:
- *  1. Ver el catálogo de productos disponibles y hacer pedidos
- *  2. Ver el estado de sus despachos activos
- *  3. Consultar su historial de pedidos del portal
+ * URL: /portal/:token   donde :token es el JWT firmado generado por
+ *   POST /api/portal/generarLink desde el panel admin.
  *
- * Este componente es 100% independiente del layout admin de StockPro.
- * No usa el Sidebar ni el Header del sistema.
+ * Auth: PortalClienteGuard (secreto propio PORTAL_JWT_SECRET).
+ *   El token se envía como Authorization: Bearer en todas las llamadas.
+ *
+ * Endpoints consumidos (sin auth de tenant):
+ *   GET  /portal/catalogo   → productos con precio de venta publicado
+ *   GET  /portal/despachos  → despachos del cliente autenticado
+ *   GET  /portal/pedidos    → historial de pedidos del portal
+ *   POST /portal/pedidos    → crear nuevo pedido
  */
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Globe, Package, Plus, X, CheckCircle, Clock,
-         Truck, ChevronDown, ChevronUp, ShoppingCart, Eye } from 'lucide-react'
-import { formatCurrency, fechaHoy, generarNumDoc } from '../utils/helpers'
-import * as storage from '../services/storage'
+         Truck, ChevronDown, ChevronUp, ShoppingCart } from 'lucide-react'
+import { formatCurrency, decodeJwtPayload } from '../utils/helpers'
+import { api, tokenManager } from '../services/api'
 
 const IGV = 0.18
-const KEY_PORTAL = 'sp_portal_pedidos'
-function leerPortal()     { try { return JSON.parse(localStorage.getItem(KEY_PORTAL)||'[]') } catch { return [] } }
-function guardarPortal(d) { localStorage.setItem(KEY_PORTAL, JSON.stringify(d)) }
 
 const ESTADO_DES = {
-  PEDIDO:    { label:'Pedido recibido', color:'#3b82f6',  icon:'📋' },
-  APROBADO:  { label:'Aprobado',        color:'#00c896',  icon:'✅' },
-  PICKING:   { label:'Preparando',      color:'#f59e0b',  icon:'📦' },
-  LISTO:     { label:'Listo para enviar',color:'#a78bfa', icon:'🚀' },
-  DESPACHADO:{ label:'Despachado',       color:'#22c55e',  icon:'🚚' },
-  ENTREGADO: { label:'Entregado',        color:'#22c55e',  icon:'✔️' },
-  ANULADO:   { label:'Anulado',          color:'#ef4444',  icon:'❌' },
+  PEDIDO:    { label:'Pedido recibido',   color:'#3b82f6', icon:'📋' },
+  APROBADO:  { label:'Aprobado',          color:'#00c896', icon:'✅' },
+  PICKING:   { label:'Preparando',        color:'#f59e0b', icon:'📦' },
+  LISTO:     { label:'Listo para enviar', color:'#a78bfa', icon:'🚀' },
+  DESPACHADO:{ label:'Despachado',        color:'#22c55e', icon:'🚚' },
+  ENTREGADO: { label:'Entregado',         color:'#22c55e', icon:'✔️' },
+  CANCELADO: { label:'Anulado',           color:'#ef4444', icon:'❌' },
 }
 
-// ── Step indicator ────────────────────────────────────
 function StepBar({ estado }) {
   const pasos = ['PEDIDO','APROBADO','PICKING','LISTO','DESPACHADO']
   const idx   = pasos.indexOf(estado)
@@ -67,45 +66,61 @@ function StepBar({ estado }) {
 export default function PortalPublico() {
   const { token }    = useParams()
   const navigate     = useNavigate()
-  const [tab, setTab]= useState('pedido') // pedido | despachos | historial
-  const [cliente,    setCliente]    = useState(null)
-  const [productos,  setProductos]  = useState([])
-  const [despachos,  setDespachos]  = useState([])
-  const [config,     setConfig]     = useState({})
-  const [items,      setItems]      = useState([])
-  const [obs,        setObs]        = useState('')
-  const [fechaDes,   setFechaDes]   = useState('')
-  const [enviado,    setEnviado]    = useState(false)
-  const [numeroPed,  setNumeroPed]  = useState('')
-  const [expandedId, setExpandedId] = useState(null)
 
-  // ── Decodificar token y cargar datos ────────────────
+  const [cargando,  setCargando]  = useState(true)
+  const [cliente,   setCliente]   = useState(null) // { id, nombre }
+  const [productos, setProductos] = useState([])
+  const [despachos, setDespachos] = useState([])
+  const [historial, setHistorial] = useState([])
+
+  const [tab,        setTab]       = useState('pedido')
+  const [items,      setItems]     = useState([])
+  const [obs,        setObs]       = useState('')
+  const [fechaDes,   setFechaDes]  = useState('')
+  const [enviando,   setEnviando]  = useState(false)
+  const [enviado,    setEnviado]   = useState(false)
+  const [numeroPed,  setNumeroPed] = useState('')
+  const [errorMsg,   setErrorMsg]  = useState('')
+  const [expandedId, setExpandedId]= useState(null)
+
+  // ── Cargar datos del portal desde la API ─────────
+  const cargarDatos = useCallback(async () => {
+    const [cat, des, ped] = await Promise.all([
+      api.get('/portal/catalogo',  { authType: 'portal' }),
+      api.get('/portal/despachos', { authType: 'portal' }),
+      api.get('/portal/pedidos',   { authType: 'portal' }),
+    ])
+    setProductos(cat.data ?? [])
+    setDespachos(des.data ?? [])
+    setHistorial(ped.data ?? [])
+  }, [])
+
+  // ── Decodificar token JWT y bootstrapear la sesión de portal
   useEffect(() => {
     if (!token) { navigate('/'); return }
+
     try {
-      const decoded  = atob(token)               // "clienteId:ruc"
-      const clienteId = decoded.split(':')[0]
-      const todos    = storage.getClientes?.()?.data || []
-      const cli      = todos.find(c => c.id === clienteId)
-      if (!cli) { navigate('/'); return }
-      setCliente(cli)
+      const payload = decodeJwtPayload(token)
+      // payload===null cubre tanto el token antiguo (btoa, sin 3 partes) como cualquier JWT inválido.
+      if (!payload || payload.scope !== 'portal_cliente') { navigate('/'); return }
 
-      const prods = storage.getProductos?.()?.data || []
-      setProductos(prods.filter(p => p.activo !== false && (p.precioVenta||0) > 0))
+      tokenManager.setPortal(token)
+      setCliente({
+        id: payload.sub,
+        nombre: payload.clienteNombre || 'Cliente',
+        empresaNombre: payload.empresaNombre || '',
+      })
 
-      const des = storage.getDespachos?.()?.data || []
-      setDespachos(des.filter(d => d.clienteId === clienteId))
-
-      const cfg = storage.getConfig?.()?.data || {}
-      setConfig(cfg)
+      cargarDatos().finally(() => setCargando(false))
     } catch {
       navigate('/')
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
-  // ── Cálculos del pedido ─────────────────────────────
+  // ── Cálculos del pedido ──────────────────────────
   const subtotal = useMemo(() =>
-    items.reduce((s,i) => {
+    items.reduce((s, i) => {
       const p = productos.find(x => x.id === i.prodId)
       return s + (i.qty * (p?.precioVenta || 0))
     }, 0)
@@ -114,59 +129,43 @@ export default function PortalPublico() {
   const igvMonto = +(subtotal * IGV).toFixed(2)
   const total    = +(subtotal + igvMonto).toFixed(2)
 
-  function addItem()          { setItems(p=>[...p,{prodId:'',qty:1}]) }
-  function setItem(i,k,v)     { setItems(p=>p.map((x,j)=>j===i?{...x,[k]:v}:x)) }
-  function removeItem(i)      { setItems(p=>p.filter((_,j)=>j!==i)) }
+  function addItem()      { setItems(p=>[...p, { prodId:'', qty:1 }]) }
+  function setItem(i,k,v) { setItems(p=>p.map((x,j)=>j===i ? { ...x, [k]:v } : x)) }
+  function removeItem(i)  { setItems(p=>p.filter((_,j)=>j!==i)) }
 
-  function enviar() {
-    if (!cliente || items.filter(i=>i.prodId&&i.qty>0).length === 0) return
-    const portal = leerPortal()
-    const numero  = `PPE-${String(portal.length+1).padStart(4,'0')}`
-    const pedido  = {
-      id:                 Math.random().toString(36).slice(2),
-      numero,
-      clienteId:          cliente.id,
-      clienteNombre:      cliente.razonSocial,
-      estado:             'NUEVO',
-      items: items.filter(i=>i.prodId&&i.qty>0).map(i => {
-        const p = productos.find(x=>x.id===i.prodId)
-        return {
-          productoId:     i.prodId,
-          descripcion:    p?.nombre || '—',
-          cantidad:       +i.qty,
-          precioUnitario: p?.precioVenta || 0,
-          subtotal:       +i.qty * (p?.precioVenta||0),
-        }
-      }),
-      subtotal, igv: igvMonto, total,
-      observaciones:      obs,
-      fechaEntregaDeseada:fechaDes,
-      createdAt:          new Date().toISOString(),
-      origen:             'portal-publico',
+  async function enviar() {
+    const lineas = items.filter(i=>i.prodId && i.qty > 0)
+    if (lineas.length === 0) return
+    setEnviando(true)
+    setErrorMsg('')
+    const res = await api.post('/portal/pedidos', {
+      items: lineas.map(i => ({ productoId: i.prodId, cantidad: +i.qty })),
+      observaciones:       obs || undefined,
+      fechaEntregaDeseada: fechaDes || undefined,
+    }, { authType: 'portal' })
+
+    if (res.error) {
+      setErrorMsg(res.error)
+      setEnviando(false)
+      return
     }
-    guardarPortal([...portal, pedido])
-    setNumeroPed(numero)
+    setNumeroPed(res.data?.numero || '—')
     setItems([])
     setObs('')
     setFechaDes('')
     setEnviado(true)
+    setEnviando(false)
+    // recargar historial tras envío exitoso
+    api.get('/portal/pedidos', { authType: 'portal' }).then(r => setHistorial(r.data ?? []))
   }
 
   const misDespachos = useMemo(() =>
-    despachos.filter(d => !['ANULADO'].includes(d.estado))
-      .sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''))
+    [...despachos].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''))
   , [despachos])
-
-  const miHistorial = useMemo(() =>
-    leerPortal().filter(p => p.clienteId === cliente?.id)
-      .sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''))
-  , [cliente, enviado])
-
-  const empresa = config?.empresa || 'Distribuidora Lima Norte S.A.C.'
 
   const SI_PUB = 'w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[13px] text-white outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 placeholder-white/30 font-[inherit]'
 
-  if (!cliente) {
+  if (cargando) {
     return (
       <div className="min-h-screen bg-[#0e1117] flex items-center justify-center">
         <div className="text-white/40 text-[14px]">Cargando portal...</div>
@@ -183,22 +182,22 @@ export default function PortalPublico() {
           <Globe size={22} className="text-[#082e1e]"/>
           <div>
             <div className="font-bold text-[#082e1e] text-[15px]">Portal de Pedidos</div>
-            <div className="text-[11px] text-[#082e1e]/70">{empresa}</div>
+            {cliente?.empresaNombre && <div className="text-[11px] text-[#082e1e]/70">{cliente.empresaNombre}</div>}
           </div>
         </div>
         <div className="text-right">
-          <div className="text-[13px] font-bold text-[#082e1e]">{cliente.razonSocial}</div>
-          <div className="text-[11px] text-[#082e1e]/60">RUC: {cliente.ruc || '—'}</div>
+          <div className="text-[13px] font-bold text-[#082e1e]">{cliente?.nombre}</div>
+          <div className="text-[11px] text-[#082e1e]/60">Cliente</div>
         </div>
       </div>
 
       {/* ── Tabs ──────────────────────────────────────── */}
-      <div className="bg-[#161d28] border-b border-white/[0.08] px-4">
+      <div className="bg-[#161d28] border-b border-white/8 px-4">
         <div className="flex gap-0 max-w-2xl mx-auto">
           {[
-            { id:'pedido',    label:'Nuevo Pedido',  icon:'🛒' },
-            { id:'despachos', label:`Mis Despachos (${misDespachos.length})`, icon:'🚚' },
-            { id:'historial', label:`Historial (${miHistorial.length})`,      icon:'📋' },
+            { id:'pedido',    label:'Nuevo Pedido',                                      icon:'🛒' },
+            { id:'despachos', label:`Mis Despachos (${misDespachos.length})`,            icon:'🚚' },
+            { id:'historial', label:`Historial (${historial.length})`,                   icon:'📋' },
           ].map(t=>(
             <button key={t.id} onClick={()=>setTab(t.id)}
               className={`px-4 py-3 text-[13px] font-medium border-b-2 transition-all ${
@@ -215,8 +214,8 @@ export default function PortalPublico() {
 
         {/* ─── TAB: NUEVO PEDIDO ──────────────────────── */}
         {tab === 'pedido' && (
-          <div className="bg-[#161d28] border border-white/[0.08] rounded-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/[0.08]">
+          <div className="bg-[#161d28] border border-white/8 rounded-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-white/8">
               <div className="text-[15px] font-bold text-white flex items-center gap-2">
                 <ShoppingCart size={17} className="text-[#00c896]"/> Hacer un pedido
               </div>
@@ -244,6 +243,12 @@ export default function PortalPublico() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-5">
+                  {errorMsg && (
+                    <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[12px]">
+                      {errorMsg}
+                    </div>
+                  )}
+
                   {/* Productos */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
@@ -265,12 +270,12 @@ export default function PortalPublico() {
                       {items.map((item, i) => {
                         const p = productos.find(x => x.id === item.prodId)
                         return (
-                          <div key={i} className="flex gap-2 items-center bg-white/[0.03] rounded-xl p-3 border border-white/[0.06]">
+                          <div key={i} className="flex gap-2 items-center bg-white/3 rounded-xl p-3 border border-white/6">
                             <div className="flex-1">
                               <select className={SI_PUB} value={item.prodId} onChange={e=>setItem(i,'prodId',e.target.value)}>
                                 <option value="">Seleccionar producto...</option>
-                                {productos.map(p=>(
-                                  <option key={p.id} value={p.id}>{p.nombre} — {formatCurrency(p.precioVenta||0,'S/')}</option>
+                                {productos.map(x=>(
+                                  <option key={x.id} value={x.id}>{x.nombre} — {formatCurrency(x.precioVenta||0,'S/')}</option>
                                 ))}
                               </select>
                             </div>
@@ -294,14 +299,14 @@ export default function PortalPublico() {
 
                   {/* Totales */}
                   {items.length > 0 && subtotal > 0 && (
-                    <div className="bg-white/[0.03] rounded-xl p-4 border border-white/[0.06]">
+                    <div className="bg-white/3 rounded-xl p-4 border border-white/6">
                       <div className="flex justify-between text-[12px] text-white/50 mb-1.5">
                         <span>Subtotal</span><span className="font-mono">{formatCurrency(subtotal,'S/')}</span>
                       </div>
                       <div className="flex justify-between text-[12px] text-white/50 mb-2">
                         <span>IGV (18%)</span><span className="font-mono">{formatCurrency(igvMonto,'S/')}</span>
                       </div>
-                      <div className="flex justify-between text-[14px] font-bold text-[#00c896] pt-2 border-t border-white/[0.08]">
+                      <div className="flex justify-between text-[14px] font-bold text-[#00c896] pt-2 border-t border-white/8">
                         <span>TOTAL</span><span className="font-mono">{formatCurrency(total,'S/')}</span>
                       </div>
                     </div>
@@ -326,9 +331,9 @@ export default function PortalPublico() {
 
                   <button
                     onClick={enviar}
-                    disabled={!items.some(i=>i.prodId&&i.qty>0)}
+                    disabled={enviando || !items.some(i=>i.prodId&&i.qty>0)}
                     className="w-full py-3 rounded-xl bg-[#00c896] text-[#082e1e] font-bold text-[14px] hover:bg-[#00b386] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                    <ShoppingCart size={16}/> Enviar pedido
+                    <ShoppingCart size={16}/> {enviando ? 'Enviando...' : 'Enviar pedido'}
                   </button>
                 </div>
               )}
@@ -351,13 +356,13 @@ export default function PortalPublico() {
               const meta   = ESTADO_DES[des.estado] || ESTADO_DES.PEDIDO
               const expand = expandedId === des.id
               return (
-                <div key={des.id} className="bg-[#161d28] border border-white/[0.08] rounded-xl overflow-hidden">
+                <div key={des.id} className="bg-[#161d28] border border-white/8 rounded-xl overflow-hidden">
                   <div className="px-4 py-3 flex items-center gap-3 cursor-pointer"
                     onClick={()=>setExpandedId(expand?null:des.id)}>
                     <span className="text-[18px]">{meta.icon}</span>
                     <div className="flex-1 min-w-0">
                       <div className="font-mono text-[12px] text-[#00c896] font-bold">{des.numero}</div>
-                      <div className="text-[12px] font-medium text-white" style={{color:meta.color}}>{meta.label}</div>
+                      <div className="text-[12px] font-medium" style={{color:meta.color}}>{meta.label}</div>
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-[12px] font-mono text-white/70">{formatCurrency(des.total||0,'S/')}</div>
@@ -367,7 +372,7 @@ export default function PortalPublico() {
                   </div>
 
                   {expand && (
-                    <div className="px-4 pb-4 border-t border-white/[0.06]">
+                    <div className="px-4 pb-4 border-t border-white/6">
                       <StepBar estado={des.estado}/>
                       {(des.items||[]).length > 0 && (
                         <div className="mt-3 flex flex-col gap-1.5">
@@ -397,19 +402,23 @@ export default function PortalPublico() {
         {tab === 'historial' && (
           <div className="flex flex-col gap-3">
             <div className="text-[12px] font-semibold text-white/40 uppercase tracking-wide mb-1">
-              Mis pedidos via portal — {miHistorial.length} registros
+              Mis pedidos via portal — {historial.length} registros
             </div>
-            {miHistorial.length === 0 ? (
+            {historial.length === 0 ? (
               <div className="text-center py-16 text-white/30 text-[13px]">
                 <Clock size={36} className="mx-auto mb-3 opacity-30"/>
                 Aún no has realizado pedidos por el portal
               </div>
-            ) : miHistorial.map(ped => {
-              const meta = { NUEVO:{label:'Nuevo',c:'#3b82f6'}, REVISANDO:{label:'En revisión',c:'#f59e0b'},
-                APROBADO:{label:'Aprobado',c:'#22c55e'}, RECHAZADO:{label:'Rechazado',c:'#ef4444'},
-                CONVERTIDO:{label:'En despacho',c:'#00c896'} }[ped.estado] || {label:ped.estado,c:'#5f6f80'}
+            ) : historial.map(ped => {
+              const meta = {
+                NUEVO:      { label:'Nuevo',      c:'#3b82f6' },
+                REVISANDO:  { label:'En revisión', c:'#f59e0b' },
+                APROBADO:   { label:'Aprobado',    c:'#22c55e' },
+                RECHAZADO:  { label:'Rechazado',   c:'#ef4444' },
+                CONVERTIDO: { label:'En despacho', c:'#00c896' },
+              }[ped.estado] || { label:ped.estado, c:'#5f6f80' }
               return (
-                <div key={ped.id} className="bg-[#161d28] border border-white/[0.08] rounded-xl px-4 py-3 flex items-center gap-3">
+                <div key={ped.id} className="bg-[#161d28] border border-white/8 rounded-xl px-4 py-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="font-mono text-[12px] text-[#00c896] font-bold">{ped.numero}</div>
                     <div className="text-[11px] text-white/30 mt-0.5">
@@ -428,8 +437,8 @@ export default function PortalPublico() {
       </div>
 
       {/* Footer */}
-      <div className="text-center py-4 text-[10px] text-white/20 border-t border-white/[0.06]">
-        Portal de pedidos · {empresa} · Powered by StockPro
+      <div className="text-center py-4 text-[10px] text-white/20 border-t border-white/6">
+        Portal de pedidos{cliente?.empresaNombre ? ` · ${cliente.empresaNombre}` : ''} · Powered by StockPro
       </div>
     </div>
   )

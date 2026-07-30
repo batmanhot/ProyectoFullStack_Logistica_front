@@ -4,10 +4,10 @@
  */
 import { useState, useMemo } from 'react'
 import { CheckCircle, Package } from 'lucide-react'
-import { formatCurrency, formatDate, fechaHoy } from './../../utils/helpers.js'
+import { formatCurrency, formatDate } from './../../utils/helpers.js'
 import { Modal, Badge, Btn, Alert } from '../ui/index.jsx'
 
-const SI = 'w-full px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
+const SI = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
 
 export function ModalRecepcionParcial({ oc, productos, simboloMoneda, onClose, onConfirm }) {
   const [cantidades, setCantidades] = useState(() => {
@@ -15,8 +15,6 @@ export function ModalRecepcionParcial({ oc, productos, simboloMoneda, onClose, o
     oc?.items?.forEach(item => { init[item.productoId] = item.cantidad })
     return init
   })
-  const [fecha, setFecha] = useState(fechaHoy())
-  const [notas, setNotas] = useState('')
 
   const itemsConCant = useMemo(() => {
     if (!oc?.items) return []
@@ -44,7 +42,7 @@ export function ModalRecepcionParcial({ oc, productos, simboloMoneda, onClose, o
       footer={<>
         <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
         <Btn variant="primary" disabled={sinRecepcion}
-          onClick={() => onConfirm({ items: itemsConCant, fecha, notas, esCompleta })}>
+          onClick={() => onConfirm({ items: itemsConCant, esCompleta })}>
           <CheckCircle size={14}/>
           {esCompleta ? 'Confirmar recepción completa' : esParcial ? 'Confirmar recepción parcial' : 'Recibir'}
         </Btn>
@@ -99,7 +97,7 @@ export function ModalRecepcionParcial({ oc, productos, simboloMoneda, onClose, o
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button onClick={() => setItem(item.productoId, 0)}
-                    className="px-2 py-1 text-[11px] text-[#5f6f80] hover:text-[#9ba8b6] border border-white/[0.08] rounded-lg transition-colors">
+                    className="px-2 py-1 text-[11px] text-[#5f6f80] hover:text-[#9ba8b6] border border-white/8 rounded-lg transition-colors">
                     0
                   </button>
                   <input type="number" className={SI} style={{ width: 90 }}
@@ -135,25 +133,9 @@ export function ModalRecepcionParcial({ oc, productos, simboloMoneda, onClose, o
         </Alert>
       )}
 
-      <div className="grid grid-cols-2 gap-3.5">
-        <div>
-          <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">
-            Fecha de recepción
-          </label>
-          <input type="date" className={SI} value={fecha} onChange={e => setFecha(e.target.value)}/>
-        </div>
-        <div className="flex items-end">
-          <div className="text-right w-full">
-            <div className="text-[11px] text-[#5f6f80] mb-1">Total a ingresar</div>
-            <div className="text-[20px] font-semibold text-[#00c896]">{formatCurrency(totalRecibir, simboloMoneda)}</div>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Notas</label>
-        <textarea className={SI + ' resize-y min-h-[56px]'} value={notas}
-          onChange={e => setNotas(e.target.value)} placeholder="Observaciones de la recepción..."/>
+      <div className="text-right">
+        <div className="text-[11px] text-[#5f6f80] mb-1">Total a ingresar</div>
+        <div className="text-[20px] font-semibold text-[#00c896]">{formatCurrency(totalRecibir, simboloMoneda)}</div>
       </div>
     </Modal>
   )

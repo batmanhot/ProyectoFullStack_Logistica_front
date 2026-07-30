@@ -1,6 +1,12 @@
 import { useMemo } from 'react'
-import { useApp } from '../store/AppContext'
-import { getLimitesTenant, verificarLimite, getPlanTenant } from '../services/planLimits'
+import { useConfiguracion } from '../queries/configuracion.queries'
+import { verificarLimite } from '../services/planLimits'
+import { useUsuariosList } from '../queries/usuarios.queries'
+import { useProductosList } from '../queries/productos.queries'
+import { useAlmacenesList } from '../queries/almacenes.queries'
+import { useProveedoresList } from '../queries/proveedores.queries'
+import { useClientesList } from '../queries/clientes.queries'
+import { useOrdenesCompraList } from '../queries/ordenes-compra.queries'
 
 /**
  * Hook que expone el estado de uso vs. límites del plan del tenant activo.
@@ -9,10 +15,19 @@ import { getLimitesTenant, verificarLimite, getPlanTenant } from '../services/pl
  *   { permitido: boolean, actual: number, maximo: number, porcentaje: number, mensaje: string }
  */
 export function usePlanLimits() {
-  const { empresaId, usuarios, productos, almacenes, proveedores, clientes, ordenes } = useApp()
+  // useApp() ya no expone datos de negocio (solo sesión/UI-state) — antes esto
+  // destructuraba usuarios/productos/etc. de ahí y siempre daba undefined,
+  // así que el uso reportado quedaba en 0 sin importar los datos reales.
+  const { data: usuarios    = [] } = useUsuariosList()
+  const { data: productos   = [] } = useProductosList()
+  const { data: almacenes   = [] } = useAlmacenesList()
+  const { data: proveedores = [] } = useProveedoresList()
+  const { data: clientes    = [] } = useClientesList()
+  const { data: ordenes     = [] } = useOrdenesCompraList()
+  const { data: configApi } = useConfiguracion()
 
-  const plan    = useMemo(() => getPlanTenant(empresaId),    [empresaId])
-  const limites = useMemo(() => getLimitesTenant(empresaId), [empresaId])
+  const plan    = configApi?.plan    ?? null
+  const limites = configApi?.limites ?? null
 
   const mesActual   = new Date().toISOString().slice(0, 7)
   const ordenesMes  = useMemo(

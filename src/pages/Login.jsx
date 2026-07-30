@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { Package, Eye, EyeOff, LogIn, Shield, Building2, ArrowLeft, ChevronRight, Crown } from 'lucide-react'
+import { Package, Eye, EyeOff, LogIn, Shield, Building2, ArrowLeft, ChevronRight, Crown, Wrench } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { getEmpresas } from '../services/storage'
-import { EMPRESAS_DEMO, USR, USR_ACME } from '../data/demoData'
+import api from '../services/api'
 import { useTheme } from '../hooks/useTheme'
 import fondoLogistica from '../assets/Logistica_fondo.webp'
 
@@ -15,26 +14,11 @@ const ROLES_LABEL = {
   solicitante: { label: 'Solicitante',   color: '#a855f7' },
 }
 
-const USERS_BY_TENANT = { dlnorte: USR, acme: USR_ACME }
-
-// Lee usuarios activos de cualquier tenant: demo hardcoded o desde localStorage
-function getUsuariosTenant(empresaId) {
-  if (!empresaId) return []
-  if (USERS_BY_TENANT[empresaId]) return USERS_BY_TENANT[empresaId].filter(u => u.activo)
-  try {
-    const stored = JSON.parse(localStorage.getItem(`sp_${empresaId}_usuarios`) || 'null')
-    if (Array.isArray(stored)) return stored.filter(u => u.activo)
-  } catch {}
-  return []
-}
-
-const MODOS_DEMO = ['Maqueta — localStorage', 'Desarrollo — API local']
-
 const SI_BASE = 'w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-[14px] text-white placeholder-white/30 outline-none transition-all font-[inherit]'
 
 // ── Modo Admin SaaS ──────────────────────────────────────────
-function LoginAdmin({ ac, acD, config, modoActual }) {
-  const { loginAdmin, toast } = useApp()
+function LoginAdmin({ ac }) {
+  const { setSesion, toast } = useApp()
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -46,14 +30,18 @@ function LoginAdmin({ ac, acD, config, modoActual }) {
     if (!email || !password) { setError('Completa todos los campos'); return }
     setLoading(true)
     setError('')
-    await new Promise(r => setTimeout(r, 350))
-    const result = loginAdmin(email, password)
+    const res = await api.loginAdmin(email, password)
     setLoading(false)
-    if (result.error) {
-      setError(result.error)
-    } else {
-      toast(`Bienvenido, ${result.data.nombre}`, 'success')
+    if (res.error || !res.data) {
+      setError(res.error || 'Error al iniciar sesión')
+      return
     }
+    const sesion = {
+      ...res.data.admin,
+      rol: { codigo: 'saas_admin', label: 'Super Admin', permisos: ['*'] },
+    }
+    setSesion(sesion)
+    toast(`Bienvenido, ${res.data.admin?.nombre || 'Admin'}`, 'success')
   }
 
   return (
@@ -117,92 +105,61 @@ function LoginAdmin({ ac, acD, config, modoActual }) {
           {loading ? 'Verificando...' : 'Ingresar al Panel'}
         </button>
       </form>
-
-      {/* Hint demo */}
-      {MODOS_DEMO.includes(modoActual) && (
-        <div className="mt-4 px-3 py-2.5 bg-white/3 border border-white/6 rounded-lg">
-          <p className="text-[11px] text-white/30 font-mono">
-            Demo: admin@sistema.pe / sistema2024
-          </p>
-        </div>
-      )}
     </div>
   )
-}
-
-// Busca un negocio por su empresaId en sp_empresas Y en saas_negocios (AdminSaaS)
-function buscarOrgPorId(orgId) {
-  // 1. Buscar en el catálogo principal (demo tenants: dlnorte, acme)
-  const lista = getEmpresas().data || EMPRESAS_DEMO
-  const enLista = lista.find(e => e.id === orgId)
-  if (enLista) return enLista
-
-  // 2. Buscar en los negocios registrados por el AdminSaaS
-  try {
-    const saasNegocios = JSON.parse(localStorage.getItem('saas_negocios') || '[]')
-    const neg = saasNegocios.find(n => n.empresaId === orgId)
-    if (neg) {
-      return {
-        id:       neg.empresaId,
-        nombre:   neg.nombre,
-        contacto: neg.contacto,
-        ruc:      neg.ruc,
-        plan:     neg.plan,
-        email:    neg.email,
-        password: neg.password,
-        activo:   neg.estado !== 'cancelado' && neg.estado !== 'suspendido',
-        _deSaas:  true,
-      }
-    }
-  } catch {}
-  return null
 }
 
 // ── Login principal ──────────────────────────────────────────
 export default function Login({ adminMode = false }) {
   const { orgId } = useParams()
-  const { login, toast, config } = useApp()
+  const { setSesion, toast } = useApp()
   const { current: tema } = useTheme()
   const ac  = tema.accent
   const acD = tema.preview?.[0]
 
-  // Paso 1: empresa  |  Paso 2: credenciales
   const [paso,        setPaso]        = useState('empresa')
   const [empresa,     setEmpresa]     = useState(null)
   const [codigoInput, setCodigoInput] = useState('')
   const [errEmpresa,  setErrEmpresa]  = useState('')
+  const [buscando,    setBuscando]    = useState(false)
 
-  const [email,    setEmail]    = useState('')
-  const [password, setPassword] = useState('')
-  const [showPass, setShowPass] = useState(false)
-  const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState('')
-
-  // Lee config del tenant de la URL (puede no haber sesión activa aún)
-  const configTenant = (() => {
-    const id = orgId || empresa?.id
-    if (!id) return config
-    try { return JSON.parse(localStorage.getItem(`sp_${id}_config`) || 'null') || config } catch { return config }
-  })()
-
-  const versionActual   = configTenant?.version   || config?.version   || 'StockPro v2.0'
-  const modoActual      = configTenant?.modoSistema|| config?.modoSistema|| 'Maqueta — localStorage'
-  const mostrarDemo     = MODOS_DEMO.includes(modoActual)
+  const [email,      setEmail]      = useState('')
+  const [password,   setPassword]   = useState('')
+  const [showPass,   setShowPass]   = useState(false)
+  const [loading,    setLoading]    = useState(false)
+  const [error,      setError]      = useState('')
+  const [demoLoading,setDemoLoading]= useState('') // id del usuario demo en curso
 
   // Auto-seleccionar empresa si viene por URL /app/:orgId
   useEffect(() => {
     if (!orgId) return
-    const encontrada = buscarOrgPorId(orgId)
-    if (encontrada) {
-      setEmpresa(encontrada)
-      setCodigoInput(encontrada.id)
-      setPaso('credenciales')
-    }
+    setBuscando(true)
+    api.buscarEmpresa(orgId).then(res => {
+      setBuscando(false)
+      if (res.data) {
+        setEmpresa(res.data)
+        setCodigoInput(res.data.codigo || orgId)
+        setPaso('credenciales')
+      } else {
+        setErrEmpresa(res.error || `No existe ninguna organización con el código '${orgId}'`)
+      }
+    })
   }, [orgId])
 
-  function seleccionarEmpresa(emp) {
+  async function continuarConCodigo() {
+    const codigo = codigoInput.trim().toLowerCase()
+    if (!codigo) { setErrEmpresa('Ingresa el código de tu organización'); return }
+    setBuscando(true)
+    setErrEmpresa('')
+    const res = await api.buscarEmpresa(codigo)
+    setBuscando(false)
+    if (res.error || !res.data) {
+      setErrEmpresa(res.error || `No existe ninguna organización con el código '${codigo}'`)
+      return
+    }
+    const emp = res.data
     setEmpresa(emp)
-    setCodigoInput(emp.id)
+    setCodigoInput(emp.codigo || codigo)
     setErrEmpresa('')
     setPaso('credenciales')
     setEmail('')
@@ -210,41 +167,38 @@ export default function Login({ adminMode = false }) {
     setError('')
   }
 
-  function continuarConCodigo() {
-    const codigo = codigoInput.trim().toLowerCase()
-    if (!codigo) { setErrEmpresa('Ingresa el código de tu organización'); return }
-    const encontrada = buscarOrgPorId(codigo)
-    if (!encontrada) { setErrEmpresa(`No existe ninguna organización con el código '${codigo}'`); return }
-    seleccionarEmpresa(encontrada)
-  }
-
   async function handleLogin(e) {
     e.preventDefault()
     if (!email || !password) { setError('Completa todos los campos'); return }
     setLoading(true)
     setError('')
-    await new Promise(r => setTimeout(r, 350))
-    const result = login(empresa.id, email, password)
+    const res = await api.login(empresa.id, email, password)
     setLoading(false)
-    if (result.error) {
-      setError(result.error)
-    } else {
-      toast(`Bienvenido, ${result.data.nombre}`, 'success')
+    if (res.error || !res.data) {
+      setError(res.error || 'Credenciales incorrectas')
+      return
     }
+    const sesion = { ...res.data.usuario, empresaCodigo: empresa.codigo }
+    setSesion(sesion)
+    toast(`Bienvenido, ${sesion.nombre}`, 'success')
   }
 
-  function fillDemo(u) {
-    setEmail(u.email)
-    setPassword(u.password)
+  // Acceso rápido de "modo desarrollo" — sin password; el backend valida
+  // igualmente que la empresa sea demo y tenga el switch activo (Configuración
+  // → Sistema), así que esto no funciona aunque alguien arme el request a mano.
+  async function handleDemoLogin(usuarioDemo) {
+    setDemoLoading(usuarioDemo.id)
     setError('')
+    const res = await api.demoLogin(empresa.id, usuarioDemo.id)
+    setDemoLoading('')
+    if (res.error || !res.data) {
+      setError(res.error || 'No se pudo iniciar sesión con este usuario demo')
+      return
+    }
+    const sesion = { ...res.data.usuario, empresaCodigo: empresa.codigo }
+    setSesion(sesion)
+    toast(`Bienvenido, ${sesion.nombre}`, 'success')
   }
-
-  // Para tenants _deSaas excluir el email del propietario (ya aparece en su propia tarjeta)
-  const usuariosDemo = mostrarDemo
-    ? getUsuariosTenant(empresa?.id).filter(u =>
-        !empresa?._deSaas || u.email !== empresa?.email
-      )
-    : []
 
   return (
     <div
@@ -290,7 +244,7 @@ export default function Login({ adminMode = false }) {
               }
             </div>
             <h1 className="text-[24px] font-semibold text-white">
-              {adminMode ? 'Admin Sistema' : versionActual}
+              {adminMode ? 'Admin Sistema' : 'StockPro'}
             </h1>
             <p className="text-[13px] text-white/40 mt-1">
               {adminMode ? 'Acceso exclusivo administrador' : 'Sistema de Gestión Logística'}
@@ -298,9 +252,7 @@ export default function Login({ adminMode = false }) {
           </div>
 
           {/* ── MODO ADMIN ── */}
-          {adminMode && (
-            <LoginAdmin ac={ac} acD={acD} config={config} modoActual={modoActual} />
-          )}
+          {adminMode && <LoginAdmin ac={ac} />}
 
           {/* ── MODO TENANT: PASO 1 — Código de organización ── */}
           {!adminMode && paso === 'empresa' && (
@@ -320,6 +272,7 @@ export default function Login({ adminMode = false }) {
                   onKeyDown={e => e.key === 'Enter' && continuarConCodigo()}
                   autoComplete="organization"
                   autoFocus
+                  disabled={buscando}
                 />
               </div>
 
@@ -331,16 +284,21 @@ export default function Login({ adminMode = false }) {
 
               <button
                 onClick={continuarConCodigo}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[14px] font-semibold transition-all"
+                disabled={buscando}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[14px] font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ background: ac, color: 'rgba(0,0,0,0.75)' }}
               >
-                Continuar <ChevronRight size={16}/>
+                {buscando
+                  ? <div className="w-4 h-4 rounded-full border-2 border-black/20 border-t-black/60 animate-spin-slow"/>
+                  : <ChevronRight size={16}/>
+                }
+                {buscando ? 'Buscando...' : 'Continuar'}
               </button>
             </div>
           )}
 
           {/* ── MODO TENANT: PASO 2 — Credenciales ── */}
-          {!adminMode && paso === 'credenciales' && (
+          {!adminMode && paso === 'credenciales' && empresa && (
             <>
               {/* Empresa seleccionada */}
               <div className="flex items-center gap-3 px-4 py-3 mb-4 rounded-xl"
@@ -348,9 +306,8 @@ export default function Login({ adminMode = false }) {
                 <Building2 size={16} style={{ color: ac }} className="shrink-0"/>
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-semibold text-white truncate">{empresa.nombre}</div>
-                  <div className="text-[11px] text-white/40 font-mono">{empresa.id}</div>
+                  <div className="text-[11px] text-white/40 font-mono">{empresa.codigo || empresa.id}</div>
                 </div>
-                {/* Solo mostrar "Cambiar" si no vino por URL directa */}
                 {!orgId && (
                   <button
                     onClick={() => { setPaso('empresa'); setError('') }}
@@ -360,6 +317,41 @@ export default function Login({ adminMode = false }) {
                   </button>
                 )}
               </div>
+
+              {/* Acceso rápido — solo empresas demo con el switch de Configuración activo */}
+              {empresa.modoDesarrollo && empresa.usuariosDemo?.length > 0 && (
+                <div className="mb-4 rounded-2xl p-5 border border-amber-500/25" style={{ background: 'rgba(245,158,11,0.08)' }}>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Wrench size={13} className="text-amber-400"/>
+                    <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wide">Modo desarrollo — acceso rápido</span>
+                  </div>
+                  <p className="text-[11px] text-white/40 mb-3 leading-relaxed">
+                    Entra directo como cualquiera de los usuarios de prueba de esta empresa, sin escribir contraseña.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {empresa.usuariosDemo.map(u => {
+                      const meta = ROLES_LABEL[u.rol?.codigo] || { label: u.rol?.label || 'Usuario', color: '#9ba8b6' }
+                      return (
+                        <button key={u.id} type="button" disabled={!!demoLoading}
+                          onClick={() => handleDemoLogin(u)}
+                          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-white/25 hover:bg-white/8 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0"
+                            style={{ background: meta.color + '26', color: meta.color }}>
+                            {u.nombre?.charAt(0) || '?'}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[12px] font-medium text-white truncate">{u.nombre}</div>
+                            <div className="text-[10px] truncate" style={{ color: meta.color }}>{meta.label}</div>
+                          </div>
+                          {demoLoading === u.id && (
+                            <div className="w-3.5 h-3.5 rounded-full border-2 border-white/20 border-t-white/60 animate-spin-slow shrink-0"/>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="border border-white/8 rounded-2xl p-8" style={{ background: 'var(--bg-card)' }}>
                 <h2 className="text-[16px] font-semibold text-white mb-6">Iniciar sesión</h2>
@@ -419,98 +411,12 @@ export default function Login({ adminMode = false }) {
                   </button>
                 </form>
               </div>
-
-              {/* Usuarios demo — tenants con dataset propio (dlnorte, acme) */}
-              {mostrarDemo && usuariosDemo.length > 0 && (
-                <div className="mt-5 border border-white/8 rounded-xl p-4" style={{ background: 'var(--bg-card)' }}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Shield size={12} style={{ color: ac }}/>
-                    <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wide">
-                      Usuarios de {empresa.nombre.split(' ')[0]}
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {usuariosDemo.map(u => {
-                      const rolInfo = ROLES_LABEL[u.rol] || { label: u.rol, color: '#5f6f80' }
-                      return (
-                        <button
-                          key={u.id}
-                          onClick={() => fillDemo(u)}
-                          className="flex items-center gap-3 px-3 py-2.5 bg-white/3 hover:bg-white/6 border border-white/6 rounded-lg transition-colors text-left group"
-                        >
-                          <div
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
-                            style={{ background: `${rolInfo.color}20`, color: rolInfo.color }}
-                          >
-                            {u.nombre.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[13px] font-medium text-white/80 truncate">{u.nombre}</span>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0"
-                                    style={{ background: `${rolInfo.color}20`, color: rolInfo.color }}>
-                                {rolInfo.label}
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-white/30 truncate mt-0.5">{u.email}</div>
-                          </div>
-                          <span className="text-[11px] text-white/20 font-mono shrink-0 group-hover:text-white/40 transition-colors">
-                            {u.password}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <p className="text-[10px] text-white/15 mt-3 text-center">
-                    Este panel se oculta en Staging y Producción
-                  </p>
-                </div>
-              )}
-
-              {/* Acceso rápido — tenants registrados en AdminSaaS (propietario del negocio) */}
-              {mostrarDemo && empresa?._deSaas && empresa?.email && (
-                <div className="mt-5 border border-white/8 rounded-xl p-4" style={{ background: 'var(--bg-card)' }}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Shield size={12} style={{ color: '#f59e0b' }}/>
-                    <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wide">
-                      Propietario — {empresa.nombre.split(' ')[0]}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => fillDemo({ email: empresa.email, password: empresa.password })}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 bg-white/3 hover:bg-white/6 border border-white/6 rounded-lg transition-colors text-left group"
-                  >
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
-                         style={{ background: 'rgba(245,158,11,0.2)', color: '#f59e0b' }}>
-                      {(empresa.nombre || 'P').charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-medium text-white/80 truncate">
-                          {empresa.contacto || empresa.nombre}
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0"
-                              style={{ background: 'rgba(245,158,11,0.2)', color: '#f59e0b' }}>
-                          propietario
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-white/30 truncate mt-0.5">{empresa.email}</div>
-                    </div>
-                    <span className="text-[11px] text-white/20 font-mono shrink-0 group-hover:text-white/40 transition-colors">
-                      {empresa.password}
-                    </span>
-                  </button>
-                  <p className="text-[10px] text-white/15 mt-3 text-center">
-                    Este panel se oculta en Staging y Producción
-                  </p>
-                </div>
-              )}
             </>
           )}
 
           {/* Pie */}
           <p className="text-center text-[11px] text-white/20 mt-5">
-            {versionActual} · {modoActual}
+            StockPro · Sistema de Gestión Logística
           </p>
         </div>
       </div>

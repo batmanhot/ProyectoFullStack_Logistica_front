@@ -1,6 +1,5 @@
-﻿/**
+/**
  * ContabilidadReportes.jsx — Módulo Contable
- * Para el contador de la empresa.
  *
  * Reportes disponibles:
  *  1. Reporte de Compras  — todas las OC recibidas, con IGV, base imponible, total
@@ -12,23 +11,27 @@
 import { useState, useMemo } from 'react'
 import { Download, FileText, BookOpen, TrendingUp, TrendingDown,
          DollarSign, Calendar, Search, X, ChevronDown, ChevronUp } from 'lucide-react'
-import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate } from '../utils/helpers'
 import { Btn, Badge } from '../components/ui/index'
+import { useOrdenesCompraList } from '../queries/ordenes-compra.queries'
+import { useDespachosList } from '../queries/despachos.queries'
+import { useProveedoresList } from '../queries/proveedores.queries'
+import { useClientesList } from '../queries/clientes.queries'
+import { useConfiguracion } from '../queries/configuracion.queries'
 
-const TH = ({c,r})=><th className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/[0.08] sticky top-0 ${r?'text-right':'text-left'}`}>{c}</th>
+const TH = ({c,r})=><th className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 sticky top-0 ${r?'text-right':'text-left'}`}>{c}</th>
 const TD = ({c,mono,green,red,bold,r})=><td className={`px-3.5 py-2.5 ${r?'text-right':''} ${mono?'font-mono':''} text-[12px] ${green?'text-green-400':red?'text-red-400':bold?'text-[#e8edf2] font-semibold':'text-[#9ba8b6]'}`}>{c}</td>
-const SEL = 'px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] font-[inherit]'
+const SEL = 'px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] font-[inherit]'
 
+const simboloMoneda = 'S/'
 const IGV_RATE = 0.18
 
 function calcBase(total)  { return total / (1 + IGV_RATE) }
 function calcIGV(total)   { return total - calcBase(total) }
 
-// Exportar a CSV simple
 function exportCSV(rows, filename) {
   const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n')
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
   const a    = document.createElement('a')
   a.href     = URL.createObjectURL(blob)
   a.download = `${filename}_${new Date().toISOString().slice(0,10)}.csv`
@@ -38,25 +41,29 @@ function exportCSV(rows, filename) {
 const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
 export default function ContabilidadReportes() {
-  const { ordenes, movimientos, despachos, proveedores, clientes,
-          almacenes, productos, simboloMoneda, config } = useApp()
+  const { data: config      = {} } = useConfiguracion()
+  const { data: ordenes     = [] } = useOrdenesCompraList()
+  const { data: despachos   = [] } = useDespachosList()
+  const { data: proveedores = [] } = useProveedoresList()
+  const { data: clientes    = [] } = useClientesList()
+
+  const empresa    = config?.nombre   ?? '—'
+  const rucEmpresa = config?.ruc      ?? '—'
 
   const [tab,       setTab]       = useState('compras')
-  const [periodo,   setPeriodo]   = useState('all')   // all | mes | año
-  const [mesFiltro, setMesFiltro] = useState('')      // YYYY-MM
+  const [periodo,   setPeriodo]   = useState('all')
+  const [mesFiltro, setMesFiltro] = useState('')
   const [anioFiltro,setAnioFiltro]= useState('')
   const [busqueda,  setBusqueda]  = useState('')
-  const empresa = config?.empresa || 'Distribuidora Lima Norte S.A.C.'
-  const rucEmpresa = config?.ruc || '20512345678'
 
   // ── Años disponibles ──────────────────────────────────
   const aniosDisp = useMemo(() => {
     const set = new Set([
       ...ordenes.map(o => o.fecha?.slice(0,4)),
-      ...movimientos.filter(m=>m.tipo==='SALIDA').map(m=>m.fecha?.slice(0,4)),
+      ...despachos.map(d => d.fecha?.slice(0,4)),
     ].filter(Boolean))
     return [...set].sort().reverse()
-  }, [ordenes, movimientos])
+  }, [ordenes, despachos])
 
   function filtrarPorPeriodo(items, campoFecha = 'fecha') {
     return items.filter(item => {
@@ -79,12 +86,13 @@ export default function ContabilidadReportes() {
       })
     }
     return ocs.map(oc => {
-      const prov     = proveedores.find(p=>p.id===oc.proveedorId)
-      const base     = oc.subtotal || calcBase(oc.total || 0)
-      const igv      = oc.igv     || calcIGV(oc.total || 0)
-      const total    = oc.total   || 0
+      const prov  = proveedores.find(p=>p.id===oc.proveedorId)
+      const total = Number(oc.total)    || 0
+      const base  = Number(oc.subtotal) || calcBase(total)
+      const igv   = Number(oc.igv)      || calcIGV(total)
       return { ...oc, provNombre: prov?.razonSocial||'—', provRUC: prov?.ruc||'—', base, igv, total }
     }).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ordenes, proveedores, periodo, mesFiltro, anioFiltro, busqueda])
 
   const totCompras = useMemo(() => ({
@@ -93,9 +101,8 @@ export default function ContabilidadReportes() {
     total: compras.reduce((s,c)=>s+c.total,0),
   }), [compras])
 
-  // ── REPORTE DE VENTAS — usa despachos (tienen precio de venta real)
+  // ── REPORTE DE VENTAS ─────────────────────────────────
   const ventas = useMemo(() => {
-    // Fuente principal: despachos DESPACHADO o ENTREGADO (tienen subtotal, igv, total, precioVenta por ítem)
     let des = despachos.filter(d => ['DESPACHADO','ENTREGADO'].includes(d.estado))
     des = filtrarPorPeriodo(des, 'fecha')
     if (busqueda) {
@@ -108,14 +115,12 @@ export default function ContabilidadReportes() {
       })
     }
     return des.map(d => {
-      const cli       = clientes.find(c=>c.id===d.clienteId)
-      // subtotal e igv ya vienen en el despacho (calculados al crear)
-      const subtotal  = d.subtotal  || 0
-      const igv       = d.igv       || calcIGV(d.total || 0)
-      const total     = d.total     || 0
-      // Costo: suma de costoUnitario × cantidad de cada ítem
+      const cli      = clientes.find(c=>c.id===d.clienteId)
+      const total    = Number(d.total)    || 0
+      const subtotal = Number(d.subtotal) || calcBase(total)
+      const igv      = Number(d.igv)      || calcIGV(total)
       const costoTotal = (d.items||[]).reduce((s,it)=>
-        s + (it.costoUnitario||0)*(it.cantidad||0), 0)
+        s + (Number(it.costoUnitario)||0)*(Number(it.cantidad)||0), 0)
       const margen = total > 0 ? ((total - costoTotal) / total * 100) : 0
       return {
         documento:   d.numero || d.guiaNumero || '—',
@@ -132,6 +137,7 @@ export default function ContabilidadReportes() {
         estado:      d.estado,
       }
     }).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [despachos, clientes, periodo, mesFiltro, anioFiltro, busqueda])
 
   const totVentas = useMemo(() => ({
@@ -146,7 +152,7 @@ export default function ContabilidadReportes() {
     compras.map((c,i) => ({
       correlativo:  String(i+1).padStart(4,'0'),
       fecha:        c.fecha,
-      tipoDoc:      '01', // Factura
+      tipoDoc:      '01',
       serie:        c.numero?.split('-')[1] || '001',
       numero:       c.numero,
       rucProveedor: c.provRUC,
@@ -174,19 +180,25 @@ export default function ContabilidadReportes() {
   , [ventas])
 
   // ── RESUMEN MENSUAL ───────────────────────────────────
+  // Deriva de `compras`/`ventas` (ya filtrados por período/búsqueda y con las
+  // mismas fórmulas de base/IGV que el resto del módulo) en vez de releer
+  // `ordenes`/`despachos` crudos — así el resumen SIEMPRE coincide con las
+  // demás pestañas y cards, incluso al aplicar un filtro de período.
   const resumenMensual = useMemo(() => {
     const mapa = {}
-    ordenes.filter(o=>['RECIBIDA','PARCIAL'].includes(o.estado)).forEach(o => {
-      const key = o.fecha?.slice(0,7) || '0000-00'
-      if (!mapa[key]) mapa[key] = { mes:key, compras:0, igvCompras:0, ventas:0, igvVentas:0 }
-      mapa[key].compras    += o.subtotal || calcBase(o.total||0)
-      mapa[key].igvCompras += o.igv      || calcIGV(o.total||0)
+    compras.forEach(c => {
+      const key = c.fecha?.slice(0,7) || '0000-00'
+      if (!mapa[key]) mapa[key] = { mes:key, compras:0, igvCompras:0, totalCompras:0, ventas:0, igvVentas:0, totalVentas:0 }
+      mapa[key].compras      += c.base
+      mapa[key].igvCompras   += c.igv
+      mapa[key].totalCompras += c.total
     })
-    despachos.filter(d=>['DESPACHADO','ENTREGADO'].includes(d.estado)).forEach(d => {
-      const key = d.fecha?.slice(0,7) || '0000-00'
-      if (!mapa[key]) mapa[key] = { mes:key, compras:0, igvCompras:0, ventas:0, igvVentas:0 }
-      mapa[key].ventas    += d.subtotal || 0
-      mapa[key].igvVentas += d.igv || 0
+    ventas.forEach(v => {
+      const key = v.fecha?.slice(0,7) || '0000-00'
+      if (!mapa[key]) mapa[key] = { mes:key, compras:0, igvCompras:0, totalCompras:0, ventas:0, igvVentas:0, totalVentas:0 }
+      mapa[key].ventas      += v.base
+      mapa[key].igvVentas   += v.igv
+      mapa[key].totalVentas += v.total
     })
     return Object.values(mapa)
       .sort((a,b)=>b.mes.localeCompare(a.mes))
@@ -198,7 +210,7 @@ export default function ContabilidadReportes() {
         })(),
         saldo: r.ventas - r.compras,
       }))
-  }, [ordenes, movimientos, productos])
+  }, [compras, ventas])
 
   // ── Exports CSV ───────────────────────────────────────
   function exportarComprasCSV() {
@@ -283,7 +295,7 @@ export default function ContabilidadReportes() {
           )}
           {(periodo !== 'all' || busqueda) && (
             <button onClick={()=>{setPeriodo('all');setMesFiltro('');setAnioFiltro('');setBusqueda('')}}
-              className="flex items-center gap-1 px-2.5 py-2 rounded-lg text-[11px] text-[#5f6f80] hover:text-red-400 border border-white/[0.08] hover:border-red-400/30 transition-all">
+              className="flex items-center gap-1 px-2.5 py-2 rounded-lg text-[11px] text-[#5f6f80] hover:text-red-400 border border-white/8 hover:border-red-400/30 transition-all">
               <X size={11}/> Limpiar
             </button>
           )}
@@ -298,20 +310,20 @@ export default function ContabilidadReportes() {
           { label:'Total Ventas',     val:formatCurrency(totVentas.total, simboloMoneda), sub:`IGV: ${formatCurrency(totVentas.igv,simboloMoneda)}`,   color:'#22c55e', Icon:TrendingUp  },
           { label:'Base Imp. Ventas', val:formatCurrency(totVentas.base,  simboloMoneda), sub:`${ventas.length} documentos`,                           color:'#00c896', Icon:DollarSign  },
         ].map(({label,val,sub,color,Icon})=>(
-          <div key={label} className="relative bg-[#161d28] border border-white/[0.08] rounded-xl px-4 py-3 overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{background:color}}/>
+          <div key={label} className="relative bg-[#161d28] border border-white/8 rounded-xl px-4 py-3 overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-0.75 rounded-t-xl" style={{background:color}}/>
             <div className="flex items-center gap-2 mb-1">
               <Icon size={12} style={{color}} className="opacity-70"/>
               <span className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-wide">{label}</span>
             </div>
-            <div className="text-[16px] font-bold font-mono" style={{color}}>{val}</div>
+            <div className="text-[17px] font-semibold font-mono" style={{color}}>{val}</div>
             <div className="text-[10px] text-[#5f6f80] mt-0.5">{sub}</div>
           </div>
         ))}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-0 border-b border-white/[0.08] overflow-x-auto">
+      <div className="flex gap-0 border-b border-white/8 overflow-x-auto">
         {TABS_DEF.map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id)}
             className={`px-4 py-2.5 text-[12px] font-medium border-b-2 -mb-px transition-all whitespace-nowrap ${
@@ -323,7 +335,7 @@ export default function ContabilidadReportes() {
 
       {/* ── TAB: REPORTE DE COMPRAS ───────────────────── */}
       {tab === 'compras' && (
-        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5 flex flex-col gap-4">
+        <div className="bg-[#161d28] border border-white/8 rounded-xl p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-[13px] font-semibold text-[#e8edf2]">Reporte de Compras</div>
@@ -332,14 +344,14 @@ export default function ContabilidadReportes() {
             <div className="flex gap-2">
               <div className="relative">
                 <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-                <input className="pl-7 pr-3 py-[5px] bg-[#1e2835] border border-white/[0.08] rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] w-[180px]"
+                <input className="pl-7 pr-3 py-[5px] bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] w-[180px]"
                   placeholder="Buscar OC o proveedor..." value={busqueda} onChange={e=>setBusqueda(e.target.value)}/>
               </div>
               <Btn variant="ghost" size="sm" onClick={exportarComprasCSV}><Download size={12}/> CSV</Btn>
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+          <div className="overflow-x-auto rounded-xl border border-white/8">
             <table className="w-full border-collapse text-[12px]">
               <thead><tr>
                 <TH c="N° OC"/><TH c="Fecha"/><TH c="Proveedor"/><TH c="RUC"/><TH c="Items" r/>
@@ -352,7 +364,7 @@ export default function ContabilidadReportes() {
                   </td></tr>
                 )}
                 {compras.map(c=>(
-                  <tr key={c.id} className="border-b border-white/[0.05] last:border-0 hover:bg-white/[0.02]">
+                  <tr key={c.id} className="border-b border-white/5 last:border-0 hover:bg-white/2">
                     <TD c={c.numero} mono green/>
                     <TD c={formatDate(c.fecha)}/>
                     <TD c={c.provNombre} bold/>
@@ -383,23 +395,23 @@ export default function ContabilidadReportes() {
 
       {/* ── TAB: REPORTE DE VENTAS ────────────────────── */}
       {tab === 'ventas' && (
-        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5 flex flex-col gap-4">
+        <div className="bg-[#161d28] border border-white/8 rounded-xl p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-[13px] font-semibold text-[#e8edf2]">Reporte de Ventas</div>
-              <div className="text-[11px] text-[#5f6f80]">Salidas de stock agrupadas por documento · {ventas.length} registros</div>
+              <div className="text-[11px] text-[#5f6f80]">Despachos despachados o entregados · {ventas.length} registros</div>
             </div>
             <div className="flex gap-2">
               <div className="relative">
                 <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-                <input className="pl-7 pr-3 py-[5px] bg-[#1e2835] border border-white/[0.08] rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] w-[180px]"
+                <input className="pl-7 pr-3 py-[5px] bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] w-[180px]"
                   placeholder="Buscar documento..." value={busqueda} onChange={e=>setBusqueda(e.target.value)}/>
               </div>
               <Btn variant="ghost" size="sm" onClick={exportarVentasCSV}><Download size={12}/> CSV</Btn>
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+          <div className="overflow-x-auto rounded-xl border border-white/8">
             <table className="w-full border-collapse text-[12px]">
               <thead><tr>
                 <TH c="N° Despacho"/><TH c="Guía"/><TH c="Fecha"/><TH c="Cliente"/><TH c="Ítems" r/>
@@ -413,11 +425,11 @@ export default function ContabilidadReportes() {
                   </td></tr>
                 )}
                 {ventas.map((v,i)=>(
-                  <tr key={i} className="border-b border-white/[0.05] last:border-0 hover:bg-white/[0.02]">
+                  <tr key={i} className="border-b border-white/5 last:border-0 hover:bg-white/2">
                     <TD c={v.documento} mono green/>
                     <TD c={v.guia} mono/>
                     <TD c={formatDate(v.fecha)}/>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#e8edf2] font-medium max-w-[160px] truncate">{v.cliente}</td>
+                    <td className="px-3.5 py-2.5 text-[12px] text-[#e8edf2] font-medium max-w-40 truncate">{v.cliente}</td>
                     <TD c={v.items?.length||0} r/>
                     <TD c={formatCurrency(v.base,simboloMoneda)} mono r/>
                     <TD c={formatCurrency(v.igv,simboloMoneda)} mono r/>
@@ -456,7 +468,7 @@ export default function ContabilidadReportes() {
 
       {/* ── TAB: LIBRO DE COMPRAS ─────────────────────── */}
       {tab === 'libroCompras' && (
-        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5 flex flex-col gap-4">
+        <div className="bg-[#161d28] border border-white/8 rounded-xl p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-[13px] font-semibold text-[#e8edf2]">Libro de Compras</div>
@@ -464,7 +476,7 @@ export default function ContabilidadReportes() {
             </div>
             <Btn variant="primary" size="sm" onClick={exportarLibroComprasCSV}><Download size={12}/> Exportar CSV</Btn>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+          <div className="overflow-x-auto rounded-xl border border-white/8">
             <table className="w-full border-collapse text-[12px]">
               <thead><tr>
                 <TH c="Correl."/><TH c="Fecha"/><TH c="Tipo"/><TH c="Serie"/><TH c="N° Doc"/>
@@ -473,7 +485,7 @@ export default function ContabilidadReportes() {
               </tr></thead>
               <tbody>
                 {libroCompras.map((l,i)=>(
-                  <tr key={i} className="border-b border-white/[0.05] last:border-0 hover:bg-white/[0.02]">
+                  <tr key={i} className="border-b border-white/5 last:border-0 hover:bg-white/2">
                     <TD c={l.correlativo} mono/>
                     <TD c={formatDate(l.fecha)}/>
                     <TD c={l.tipoDoc} mono/>
@@ -508,7 +520,7 @@ export default function ContabilidadReportes() {
 
       {/* ── TAB: LIBRO DE VENTAS ──────────────────────── */}
       {tab === 'libroVentas' && (
-        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5 flex flex-col gap-4">
+        <div className="bg-[#161d28] border border-white/8 rounded-xl p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-[13px] font-semibold text-[#e8edf2]">Libro de Ventas</div>
@@ -516,7 +528,7 @@ export default function ContabilidadReportes() {
             </div>
             <Btn variant="primary" size="sm" onClick={exportarLibroVentasCSV}><Download size={12}/> Exportar CSV</Btn>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+          <div className="overflow-x-auto rounded-xl border border-white/8">
             <table className="w-full border-collapse text-[12px]">
               <thead><tr>
                 <TH c="Correl."/><TH c="Fecha"/><TH c="Tipo"/><TH c="N° Doc"/>
@@ -525,13 +537,13 @@ export default function ContabilidadReportes() {
               </tr></thead>
               <tbody>
                 {libroVentas.map((l,i)=>(
-                  <tr key={i} className="border-b border-white/[0.05] last:border-0 hover:bg-white/[0.02]">
+                  <tr key={i} className="border-b border-white/5 last:border-0 hover:bg-white/2">
                     <TD c={l.correlativo} mono/>
                     <TD c={formatDate(l.fecha)}/>
                     <TD c={l.tipoDoc} mono/>
                     <TD c={l.numero} mono green/>
                     <TD c={l.rucCliente} mono/>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#e8edf2] font-medium max-w-[140px] truncate">{l.cliente}</td>
+                    <td className="px-3.5 py-2.5 text-[12px] text-[#e8edf2] font-medium max-w-36 truncate">{l.cliente}</td>
                     <TD c={l.guia||'—'} mono/>
                     <TD c={formatCurrency(l.baseGravada,simboloMoneda)} mono r/>
                     <TD c={formatCurrency(l.igv,simboloMoneda)} mono r/>
@@ -557,7 +569,7 @@ export default function ContabilidadReportes() {
 
       {/* ── TAB: RESUMEN MENSUAL ──────────────────────── */}
       {tab === 'resumen' && (
-        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5 flex flex-col gap-4">
+        <div className="bg-[#161d28] border border-white/8 rounded-xl p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-[13px] font-semibold text-[#e8edf2]">Resumen Mensual Compras vs Ventas</div>
@@ -569,7 +581,7 @@ export default function ContabilidadReportes() {
               exportCSV(rows,'resumen_mensual')
             }}><Download size={12}/> CSV</Btn>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+          <div className="overflow-x-auto rounded-xl border border-white/8">
             <table className="w-full border-collapse text-[12px]">
               <thead><tr>
                 <TH c="Mes"/>
@@ -579,14 +591,14 @@ export default function ContabilidadReportes() {
               </tr></thead>
               <tbody>
                 {resumenMensual.map((r,i)=>(
-                  <tr key={i} className="border-b border-white/[0.05] last:border-0 hover:bg-white/[0.02]">
+                  <tr key={i} className="border-b border-white/5 last:border-0 hover:bg-white/2">
                     <td className="px-3.5 py-2.5 text-[12px] font-semibold text-[#e8edf2]">{r.mesLabel}</td>
                     <TD c={formatCurrency(r.compras,simboloMoneda)} mono r/>
                     <TD c={formatCurrency(r.igvCompras,simboloMoneda)} mono r/>
-                    <TD c={formatCurrency(r.compras+r.igvCompras,simboloMoneda)} mono bold r/>
+                    <TD c={formatCurrency(r.totalCompras,simboloMoneda)} mono bold r/>
                     <TD c={formatCurrency(r.ventas,simboloMoneda)} mono r/>
                     <TD c={formatCurrency(r.igvVentas,simboloMoneda)} mono r/>
-                    <TD c={formatCurrency(r.ventas+r.igvVentas,simboloMoneda)} mono bold r/>
+                    <TD c={formatCurrency(r.totalVentas,simboloMoneda)} mono bold r/>
                     <td className="px-3.5 py-2.5 text-right font-mono text-[12px] font-bold">
                       <span className={r.saldo>=0?'text-green-400':'text-red-400'}>
                         {r.saldo>=0?'+':''}{formatCurrency(r.saldo,simboloMoneda)}
@@ -602,13 +614,13 @@ export default function ContabilidadReportes() {
           </div>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label:'Total acum. compras', val:formatCurrency(resumenMensual.reduce((s,r)=>s+r.compras+r.igvCompras,0),simboloMoneda), color:'#3b82f6' },
-              { label:'Total acum. ventas',  val:formatCurrency(resumenMensual.reduce((s,r)=>s+r.ventas+r.igvVentas,0),simboloMoneda),  color:'#22c55e' },
+              { label:'Total acum. compras', val:formatCurrency(resumenMensual.reduce((s,r)=>s+r.totalCompras,0),simboloMoneda), color:'#3b82f6' },
+              { label:'Total acum. ventas',  val:formatCurrency(resumenMensual.reduce((s,r)=>s+r.totalVentas,0),simboloMoneda),  color:'#22c55e' },
               { label:'IGV neto (Ventas−Compras)', val:formatCurrency(resumenMensual.reduce((s,r)=>s+r.igvVentas-r.igvCompras,0),simboloMoneda), color:'#f59e0b' },
             ].map(({label,val,color})=>(
-              <div key={label} className="bg-[#1a2230] rounded-xl px-4 py-3 border border-white/[0.08]">
+              <div key={label} className="bg-[#1a2230] rounded-xl px-4 py-3 border border-white/8">
                 <div className="text-[10px] text-[#5f6f80] uppercase tracking-wide mb-1">{label}</div>
-                <div className="text-[15px] font-bold font-mono" style={{color}}>{val}</div>
+                <div className="text-[17px] font-semibold font-mono" style={{color}}>{val}</div>
               </div>
             ))}
           </div>

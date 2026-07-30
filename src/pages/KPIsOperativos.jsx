@@ -14,9 +14,13 @@ import { TrendingUp, TrendingDown, Target, Zap, Clock, Package,
          CheckCircle, AlertTriangle, RotateCcw, Truck, DollarSign, BarChart2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
          LineChart, Line, CartesianGrid, RadialBarChart, RadialBar, Legend } from 'recharts'
-import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate } from '../utils/helpers'
-import { valorarStock, calcularPMP } from '../utils/valorizacion'
+import { useDespachosList } from '../queries/despachos.queries'
+import { useMovimientosList } from '../queries/movimientos.queries'
+import { useProductosList } from '../queries/productos.queries'
+import { useCategoriasList } from '../queries/categorias.queries'
+import { useClientesList } from '../queries/clientes.queries'
+import { useOrdenesCompraList } from '../queries/ordenes-compra.queries'
 
 const TT = { background:'#1a2230', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, fontSize:12, color:'#e8edf2' }
 
@@ -52,14 +56,14 @@ function KPICard({ label, value, sub, color, icon: Icon, trend, trendVal, onClic
   const isUp = trend === 'up'
   return (
     <div onClick={onClick}
-      className={`relative bg-[#161d28] border border-white/[0.08] rounded-xl px-5 py-4 overflow-hidden ${onClick?'cursor-pointer hover:border-white/[0.14] transition-all':''}`}>
+      className={`relative bg-[#161d28] border border-white/8 rounded-xl px-5 py-4 overflow-hidden ${onClick?'cursor-pointer hover:border-white/14 transition-all':''}`}>
       <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ background: color }}/>
       <div className="absolute top-3 right-4 opacity-[0.06]"><Icon size={38}/></div>
       <div className="flex items-center gap-1.5 mb-2">
         <Icon size={11} style={{ color, opacity:0.85 }}/>
         <span className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-[0.07em]">{label}</span>
       </div>
-      <div className="text-[24px] font-bold font-mono leading-none" style={{ color }}>{value}</div>
+      <div className="text-[17px] font-semibold font-mono leading-none" style={{ color }}>{value}</div>
       {sub && <div className="text-[11px] text-[#5f6f80] mt-1.5 leading-snug">{sub}</div>}
       {trendVal !== undefined && (
         <div className={`flex items-center gap-1 mt-1.5 text-[11px] font-semibold ${isUp?'text-green-400':'text-red-400'}`}>
@@ -72,8 +76,20 @@ function KPICard({ label, value, sub, color, icon: Icon, trend, trendVal, onClic
 }
 
 export default function KPIsOperativos() {
-  const { despachos, movimientos, devoluciones, productos, categorias,
-          clientes, ordenes, simboloMoneda, formulaValorizacion } = useApp()
+  const { data: despachos  = [] } = useDespachosList()
+  const { data: movimientos= [] } = useMovimientosList()
+  const { data: productos  = [] } = useProductosList()
+  const { data: categorias = [] } = useCategoriasList()
+  const { data: clientes   = [] } = useClientesList()
+  const { data: ordenes    = [] } = useOrdenesCompraList()
+  const simboloMoneda       = 'S/'
+  const formulaValorizacion = 'PMP'
+
+  // devoluciones: movimientos cuyo motivo contiene "devoluc" o tipo DEVOLUCION
+  const devoluciones = movimientos.filter(m =>
+    m.tipo === 'DEVOLUCION' ||
+    (m.motivo || '').toLowerCase().includes('devoluc')
+  )
 
   const [periodo, setPeriodo] = useState('30') // días
 
@@ -86,7 +102,7 @@ export default function KPIsOperativos() {
     const desPeriodo = despachos.filter(d => (d.createdAt||'').slice(0,10) >= desdeS)
     const desTotal   = desPeriodo.length
     const desCompletos = desPeriodo.filter(d => d.estado === 'ENTREGADO').length
-    const desAnulados  = desPeriodo.filter(d => d.estado === 'ANULADO').length
+    const desAnulados  = desPeriodo.filter(d => d.estado === 'CANCELADO').length
 
     // Fill Rate — % líneas entregadas sin faltantes
     // Calculamos como % de despachos que llegaron a ENTREGADO sin anularse
@@ -128,7 +144,7 @@ export default function KPIsOperativos() {
       const costoVtas = movimientos.filter(m => m.tipo === 'SALIDA' && (m.createdAt||'').slice(0,10) >= desdeS)
         .filter(m => prodsCat.some(p => p.id === m.productoId))
         .reduce((s,m) => s + (m.costoTotal||0), 0)
-      const invPromedio = prodsCat.reduce((s,p) => s + valorarStock(p.batches||[], formulaValorizacion), 0)
+      const invPromedio = prodsCat.reduce((s,p) => s + Number(p.precioCompra||0) * Number(p.stockActual||0), 0)
       const rot = invPromedio > 0 ? costoVtas / invPromedio : 0
       return { name: cat.nombre.slice(0,14), rot: +rot.toFixed(2) }
     }).filter(r => r.rot > 0).sort((a,b) => b.rot - a.rot)
@@ -146,7 +162,7 @@ export default function KPIsOperativos() {
         sem:       label,
         Pedidos:   semDes.length,
         Entregados:semDes.filter(d=>d.estado==='ENTREGADO').length,
-        Anulados:  semDes.filter(d=>d.estado==='ANULADO').length,
+        Anulados:  semDes.filter(d=>d.estado==='CANCELADO').length,
       })
     }
 
@@ -156,7 +172,7 @@ export default function KPIsOperativos() {
         const des = desPeriodo.filter(d => d.clienteId === c.id && d.estado === 'ENTREGADO')
         return {
           nombre:  c.razonSocial.slice(0,22),
-          valor:   des.reduce((s,d) => s+(d.total||0), 0),
+          valor:   des.reduce((s,d) => s+Number(d.total||0), 0),
           pedidos: des.length,
         }
       })
@@ -181,7 +197,7 @@ export default function KPIsOperativos() {
     }
   }, [despachos, movimientos, devoluciones, productos, categorias, clientes, ordenes, periodo, simboloMoneda, formulaValorizacion])
 
-  const SI_PERIODO = 'px-3 py-1.5 bg-[#1a2230] border border-white/[0.08] rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] pr-7'
+  const SI_PERIODO = 'px-3 py-1.5 bg-[#1a2230] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] pr-7'
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-6">
@@ -205,7 +221,7 @@ export default function KPIsOperativos() {
       </div>
 
       {/* Gauges principales */}
-      <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-6">
+      <div className="bg-[#161d28] border border-white/8 rounded-xl p-6">
         <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-5">
           Indicadores clave de rendimiento
         </div>
@@ -256,7 +272,7 @@ export default function KPIsOperativos() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* Despachos por semana */}
-        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+        <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
           <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">
             Despachos por semana — últimas 8 semanas
           </div>
@@ -274,7 +290,7 @@ export default function KPIsOperativos() {
         </div>
 
         {/* Top clientes por valor */}
-        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+        <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
           <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">
             Top clientes por valor entregado
           </div>
@@ -306,7 +322,7 @@ export default function KPIsOperativos() {
 
         {/* Rotación por categoría */}
         {kpis.rotacion.length > 0 && (
-          <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+          <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
             <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">
               Rotación de inventario por categoría
               <span className="ml-2 text-[#3d4f60] normal-case font-normal">(costo ventas / inventario promedio)</span>
@@ -324,7 +340,7 @@ export default function KPIsOperativos() {
         )}
 
         {/* Semáforo de estado */}
-        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+        <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
           <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">
             Semáforo de rendimiento
           </div>
@@ -360,7 +376,7 @@ export default function KPIsOperativos() {
       </div>
 
       {/* Glosario */}
-      <div className="bg-[#161d28] border border-white/[0.06] rounded-xl p-5">
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
         <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">Glosario de métricas</div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 text-[11px]">
           {[

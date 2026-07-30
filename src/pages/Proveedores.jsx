@@ -1,18 +1,25 @@
-﻿import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Plus, Search, Edit2, Trash2, Building2, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import * as storage from '../services/storage'
 import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field } from '../components/ui/index'
 import { usePlanLimits } from '../hooks/usePlanLimits'
 import { exportarProveedoresXLSX } from '../utils/exportXLSX'
 import { exportarProveedoresPDF } from '../utils/exportPDF'
+import {
+  useProveedoresList, useCrearProveedor, useActualizarProveedor, useEliminarProveedor,
+} from '../queries/proveedores.queries'
 
-const TH = ({c}) => <th className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/[0.08] sticky top-0">{c}</th>
-const SI = 'px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 w-full font-[inherit] placeholder-[#5f6f80]'
+const TH = ({c}) => <th className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 sticky top-0">{c}</th>
+const SI = 'px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 w-full font-[inherit] placeholder-[#5f6f80]'
 
 export default function Proveedores() {
-  const { proveedores, recargarProveedores } = useApp()
+  const { toast, sesion } = useApp()
   const planLimits = usePlanLimits()
+  const { data: proveedores = [], isLoading, isError } = useProveedoresList()
+  const crearProveedor      = useCrearProveedor()
+  const actualizarProveedor = useActualizarProveedor()
+  const eliminarProveedor   = useEliminarProveedor()
+
   const [modal,      setModal]      = useState(false)
   const [editando,   setEditando]   = useState(null)
   const [confirmDel, setConfirmDel] = useState(null)
@@ -23,25 +30,37 @@ export default function Proveedores() {
       !busqueda ||
       p.razonSocial.toLowerCase().includes(busqueda.toLowerCase()) ||
       p.ruc?.includes(busqueda) ||
-      p.contacto?.toLowerCase().includes(busqueda.toLowerCase())
+      p.direccion?.toLowerCase().includes(busqueda.toLowerCase())
     )
   , [proveedores, busqueda])
 
-  function handleSave(data) {
-    storage.saveProveedor(data)
-    recargarProveedores()
+  async function handleSave(data) {
+    const res = editando
+      ? await actualizarProveedor.mutateAsync({ id: editando.id, ...data })
+      : await crearProveedor.mutateAsync(data)
+    if (res.error) { toast(res.error, 'error'); return }
     setModal(false)
+    toast(editando ? 'Proveedor actualizado' : 'Proveedor creado', 'success')
   }
 
-  function handleDelete(id) {
-    storage.deleteProveedor(id)
-    recargarProveedores()
+  async function handleDelete(id) {
+    const res = await eliminarProveedor.mutateAsync(id)
+    if (res.error) { toast(res.error, 'error'); return }
     setConfirmDel(null)
+    toast('Proveedor eliminado', 'success')
   }
+
+  if (isError) return (
+    <div className="flex-1 p-4 md:p-6">
+      <div className="bg-[#161d28] border border-white/8 rounded-xl p-8 text-center text-[#5f6f80] text-[13px]">
+        Error al cargar proveedores. Verifica la conexión con el servidor.
+      </div>
+    </div>
+  )
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
-      <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+      <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="flex items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-3 min-w-0">
             <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] whitespace-nowrap">Proveedores</span>
@@ -52,10 +71,10 @@ export default function Proveedores() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarProveedoresXLSX(proveedores) }}>
+            <Btn variant="ghost" size="sm" onClick={() => exportarProveedoresXLSX(proveedores)}>
               <Download size={13}/> Excel
             </Btn>
-            <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarProveedoresPDF(proveedores, config?.empresa) }}>
+            <Btn variant="ghost" size="sm" onClick={() => exportarProveedoresPDF(proveedores, sesion?.nombre)}>
               <FileText size={13}/> PDF
             </Btn>
             <div className="flex items-center gap-2">
@@ -78,47 +97,50 @@ export default function Proveedores() {
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
-          <table className="w-full border-collapse text-[13px]">
-            <thead><tr>
-              <TH c="Razón Social"/><TH c="RUC"/><TH c="Contacto"/>
-              <TH c="Teléfono"/><TH c="Email"/><TH c="Plazo"/><TH c="Estado"/><TH c="Acciones"/>
-            </tr></thead>
-            <tbody>
-              {filtered.length === 0 && (
-                <tr><td colSpan={8}>
-                  <EmptyState icon={Building2} title="Sin proveedores" description="Agrega tu primer proveedor."/>
-                </td></tr>
-              )}
-              {filtered.map(p => (
-                <tr key={p.id} className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.02]">
-                  <td className="px-3.5 py-2.5 font-medium text-[#e8edf2]">{p.razonSocial}</td>
-                  <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{p.ruc || '—'}</td>
-                  <td className="px-3.5 py-2.5 text-[#9ba8b6]">{p.contacto || '—'}</td>
-                  <td className="px-3.5 py-2.5 text-[#9ba8b6]">{p.telefono || '—'}</td>
-                  <td className="px-3.5 py-2.5 text-[12px] text-blue-400">{p.email || '—'}</td>
-                  <td className="px-3.5 py-2.5 text-center text-[#9ba8b6]">{p.plazoEntrega ? `${p.plazoEntrega}d` : '—'}</td>
-                  <td className="px-3.5 py-2.5">
-                    <Badge variant={p.activo ? 'success' : 'neutral'}>{p.activo ? 'Activo' : 'Inactivo'}</Badge>
-                  </td>
-                  <td className="px-3.5 py-2.5">
-                    <div className="flex gap-1">
-                      <Btn variant="ghost" size="icon" title="Editar"
-                        onClick={() => { setEditando(p); setModal(true) }}>
-                        <Edit2 size={13}/>
-                      </Btn>
-                      <Btn variant="ghost" size="icon" title="Eliminar"
-                        className="text-red-400 hover:text-red-300"
-                        onClick={() => setConfirmDel(p.id)}>
-                        <Trash2 size={13}/>
-                      </Btn>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {isLoading ? (
+          <div className="text-center py-8 text-[#5f6f80] text-[13px]">Cargando…</div>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-white/8">
+            <table className="w-full border-collapse text-[13px]">
+              <thead><tr>
+                <TH c="Razón Social"/><TH c="RUC"/><TH c="Teléfono"/>
+                <TH c="Email"/><TH c="Dirección"/><TH c="Estado"/><TH c="Acciones"/>
+              </tr></thead>
+              <tbody>
+                {filtered.length === 0 && (
+                  <tr><td colSpan={7}>
+                    <EmptyState icon={Building2} title="Sin proveedores" description="Agrega tu primer proveedor."/>
+                  </td></tr>
+                )}
+                {filtered.map(p => (
+                  <tr key={p.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
+                    <td className="px-3.5 py-2.5 font-medium text-[#e8edf2]">{p.razonSocial}</td>
+                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{p.ruc || '—'}</td>
+                    <td className="px-3.5 py-2.5 text-[#9ba8b6]">{p.telefono || '—'}</td>
+                    <td className="px-3.5 py-2.5 text-[12px] text-blue-400">{p.email || '—'}</td>
+                    <td className="px-3.5 py-2.5 text-[#9ba8b6] max-w-[180px] truncate">{p.direccion || '—'}</td>
+                    <td className="px-3.5 py-2.5">
+                      <Badge variant={p.activo ? 'success' : 'neutral'}>{p.activo ? 'Activo' : 'Inactivo'}</Badge>
+                    </td>
+                    <td className="px-3.5 py-2.5">
+                      <div className="flex gap-1">
+                        <Btn variant="ghost" size="icon" title="Editar"
+                          onClick={() => { setEditando(p); setModal(true) }}>
+                          <Edit2 size={13}/>
+                        </Btn>
+                        <Btn variant="ghost" size="icon" title="Eliminar"
+                          className="text-red-400 hover:text-red-300"
+                          onClick={() => setConfirmDel(p.id)}>
+                          <Trash2 size={13}/>
+                        </Btn>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <ModalProveedor
@@ -141,11 +163,10 @@ export default function Proveedores() {
 }
 
 function ModalProveedor({ open, onClose, editando, onSave }) {
-  const init = { razonSocial:'', ruc:'', contacto:'', telefono:'', email:'', plazoEntrega:'', activo:true }
+  const init = { razonSocial: '', ruc: '', telefono: '', email: '', direccion: '', activo: true }
   const [form, setForm] = useState(init)
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
-  // useEffect correcto — se dispara cuando cambia editando o cuando se abre el modal
   useEffect(() => {
     setForm(editando ? { ...init, ...editando } : init)
   }, [editando, open])
@@ -179,15 +200,6 @@ function ModalProveedor({ open, onClose, editando, onSave }) {
             onChange={e => f('ruc', e.target.value)}
             placeholder="20123456789" maxLength={11}/>
         </Field>
-        <Field label="Plazo de Entrega (días)">
-          <input type="number" className={SI} value={form.plazoEntrega}
-            onChange={e => f('plazoEntrega', e.target.value)} min="0"/>
-        </Field>
-        <Field label="Persona de Contacto">
-          <input className={SI} value={form.contacto}
-            onChange={e => f('contacto', e.target.value)}
-            placeholder="Nombre del contacto"/>
-        </Field>
         <Field label="Teléfono">
           <input className={SI} value={form.telefono}
             onChange={e => f('telefono', e.target.value)}
@@ -199,6 +211,12 @@ function ModalProveedor({ open, onClose, editando, onSave }) {
         <input type="email" className={SI} value={form.email}
           onChange={e => f('email', e.target.value)}
           placeholder="ventas@proveedor.pe"/>
+      </Field>
+
+      <Field label="Dirección">
+        <input className={SI} value={form.direccion}
+          onChange={e => f('direccion', e.target.value)}
+          placeholder="Av. Industrial 123, Lima"/>
       </Field>
 
       <label className="flex items-center gap-2 cursor-pointer text-[13px] text-[#9ba8b6]">

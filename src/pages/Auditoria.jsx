@@ -6,10 +6,13 @@ import {
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatDate, fechaHoy } from '../utils/helpers'
-import * as storage from '../services/storage'
 import { EmptyState, Badge, Btn, Field, Modal } from '../components/ui/index'
+import { useUsuariosList } from '../queries/usuarios.queries'
+import { useAuditoriaList, useLimpiarAuditoria } from '../queries/auditoria.queries'
+import { exportarAuditoriaXLSX } from '../utils/exportXLSX'
+import { exportarAuditoriaPDF } from '../utils/exportPDF'
 
-const SI = 'w-full px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] font-[inherit] placeholder-[#5f6f80]'
+const SI = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] font-[inherit] placeholder-[#5f6f80]'
 const SEL = SI + ' pr-8'
 
 // Metadatos por tipo de acción
@@ -26,6 +29,9 @@ const ACCIONES = {
   VIEW: { label: 'Consulta', color: '#5f6f80', icon: Eye, badge: 'neutral' },
 }
 
+// Los slugs vienen del primer segmento de ruta real del backend (ver
+// AuditoriaInterceptor), no de los nombres viejos de localStorage — por eso
+// coexisten ambos: los de abajo son los que realmente puede emitir el backend.
 const MODULOS_LABEL = {
   auth: 'Acceso', inventario: 'Inventario', entradas: 'Entradas', salidas: 'Salidas',
   ajustes: 'Ajustes', devoluciones: 'Devoluciones', transferencias: 'Transferencias',
@@ -34,12 +40,21 @@ const MODULOS_LABEL = {
   kardex: 'Kardex', vencimientos: 'Vencimientos', reorden: 'Punto Reorden',
   prevision: 'Previsión', reportes: 'Reportes', usuarios: 'Usuarios',
   maestros: 'Maestros', configuracion: 'Configuración', 'inv-fisico': 'Inv. Físico',
+  // Slugs reales de rutas del backend (@Controller):
+  productos: 'Productos', almacenes: 'Almacenes', categorias: 'Categorías',
+  ubicaciones: 'Ubicaciones', lotes: 'Lotes', 'areas-internas': 'Áreas Internas',
+  'ordenes-compra': 'Órdenes de Compra', 'cuentas-por-cobrar': 'Cuentas por Cobrar',
+  proformas: 'Proformas', rutas: 'Rutas', flota: 'Flota', empaques: 'Empaques',
+  'pedidos-internos': 'Pedidos Internos', 'pedidos-portal': 'Pedidos del Portal',
+  'inventario-fisico': 'Inventario Físico', 'listas-precios': 'Listas de Precios',
+  'facturas-b2b': 'Facturas B2B', transportistas: 'Transportistas', sunat: 'Guía de Remisión',
+  datos: 'Datos / Reset',
 }
 
 export default function Auditoria() {
-  const { usuarios, sesion, simboloMoneda } = useApp()
+  const { sesion, toast } = useApp()
+  const { data: usuarios = [] } = useUsuariosList()
 
-  const [logs, setLogs] = useState(() => storage.getAuditoria().data || [])
   const [busqueda, setBusqueda] = useState('')
   const [filtAccion, setFiltAccion] = useState('')
   const [filtModulo, setFiltModulo] = useState('')
@@ -49,49 +64,44 @@ export default function Auditoria() {
   const [verLog, setVerLog] = useState(null)
   const [confirmLimpiar, setConfirmLimpiar] = useState(false)
 
-  function recargar() {
-    setLogs(storage.getAuditoria({
-      busqueda, accion: filtAccion, modulo: filtModulo,
-      usuarioId: filtUser, desde: filtDesde, hasta: filtHasta,
-    }).data || [])
-  }
+  const { data: apiLogs = [], refetch } = useAuditoriaList({
+    busqueda, accion: filtAccion, modulo: filtModulo,
+    usuarioId: filtUser, desde: filtDesde, hasta: filtHasta,
+  })
+  const limpiarMutation = useLimpiarAuditoria()
 
-  const logsFiltered = useMemo(() => {
-    let d = logs
-    if (busqueda) { const q = busqueda.toLowerCase(); d = d.filter(l => l.detalle?.toLowerCase().includes(q) || l.usuarioNombre?.toLowerCase().includes(q) || l.modulo?.toLowerCase().includes(q)) }
-    if (filtAccion) d = d.filter(l => l.accion === filtAccion)
-    if (filtModulo) d = d.filter(l => l.modulo === filtModulo)
-    if (filtUser) d = d.filter(l => l.usuarioId === filtUser)
-    if (filtDesde) d = d.filter(l => l.fecha >= filtDesde)
-    if (filtHasta) d = d.filter(l => l.fecha <= filtHasta)
-    return d
-  }, [logs, busqueda, filtAccion, filtModulo, filtUser, filtDesde, filtHasta])
+  // El API aplica todos los filtros — usamos apiLogs directamente
+  const logsFiltered = apiLogs
 
   // KPIs
   const kpis = useMemo(() => {
     const hoy = fechaHoy()
     return {
-      total: logs.length,
-      hoy: logs.filter(l => l.fecha === hoy).length,
-      errores: logs.filter(l => l.accion === 'LOGIN_FAILED' || l.accion === 'DELETE').length,
-      usuarios: [...new Set(logs.map(l => l.usuarioId))].length,
+      total:    apiLogs.length,
+      hoy:      apiLogs.filter(l => (l.timestamp||'').slice(0,10) === hoy).length,
+      errores:  apiLogs.filter(l => l.accion === 'LOGIN_FAILED' || l.accion === 'DELETE').length,
+      usuarios: [...new Set(apiLogs.map(l => l.usuarioId))].length,
     }
-  }, [logs])
+  }, [apiLogs])
 
-  function exportarCSV() {
-    const rows = [['Fecha', 'Hora', 'Usuario', 'Acción', 'Módulo', 'Detalle']]
-    logsFiltered.forEach(l => rows.push([l.fecha, l.hora, l.usuarioNombre, l.accion, l.modulo, l.detalle]))
-    const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n')
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }))
-    a.download = `auditoria_${fechaHoy()}.csv`
-    a.click()
+  function logsParaExportar() {
+    return logsFiltered.map(l => {
+      const ts = l.timestamp ? new Date(l.timestamp) : null
+      return {
+        ...l,
+        fecha: ts ? ts.toLocaleDateString('es-PE') : '',
+        hora:  ts ? ts.toLocaleTimeString('es-PE') : '',
+      }
+    })
   }
+  async function exportExcel() { await exportarAuditoriaXLSX(logsParaExportar()) }
+  async function exportPDF()   { await exportarAuditoriaPDF(logsParaExportar(), sesion?.nombre) }
 
-  function limpiar() {
-    storage.limpiarAuditoria()
-    setLogs([])
+  async function limpiar() {
+    const res = await limpiarMutation.mutateAsync()
+    if (res?.error) { toast(res.error, 'error'); return }
     setConfirmLimpiar(false)
+    toast('Bitácora de auditoría limpiada', 'success')
   }
 
   const tieneHayFiltros = busqueda || filtAccion || filtModulo || filtUser || filtDesde || filtHasta
@@ -107,8 +117,8 @@ export default function Auditoria() {
           ['Alertas / Errores', kpis.errores, '#ef4444', AlertTriangle],
           ['Usuarios activos', kpis.usuarios, '#f59e0b', Shield],
         ].map(([label, val, color, Icon]) => (
-          <div key={label} className="relative bg-[#161d28] border border-white/[0.08] rounded-xl px-5 py-4 overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ background: color }} />
+          <div key={label} className="relative bg-[#161d28] border border-white/8 rounded-xl px-5 py-4 overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-0.75 rounded-t-xl" style={{ background: color }} />
             <div className="absolute top-3 right-4 opacity-[0.06]"><Icon size={44} /></div>
             <div className="flex items-center gap-2 mb-2">
               <Icon size={13} style={{ color }} />
@@ -120,7 +130,7 @@ export default function Auditoria() {
       </div>
 
       {/* Filtros */}
-      <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+      <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="flex items-center justify-between mb-3">
           <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] flex items-center gap-2">
             <Filter size={12} /> Filtros
@@ -131,10 +141,13 @@ export default function Auditoria() {
                 Limpiar filtros
               </Btn>
             )}
-            <Btn variant="ghost" size="sm" onClick={exportarCSV}>
-              <Download size={12} /> Exportar CSV
+            <Btn variant="ghost" size="sm" onClick={exportExcel}>
+              <Download size={12} /> Excel
             </Btn>
-            {sesion?.rol === 'admin' && (
+            <Btn variant="ghost" size="sm" onClick={exportPDF}>
+              <FileText size={12} /> PDF
+            </Btn>
+            {sesion?.rol?.codigo === 'admin' && (
               <Btn variant="ghost" size="sm" className="text-red-400 hover:text-red-300" onClick={() => setConfirmLimpiar(true)}>
                 <Trash2 size={12} /> Limpiar log
               </Btn>
@@ -164,21 +177,21 @@ export default function Auditoria() {
       </div>
 
       {/* Tabla de logs */}
-      <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+      <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">
             Registro de Auditoría
           </span>
           <span className="text-[12px] text-[#5f6f80]">
-            {logsFiltered.length} de {logs.length} eventos
+            {logsFiltered.length} de {apiLogs.length} eventos
           </span>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+        <div className="overflow-x-auto rounded-xl border border-white/8">
           <table className="w-full border-collapse text-[13px]">
             <thead><tr>
               {['Fecha', 'Hora', 'Usuario', 'Acción', 'Módulo', 'Detalle', ''].map(h => (
-                <th key={h} className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/[0.08] whitespace-nowrap">{h}</th>
+                <th key={h} className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/8 whitespace-nowrap">{h}</th>
               ))}
             </tr></thead>
             <tbody>
@@ -192,15 +205,15 @@ export default function Auditoria() {
                 const meta = ACCIONES[log.accion] || ACCIONES.VIEW
                 const Icon = meta.icon
                 return (
-                  <tr key={log.id} className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.02]">
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6] whitespace-nowrap">{log.fecha}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#5f6f80] whitespace-nowrap">{log.hora}</td>
+                  <tr key={log.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
+                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6] whitespace-nowrap">{(log.timestamp||'').slice(0,10)}</td>
+                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#5f6f80] whitespace-nowrap">{log.timestamp ? new Date(log.timestamp).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}) : ''}</td>
                     <td className="px-3.5 py-2.5">
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-[#00c896]/15 text-[#00c896] text-[10px] font-bold flex items-center justify-center shrink-0">
                           {log.usuarioNombre?.charAt(0)?.toUpperCase() || '?'}
                         </div>
-                        <span className="text-[12px] text-[#e8edf2] truncate max-w-[110px]">{log.usuarioNombre}</span>
+                        <span className="text-[12px] text-[#e8edf2] truncate max-w-27.5">{log.usuarioNombre}</span>
                       </div>
                     </td>
                     <td className="px-3.5 py-2.5">
@@ -213,7 +226,7 @@ export default function Auditoria() {
                         {MODULOS_LABEL[log.modulo] || log.modulo}
                       </span>
                     </td>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6] max-w-[280px] truncate" title={log.detalle}>
+                    <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6] max-w-70 truncate" title={log.detalle}>
                       {log.detalle}
                     </td>
                     <td className="px-3.5 py-2.5">
@@ -242,7 +255,7 @@ export default function Auditoria() {
             ['Módulo', MODULOS_LABEL[verLog.modulo] || verLog.modulo],
             ['Detalle', verLog.detalle],
           ].map(([k, v]) => (
-            <div key={k} className="flex justify-between gap-3 py-2 border-b border-white/[0.05]">
+            <div key={k} className="flex justify-between gap-3 py-2 border-b border-white/5">
               <span className="text-[12px] text-[#5f6f80] shrink-0">{k}</span>
               <span className="text-[12px] text-[#e8edf2] font-medium text-right">{v}</span>
             </div>
@@ -266,7 +279,7 @@ export default function Auditoria() {
             <Btn variant="danger" onClick={limpiar}><Trash2 size={13} /> Confirmar limpieza</Btn>
           </>}>
           <p className="text-[13px] text-[#9ba8b6] leading-relaxed">
-            Se eliminarán <strong className="text-[#e8edf2]">{logs.length} eventos</strong> del log de auditoría. Esta acción no se puede deshacer. Se recomienda exportar el CSV primero.
+            Se eliminarán <strong className="text-[#e8edf2]">{apiLogs.length} eventos</strong> del log de auditoría. Esta acción no se puede deshacer. Se recomienda exportar el CSV primero.
           </p>
         </Modal>
       )}

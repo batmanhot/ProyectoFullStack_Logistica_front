@@ -518,6 +518,46 @@ div.font-mono {
 [data-theme="light"] .border-white\/\[0\.07\],
 [data-theme="light-clean"] .border-white\/\[0\.07\] { border-color: rgba(0,0,0,0.07) !important; }
 
+/* ── Colores de estado (-300/-400) — pensados para fondo oscuro
+   (Badge, alertas, iconos de estado en 75+ páginas). Sobre fondo blanco
+   quedan con muy poco contraste (ej. text-red-400 #f87171 sobre blanco).
+   Se oscurecen solo en tema claro; bg-*-500/N (los tints pastel) ya
+   funcionan bien en ambos temas y no se tocan. ── */
+[data-theme="light"] .text-red-400,
+[data-theme="light-clean"] .text-red-400     { color: #b91c1c !important; }
+[data-theme="light"] .text-red-300,
+[data-theme="light-clean"] .text-red-300     { color: #b91c1c !important; }
+[data-theme="light"] .hover\:text-red-300:hover,
+[data-theme="light-clean"] .hover\:text-red-300:hover { color: #991b1b !important; }
+
+[data-theme="light"] .text-amber-400,
+[data-theme="light-clean"] .text-amber-400   { color: #b45309 !important; }
+[data-theme="light"] .text-amber-300,
+[data-theme="light-clean"] .text-amber-300   { color: #b45309 !important; }
+
+[data-theme="light"] .text-green-400,
+[data-theme="light-clean"] .text-green-400   { color: #15803d !important; }
+[data-theme="light"] .text-green-300,
+[data-theme="light-clean"] .text-green-300   { color: #15803d !important; }
+
+[data-theme="light"] .text-blue-400,
+[data-theme="light-clean"] .text-blue-400    { color: #1d4ed8 !important; }
+[data-theme="light"] .text-blue-300,
+[data-theme="light-clean"] .text-blue-300    { color: #1d4ed8 !important; }
+
+[data-theme="light"] .text-emerald-400,
+[data-theme="light-clean"] .text-emerald-400 { color: #047857 !important; }
+[data-theme="light"] .text-emerald-300,
+[data-theme="light-clean"] .text-emerald-300 { color: #047857 !important; }
+
+[data-theme="light"] .text-yellow-400,
+[data-theme="light-clean"] .text-yellow-400  { color: #a16207 !important; }
+[data-theme="light"] .text-yellow-300,
+[data-theme="light-clean"] .text-yellow-300  { color: #a16207 !important; }
+
+[data-theme="light"] .text-purple-400,
+[data-theme="light-clean"] .text-purple-400  { color: #6d28d9 !important; }
+
 /* ── overlays de modales ── */
 [data-theme="light"] .bg-black\/70,
 [data-theme="light-clean"] .bg-black\/70 { background-color: rgba(0,0,0,0.35) !important; }

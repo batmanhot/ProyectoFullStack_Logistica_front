@@ -1,59 +1,52 @@
-﻿import { useState, useMemo } from 'react'
-import { Plus, Search, Eye, CheckCircle, FileText, X, ShoppingCart, MessageCircle, Mail, ChevronUp, ChevronDown, Download } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { Plus, Search, Eye, Edit2, CheckCircle, FileText, X, ChevronUp, ChevronDown, Download } from 'lucide-react'
 
 import { useApp } from '../store/AppContext'
-import { formatCurrency, formatDate, fechaHoy, generarNumDoc } from '../utils/helpers'
-import * as storage from '../services/storage'
-import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field, Alert } from '../components/ui/index'
+import { formatCurrency, formatDate, fechaHoy } from '../utils/helpers'
+import { Modal, EmptyState, Badge, Btn, Field } from '../components/ui/index'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
 import { imprimirRFQ } from '../utils/pdfTemplates'
 import { exportarCotizacionesXLSX } from '../utils/exportXLSX'
 import { exportarCotizacionesPDF } from '../utils/exportPDF'
+import { useCotizacionesList, useCrearCotizacion, useActualizarCotizacion, useAgregarRespuesta, useMarcarGanadora } from '../queries/cotizaciones.queries'
+import { useProductosList } from '../queries/productos.queries'
+import { useProveedoresList } from '../queries/proveedores.queries'
 
-const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
+const simboloMoneda = 'S/'
+const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
 const SEL = SI + ' pr-8'
 
 const ESTADOS_COT = {
-  BORRADOR:    { color: 'neutral',  label: 'Borrador'    },
-  ENVIADA:     { color: 'info',     label: 'Enviada'     },
-  RESPONDIDA:  { color: 'warning',  label: 'Respondida'  },
-  ADJUDICADA:  { color: 'success',  label: 'Adjudicada'  },
-  CANCELADA:   { color: 'danger',   label: 'Cancelada'   },
+  BORRADOR:   { color: 'neutral',  label: 'Borrador'   },
+  ENVIADA:    { color: 'info',     label: 'Enviada'    },
+  RESPONDIDA: { color: 'warning',  label: 'Respondida' },
+  ADJUDICADA: { color: 'success',  label: 'Adjudicada' },
+  CANCELADA:  { color: 'danger',   label: 'Cancelada'  },
 }
 
 export default function Cotizaciones() {
-  const { productos, proveedores, recargarOrdenes, sesion, toast, simboloMoneda } = useApp()
-  const [cotizaciones, setCotizaciones] = useState(() => storage.getCotizaciones().data || [])
-  const [modal, setModal]       = useState(false)
-  const [detalle, setDetalle]   = useState(null)
-  const [shareRFQ, setShareRFQ]  = useState(null)
-  const [filtEst, setFiltEst]   = useState('')
-  const [busqueda, setBusqueda] = useState('')
+  const { sesion, toast } = useApp()
+
+  const { data: cotizaciones = [], isLoading } = useCotizacionesList()
+  const { data: productos    = [] }            = useProductosList()
+  const { data: proveedores  = [] }            = useProveedoresList()
+
+  const crearCotizacion     = useCrearCotizacion()
+  const actualizarCotizacion = useActualizarCotizacion()
+  const agregarResp          = useAgregarRespuesta()
+  const marcarGanadora       = useMarcarGanadora()
+
+  const [modal,     setModal]     = useState(false)
+  const [editando,  setEditando]  = useState(null)
+  const [detalle,   setDetalle]   = useState(null)
+  const [shareRFQ,  setShareRFQ]  = useState(null)
+  const [filtEst,   setFiltEst]   = useState('')
+  const [busqueda,  setBusqueda]  = useState('')
   const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' })
 
   const handleSort = (key) => {
-    let direction = 'asc'
-    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc'
-    setSortConfig({ key, direction })
+    setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }))
   }
-
-  const toISODate = (val) => {
-    if (!val) return ''
-    if (val instanceof Date) return val.toISOString().split('T')[0]
-    const s = String(val).trim()
-    if (s.includes('/')) {
-      const parts = s.split('/')
-      if (parts.length === 3) {
-        const [d, m, y] = parts
-        return y.length === 4 ? `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` : `${d}-${m.padStart(2, '0')}-${y.padStart(2, '0')}`
-      }
-    }
-    const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
-    return isoMatch ? isoMatch[0] : ''
-  }
-
-
-  const recargar = () => setCotizaciones(storage.getCotizaciones().data || [])
 
   const filtered = useMemo(() => {
     let d = [...cotizaciones]
@@ -62,30 +55,16 @@ export default function Cotizaciones() {
       const q = busqueda.toLowerCase()
       d = d.filter(c => c.numero?.toLowerCase().includes(q) || c.notas?.toLowerCase().includes(q))
     }
-
     d.sort((a, b) => {
-      let aV = a[sortConfig.key]
-      let bV = b[sortConfig.key]
-
-      if (sortConfig.key === 'fecha' || sortConfig.key === 'fechaVencimiento') {
-        aV = toISODate(a[sortConfig.key])
-        bV = toISODate(b[sortConfig.key])
-      } else if (sortConfig.key === 'respuestas') {
-        aV = a.respuestas?.length || 0
-        bV = b.respuestas?.length || 0
-      } else if (typeof aV === 'string') {
-        aV = aV.toLowerCase()
-        bV = bV.toLowerCase()
-      }
-
+      let aV = sortConfig.key === 'respuestas' ? (a.respuestas?.length || 0) : (a[sortConfig.key] || '')
+      let bV = sortConfig.key === 'respuestas' ? (b.respuestas?.length || 0) : (b[sortConfig.key] || '')
+      if (typeof aV === 'string') { aV = aV.toLowerCase(); bV = bV.toLowerCase() }
       if (aV < bV) return sortConfig.direction === 'asc' ? -1 : 1
       if (aV > bV) return sortConfig.direction === 'asc' ? 1 : -1
       return 0
     })
-
     return d
   }, [cotizaciones, filtEst, busqueda, sortConfig])
-
 
   const kpis = useMemo(() => ({
     total:      cotizaciones.length,
@@ -94,37 +73,50 @@ export default function Cotizaciones() {
     adjud:      cotizaciones.filter(c => c.estado === 'ADJUDICADA').length,
   }), [cotizaciones])
 
-  function convertirAOC(cotiz, respuestaIdx) {
-    const resp = cotiz.respuestas?.[respuestaIdx]
-    if (!resp) return
-    const items = resp.items.map(it => ({
-      productoId: it.productoId,
-      cantidad: cotiz.items.find(i => i.productoId === it.productoId)?.cantidad || 0,
-      costoUnitario: it.precioUnitario,
-      subtotal: it.subtotal,
-      cantidadRecibida: 0,
-    }))
-    const subtotal = items.reduce((s, i) => s + i.subtotal, 0)
-    const igv      = +(subtotal * 0.18).toFixed(2)
-    const total    = +(subtotal + igv).toFixed(2)
-    storage.saveOrden({
-      numero: generarNumDoc('OC', '001'),
-      proveedorId: resp.proveedorId,
-      fecha: fechaHoy(), fechaEntrega: '',
-      estado: 'PENDIENTE', items, subtotal, igv, total,
-      notas: `Generada desde cotización ${cotiz.numero}`,
-      usuarioId: sesion?.id || 'usr1',
+  const provNombre = id => proveedores.find(p => p.id === id)?.razonSocial || id
+
+  async function handleCrear({ fechaVencimiento, notas, items }) {
+    const res = await crearCotizacion.mutateAsync({ fechaVencimiento: fechaVencimiento || undefined, notas, items })
+    if (res?.error) { toast(res.error, 'error'); return }
+    toast('Solicitud de cotización creada', 'success')
+    setModal(false)
+  }
+
+  async function handleEditar({ id, fechaVencimiento, notas, estado }) {
+    // UpdateCotizacionDto: solo fechaVencimiento?, notas?, estado?: 'ENVIADA'|'CANCELADA'
+    const dto = {
+      fechaVencimiento: fechaVencimiento || undefined,
+      notas:            notas || undefined,
+      ...(estado && ['ENVIADA', 'CANCELADA'].includes(estado) && { estado }),
+    }
+    const res = await actualizarCotizacion.mutateAsync({ id, ...dto })
+    if (res?.error) { toast(res.error, 'error'); return }
+    toast('Cotización actualizada', 'success')
+    setEditando(null)
+  }
+
+  async function handleAgregarRespuesta(cotiz, respForm) {
+    const res = await agregarResp.mutateAsync({
+      cotizacionId:  cotiz.id,
+      proveedorId:   respForm.proveedorId,
+      tiempoEntrega: respForm.tiempoEntrega || undefined,
+      notas:         respForm.notas || undefined,
+      items: respForm.items.map(it => ({
+        productoId:    it.productoId,
+        precioUnitario: Number(it.precioUnitario),
+      })),
     })
-    storage.saveCotizacion({ ...cotiz, estado: 'ADJUDICADA',
-      respuestas: cotiz.respuestas.map((r, i) => ({ ...r, ganadora: i === respuestaIdx }))
-    })
-    recargar()
-    recargarOrdenes()
-    toast(`OC generada desde cotización ${cotiz.numero}`, 'success')
+    if (res?.error) { toast(res.error, 'error'); return }
+    toast('Respuesta de proveedor registrada', 'success')
     setDetalle(null)
   }
 
-  const provNombre = id => proveedores.find(p => p.id === id)?.razonSocial || id
+  async function handleMarcarGanadora(cotiz, resp) {
+    const res = await marcarGanadora.mutateAsync({ cotizacionId: cotiz.id, respuestaId: resp.id })
+    if (res?.error) { toast(res.error, 'error'); return }
+    toast(`Respuesta de ${provNombre(resp.proveedorId)} marcada como ganadora. Crea la OC desde Órdenes de Compra.`, 'success')
+    setDetalle(null)
+  }
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
@@ -132,92 +124,83 @@ export default function Cotizaciones() {
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
-          ['Total RFQ',     kpis.total,      '#00c896'],
-          ['Enviadas',      kpis.pendientes, '#3b82f6'],
-          ['Respondidas',   kpis.respond,    '#f59e0b'],
-          ['Adjudicadas',   kpis.adjud,      '#22c55e'],
+          ['Total RFQ',   kpis.total,      '#00c896'],
+          ['Enviadas',    kpis.pendientes, '#3b82f6'],
+          ['Respondidas', kpis.respond,    '#f59e0b'],
+          ['Adjudicadas', kpis.adjud,      '#22c55e'],
         ].map(([l, v, c]) => (
-          <div key={l} className="relative bg-[#161d28] border border-white/[0.08] rounded-xl px-5 py-4 overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ background: c }}/>
+          <div key={l} className="relative bg-[#161d28] border border-white/8 rounded-xl px-5 py-4 overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-0.75 rounded-t-xl" style={{ background: c }}/>
             <div className="text-[11px] text-[#5f6f80] uppercase tracking-[0.05em] mb-2">{l}</div>
             <div className="text-[28px] font-semibold text-[#e8edf2]">{v}</div>
           </div>
         ))}
       </div>
 
-      <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
-        {/* ── Fila 1: título + botones ── */}
+      <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="flex items-center justify-between gap-3 mb-3">
           <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] whitespace-nowrap">Solicitudes de Cotización</span>
           <div className="flex items-center gap-2 shrink-0">
-            <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarCotizacionesXLSX(cotizaciones, proveedores, productos) }}>
+            <Btn variant="ghost" size="sm" onClick={async () => { await exportarCotizacionesXLSX(cotizaciones, proveedores, productos) }}>
               <Download size={13}/> Excel
             </Btn>
-            <Btn variant="ghost" size="sm" onClick={async()=>{ await exportarCotizacionesPDF(cotizaciones, proveedores, simboloMoneda, config?.empresa) }}>
+            <Btn variant="ghost" size="sm" onClick={async () => { await exportarCotizacionesPDF(cotizaciones, proveedores, simboloMoneda, sesion?.nombre) }}>
               <FileText size={13}/> PDF
             </Btn>
             <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nueva RFQ</Btn>
           </div>
         </div>
 
-        {/* ── Fila 2: buscador + filtro estado ── */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          <div className="relative flex-1 min-w-[180px]">
+          <div className="relative flex-1 min-w-44">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar número, notas..."
+            <input className={SI + ' pl-8 py-1.25! text-[12px]'} placeholder="Buscar número, notas..."
               value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select className={SEL} style={{ width:160, padding:'5px 8px', fontSize:12 }} value={filtEst} onChange={e => setFiltEst(e.target.value)}>
+          <select className={SEL} style={{ width: 160, padding: '5px 8px', fontSize: 12 }} value={filtEst} onChange={e => setFiltEst(e.target.value)}>
             <option value="">Todos los estados</option>
             {Object.keys(ESTADOS_COT).map(k => <option key={k} value={k}>{ESTADOS_COT[k].label}</option>)}
           </select>
-          <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">
-            {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
-          </span>
+          <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
           {(busqueda || filtEst) && (
-            <Btn variant="ghost" size="sm" onClick={() => { setBusqueda(''); setFiltEst('') }}>
-              <X size={12}/> Limpiar
-            </Btn>
+            <Btn variant="ghost" size="sm" onClick={() => { setBusqueda(''); setFiltEst('') }}><X size={12}/> Limpiar</Btn>
           )}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+        <div className="overflow-x-auto rounded-xl border border-white/8">
           <table className="w-full border-collapse text-[13px]">
             <thead>
               <tr>
                 {[
-                  { l: 'N° RFQ', k: 'numero' },
-                  { l: 'Fecha', k: 'fecha' },
-                  { l: 'Vence', k: 'fechaVencimiento' },
-                  { l: 'Ítems' },
-                  { l: 'Respuestas', k: 'respuestas' },
-                  { l: 'Estado', k: 'estado' },
-                  { l: 'Notas', k: 'notas' },
-                  { l: 'Acciones' }
-                ].map((h) => (
-                  <th key={h.l} 
-                    className={`bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/[0.08] cursor-pointer hover:bg-white/[0.02] whitespace-nowrap`}
-                    onClick={() => h.k && handleSort(h.k)}
-                  >
+                  { l: 'N° RFQ',      k: 'numero'          },
+                  { l: 'Fecha',       k: 'fecha'           },
+                  { l: 'Vence',       k: 'fechaVencimiento'},
+                  { l: 'Ítems'                              },
+                  { l: 'Respuestas',  k: 'respuestas'      },
+                  { l: 'Estado',      k: 'estado'          },
+                  { l: 'Notas',       k: 'notas'           },
+                  { l: 'Acciones'                           },
+                ].map(h => (
+                  <th key={h.l}
+                    className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/8 cursor-pointer hover:bg-white/2 whitespace-nowrap"
+                    onClick={() => h.k && handleSort(h.k)}>
                     <div className="flex items-center gap-1.5">
                       {h.l}
-                      {sortConfig.key === h.k && (
-                        sortConfig.direction === 'asc' ? <ChevronUp size={10} /> : <ChevronDown size={10} />
-                      )}
+                      {sortConfig.key === h.k && (sortConfig.direction === 'asc' ? <ChevronUp size={10}/> : <ChevronDown size={10}/>)}
                     </div>
                   </th>
                 ))}
               </tr>
             </thead>
-
             <tbody>
-              {filtered.length === 0 && (
+              {isLoading && <tr><td colSpan={8} className="text-center text-[#5f6f80] py-8 text-[12px]">Cargando cotizaciones...</td></tr>}
+              {!isLoading && filtered.length === 0 && (
                 <tr><td colSpan={8}>
                   <EmptyState icon={FileText} title="Sin cotizaciones" description="Crea tu primera solicitud de cotización."/>
                 </td></tr>
               )}
               {filtered.map(c => (
-                <tr key={c.id} className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.02]">
+                <tr key={c.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
                   <td className="px-3.5 py-2.5 font-mono text-[12px] font-semibold text-[#00c896]">{c.numero}</td>
                   <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{formatDate(c.fecha)}</td>
                   <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{formatDate(c.fechaVencimiento)}</td>
@@ -228,16 +211,17 @@ export default function Cotizaciones() {
                     </span>
                   </td>
                   <td className="px-3.5 py-2.5">
-                    <Badge variant={ESTADOS_COT[c.estado]?.color || 'neutral'}>
-                      {ESTADOS_COT[c.estado]?.label || c.estado}
-                    </Badge>
+                    <Badge variant={ESTADOS_COT[c.estado]?.color || 'neutral'}>{ESTADOS_COT[c.estado]?.label || c.estado}</Badge>
                   </td>
-                  <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6] max-w-[160px] truncate">{c.notas}</td>
+                  <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6] max-w-40 truncate">{c.notas}</td>
                   <td className="px-3.5 py-2.5">
                     <div className="flex gap-1">
                       <Btn variant="ghost" size="icon" onClick={() => setDetalle(c)}><Eye size={13}/></Btn>
+                      {['BORRADOR', 'ENVIADA'].includes(c.estado) && (
+                        <Btn variant="ghost" size="icon" title="Editar" onClick={() => setEditando(c)}><Edit2 size={13}/></Btn>
+                      )}
                       {c.estado === 'ENVIADA' && (
-                        <Btn variant="ghost" size="icon" title="PDF / Compartir" className="text-[#00c896] hover:text-[#009e76]" onClick={() => setShareRFQ(c)}>
+                        <Btn variant="ghost" size="icon" title="PDF / Compartir" className="text-[#00c896]" onClick={() => setShareRFQ(c)}>
                           <FileText size={13}/>
                         </Btn>
                       )}
@@ -250,9 +234,43 @@ export default function Cotizaciones() {
         </div>
       </div>
 
-      <ModalNuevaRFQ open={modal} onClose={() => setModal(false)} productos={productos} proveedores={proveedores}
-        onSaved={() => { recargar(); setModal(false); toast('Solicitud de cotización creada', 'success') }}
-        sesionId={sesion?.id}/>
+      {/* Guía de uso */}
+      <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Cotizaciones?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+          {[
+            ['1. Crear RFQ',           'Arma la Solicitud de Cotización con los productos y cantidades que necesitas cotizar. Queda en estado Borrador.'],
+            ['2. Enviar',              'Desde "Editar" cambia el estado a Enviada, o comparte el PDF por WhatsApp/correo con el botón de la fila.'],
+            ['3. Registrar respuestas','Por cada proveedor que cotice, abre el detalle de la RFQ y registra su precio por ítem, plazo de entrega y notas. La RFQ pasa a Respondida.'],
+            ['4. Adjudicar',           'Compara las respuestas y marca la mejor como "Ganadora". La RFQ pasa a Adjudicada — esto NO crea la Orden de Compra automáticamente.'],
+            ['5. Crear la OC',         'Ve al módulo Órdenes de Compra y crea la orden usando los datos de la respuesta ganadora (proveedor y precios).'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <ModalNuevaRFQ
+        open={modal}
+        onClose={() => setModal(false)}
+        productos={productos}
+        saving={crearCotizacion.isPending}
+        onSave={handleCrear}
+      />
+
+      {editando && (
+        <ModalEditarCotizacion
+          cotiz={editando}
+          saving={actualizarCotizacion.isPending}
+          onClose={() => setEditando(null)}
+          onSave={handleEditar}
+        />
+      )}
 
       {shareRFQ && (
         <Modal open title={`PDF / Compartir — ${shareRFQ.numero}`} onClose={() => setShareRFQ(null)} size="sm"
@@ -261,23 +279,25 @@ export default function Cotizaciones() {
             tipo="Solicitud de Cotización"
             numero={shareRFQ.numero}
             onClose={() => setShareRFQ(null)}
-            onPrint={() => imprimirRFQ({ cotiz: shareRFQ, productos, config: { simboloMoneda: simboloMoneda } })}
+            onPrint={() => imprimirRFQ({ cotiz: shareRFQ, productos, config: { simboloMoneda } })}
             extra={{
-              whatsapp: `https://wa.me/?text=${encodeURIComponent(`Estimado proveedor, le enviamos la Solicitud de Cotización ${shareRFQ.numero}. Por favor revisar los ítems adjuntos y enviarnos su mejor oferta. Gracias.`)}`,
-              mailto: `mailto:?subject=${encodeURIComponent(`Solicitud de Cotización ${shareRFQ.numero}`)}&body=${encodeURIComponent(`Estimado Proveedor,\n\nAdjuntamos la Solicitud de Cotización ${shareRFQ.numero} para su atención.\n\nQuedamos a la espera de su respuesta.`)}`,
+              whatsapp: `https://wa.me/?text=${encodeURIComponent(`Estimado proveedor, le enviamos la Solicitud de Cotización ${shareRFQ.numero}. Por favor revisar los ítems adjuntos y enviarnos su mejor oferta.`)}`,
+              mailto: `mailto:?subject=${encodeURIComponent(`Solicitud de Cotización ${shareRFQ.numero}`)}&body=${encodeURIComponent(`Estimado Proveedor,\n\nAdjuntamos la Solicitud de Cotización ${shareRFQ.numero}.\n\nQuedamos a la espera de su respuesta.`)}`,
             }}
           />
         </Modal>
       )}
+
       {detalle && (
-        <ModalDetalleRFQ cotiz={detalle} productos={productos} provNombre={provNombre}
-          simboloMoneda={simboloMoneda} onClose={() => setDetalle(null)}
-          onAgregarRespuesta={(cotiz, resp) => {
-            const actualizada = { ...cotiz, estado: 'RESPONDIDA', respuestas: [...(cotiz.respuestas||[]), resp] }
-            storage.saveCotizacion(actualizada); recargar(); setDetalle(actualizada)
-            toast('Respuesta de proveedor registrada', 'success')
-          }}
-          onConvertirOC={(cotiz, idx) => convertirAOC(cotiz, idx)}
+        <ModalDetalleRFQ
+          cotiz={detalle}
+          productos={productos}
+          proveedores={proveedores}
+          simboloMoneda={simboloMoneda}
+          onClose={() => setDetalle(null)}
+          saving={agregarResp.isPending || marcarGanadora.isPending}
+          onAgregarRespuesta={respForm => handleAgregarRespuesta(detalle, respForm)}
+          onMarcarGanadora={resp => handleMarcarGanadora(detalle, resp)}
         />
       )}
     </div>
@@ -285,59 +305,54 @@ export default function Cotizaciones() {
 }
 
 /* ── Modal Nueva RFQ ─────────────────────────────── */
-function ModalNuevaRFQ({ open, onClose, productos, proveedores, onSaved, sesionId }) {
-  const [form, setForm]   = useState({ fecha: fechaHoy(), fechaVencimiento: '', notas: '' })
+function ModalNuevaRFQ({ open, onClose, productos, saving, onSave }) {
+  const [form,  setForm]  = useState({ fechaVencimiento: '', notas: '' })
   const [items, setItems] = useState([])
-  const [ni, setNi]       = useState({ productoId: '', cantidad: '' })
+  const [ni,    setNi]    = useState({ productoId: '', cantidad: '' })
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   function addItem() {
     if (!ni.productoId || !ni.cantidad) return
-    const prod = productos.find(p => p.id === ni.productoId)
     if (items.find(i => i.productoId === ni.productoId)) return
+    const prod = productos.find(p => p.id === ni.productoId)
     setItems(prev => [...prev, { productoId: ni.productoId, descripcion: prod?.nombre || '', cantidad: +ni.cantidad }])
     setNi({ productoId: '', cantidad: '' })
-  }
-
-  function handleSave() {
-    if (!items.length) return
-    storage.saveCotizacion({
-      numero: generarNumDoc('RFQ', '001'),
-      estado: 'BORRADOR', fecha: form.fecha,
-      fechaVencimiento: form.fechaVencimiento,
-      items, respuestas: [], notas: form.notas,
-      usuarioId: sesionId || 'usr1',
-    })
-    setForm({ fecha: fechaHoy(), fechaVencimiento: '', notas: '' })
-    setItems([])
-    onSaved()
   }
 
   return (
     <Modal open={open} onClose={onClose} title="Nueva Solicitud de Cotización (RFQ)" size="lg"
       footer={<>
         <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
-        <Btn variant="primary" onClick={handleSave} disabled={!items.length}>Crear RFQ</Btn>
+        <Btn variant="primary" disabled={!items.length || saving}
+          onClick={() => onSave({ ...form, items })}>
+          {saving ? 'Creando...' : 'Crear RFQ'}
+        </Btn>
       </>}>
       <div className="grid grid-cols-2 gap-3.5">
-        <Field label="Fecha"><input type="date" className={SI} value={form.fecha} onChange={e => f('fecha', e.target.value)}/></Field>
-        <Field label="Fecha vencimiento" hint="Límite para recibir respuestas"><input type="date" className={SI} value={form.fechaVencimiento} onChange={e => f('fechaVencimiento', e.target.value)}/></Field>
+        <Field label="Fecha vencimiento" hint="Límite para recibir respuestas">
+          <input type="date" className={SI} value={form.fechaVencimiento} onChange={e => f('fechaVencimiento', e.target.value)}/>
+        </Field>
+        <Field label="Notas / Especificaciones">
+          <input className={SI} value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Condiciones especiales..."/>
+        </Field>
       </div>
 
       <div className="text-[13px] font-semibold text-[#e8edf2]">Productos a cotizar</div>
       <div className="flex gap-2 flex-wrap items-end">
-        <div className="flex-[2] min-w-[200px]">
+        <div className="flex-2 min-w-50">
           <Field label="Producto">
             <select className={SEL} value={ni.productoId} onChange={e => setNi(p => ({ ...p, productoId: e.target.value }))}>
               <option value="">Seleccionar...</option>
-              {productos.filter(p => p.activo !== false && !items.find(i => i.productoId === p.id)).map(p => (
+              {productos.filter(p => p.estado === 'Activo' && !items.find(i => i.productoId === p.id)).map(p => (
                 <option key={p.id} value={p.id}>{p.sku} — {p.nombre}</option>
               ))}
             </select>
           </Field>
         </div>
-        <div className="flex-1 min-w-[100px]">
-          <Field label="Cantidad"><input type="number" className={SI} value={ni.cantidad} onChange={e => setNi(p => ({ ...p, cantidad: e.target.value }))} min="1"/></Field>
+        <div className="flex-1 min-w-25">
+          <Field label="Cantidad">
+            <input type="number" className={SI} value={ni.cantidad} onChange={e => setNi(p => ({ ...p, cantidad: e.target.value }))} min="1"/>
+          </Field>
         </div>
         <Btn variant="secondary" onClick={addItem}>+ Agregar</Btn>
       </div>
@@ -357,49 +372,49 @@ function ModalNuevaRFQ({ open, onClose, productos, proveedores, onSaved, sesionI
           ))}
         </div>
       )}
-
-      <Field label="Notas / Especificaciones">
-        <textarea className={SI + ' resize-y min-h-[60px]'} value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Condiciones especiales, especificaciones técnicas..."/>
-      </Field>
     </Modal>
   )
 }
 
 /* ── Modal Detalle RFQ ───────────────────────────── */
-function ModalDetalleRFQ({ cotiz, productos, provNombre, simboloMoneda, onClose, onAgregarRespuesta, onConvertirOC }) {
-  const [tabResp, setTabResp]   = useState(false)
-  const [respForm, setRespForm] = useState(null)
-  const { proveedores } = useApp()
+function ModalDetalleRFQ({ cotiz, productos, proveedores, simboloMoneda, onClose, saving, onAgregarRespuesta, onMarcarGanadora }) {
+  const [tabResp,   setTabResp]   = useState(false)
+  const [respForm,  setRespForm]  = useState(null)
 
   function initRespForm() {
     setRespForm({
-      proveedorId: '', fecha: fechaHoy(),
-      items: cotiz.items.map(i => ({ productoId: i.productoId, precioUnitario: '', subtotal: 0 })),
-      total: 0, tiempoEntrega: '', notas: '',
+      proveedorId: '',
+      items: (cotiz.items || []).map(i => ({ productoId: i.productoId, precioUnitario: '', subtotal: 0 })),
+      tiempoEntrega: '', notas: '',
     })
     setTabResp(true)
   }
 
   function calcTotal(items) {
-    return items.reduce((s, i) => s + (+i.precioUnitario * (cotiz.items.find(x => x.productoId === i.productoId)?.cantidad || 0)), 0)
+    return items.reduce((s, i) => {
+      const cant = cotiz.items?.find(x => x.productoId === i.productoId)?.cantidad || 0
+      return s + (+i.precioUnitario * cant)
+    }, 0)
   }
 
   function updatePrecio(productoId, precio) {
-    const cant = cotiz.items.find(i => i.productoId === productoId)?.cantidad || 0
+    const cant = cotiz.items?.find(i => i.productoId === productoId)?.cantidad || 0
     setRespForm(prev => {
       const items = prev.items.map(i => i.productoId === productoId
         ? { ...i, precioUnitario: precio, subtotal: +(+precio * cant).toFixed(2) }
         : i
       )
-      return { ...prev, items, total: calcTotal(items) }
+      return { ...prev, items }
     })
   }
+
+  const provNombre = id => proveedores.find(p => p.id === id)?.razonSocial || id
 
   return (
     <Modal open title={`Cotización ${cotiz.numero}`} onClose={onClose} size="xl"
       footer={<>
         <Btn variant="secondary" onClick={onClose}>Cerrar</Btn>
-        {cotiz.estado !== 'ADJUDICADA' && cotiz.estado !== 'CANCELADA' && !tabResp && (
+        {!tabResp && cotiz.estado !== 'ADJUDICADA' && cotiz.estado !== 'CANCELADA' && (
           <Btn variant="primary" onClick={initRespForm}><Plus size={13}/> Registrar Respuesta</Btn>
         )}
       </>}>
@@ -407,38 +422,40 @@ function ModalDetalleRFQ({ cotiz, productos, provNombre, simboloMoneda, onClose,
       {/* Info general */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          ['N° RFQ', cotiz.numero],
-          ['Estado', null],
-          ['Fecha', formatDate(cotiz.fecha)],
-          ['Vence',  formatDate(cotiz.fechaVencimiento)],
-          ['Ítems', cotiz.items?.length],
-          ['Respuestas', cotiz.respuestas?.length || 0],
+          ['N° RFQ',      cotiz.numero],
+          ['Estado',      null],
+          ['Fecha',       formatDate(cotiz.fecha)],
+          ['Vence',       formatDate(cotiz.fechaVencimiento)],
+          ['Ítems',       cotiz.items?.length],
+          ['Respuestas',  cotiz.respuestas?.length || 0],
         ].map(([k, v]) => (
           <div key={k} className="bg-[#1a2230] rounded-lg px-3.5 py-2.5">
             <div className="text-[11px] text-[#5f6f80] mb-0.5">{k}</div>
             <div className="text-[13px] font-medium text-[#e8edf2]">
-              {k === 'Estado' ? <Badge variant={ESTADOS_COT[cotiz.estado]?.color}>{ESTADOS_COT[cotiz.estado]?.label}</Badge> : v}
+              {k === 'Estado'
+                ? <Badge variant={ESTADOS_COT[cotiz.estado]?.color}>{ESTADOS_COT[cotiz.estado]?.label}</Badge>
+                : v}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Ítems requeridos */}
+      {/* Ítems */}
       <div className="text-[13px] font-semibold text-[#e8edf2]">Ítems solicitados</div>
-      <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+      <div className="overflow-x-auto rounded-xl border border-white/8">
         <table className="w-full border-collapse text-[13px]">
           <thead><tr>
-            {['Producto','Cantidad'].map(h => (
-              <th key={h} className="bg-[#1a2230] px-3.5 py-2 text-left text-[11px] font-semibold text-[#5f6f80] uppercase border-b border-white/[0.08]">{h}</th>
+            {['Producto', 'Cantidad'].map(h => (
+              <th key={h} className="bg-[#1a2230] px-3.5 py-2 text-left text-[11px] font-semibold text-[#5f6f80] uppercase border-b border-white/8">{h}</th>
             ))}
           </tr></thead>
           <tbody>
-            {cotiz.items?.map((it, i) => {
+            {(cotiz.items || []).map((it, i) => {
               const p = productos.find(x => x.id === it.productoId)
               return (
-                <tr key={i} className="border-b border-white/[0.06] last:border-0">
-                  <td className="px-3.5 py-2 font-medium">{p?.nombre || it.descripcion}</td>
-                  <td className="px-3.5 py-2 font-mono text-[12px]">{it.cantidad} {p?.unidadMedida}</td>
+                <tr key={i} className="border-b border-white/6 last:border-0">
+                  <td className="px-3.5 py-2 font-medium text-[#e8edf2]">{p?.nombre || it.descripcion}</td>
+                  <td className="px-3.5 py-2 font-mono text-[12px] text-[#9ba8b6]">{it.cantidad} {p?.unidadMedida}</td>
                 </tr>
               )
             })}
@@ -446,17 +463,19 @@ function ModalDetalleRFQ({ cotiz, productos, provNombre, simboloMoneda, onClose,
         </table>
       </div>
 
-      {/* Respuestas existentes */}
+      {/* Respuestas */}
       {(cotiz.respuestas?.length > 0) && (
         <>
           <div className="text-[13px] font-semibold text-[#e8edf2]">Respuestas de proveedores</div>
           <div className="flex flex-col gap-3">
             {cotiz.respuestas.map((resp, ri) => (
-              <div key={ri} className={`p-4 rounded-xl border ${resp.ganadora ? 'border-[#00c896]/40 bg-[#00c896]/5' : 'border-white/[0.08] bg-[#1a2230]'}`}>
+              <div key={resp.id || ri} className={`p-4 rounded-xl border ${resp.ganadora ? 'border-[#00c896]/40 bg-[#00c896]/5' : 'border-white/8 bg-[#1a2230]'}`}>
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <div className="font-semibold text-[#e8edf2]">{provNombre(resp.proveedorId)}</div>
-                    <div className="text-[11px] text-[#5f6f80] mt-0.5">Respondido: {formatDate(resp.fecha)} · Entrega: {resp.tiempoEntrega} días</div>
+                    <div className="text-[11px] text-[#5f6f80] mt-0.5">
+                      Respondido: {formatDate(resp.fecha)} · Entrega: {resp.tiempoEntrega} días
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {resp.ganadora && <Badge variant="teal">Ganadora</Badge>}
@@ -464,9 +483,9 @@ function ModalDetalleRFQ({ cotiz, productos, provNombre, simboloMoneda, onClose,
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 mb-3">
-                  {resp.items.map((it, ii) => {
-                    const p = productos.find(x => x.id === it.productoId)
-                    const cant = cotiz.items.find(i => i.productoId === it.productoId)?.cantidad || 0
+                  {(resp.items || []).map((it, ii) => {
+                    const p    = productos.find(x => x.id === it.productoId)
+                    const cant = cotiz.items?.find(i => i.productoId === it.productoId)?.cantidad || 0
                     return (
                       <div key={ii} className="bg-[#0e1117]/40 rounded-lg px-3 py-2">
                         <div className="text-[11px] text-[#5f6f80] truncate">{p?.nombre || it.productoId}</div>
@@ -477,8 +496,8 @@ function ModalDetalleRFQ({ cotiz, productos, provNombre, simboloMoneda, onClose,
                   })}
                 </div>
                 {!resp.ganadora && cotiz.estado === 'RESPONDIDA' && (
-                  <Btn variant="primary" size="sm" onClick={() => onConvertirOC(cotiz, ri)}>
-                    <ShoppingCart size={13}/> Convertir en OC
+                  <Btn variant="primary" size="sm" disabled={saving} onClick={() => onMarcarGanadora(resp)}>
+                    <CheckCircle size={13}/> Marcar ganadora → crear OC
                   </Btn>
                 )}
               </div>
@@ -487,25 +506,29 @@ function ModalDetalleRFQ({ cotiz, productos, provNombre, simboloMoneda, onClose,
         </>
       )}
 
-      {/* Form para agregar respuesta */}
+      {/* Form agregar respuesta */}
       {tabResp && respForm && (
         <>
-          <div className="h-px bg-white/[0.08]"/>
+          <div className="h-px bg-white/8"/>
           <div className="text-[13px] font-semibold text-[#e8edf2]">Registrar respuesta de proveedor</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             <Field label="Proveedor *">
               <select className={SEL} value={respForm.proveedorId} onChange={e => setRespForm(p => ({ ...p, proveedorId: e.target.value }))}>
                 <option value="">Seleccionar...</option>
                 {proveedores.map(p => <option key={p.id} value={p.id}>{p.razonSocial}</option>)}
               </select>
             </Field>
-            <Field label="Fecha respuesta"><input type="date" className={SI} value={respForm.fecha} onChange={e => setRespForm(p => ({ ...p, fecha: e.target.value }))}/></Field>
-            <Field label="Plazo entrega (días)"><input type="number" className={SI} value={respForm.tiempoEntrega} onChange={e => setRespForm(p => ({ ...p, tiempoEntrega: +e.target.value }))} min="0"/></Field>
+            <Field label="Plazo entrega (días)">
+              <input type="number" className={SI} value={respForm.tiempoEntrega} onChange={e => setRespForm(p => ({ ...p, tiempoEntrega: +e.target.value }))} min="0"/>
+            </Field>
+            <Field label="Notas">
+              <input className={SI} value={respForm.notas} onChange={e => setRespForm(p => ({ ...p, notas: e.target.value }))} placeholder="Condiciones..."/>
+            </Field>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {respForm.items.map(item => {
               const prod = productos.find(p => p.id === item.productoId)
-              const cant = cotiz.items.find(i => i.productoId === item.productoId)?.cantidad || 0
+              const cant = cotiz.items?.find(i => i.productoId === item.productoId)?.cantidad || 0
               return (
                 <div key={item.productoId} className="bg-[#1a2230] rounded-lg p-3">
                   <div className="text-[12px] font-medium text-[#e8edf2] mb-2">{prod?.nombre} × {cant}</div>
@@ -518,23 +541,65 @@ function ModalDetalleRFQ({ cotiz, productos, provNombre, simboloMoneda, onClose,
             })}
           </div>
           <div className="flex items-center justify-between">
-            <Field label="Notas del proveedor" className="flex-1">
-              <input className={SI} value={respForm.notas} onChange={e => setRespForm(p => ({ ...p, notas: e.target.value }))} placeholder="Condiciones especiales..."/>
-            </Field>
-            <div className="ml-4 text-right shrink-0">
+            <div className="text-right">
               <div className="text-[11px] text-[#5f6f80]">Total cotizado</div>
               <div className="text-[18px] font-semibold text-[#00c896]">{formatCurrency(calcTotal(respForm.items), simboloMoneda)}</div>
             </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Btn variant="secondary" onClick={() => setTabResp(false)}>Cancelar</Btn>
-            <Btn variant="primary" disabled={!respForm.proveedorId}
-              onClick={() => { onAgregarRespuesta(cotiz, { ...respForm, total: calcTotal(respForm.items), ganadora: false }); setTabResp(false) }}>
-              <CheckCircle size={13}/> Guardar Respuesta
-            </Btn>
+            <div className="flex gap-2">
+              <Btn variant="secondary" onClick={() => setTabResp(false)}>Cancelar</Btn>
+              <Btn variant="primary" disabled={!respForm.proveedorId || saving}
+                onClick={() => onAgregarRespuesta(respForm)}>
+                <CheckCircle size={13}/> {saving ? 'Guardando...' : 'Guardar Respuesta'}
+              </Btn>
+            </div>
           </div>
         </>
       )}
+    </Modal>
+  )
+}
+
+/* ── Modal Editar Cotización ─────────────────────── */
+// UpdateCotizacionDto: fechaVencimiento?, notas?, estado?: 'ENVIADA'|'CANCELADA'
+function ModalEditarCotizacion({ cotiz, saving, onClose, onSave }) {
+  const [form, setForm] = useState({ fechaVencimiento: '', notas: '', estado: '' })
+  const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+  useEffect(() => {
+    setForm({
+      fechaVencimiento: cotiz.fechaVencimiento || '',
+      notas:            cotiz.notas || '',
+      estado:           cotiz.estado || '',
+    })
+  }, [cotiz])
+
+  // Solo estos estados son enviables via UpdateCotizacionDto
+  const estadosEditables = cotiz.estado === 'BORRADOR'
+    ? [['BORRADOR', 'Borrador (sin cambio)'], ['ENVIADA', 'Enviada → enviar a proveedores']]
+    : cotiz.estado === 'ENVIADA'
+      ? [['ENVIADA', 'Enviada'], ['CANCELADA', 'Cancelada']]
+      : [[cotiz.estado, ESTADOS_COT[cotiz.estado]?.label || cotiz.estado]]
+
+  return (
+    <Modal open title={`Editar RFQ — ${cotiz.numero}`} onClose={onClose} size="sm"
+      footer={<>
+        <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+        <Btn variant="primary" disabled={saving}
+          onClick={() => onSave({ id: cotiz.id, ...form })}>
+          {saving ? 'Guardando...' : 'Guardar cambios'}
+        </Btn>
+      </>}>
+      <Field label="Estado">
+        <select className={SEL} value={form.estado} onChange={e => f('estado', e.target.value)}>
+          {estadosEditables.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
+      </Field>
+      <Field label="Fecha vencimiento">
+        <input type="date" className={SI} value={form.fechaVencimiento} onChange={e => f('fechaVencimiento', e.target.value)}/>
+      </Field>
+      <Field label="Notas">
+        <textarea className={SI + ' resize-y min-h-13'} value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Observaciones..."/>
+      </Field>
     </Modal>
   )
 }

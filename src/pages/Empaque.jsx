@@ -1,21 +1,14 @@
-﻿/**
- * Empaque.jsx — Módulo de Empaque y Packing
- *
- * LÓGICA:
- * - Muestra TODOS los despachos activos (no anulados / no entregados)
- * - Permite registrar empaque en cualquier estado previo al despacho
- * - El empaque es un registro separado en sp_empaques ligado al despachoId
- * - Estados visibles: PEDIDO · APROBADO · PICKING · LISTO · DESPACHADO
- * - Badge de empaque: Sin empaque / Pendiente / Confirmado
- */
 import { useState, useMemo } from 'react'
-import { Package, Plus, Printer, CheckCircle, Search, Box,
-         AlertTriangle, Filter } from 'lucide-react'
-import { useApp } from '../store/AppContext'
+import { Package, Printer, CheckCircle, Search, Box, Filter } from 'lucide-react'
+import JsBarcode from 'jsbarcode'
 import { formatDate } from '../utils/helpers'
+import { useApp } from '../store/AppContext'
 import { EmptyState, Badge, Btn, Modal, Field, Alert } from '../components/ui/index'
+import { useClientesList } from '../queries/clientes.queries'
+import { useProductosList } from '../queries/productos.queries'
+import { useEmpaquesList, useUpsertEmpaque } from '../queries/empaques.queries'
 
-const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
+const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
 const SEL = SI + ' pr-8'
 
 const TIPOS_CAJA = [
@@ -29,7 +22,6 @@ const TIPOS_CAJA = [
   { id:'c8', label:'Sobre',     dim:'25×18×0 cm',    pesoMax:0.5 },
 ]
 
-// Estados de despacho que se muestran en este módulo
 const ESTADOS_ACTIVOS = ['PEDIDO','APROBADO','PICKING','LISTO','DESPACHADO']
 
 const ESTADO_COLOR = {
@@ -39,41 +31,32 @@ const ESTADO_COLOR = {
   LISTO:      'teal',
   DESPACHADO: 'info',
   ENTREGADO:  'success',
-  ANULADO:    'danger',
+  CANCELADO:  'danger',
 }
 
-// ── Storage ───────────────────────────────────────────────
-const KEY = 'sp_empaques'
-function leerEmpaques()   { try { return JSON.parse(localStorage.getItem(KEY) || '[]') } catch { return [] } }
-function guardarEmpaques(d) { localStorage.setItem(KEY, JSON.stringify(d)) }
-function nid() { return Math.random().toString(36).slice(2,10) }
-
 export default function Empaque() {
-  const { despachos, clientes, productos } = useApp()
-  const [empaques,  setEmpaques]  = useState(leerEmpaques)
-  const [modal,     setModal]     = useState(null)   // despacho seleccionado para empaque
-  const [busq,      setBusq]      = useState('')
-  const [filtEst,   setFiltEst]   = useState('')     // filtro por estado de despacho
-  const [filtEmp,   setFiltEmp]   = useState('')     // filtro por estado de empaque
+  const { toast } = useApp()
 
-  function reload() { setEmpaques(leerEmpaques()) }
+  const { data: apiDespachos = [] } = useEmpaquesList()
+  const { data: clientes     = [] } = useClientesList({ incluirInactivos: true })
+  const { data: productos    = [] } = useProductosList()
+  const upsertEmpaque               = useUpsertEmpaque()
 
-  // ── Todos los despachos activos enriquecidos con su empaque ──
+  const [modal,   setModal]   = useState(null)
+  const [busq,    setBusq]    = useState('')
+  const [filtEst, setFiltEst] = useState('')
+  const [filtEmp, setFiltEmp] = useState('')
+
+  // Despachos activos ya vienen del endpoint /empaques con empaque embebido
   const despActivos = useMemo(() =>
-    despachos
+    apiDespachos
       .filter(d => ESTADOS_ACTIVOS.includes(d.estado))
-      .map(d => ({
-        ...d,
-        empaque: empaques.find(e => e.despachoId === d.id) || null,
-      }))
       .sort((a, b) => {
-        // Prioridad: sin empaque primero, luego por estado
         const orden = { PICKING:0, LISTO:1, APROBADO:2, PEDIDO:3, DESPACHADO:4 }
         return (orden[a.estado] ?? 9) - (orden[b.estado] ?? 9)
       })
-  , [despachos, empaques])
+  , [apiDespachos])
 
-  // ── Filtrado ──────────────────────────────────────────────
   const filtered = useMemo(() => {
     let d = despActivos
     if (busq) {
@@ -84,37 +67,38 @@ export default function Empaque() {
       )
     }
     if (filtEst) d = d.filter(x => x.estado === filtEst)
-    if (filtEmp === 'sin')        d = d.filter(x => !x.empaque)
-    if (filtEmp === 'pendiente')  d = d.filter(x => x.empaque?.estado === 'PENDIENTE')
-    if (filtEmp === 'confirmado') d = d.filter(x => x.empaque?.estado === 'CONFIRMADO')
+    if (filtEmp) d = d.filter(x => x.empaqueEstado === filtEmp)
     return d
   }, [despActivos, busq, filtEst, filtEmp, clientes])
 
-  // ── KPIs ──────────────────────────────────────────────────
   const kpis = useMemo(() => ({
-    sinEmpaque:  despActivos.filter(d => !d.empaque).length,
-    pendiente:   despActivos.filter(d => d.empaque?.estado === 'PENDIENTE').length,
-    confirmado:  despActivos.filter(d => d.empaque?.estado === 'CONFIRMADO').length,
-    total:       despActivos.length,
+    sinEmpaque: despActivos.filter(d => d.empaqueEstado === 'sin').length,
+    pendiente:  despActivos.filter(d => d.empaqueEstado === 'pendiente').length,
+    confirmado: despActivos.filter(d => d.empaqueEstado === 'confirmado').length,
+    total:      despActivos.length,
   }), [despActivos])
 
-  // ── Guardar empaque ───────────────────────────────────────
-  function guardarEmpaque(despachoId, data) {
-    const lista = leerEmpaques()
-    const idx   = lista.findIndex(e => e.despachoId === despachoId)
-    const reg   = {
-      ...data,
-      despachoId,
-      id:         idx >= 0 ? lista[idx].id : nid(),
-      updatedAt:  new Date().toISOString(),
-      createdAt:  idx >= 0 ? lista[idx].createdAt : new Date().toISOString(),
-    }
-    if (idx >= 0) lista[idx] = reg; else lista.push(reg)
-    guardarEmpaques(lista)
-    reload()
+  async function guardarEmpaque(despachoId, data) {
+    const res = await upsertEmpaque.mutateAsync({ despachoId, ...data })
+    if (res.error) { toast(res.error, 'error'); return }
+    setModal(null)
+    toast(data.confirmar ? 'Empaque confirmado' : 'Empaque guardado', 'success')
   }
 
-  // ── Imprimir etiqueta ─────────────────────────────────────
+  function generarBarcodeSVG(valor) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    JsBarcode(svg, valor, {
+      format: 'CODE128',
+      displayValue: true,
+      fontSize: 14,
+      height: 45,
+      margin: 4,
+      background: '#ffffff',
+      lineColor: '#111111',
+    })
+    return svg.outerHTML
+  }
+
   function imprimirEtiqueta(des, emp) {
     const cli  = clientes.find(c=>c.id===des.clienteId)
     const caja = TIPOS_CAJA.find(c=>c.id===emp.tipoCajaId) || {}
@@ -129,7 +113,8 @@ export default function Empaque() {
   .row{display:flex;justify-content:space-between;margin-bottom:6px}
   .label-k{font-size:11px;color:#888;font-weight:600;text-transform:uppercase}
   .label-v{font-size:13px;font-weight:700;color:#111}
-  .barcode{font-family:monospace;font-size:28px;letter-spacing:5px;text-align:center;margin:12px 0;color:#111}
+  .barcode{text-align:center;margin:12px 0}
+  .barcode svg{max-width:100%}
   .footer{font-size:10px;color:#aaa;text-align:center;margin-top:8px}
   ${emp.fragil ? '.fragil{background:#fff3cd;border:2px solid #f59e0b;border-radius:6px;padding:8px 12px;margin:10px 0;font-weight:900;font-size:14px;color:#b45309;text-align:center}' : ''}
 </style></head><body>
@@ -148,7 +133,7 @@ export default function Empaque() {
   <div class="row"><span class="label-k">Peso total</span><span class="label-v">${emp.pesoTotal||'—'} kg</span></div>
   ${emp.instrucciones ? `<div class="sep"/><div style="font-size:11px;color:#555"><b>Instrucciones:</b> ${emp.instrucciones}</div>` : ''}
   <div class="sep"/>
-  <div class="barcode">||| ${des.numero} |||</div>
+  <div class="barcode">${generarBarcodeSVG(des.numero)}</div>
   <div class="footer">Generado por StockPro · ${new Date().toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
 </div>
 <script>window.onload=()=>window.print()</script>
@@ -163,44 +148,39 @@ export default function Empaque() {
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
-          { label:'Sin empaque',      val:kpis.sinEmpaque, color:'#ef4444', onClick:()=>setFiltEmp('sin')        },
-          { label:'Empaque pendiente',val:kpis.pendiente,  color:'#f59e0b', onClick:()=>setFiltEmp('pendiente')  },
-          { label:'Empaque confirmado',val:kpis.confirmado,color:'#00c896', onClick:()=>setFiltEmp('confirmado') },
-          { label:'Despachos activos',val:kpis.total,      color:'#3b82f6', onClick:()=>setFiltEmp('')           },
+          { label:'Sin empaque',       val:kpis.sinEmpaque, color:'#ef4444', onClick:()=>setFiltEmp('sin')        },
+          { label:'Empaque pendiente', val:kpis.pendiente,  color:'#f59e0b', onClick:()=>setFiltEmp('pendiente')  },
+          { label:'Empaque confirmado',val:kpis.confirmado, color:'#00c896', onClick:()=>setFiltEmp('confirmado') },
+          { label:'Despachos activos', val:kpis.total,      color:'#3b82f6', onClick:()=>setFiltEmp('')           },
         ].map(({ label, val, color, onClick }) => (
           <div key={label} onClick={onClick}
-            className="relative bg-[#161d28] border border-white/[0.08] rounded-xl px-5 py-4 overflow-hidden cursor-pointer hover:border-white/[0.14] transition-all">
-            <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ background: color }}/>
+            className="relative bg-[#161d28] border border-white/8 rounded-xl px-5 py-4 overflow-hidden cursor-pointer hover:border-white/14 transition-all">
+            <div className="absolute top-0 left-0 right-0 h-0.75 rounded-t-xl" style={{ background: color }}/>
             <div className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-[0.07em] mb-2">{label}</div>
-            <div className="text-[28px] font-bold" style={{ color }}>{val}</div>
+            <div className="text-[28px] font-semibold" style={{ color }}>{val}</div>
           </div>
         ))}
       </div>
 
       {kpis.sinEmpaque > 0 && (
         <Alert variant="warning">
-          <strong>{kpis.sinEmpaque} despacho{kpis.sinEmpaque>1?'s':''} activo{kpis.sinEmpaque>1?'s':''} sin empaque registrado.</strong> Haz clic en "Registrar empaque" para completar el packing antes del despacho.
+          <strong>{kpis.sinEmpaque} despacho{kpis.sinEmpaque>1?'s':''} activo{kpis.sinEmpaque>1?'s':''} sin empaque registrado.</strong>{' '}
+          Haz clic en "Registrar empaque" para completar el packing antes del despacho.
         </Alert>
       )}
 
       {/* Tabla principal */}
-      <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+      <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">
-              Despachos activos
-            </span>
-            <span className="ml-2 text-[#3d4f60] text-[11px]">
-              ({filtered.length} de {despActivos.length})
-            </span>
+            <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Despachos activos</span>
+            <span className="ml-2 text-[#3d4f60] text-[11px]">({filtered.length} de {despActivos.length})</span>
           </div>
           <div className="text-[11px] text-[#5f6f80] flex items-center gap-1.5">
-            <Filter size={11}/>
-            Clic en un KPI para filtrar
+            <Filter size={11}/> Clic en un KPI para filtrar
           </div>
         </div>
 
-        {/* Filtros */}
         <div className="flex flex-wrap gap-2 mb-4">
           <div className="relative flex-1 min-w-[200px]">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
@@ -218,9 +198,7 @@ export default function Empaque() {
             <option value="confirmado">Confirmado</option>
           </select>
           {(busq||filtEst||filtEmp) && (
-            <Btn variant="ghost" size="sm" onClick={()=>{setBusq('');setFiltEst('');setFiltEmp('')}}>
-              Limpiar
-            </Btn>
+            <Btn variant="ghost" size="sm" onClick={()=>{setBusq('');setFiltEst('');setFiltEmp('')}}>Limpiar</Btn>
           )}
         </div>
 
@@ -230,14 +208,14 @@ export default function Empaque() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
             {filtered.map(des => {
-              const cli  = clientes.find(c=>c.id===des.clienteId)
-              const emp  = des.empaque
-              const caja = emp ? TIPOS_CAJA.find(c=>c.id===emp.tipoCajaId) : null
-              const empEstado = !emp ? 'sin' : emp.estado === 'CONFIRMADO' ? 'confirmado' : 'pendiente'
+              const cli       = clientes.find(c=>c.id===des.clienteId)
+              const emp       = des.empaque
+              const caja      = emp ? TIPOS_CAJA.find(c=>c.id===emp.tipoCajaId) : null
+              const empEstado = des.empaqueEstado || 'sin'
               const EMP_BADGE = {
-                sin:        { label:'Sin empaque',  color:'danger'  },
-                pendiente:  { label:'Pend. empaque',color:'warning' },
-                confirmado: { label:'Empaque OK',   color:'success' },
+                sin:        { label:'Sin empaque',   color:'danger'  },
+                pendiente:  { label:'Pend. empaque', color:'warning' },
+                confirmado: { label:'Empaque OK',    color:'success' },
               }
               return (
                 <div key={des.id} className={`bg-[#1a2230] border rounded-xl p-4 transition-all ${
@@ -245,7 +223,6 @@ export default function Empaque() {
                   empEstado==='pendiente'  ? 'border-amber-500/20' :
                   'border-red-500/15'
                 }`}>
-                  {/* Cabecera */}
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <div className="font-mono text-[12px] text-[#00c896] font-bold">{des.numero}</div>
@@ -263,7 +240,6 @@ export default function Empaque() {
                     </div>
                   </div>
 
-                  {/* Info empaque si existe */}
                   {emp && (
                     <div className={`flex items-center gap-2 mb-3 px-2.5 py-2 rounded-lg border ${
                       emp.estado==='CONFIRMADO'
@@ -278,23 +254,19 @@ export default function Empaque() {
                     </div>
                   )}
 
-                  {/* Fecha entrega si existe */}
                   {des.fechaEntrega && (
                     <div className="text-[11px] text-[#5f6f80] mb-3">
                       Entrega: <span className="text-[#9ba8b6]">{formatDate(des.fechaEntrega)}</span>
                     </div>
                   )}
 
-                  {/* Acciones */}
                   <div className="flex gap-2">
-                    <Btn variant={emp ? 'ghost' : 'primary'} size="sm"
-                      onClick={() => setModal(des)}>
+                    <Btn variant={emp ? 'ghost' : 'primary'} size="sm" onClick={() => setModal(des)}>
                       <Package size={12}/>
                       {emp ? 'Editar empaque' : 'Registrar empaque'}
                     </Btn>
                     {emp && (
-                      <Btn variant="ghost" size="sm"
-                        onClick={() => imprimirEtiqueta(des, emp)}>
+                      <Btn variant="ghost" size="sm" onClick={() => imprimirEtiqueta(des, emp)}>
                         <Printer size={12}/> Etiqueta
                       </Btn>
                     )}
@@ -307,16 +279,16 @@ export default function Empaque() {
       </div>
 
       {/* Guía de uso */}
-      <div className="bg-[#161d28] border border-white/[0.06] rounded-xl p-5">
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
         <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
           ¿Cómo funciona el módulo de empaque?
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
           {[
-            ['1. Despacho activo',    'Este módulo muestra todos los despachos que están en curso: PEDIDO, APROBADO, PICKING, LISTO o DESPACHADO.'],
-            ['2. Registrar empaque',  'Haz clic en "Registrar empaque" en cualquier despacho. Elige el tipo de caja, número de bultos y peso total.'],
-            ['3. Confirmar packing',  'Usa "Confirmar empaque" para marcar el packing como finalizado. Eso actualiza el badge a "Empaque OK".'],
-            ['4. Imprimir etiqueta',  'Una vez confirmado, el botón "Etiqueta" genera e imprime la etiqueta de envío con todos los datos del destinatario.'],
+            ['1. Despacho activo',   'Este módulo muestra todos los despachos que están en curso: PEDIDO, APROBADO, PICKING, LISTO o DESPACHADO.'],
+            ['2. Registrar empaque', 'Haz clic en "Registrar empaque" en cualquier despacho. Elige el tipo de caja, número de bultos y peso total.'],
+            ['3. Confirmar packing', 'Usa "Confirmar empaque" para marcar el packing como finalizado. Eso actualiza el badge a "Empaque OK".'],
+            ['4. Imprimir etiqueta', 'Una vez confirmado, el botón "Etiqueta" genera e imprime la etiqueta de envío con todos los datos del destinatario.'],
           ].map(([t, d]) => (
             <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
               <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
@@ -326,15 +298,14 @@ export default function Empaque() {
         </div>
       </div>
 
-      {/* Modal de empaque */}
       {modal && (
         <ModalEmpaque
           despacho={modal}
           productos={productos}
-          empaque={empaques.find(e=>e.despachoId===modal.id) || null}
+          empaque={modal.empaque || null}
           tiposCaja={TIPOS_CAJA}
           onClose={() => setModal(null)}
-          onSave={(data) => { guardarEmpaque(modal.id, data); setModal(null) }}
+          onSave={(data) => guardarEmpaque(modal.id, data)}
         />
       )}
     </div>
@@ -351,7 +322,6 @@ function ModalEmpaque({ despacho, productos, empaque, tiposCaja, onClose, onSave
     pesoTotal:     empaque?.pesoTotal     || '',
     instrucciones: empaque?.instrucciones || '',
     fragil:        empaque?.fragil        || false,
-    estado:        empaque?.estado        || 'PENDIENTE',
   }
   const [form, setForm] = useState(init)
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
@@ -361,15 +331,14 @@ function ModalEmpaque({ despacho, productos, empaque, tiposCaja, onClose, onSave
     <Modal open title={`Empaque — ${despacho.numero}`} onClose={onClose} size="md"
       footer={<>
         <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
-        <Btn variant="ghost" onClick={() => onSave({ ...form, estado:'PENDIENTE' })}>
+        <Btn variant="ghost" onClick={() => onSave({ ...form, confirmar:false })}>
           Guardar borrador
         </Btn>
-        <Btn variant="primary" onClick={() => onSave({ ...form, estado:'CONFIRMADO' })}>
+        <Btn variant="primary" onClick={() => onSave({ ...form, confirmar:true })}>
           <CheckCircle size={13}/> Confirmar empaque
         </Btn>
       </>}>
 
-      {/* Info del despacho */}
       <div className="grid grid-cols-2 gap-2 mb-1">
         {[
           ['N° Despacho', despacho.numero],
@@ -384,7 +353,6 @@ function ModalEmpaque({ despacho, productos, empaque, tiposCaja, onClose, onSave
         ))}
       </div>
 
-      {/* Tipo de caja */}
       <Field label="Tipo de caja / empaque">
         <select className={SEL} value={form.tipoCajaId} onChange={e=>f('tipoCajaId',e.target.value)}>
           {tiposCaja.map(c=>(
@@ -406,7 +374,7 @@ function ModalEmpaque({ despacho, productos, empaque, tiposCaja, onClose, onSave
         </Field>
         <Field label="Peso total (kg)">
           <input type="number" className={SI} value={form.pesoTotal}
-            onChange={e=>f('pesoTotal',e.target.value)} min="0" step="0.1" placeholder="0.0"/>
+            onChange={e=>f('pesoTotal', e.target.value ? +e.target.value : '')} min="0" step="0.1" placeholder="0.0"/>
         </Field>
       </div>
 
@@ -416,7 +384,7 @@ function ModalEmpaque({ despacho, productos, empaque, tiposCaja, onClose, onSave
           placeholder="Ej: No apilar, mantener frío, frágil arriba..."/>
       </Field>
 
-      <label className="flex items-center gap-2.5 cursor-pointer px-3.5 py-3 bg-[#1a2230] rounded-xl border border-white/[0.07] hover:border-white/[0.12] transition-colors">
+      <label className="flex items-center gap-2.5 cursor-pointer px-3.5 py-3 bg-[#1a2230] rounded-xl border border-white/8 hover:border-white/12 transition-colors">
         <input type="checkbox" checked={form.fragil} onChange={e=>f('fragil',e.target.checked)} className="accent-[#f59e0b] w-4 h-4"/>
         <div>
           <div className="text-[13px] font-medium text-[#e8edf2]">⚠️ Mercadería frágil</div>
@@ -424,12 +392,9 @@ function ModalEmpaque({ despacho, productos, empaque, tiposCaja, onClose, onSave
         </div>
       </label>
 
-      {/* Contenido del despacho */}
       <div className="bg-[#1a2230] rounded-lg p-3">
-        <div className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-wide mb-2">
-          Contenido del despacho
-        </div>
-        <div className="flex flex-col divide-y divide-white/[0.04]">
+        <div className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-wide mb-2">Contenido del despacho</div>
+        <div className="flex flex-col divide-y divide-white/4">
           {(despacho.items||[]).map((item, i) => {
             const p = productos.find(x=>x.id===item.productoId)
             return (

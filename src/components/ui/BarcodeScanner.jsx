@@ -91,7 +91,7 @@ export default function BarcodeScanner({ onDetected, onClose, label = 'Escanear 
     }
   }
 
-  const SI = 'w-full px-3 py-2 bg-[#1e2835] border border-white/[0.08] rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-mono placeholder-[#5f6f80]'
+  const SI = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-mono placeholder-[#5f6f80]'
 
   return (
     <div className="flex flex-col gap-4">
@@ -103,7 +103,7 @@ export default function BarcodeScanner({ onDetected, onClose, label = 'Escanear 
         </div>
         {onClose && (
           <button onClick={() => { detenerCamara(); onClose() }}
-            className="text-[#5f6f80] hover:text-[#e8edf2] transition-colors p-1 rounded-lg hover:bg-white/[0.05]">
+            className="text-[#5f6f80] hover:text-[#e8edf2] transition-colors p-1 rounded-lg hover:bg-white/5">
             <X size={14}/>
           </button>
         )}
@@ -174,7 +174,7 @@ export default function BarcodeScanner({ onDetected, onClose, label = 'Escanear 
             </button>
           )}
           <button onClick={() => { detenerCamara(); setEstado('manual') }}
-            className="px-3 py-2.5 border border-white/[0.08] rounded-lg text-[12px] text-[#5f6f80] hover:text-[#9ba8b6] hover:border-white/[0.16] transition-colors">
+            className="px-3 py-2.5 border border-white/8 rounded-lg text-[12px] text-[#5f6f80] hover:text-[#9ba8b6] hover:border-white/16 transition-colors">
             Manual
           </button>
         </div>

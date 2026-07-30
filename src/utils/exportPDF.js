@@ -83,8 +83,8 @@ export async function exportarInventarioPDF(productos, categorias, almacenes, fo
 
   const activos = productos.filter(p => p.activo !== false)
   const rows = activos.map(p => {
-    const pmp    = calcPMP(p.batches || [])
-    const valor  = valorarStockFn(p.batches || [], formulaValorizacion)
+    const pmp    = calcPMP(p)
+    const valor  = valorarStockFn(p)
     const margen = p.precioVenta > 0 ? `${(((p.precioVenta - pmp) / p.precioVenta) * 100).toFixed(1)}%` : '—'
     const cat    = categorias.find(c => c.id === p.categoriaId)?.nombre || '—'
     const alm    = almacenes.find(a => a.id === p.almacenId)?.nombre   || '—'
@@ -92,10 +92,10 @@ export async function exportarInventarioPDF(productos, categorias, almacenes, fo
     return [p.sku, p.nombre.slice(0,30), cat, alm,
             p.stockActual, p.unidadMedida,
             `${simboloMoneda} ${pmp.toFixed(2)}`,
-            `${simboloMoneda} ${(p.precioVenta||0).toFixed(2)}`,
+            `${simboloMoneda} ${Number(p.precioVenta||0).toFixed(2)}`,
             margen, `${simboloMoneda} ${valor.toFixed(2)}`, estado]
   })
-  const totalValor = activos.reduce((s,p) => s + valorarStockFn(p.batches||[], formulaValorizacion), 0)
+  const totalValor = activos.reduce((s,p) => s + valorarStockFn(p), 0)
   const totales    = ['TOTAL','','','',`${rows.length} productos`,'','','','',`${simboloMoneda} ${totalValor.toFixed(2)}`,'']
 
   const ok = await mostrarPreviewExport({ titulo, cabeceras, filas: rows, totales, empresa, tipo: 'pdf' })
@@ -106,19 +106,72 @@ export async function exportarInventarioPDF(productos, categorias, almacenes, fo
   guardar(doc, 'inventario_valorizado')
 }
 
+export async function exportarProductosPDF(productos, categorias, simboloMoneda, empresa) {
+  const titulo = 'Inventario de Productos'
+  const cabeceras = ['SKU','Producto','Categoría','Stock','U.M.','Precio Compra','Precio Venta','Margen','Valor Stock','Estado']
+
+  const rows = productos.map(p => {
+    const cat = categorias.find(c=>c.id===p.categoriaId)?.nombre||'—'
+    const costo = Number(p.precioCompra||0)
+    const venta = Number(p.precioVenta||0)
+    const margen = venta>0 ? `${(((venta-costo)/venta)*100).toFixed(1)}%` : '—'
+    const estado = p.stockActual<=0?'Agotado':p.stockActual<=p.stockMinimo?'Crítico':'Normal'
+    return [p.sku, p.nombre?.slice(0,30)||'—', cat, p.stockActual, p.unidadMedida,
+            `${simboloMoneda} ${costo.toFixed(2)}`, `${simboloMoneda} ${venta.toFixed(2)}`,
+            margen, `${simboloMoneda} ${(costo*p.stockActual).toFixed(2)}`, estado]
+  })
+  const totalValor = productos.reduce((s,p)=>s+Number(p.precioCompra||0)*p.stockActual,0)
+  const totales = ['TOTAL','','',`${productos.length} productos`,'','','','',`${simboloMoneda} ${totalValor.toFixed(2)}`,'']
+
+  const ok = await mostrarPreviewExport({ titulo, cabeceras, filas: rows, totales, empresa, tipo: 'pdf' })
+  if (!ok) return
+
+  const doc = crearDoc(titulo, `${productos.length} productos`, empresa)
+  autoTable(doc, { startY: 24, head: [cabeceras], body: rows, foot: [totales], ...estiloTabla() })
+  guardar(doc, 'inventario_productos')
+}
+
+export async function exportarDespachosPDF(despachos, clientes, almacenes, transportistas, simboloMoneda, empresa) {
+  const titulo = 'Reporte de Despachos'
+  const cabeceras = ['N° Guía','Fecha','Estado','Cliente','RUC','Almacén','Subtotal','IGV','Total','Transportista']
+
+  const rows = despachos.map(d => {
+    const cli = clientes.find(c=>c.id===d.clienteId)
+    const alm = almacenes.find(a=>a.id===d.almacenId)
+    const tr  = transportistas.find(t=>t.id===d.transportistaId)
+    return [d.numero, d.fecha, d.estado, cli?.razonSocial?.slice(0,25)||'—', cli?.ruc||'—',
+            alm?.nombre?.slice(0,18)||'—',
+            `${simboloMoneda} ${Number(d.subtotal||0).toFixed(2)}`,
+            `${simboloMoneda} ${Number(d.igv||0).toFixed(2)}`,
+            `${simboloMoneda} ${Number(d.total||0).toFixed(2)}`,
+            tr?.nombre?.slice(0,20)||'—']
+  })
+  const totalVal = despachos.reduce((s,d)=>s+Number(d.total||0),0)
+  const totales  = ['TOTAL','',`${despachos.length} despachos`,'','','','','',`${simboloMoneda} ${totalVal.toFixed(2)}`,'']
+
+  const ok = await mostrarPreviewExport({ titulo, cabeceras, filas: rows, totales, empresa, tipo: 'pdf' })
+  if (!ok) return
+
+  const doc = crearDoc(titulo, `${despachos.length} documentos`, empresa)
+  autoTable(doc, { startY: 24, head: [cabeceras], body: rows, foot: [totales], ...estiloTabla() })
+  guardar(doc, 'reporte_despachos')
+}
+
 export async function exportarMovimientosPDF(movimientos, productos, almacenes, simboloMoneda, empresa, titulo = 'Historial de Movimientos') {
   const cabeceras = ['Fecha','Tipo','Documento','SKU','Producto','Almacén','Cant.','Costo Unit.','Total','Motivo']
 
   const rows = movimientos.slice(0, 500).map(m => {
     const p   = productos.find(x => x.id === m.productoId)
     const alm = almacenes.find(a => a.id === m.almacenId)
+    const costoUnitario = Number(m.costoUnitario||0)
+    const costoTotal    = costoUnitario * Number(m.cantidad||0)
     return [m.fecha, m.tipo, m.documento||'—', p?.sku||'—', p?.nombre?.slice(0,25)||'—',
             alm?.nombre?.slice(0,18)||'—', m.cantidad,
-            `${simboloMoneda} ${(m.costoUnitario||0).toFixed(2)}`,
-            `${simboloMoneda} ${(m.costoTotal||0).toFixed(2)}`,
+            `${simboloMoneda} ${costoUnitario.toFixed(2)}`,
+            `${simboloMoneda} ${costoTotal.toFixed(2)}`,
             m.motivo?.slice(0,25)||'—']
   })
-  const totalCosto = movimientos.reduce((s,m)=>s+(m.costoTotal||0),0)
+  const totalCosto = movimientos.reduce((s,m)=>s+Number(m.costoUnitario||0)*Number(m.cantidad||0),0)
   const totales    = ['TOTAL','','','','','',movimientos.length,'',`${simboloMoneda} ${totalCosto.toFixed(2)}`,'']
 
   const ok = await mostrarPreviewExport({ titulo, cabeceras, filas: rows, totales, empresa, tipo: 'pdf' })
@@ -136,7 +189,7 @@ export async function exportarRentabilidadPDF(rentabilidad, kpisRent, simboloMon
   const rows = rentabilidad.map(r => [
     r.sku, r.nombre.slice(0,28), r.catNombre,
     `${simboloMoneda} ${r.pmp.toFixed(2)}`,
-    r.precioVenta > 0 ? `${simboloMoneda} ${r.precioVenta.toFixed(2)}` : '—',
+    Number(r.precioVenta) > 0 ? `${simboloMoneda} ${Number(r.precioVenta).toFixed(2)}` : '—',
     r.unidadesVend,
     `${simboloMoneda} ${r.ingresos.toFixed(2)}`,
     `${simboloMoneda} ${r.margenBruto.toFixed(2)}`,
@@ -173,19 +226,22 @@ export async function exportarAuditoriaPDF(logs, empresa) {
   guardar(doc, 'registro_auditoria')
 }
 
-export async function exportarDevolucionesPDF(devoluciones, productos, simboloMoneda, empresa) {
+export async function exportarDevolucionesPDF(devoluciones, productos, almacenes, simboloMoneda, empresa) {
   const titulo = 'Reporte de Devoluciones'
-  const cabeceras = ['Fecha','Documento','Tipo','SKU','Producto','Estado Ítem','Cantidad','Costo Unit.','Total','Motivo']
+  const cabeceras = ['Fecha','Documento','Tipo','SKU','Producto','Almacén','Cantidad','Costo Unit.','Total','Motivo']
 
   const rows = devoluciones.map(d => {
-    const p = productos.find(x=>x.id===d.productoId)
-    return [d.fecha, d.documento||'—', d.tipo==='CLIENTE'?'De cliente':'A proveedor',
-            p?.sku||'—', p?.nombre?.slice(0,22)||'—', d.estadoItem||'—', d.cantidad,
-            `${simboloMoneda} ${(d.costoUnitario||0).toFixed(2)}`,
-            `${simboloMoneda} ${(d.costoTotal||0).toFixed(2)}`,
+    const p   = productos.find(x=>x.id===d.productoId)
+    const alm = almacenes.find(a=>a.id===d.almacenId)
+    const costoUnitario = Number(d.costoUnitario||0)
+    const costoTotal    = costoUnitario * Number(d.cantidad||0)
+    return [d.fecha, d.documento||'—', d.tipo==='ENTRADA'?'De cliente':'A proveedor',
+            p?.sku||'—', p?.nombre?.slice(0,22)||'—', alm?.nombre?.slice(0,18)||'—', d.cantidad,
+            `${simboloMoneda} ${costoUnitario.toFixed(2)}`,
+            `${simboloMoneda} ${costoTotal.toFixed(2)}`,
             d.motivo?.slice(0,20)||'—']
   })
-  const totalVal = devoluciones.reduce((s,d)=>s+(d.costoTotal||0),0)
+  const totalVal = devoluciones.reduce((s,d)=>s+Number(d.costoUnitario||0)*Number(d.cantidad||0),0)
   const totales  = ['TOTAL',`${devoluciones.length} registros`,'','','','','','',`${simboloMoneda} ${totalVal.toFixed(2)}`,'']
 
   const ok = await mostrarPreviewExport({ titulo, cabeceras, filas: rows, totales, empresa, tipo: 'pdf' })
@@ -202,14 +258,15 @@ export async function exportarTransferenciasPDF(transferencias, productos, almac
 
   const rows = transferencias.map(t => {
     const p    = productos.find(x=>x.id===t.productoId)
-    const orig = almacenes.find(a=>a.id===t.almacenOrigenId)
+    const orig = almacenes.find(a=>a.id===t.almacenId)
     const dest = almacenes.find(a=>a.id===t.almacenDestinoId)
-    return [t.fecha, t.numero||'—', p?.sku||'—', p?.nombre?.slice(0,20)||'—',
+    const costoTotal = Number(t.costoUnitario||0) * Number(t.cantidad||0)
+    return [t.fecha, t.documento||'—', p?.sku||'—', p?.nombre?.slice(0,20)||'—',
             orig?.nombre?.slice(0,18)||'—', dest?.nombre?.slice(0,18)||'—',
             t.cantidad, p?.unidadMedida||'',
-            `${simboloMoneda} ${(t.costoTotal||0).toFixed(2)}`, t.motivo?.slice(0,20)||'—']
+            `${simboloMoneda} ${costoTotal.toFixed(2)}`, t.motivo?.slice(0,20)||'—']
   })
-  const totalVal = transferencias.reduce((s,t)=>s+(t.costoTotal||0),0)
+  const totalVal = transferencias.reduce((s,t)=>s+Number(t.costoUnitario||0)*Number(t.cantidad||0),0)
   const totales  = ['TOTAL',`${transferencias.length} registros`,'','','','','','',`${simboloMoneda} ${totalVal.toFixed(2)}`,'']
 
   const ok = await mostrarPreviewExport({ titulo, cabeceras, filas: rows, totales, empresa, tipo: 'pdf' })
@@ -229,11 +286,11 @@ export async function exportarOrdenesPDF(ordenes, proveedores, simboloMoneda, em
     return [o.numero, o.fecha, o.fechaEntrega||'—',
             prov?.razonSocial?.slice(0,25)||'—', prov?.ruc||'—', o.estado,
             o.items?.length||0,
-            `${simboloMoneda} ${(o.subtotal||0).toFixed(2)}`,
-            `${simboloMoneda} ${(o.igv||0).toFixed(2)}`,
-            `${simboloMoneda} ${(o.total||0).toFixed(2)}`]
+            `${simboloMoneda} ${Number(o.subtotal||0).toFixed(2)}`,
+            `${simboloMoneda} ${Number(o.igv||0).toFixed(2)}`,
+            `${simboloMoneda} ${Number(o.total||0).toFixed(2)}`]
   })
-  const totalVal = ordenes.reduce((s,o)=>s+(o.total||0),0)
+  const totalVal = ordenes.reduce((s,o)=>s+Number(o.total||0),0)
   const totales  = ['TOTAL',`${ordenes.length} órdenes`,'','','','','','','',`${simboloMoneda} ${totalVal.toFixed(2)}`]
 
   const ok = await mostrarPreviewExport({ titulo, cabeceras, filas: rows, totales, empresa, tipo: 'pdf' })
@@ -253,7 +310,7 @@ export async function exportarCotizacionesPDF(cotizaciones, proveedores, simbolo
     const prov = resp ? proveedores.find(p=>p.id===resp.proveedorId)?.razonSocial?.slice(0,22)||'—' : '—'
     return [c.numero, c.fecha, c.fechaVencimiento||'—', c.estado,
             c.items?.length||0, c.respuestas?.length||0,
-            resp ? `${simboloMoneda} ${resp.total.toFixed(2)}` : '—', prov]
+            resp ? `${simboloMoneda} ${Number(resp.total).toFixed(2)}` : '—', prov]
   })
 
   const ok = await mostrarPreviewExport({ titulo, cabeceras, filas: rows, empresa, tipo: 'pdf' })
@@ -339,11 +396,11 @@ export async function exportarProformasPDF(proformas, clientes, simboloMoneda, e
     return [p.numero, p.fecha, p.fechaVencimiento||'—',
             cli?.razonSocial?.slice(0,22)||'—', cli?.ruc||'—', p.estado,
             p.items?.length||0,
-            `${simboloMoneda} ${(p.subtotal||0).toFixed(2)}`,
-            `${simboloMoneda} ${(p.igv||0).toFixed(2)}`,
-            `${simboloMoneda} ${(p.total||0).toFixed(2)}`]
+            `${simboloMoneda} ${Number(p.subtotal||0).toFixed(2)}`,
+            `${simboloMoneda} ${Number(p.igv||0).toFixed(2)}`,
+            `${simboloMoneda} ${Number(p.total||0).toFixed(2)}`]
   })
-  const totalVal = proformas.reduce((s,p)=>s+(p.total||0),0)
+  const totalVal = proformas.reduce((s,p)=>s+Number(p.total||0),0)
   const totales  = ['TOTAL',`${proformas.length} proformas`,'','','','','','','',`${simboloMoneda} ${totalVal.toFixed(2)}`]
 
   const ok = await mostrarPreviewExport({ titulo, cabeceras, filas: rows, totales, empresa, tipo: 'pdf' })
@@ -364,11 +421,11 @@ export async function exportarCxCPDF(docs, clientes, simboloMoneda, empresa) {
     return [d.numero, cli?.razonSocial?.slice(0,22)||'—', cli?.ruc||'—',
             d.fechaEmision||'—', d.fechaVencimiento||'—',
             mora > 0 ? `${mora} días` : '—',
-            `${simboloMoneda} ${(d.monto||0).toFixed(2)}`,
-            `${simboloMoneda} ${(d.saldo||0).toFixed(2)}`, d.estado]
+            `${simboloMoneda} ${Number(d.monto||0).toFixed(2)}`,
+            `${simboloMoneda} ${Number(d.saldo||0).toFixed(2)}`, d.estado]
   })
-  const totalMonto = docs.reduce((s,d)=>s+(d.monto||0),0)
-  const totalSaldo = docs.reduce((s,d)=>s+(d.saldo||0),0)
+  const totalMonto = docs.reduce((s,d)=>s+Number(d.monto||0),0)
+  const totalSaldo = docs.reduce((s,d)=>s+Number(d.saldo||0),0)
   const totales    = ['TOTAL',`${docs.length} documentos`,'','','','',
                       `${simboloMoneda} ${totalMonto.toFixed(2)}`,
                       `${simboloMoneda} ${totalSaldo.toFixed(2)}`,'']
@@ -386,11 +443,11 @@ export async function exportarListaPreciosPDF(lista, productos, categorias, simb
   const titulo = `Lista de Precios — ${nombre}`
   const cabeceras = ['SKU','Producto','Categoría','U.M.','Costo PMP','Precio Base','Precio Lista','Descuento %','Margen %']
 
-  const rows = productos.filter(p=>p.activo!==false).map(p => {
+  const rows = productos.filter(p=>p.estado==='Activo').map(p => {
     const cat  = categorias.find(c=>c.id===p.categoriaId)?.nombre?.slice(0,14)||'—'
-    const pmp  = calcPMP(p.batches||[])
-    const base = p.precioVenta||0
-    const prec = lista?.precios?.[p.id] ?? (lista?.descuento>0 ? +(base*(1-lista.descuento/100)).toFixed(2) : lista?.markup>0 ? +(pmp*(1+lista.markup/100)).toFixed(2) : base)
+    const pmp  = Number(calcPMP(p))
+    const base = Number(p.precioVenta||0)
+    const prec = Number(lista?.precios?.[p.id] ?? (lista?.descuento>0 ? +(base*(1-lista.descuento/100)).toFixed(2) : lista?.markup>0 ? +(pmp*(1+lista.markup/100)).toFixed(2) : base))
     const marg = prec>0&&pmp>0 ? `${(((prec-pmp)/prec)*100).toFixed(1)}%` : '—'
     const desc = base>0&&prec<base ? `${(((base-prec)/base)*100).toFixed(1)}%` : '—'
     return [p.sku, p.nombre?.slice(0,28)||'—', cat, p.unidadMedida,

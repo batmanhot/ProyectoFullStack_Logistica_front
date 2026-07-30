@@ -8,7 +8,10 @@ import {
   vaciarCola,
 } from '../services/offlineQueue'
 
-// Todos los estilos críticos son inline para ser inmunes a cualquier tema
+// Los estilos de estado (ámbar/verde/rojo/azul) son inline a propósito — son
+// colores semánticos fijos, no deben cambiar con el tema. Los de fondo/texto
+// neutro SÍ usan las variables CSS del tema (var(--bg-card) etc.) para que la
+// página se vea bien tanto en oscuro como en claro.
 const ESTADO = {
   PENDIENTE:    { color: '#f59e0b', bg: 'rgba(245,158,11,0.13)',  label: 'Pendiente',    Icon: Clock        },
   SINCRONIZADO: { color: '#10b981', bg: 'rgba(16,185,129,0.13)',  label: 'Sincronizado', Icon: CheckCircle2 },
@@ -32,7 +35,7 @@ function formatFechaHora(ts) {
 }
 
 export default function ColaSincronizacion() {
-  const { online, pendientesSinc, refrescarPendientes } = useApp()
+  const { online } = useApp()
 
   const [ops,           setOps]           = useState([])
   const [filtro,        setFiltro]        = useState('')
@@ -51,20 +54,17 @@ export default function ColaSincronizacion() {
   async function handleLimpiarSinc() {
     await limpiarSincronizados()
     await cargar()
-    refrescarPendientes()
   }
 
   async function handleReintentar() {
     await reintentarFallidos()
     await cargar()
-    refrescarPendientes()
   }
 
   async function handleVaciar() {
     await vaciarCola()
     setConfirmVaciar(false)
     await cargar()
-    refrescarPendientes()
   }
 
   const totales = {
@@ -101,7 +101,7 @@ export default function ColaSincronizacion() {
           <button
             onClick={cargar}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors hover:bg-white/5"
-            style={{ color: '#9ba8b6', border: '1px solid rgba(255,255,255,0.08)' }}
+            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
           >
             <RefreshCw size={13}/> Actualizar
           </button>
@@ -118,8 +118,8 @@ export default function ColaSincronizacion() {
               onClick={() => setFiltro(f => f === key ? '' : key)}
               className="flex items-center gap-4 rounded-xl px-5 py-4 transition-all text-left"
               style={{
-                background: activo ? bg : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${activo ? color + '50' : 'rgba(255,255,255,0.07)'}`,
+                background: activo ? bg : 'var(--bg-card)',
+                border: `1px solid ${activo ? color + '50' : 'var(--border)'}`,
                 cursor: 'pointer',
               }}
             >
@@ -128,7 +128,7 @@ export default function ColaSincronizacion() {
                 <div style={{ fontSize: 30, fontWeight: 700, color, lineHeight: 1 }}>
                   {totales[key]}
                 </div>
-                <div style={{ fontSize: 11, color: '#5f6f80', marginTop: 4 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                   {label}{activo ? ' — clic para ver todas' : ''}
                 </div>
               </div>
@@ -139,7 +139,7 @@ export default function ColaSincronizacion() {
 
       {/* Acciones */}
       <div className="flex items-center justify-between">
-        <div style={{ fontSize: 12, color: '#5f6f80' }}>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
           {ops.length} operación{ops.length !== 1 ? 'es' : ''} en total
           {filtro && ` · mostrando ${mostradas.length} (${ESTADO[filtro]?.label})`}
         </div>
@@ -167,13 +167,13 @@ export default function ColaSincronizacion() {
 
       {/* Tabla */}
       <div style={{
-        background: '#161d28', border: '1px solid rgba(255,255,255,0.08)',
+        background: 'var(--bg-card)', border: '1px solid var(--border)',
         borderRadius: 12, overflow: 'hidden',
       }}>
         {cargando ? (
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '60px 0', color: '#5f6f80', fontSize: 13,
+            padding: '60px 0', color: 'var(--text-muted)', fontSize: 13,
           }}>
             Cargando operaciones…
           </div>
@@ -182,19 +182,19 @@ export default function ColaSincronizacion() {
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             justifyContent: 'center', padding: '70px 0', gap: 14,
           }}>
-            <Inbox size={44} style={{ color: '#3d4f60', opacity: 0.45 }}/>
-            <div style={{ fontSize: 14, color: '#5f6f80', fontWeight: 500 }}>
+            <Inbox size={44} style={{ color: 'var(--text-faint)', opacity: 0.45 }}/>
+            <div style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>
               {filtro
                 ? `Sin operaciones en estado "${ESTADO[filtro]?.label}"`
                 : 'La cola está vacía'}
             </div>
-            <div style={{ fontSize: 12, color: '#3d4f60', maxWidth: 400, textAlign: 'center', lineHeight: 1.6 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-faint)', maxWidth: 400, textAlign: 'center', lineHeight: 1.6 }}>
               {!filtro && 'Las operaciones aparecerán aquí cuando el backend esté activo y se registren acciones mientras el dispositivo está sin conexión.'}
             </div>
             {filtro && (
               <button
                 onClick={() => setFiltro('')}
-                style={{ fontSize: 12, color: '#5f6f80', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
               >
                 Ver todas las operaciones
               </button>
@@ -204,11 +204,11 @@ export default function ColaSincronizacion() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: '#1a2230' }}>
+                <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-muted)' }}>
                   {['Fecha', 'Hora', 'Módulo', 'Acción', 'Descripción', 'Estado', 'Intentos'].map(h => (
                     <th key={h} style={{
                       padding: '10px 16px', textAlign: 'left', fontSize: 10,
-                      fontWeight: 600, color: '#3d4f60', textTransform: 'uppercase',
+                      fontWeight: 600, color: 'var(--text-faint)', textTransform: 'uppercase',
                       letterSpacing: '0.05em', whiteSpace: 'nowrap',
                     }}>
                       {h}
@@ -225,17 +225,17 @@ export default function ColaSincronizacion() {
                   return (
                     <tr
                       key={op.id}
-                      style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+                      style={{ borderBottom: '1px solid var(--border)' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-muted)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
-                      <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: 11, color: '#5f6f80', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                         {fecha}
                       </td>
-                      <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: 11, color: '#9ba8b6', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: 11, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                         {hora}
                       </td>
-                      <td style={{ padding: '10px 16px', color: '#9ba8b6', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 16px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                         {op.modulo || '—'}
                       </td>
                       <td style={{ padding: '10px 16px', whiteSpace: 'nowrap' }}>
@@ -247,12 +247,12 @@ export default function ColaSincronizacion() {
                             {acc.label}
                           </span>
                         ) : (
-                          <span style={{ color: '#5f6f80' }}>{op.accion || '—'}</span>
+                          <span style={{ color: 'var(--text-muted)' }}>{op.accion || '—'}</span>
                         )}
                       </td>
                       <td style={{ padding: '10px 16px', maxWidth: 260 }}>
                         <div title={op.descripcion || op.endpoint || '—'}
-                             style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#9ba8b6' }}>
+                             style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>
                           {op.descripcion || op.endpoint || '—'}
                         </div>
                         {op.ultimoError && (
@@ -269,7 +269,7 @@ export default function ColaSincronizacion() {
                       </td>
                       <td style={{
                         padding: '10px 16px', textAlign: 'center',
-                        color: (op.intentos ?? 0) > 0 ? '#f59e0b' : '#5f6f80',
+                        color: (op.intentos ?? 0) > 0 ? '#f59e0b' : 'var(--text-muted)',
                         fontWeight: (op.intentos ?? 0) > 0 ? 700 : 400,
                         fontFamily: 'monospace',
                       }}>
@@ -289,10 +289,10 @@ export default function ColaSincronizacion() {
         background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.18)',
         borderRadius: 10, padding: '14px 18px', fontSize: 12, color: '#7aa2c8', lineHeight: 1.7,
       }}>
-        <strong style={{ color: '#93c5fd' }}>¿Por qué la cola está vacía?</strong><br/>
-        En el modo actual (<strong>localStorage</strong>) todas las operaciones se ejecutan directamente en el dispositivo.
-        La cola se activará automáticamente cuando se conecte el backend Django — las operaciones realizadas
-        sin internet se encolarán aquí y se sincronizarán al recuperar la conexión.
+        <strong style={{ color: '#93c5fd' }}>¿Cuándo aparecen operaciones aquí?</strong><br/>
+        Con conexión, todas las operaciones van directo al servidor y esta cola permanece vacía — es lo normal.
+        Solo se encola una operación cuando se intenta crear, editar o eliminar algo <strong>sin conexión a internet</strong>;
+        al recuperar la conexión se sincroniza sola automáticamente, sin necesidad de recargar la página.
       </div>
 
       {/* Confirm vaciar */}
@@ -303,15 +303,15 @@ export default function ColaSincronizacion() {
           background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)',
         }}>
           <div style={{
-            background: '#1a2230', border: '1px solid rgba(255,255,255,0.10)',
+            background: 'var(--bg-card)', border: '1px solid var(--border-strong)',
             borderRadius: 14, padding: '32px 36px', maxWidth: 360, textAlign: 'center',
-            boxShadow: '0 20px 50px rgba(0,0,0,0.7)',
+            boxShadow: 'var(--shadow-modal)',
           }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#e8edf2', marginBottom: 10 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>
               ¿Vaciar toda la cola?
             </div>
-            <div style={{ fontSize: 13, color: '#5f6f80', lineHeight: 1.7, marginBottom: 24 }}>
-              Se eliminarán <strong style={{ color: '#9ba8b6' }}>todas</strong> las operaciones,
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 24 }}>
+              Se eliminarán <strong style={{ color: 'var(--text-secondary)' }}>todas</strong> las operaciones,
               incluyendo las pendientes. Esta acción no se puede deshacer.
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
@@ -319,8 +319,8 @@ export default function ColaSincronizacion() {
                 onClick={() => setConfirmVaciar(false)}
                 style={{
                   padding: '9px 20px', borderRadius: 8, fontSize: 13, cursor: 'pointer',
-                  background: 'transparent', border: '1px solid rgba(255,255,255,0.12)',
-                  color: '#9ba8b6',
+                  background: 'transparent', border: '1px solid var(--border-strong)',
+                  color: 'var(--text-secondary)',
                 }}
               >
                 Cancelar

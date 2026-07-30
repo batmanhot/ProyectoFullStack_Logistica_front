@@ -8,6 +8,11 @@
     <link rel="shortcut icon" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="StockPro — Sistema de Gestión Logística para PYMEs" />
+    <!-- La Content-Security-Policy (Hallazgo Alto #8) se inyecta acá solo en el
+         build de producción — ver el plugin `htmlSecurityHeaders` en vite.config.js.
+         En dev, Vite/@vitejs/plugin-react inyectan un <script> inline (preámbulo
+         de React Fast Refresh) que una CSP con script-src 'self' bloquearía,
+         rompiendo `npm run dev`. -->
     <title>StockPro — Gestión Logística</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

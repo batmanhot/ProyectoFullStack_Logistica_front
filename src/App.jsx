@@ -4,6 +4,7 @@ import { AppProvider, useApp } from './store/AppContext'
 import Sidebar from './components/layout/Sidebar'
 import { ToastContainer } from './components/ui/index'
 import { AlertTriangle, X } from 'lucide-react'
+import { useConfiguracion } from './queries/configuracion.queries'
 
 // ── Lazy imports de páginas ─────────────────────────────
 const Login           = lazy(() => import('./pages/Login'))
@@ -34,6 +35,7 @@ const Clientes        = lazy(() => import('./pages/Clientes'))
 const Despachos       = lazy(() => import('./pages/Despachos'))
 const Transportes     = lazy(() => import('./pages/Transportes'))
 const Auditoria       = lazy(() => import('./pages/Auditoria'))
+const PanelAuditoria  = lazy(() => import('./pages/PanelAuditoria'))
 const Flota           = lazy(() => import('./pages/Flota'))
 const Financiero      = lazy(() => import('./pages/Financiero'))
 const CuentasPorCobrar= lazy(() => import('./pages/CuentasPorCobrar'))
@@ -47,6 +49,7 @@ const Sunat           = lazy(() => import('./pages/Sunat'))
 const PortalPedidos      = lazy(() => import('./pages/PortalPedidos'))
 const PedidosInternos    = lazy(() => import('./pages/PedidosInternos'))
 const PortalPublico        = lazy(() => import('./pages/PortalPublico'))
+const PortalProveedorPublico = lazy(() => import('./pages/PortalProveedorPublico'))
 const ContabilidadReportes = lazy(() => import('./pages/ContabilidadReportes'))
 const TrazabilidadPedidos  = lazy(() => import('./pages/TrazabilidadPedidos'))
 const ColaSincronizacion   = lazy(() => import('./pages/ColaSincronizacion'))
@@ -78,6 +81,7 @@ const PAGE_TITLES = {
   '/despachos':      'Gestión de Despachos',
   '/transportes':    'Gestión de Transportes',
   '/auditoria':      'Auditoría del Sistema',
+  '/panel-auditoria': 'Panel de Auditoría',
   '/flota':          'Flota y Mantenimiento',
   '/financiero':     'Dashboard Financiero — P&L',
   '/cxc':            'Cuentas por Cobrar',
@@ -170,7 +174,7 @@ function PlanVencidoScreen({ negocio }) {
       </div>
       <button
         onClick={logout}
-        className="px-5 py-2.5 bg-[#1e2835] border border-white/[0.08] text-[#e8edf2] text-[13px] font-medium rounded-lg hover:bg-[#263040] transition-colors">
+        className="px-5 py-2.5 bg-[#1e2835] border border-white/8 text-[#e8edf2] text-[13px] font-medium rounded-lg hover:bg-[#263040] transition-colors">
         Cerrar sesión
       </button>
     </div>
@@ -180,35 +184,28 @@ function PlanVencidoScreen({ negocio }) {
 function PlanVencimientoBanner({ empresaId }) {
   const hoy = new Date()
   const DISMISS_KEY = `sp_plan_banner_dismiss_${empresaId}`
+  const { data: configApi } = useConfiguracion()
 
-  const [visible, setVisible] = useState(() => {
-    const dismissed = sessionStorage.getItem(DISMISS_KEY)
-    if (dismissed === hoy.toDateString()) return false
-    try {
-      const negocios = JSON.parse(localStorage.getItem('saas_negocios') || '[]')
-      const negocio  = negocios.find(n => n.empresaId === empresaId)
-      if (!negocio?.fechaVencimiento) return false
-      const dias = Math.floor((new Date(negocio.fechaVencimiento) - hoy) / 86400000)
-      return dias <= 7
-    } catch { return false }
-  })
+  const [dismissedHoy, setDismissedHoy] = useState(
+    () => sessionStorage.getItem(DISMISS_KEY) === hoy.toDateString(),
+  )
 
-  if (!visible) return null
-
-  const negocios = (() => { try { return JSON.parse(localStorage.getItem('saas_negocios') || '[]') } catch { return [] } })()
-  const negocio  = negocios.find(n => n.empresaId === empresaId)
-  const dias     = negocio?.fechaVencimiento
-    ? Math.floor((new Date(negocio.fechaVencimiento) - hoy) / 86400000)
+  const fechaVencimiento = configApi?.fechaVencimiento
+  const dias = fechaVencimiento
+    ? Math.floor((new Date(fechaVencimiento) - hoy) / 86400000)
     : null
 
-  const vencido  = dias !== null && dias < 0
+  const visible = !dismissedHoy && dias !== null && dias <= 7
+  if (!visible) return null
+
+  const vencido  = dias < 0
   const mensaje  = vencido
     ? 'Tu plan ha vencido. Contacta al administrador para renovar tu acceso.'
     : `Tu plan vence en ${dias} día${dias === 1 ? '' : 's'}. Contacta al administrador para renovarlo.`
 
   function cerrar() {
     sessionStorage.setItem(DISMISS_KEY, hoy.toDateString())
-    setVisible(false)
+    setDismissedHoy(true)
   }
 
   return (
@@ -229,7 +226,7 @@ function PageHeader() {
   const title = PAGE_TITLES[location.pathname] || 'StockPro'
 
   return (
-    <div className="h-[52px] flex items-center px-6 border-b border-white/[0.08] bg-[#141920] shrink-0">
+    <div className="h-[52px] flex items-center px-6 border-b border-white/8 bg-[#141920] shrink-0">
       <h1 className="text-[16px] font-semibold text-[#e8edf2]">{title}</h1>
     </div>
   )
@@ -261,6 +258,7 @@ const MOBILE_BP = 768
 function AppLayout() {
   const { sesion } = useApp()
   const location = useLocation()
+  const { data: configApiBloqueo } = useConfiguracion({ enabled: !!sesion?.empresaId })
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < MOBILE_BP)
 
   useEffect(() => {
@@ -290,12 +288,34 @@ function AppLayout() {
     )
   }
 
+  // /portal/:token (cliente) y /portal-proveedor/:token (proveedor B2B) son
+  // públicos — el visitante externo entra con un JWT propio (PortalClienteGuard /
+  // PortalProveedorGuard), nunca con sesión de tenant. Deben interceptarse AQUÍ,
+  // antes del `if (!sesion)` de más abajo: si vivieran dentro del bloque
+  // autenticado (como antes), un visitante externo sin sesión nunca llegaría a
+  // resolver la ruta — siempre caía en la landing por el catch-all `*`.
+  const isPortalPublico = location.pathname.startsWith('/portal/') || location.pathname.startsWith('/portal-proveedor/')
+  if (isPortalPublico) {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/portal/:token"           element={<PortalPublico />} />
+            <Route path="/portal-proveedor/:token"  element={<PortalProveedorPublico />} />
+          </Routes>
+        </Suspense>
+        <ToastContainer />
+      </ErrorBoundary>
+    )
+  }
+
   // /app/:orgId siempre muestra el Login del tenant — sin importar quién esté logueado.
   // Si el usuario ya tiene sesión en ESE tenant específico, redirige al dashboard.
   const isTenantRoute = location.pathname.startsWith('/app/')
   if (isTenantRoute) {
     const orgId = location.pathname.replace('/app/', '').split('/')[0]
-    if (sesion && sesion.rol !== 'saas_admin' && sesion.empresaId === orgId) {
+    if (sesion && sesion.rol?.codigo !== 'saas_admin' &&
+        (sesion.empresaId === orgId || sesion.empresaCodigo === orgId)) {
       return <Navigate to="/" replace />
     }
     return (
@@ -311,27 +331,23 @@ function AppLayout() {
   }
 
   // SuperAdmin: layout exclusivo sin datos de empresa
-  if (sesion?.rol === 'saas_admin') {
+  if (sesion?.rol?.codigo === 'saas_admin') {
     return <SuperAdminLayout />
   }
 
   // Bloqueo por plan vencido
-  if (sesion?.empresaId) {
-    try {
-      const negocios = JSON.parse(localStorage.getItem('saas_negocios') || '[]')
-      const negocio  = negocios.find(n => n.empresaId === sesion.empresaId)
-      const estadosBloqueados = ['suspendido', 'vencido', 'cancelado']
-      const fechaVencida = negocio?.fechaVencimiento &&
-        new Date(negocio.fechaVencimiento) < new Date(new Date().toDateString())
-      if (negocio && (estadosBloqueados.includes(negocio.estado) || fechaVencida)) {
-        return (
-          <ErrorBoundary>
-            <PlanVencidoScreen negocio={negocio} />
-            <ToastContainer />
-          </ErrorBoundary>
-        )
-      }
-    } catch {}
+  if (sesion?.empresaId && configApiBloqueo) {
+    const estadosBloqueados = ['suspendido', 'vencido', 'cancelado']
+    const fechaVencida = configApiBloqueo.fechaVencimiento &&
+      new Date(configApiBloqueo.fechaVencimiento) < new Date(new Date().toDateString())
+    if (estadosBloqueados.includes(configApiBloqueo.estado) || fechaVencida) {
+      return (
+        <ErrorBoundary>
+          <PlanVencidoScreen negocio={configApiBloqueo} />
+          <ToastContainer />
+        </ErrorBoundary>
+      )
+    }
   }
 
   if (!sesion) {
@@ -384,6 +400,7 @@ function AppLayout() {
             <Route path="/despachos"      element={<Despachos />} />
             <Route path="/transportes"    element={<Transportes />} />
             <Route path="/auditoria"      element={<Auditoria />} />
+            <Route path="/panel-auditoria" element={<PanelAuditoria />} />
             <Route path="/flota"          element={<Flota />} />
             <Route path="/financiero"     element={<Financiero />} />
             <Route path="/cxc"            element={<CuentasPorCobrar />} />
@@ -396,7 +413,6 @@ function AppLayout() {
             <Route path="/sunat"          element={<Sunat />} />
             <Route path="/portal-pedidos"   element={<PortalPedidos />} />
             <Route path="/pedidos-internos" element={<PedidosInternos />} />
-            <Route path="/portal/:token"  element={<PortalPublico />} />
             <Route path="/contabilidad"   element={<ContabilidadReportes />} />
             <Route path="/trazabilidad"   element={<TrazabilidadPedidos />} />
             <Route path="/cola-sync"      element={<ColaSincronizacion />} />
@@ -404,7 +420,7 @@ function AppLayout() {
             <Route path="/maestros"       element={<Maestros />} />
             <Route path="/usuarios"       element={<Usuarios />} />
             <Route path="/configuracion"  element={<Configuracion />} />
-            <Route path="/admin-saas"     element={sesion?.rol === 'saas_admin' ? <AdminSaaS /> : <Navigate to="/" replace />} />
+            <Route path="/admin-saas"     element={sesion?.rol?.codigo === 'saas_admin' ? <AdminSaaS /> : <Navigate to="/" replace />} />
             <Route path="/landing"        element={<LandingPage />} />
             <Route path="*"               element={<Navigate to="/" replace />} />
           </Routes>

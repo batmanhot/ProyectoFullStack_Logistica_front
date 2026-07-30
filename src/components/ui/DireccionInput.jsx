@@ -200,7 +200,7 @@ export default function DireccionInput({
     estado === 'valida'   ? 'border-green-500 focus:border-green-400 focus:ring-green-500/20'   :
     estado === 'invalida' ? 'border-red-500   focus:border-red-400   focus:ring-red-500/20'     :
     estado === 'buscando' ? 'border-blue-400  focus:border-blue-400  focus:ring-blue-400/20'    :
-                            'border-white/[0.08] focus:border-[#00c896] focus:ring-[#00c896]/20'
+                            'border-white/8 focus:border-[#00c896] focus:ring-[#00c896]/20'
 
   return (
     <div className="flex flex-col gap-1">
@@ -247,8 +247,8 @@ export default function DireccionInput({
         {/* Dropdown de sugerencias */}
         {abierto && sugerencias.length > 0 && (
           <div ref={dropRef}
-            className="absolute top-full left-0 right-0 mt-1 bg-[#1a2230] border border-white/[0.12] rounded-xl shadow-2xl z-[9999] overflow-hidden">
-            <div className="px-3 py-1.5 border-b border-white/[0.06] flex items-center gap-1.5">
+            className="absolute top-full left-0 right-0 mt-1 bg-[#1a2230] border border-white/12 rounded-xl shadow-2xl z-[9999] overflow-hidden">
+            <div className="px-3 py-1.5 border-b border-white/6 flex items-center gap-1.5">
               {modoOffline
                 ? <><WifiOff size={9} className="text-amber-400"/>
                     <span className="text-[10px] text-amber-400 uppercase tracking-wide font-semibold">
@@ -262,7 +262,7 @@ export default function DireccionInput({
 
             {sugerencias.map((sug, i) => (
               <button key={i} type="button"
-                className="w-full flex items-start gap-2.5 px-3 py-2.5 hover:bg-[#00c896]/10 transition-colors text-left border-b border-white/[0.04] last:border-0"
+                className="w-full flex items-start gap-2.5 px-3 py-2.5 hover:bg-[#00c896]/10 transition-colors text-left border-b border-white/4 last:border-0"
                 onMouseDown={e => { e.preventDefault(); handleSelect(sug) }}>
                 <MapPin size={12} className={`shrink-0 mt-0.5 ${modoOffline ? 'text-amber-400' : 'text-[#00c896]'}`}/>
                 <div>
@@ -276,7 +276,7 @@ export default function DireccionInput({
               </button>
             ))}
 
-            <div className="px-3 py-1.5 text-[10px] border-t border-white/[0.04]">
+            <div className="px-3 py-1.5 text-[10px] border-t border-white/4">
               {modoOffline
                 ? <span className="text-amber-400/70">Dataset INEI offline — {sugerencias.length} resultados · Perú</span>
                 : <span className="text-[#3d4f60]">Fuente: OpenStreetMap · Nominatim</span>}

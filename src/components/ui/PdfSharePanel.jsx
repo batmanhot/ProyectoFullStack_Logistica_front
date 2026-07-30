@@ -90,7 +90,7 @@ export default function PdfSharePanel({ onClose, onPrint, numero, tipo = 'docume
             </>
           )
 
-          const cls = `flex flex-col items-center text-center px-3 py-3.5 bg-[#1a2230] border border-white/[0.07] rounded-xl transition-all cursor-pointer ${a.bgHover}`
+          const cls = `flex flex-col items-center text-center px-3 py-3.5 bg-[#1a2230] border border-white/7 rounded-xl transition-all cursor-pointer ${a.bgHover}`
 
           return a.href ? (
             <a key={a.key} href={a.href} target="_blank" rel="noopener noreferrer"
@@ -106,7 +106,7 @@ export default function PdfSharePanel({ onClose, onPrint, numero, tipo = 'docume
       </div>
 
       {/* Nota mínima — solo si no hay backend */}
-      <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-500/[0.06] border border-amber-500/15 rounded-lg">
+      <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-500/6 border border-amber-500/15 rounded-lg">
         <div className="w-1 h-1 rounded-full bg-amber-400 mt-1.5 shrink-0"/>
         <p className="text-[11px] text-amber-300/70 leading-relaxed">
           El envío automático se activará al conectar el backend. Por ahora el usuario adjunta el PDF manualmente.

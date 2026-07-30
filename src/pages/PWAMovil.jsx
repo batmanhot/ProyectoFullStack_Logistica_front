@@ -1,12 +1,11 @@
-﻿/**
+/**
  * PWAMovil.jsx — App Móvil Nativa / PWA Optimizada
  *
  * Funcionalidades implementadas:
  * 1. Vista móvil simplificada de inventario (tarjetas swipe-friendly)
- * 2. Gestos swipe para aprobar/rechazar despachos
- * 3. Registro de entradas con escaneo QR/barras desde cámara
- * 4. Cola offline: acciones en sin conexión → sincroniza al reconectar
- * 5. Panel de instalación PWA + estado del Service Worker
+ * 2. Gestos swipe para aprobar/rechazar despachos (llama al backend)
+ * 3. Cola offline: acciones sin conexión → sincroniza al reconectar vía API
+ * 4. Panel de instalación PWA + estado del Service Worker
  */
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Smartphone, Wifi, WifiOff, Package, Truck, CheckCircle,
@@ -16,7 +15,11 @@ import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate } from '../utils/helpers'
 import { estadoStock } from '../utils/helpers'
 import { Badge, Btn, Alert } from '../components/ui/index'
-import * as storage from '../services/storage'
+import { useProductosList } from '../queries/productos.queries'
+import { useDespachosList } from '../queries/despachos.queries'
+import { useAprobarDespacho, useCancelarDespacho } from '../queries/despachos.queries'
+
+const simboloMoneda = 'S/'
 
 const COLA_KEY = 'sp_cola_offline'
 function leerCola()    { try { return JSON.parse(localStorage.getItem(COLA_KEY)||'[]') } catch { return [] } }
@@ -48,10 +51,9 @@ function SwipeCard({ item, onAprobar, onRechazar }) {
 
   return (
     <div ref={cardRef}
-      className="relative rounded-xl border border-white/[0.08] bg-[#1a2230] overflow-hidden select-none touch-pan-y"
+      className="relative rounded-xl border border-white/8 bg-[#1a2230] overflow-hidden select-none touch-pan-y"
       style={{ transform:`translateX(${offsetX}px)`, opacity, transition: dragging?'none':'all 0.3s ease', background: bgColor || '#1a2230' }}
       onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-      {/* Indicadores swipe */}
       {offsetX > 20 && (
         <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-1 text-green-400 font-bold text-[13px]">
           <CheckCircle size={18}/> Aprobar
@@ -70,15 +72,18 @@ function SwipeCard({ item, onAprobar, onRechazar }) {
 }
 
 export default function PWAMovil() {
-  const { productos, despachos, almacenes, recargarDespachos, recargarMovimientos,
-          simboloMoneda, config, toast } = useApp()
+  const { toast } = useApp()
+  const { data: productos = [] } = useProductosList()
+  const { data: despachos = [] } = useDespachosList()
+  const { mutateAsync: aprobarAsync } = useAprobarDespacho()
+  const { mutateAsync: cancelarAsync } = useCancelarDespacho()
 
   const [isOnline,      setIsOnline]      = useState(navigator.onLine)
   const [installPrompt, setInstallPrompt] = useState(null)
   const [installed,     setInstalled]     = useState(false)
   const [swStatus,      setSWStatus]      = useState('checking')
   const [colaOffline,   setColaOffline]   = useState(leerCola)
-  const [vistaActiva,   setVistaActiva]   = useState('dashboard') // dashboard|inventario|despachos|cola
+  const [vistaActiva,   setVistaActiva]   = useState('dashboard')
   const [sincronizando, setSincronizando] = useState(false)
 
   // ── Detectar conectividad ──────────────────────────
@@ -98,6 +103,7 @@ export default function PWAMovil() {
       window.removeEventListener('offline', goOffline)
       window.removeEventListener('beforeinstallprompt', handler)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── Cola offline ───────────────────────────────────
@@ -116,18 +122,15 @@ export default function PWAMovil() {
     for (const accion of cola) {
       try {
         if (accion.tipo === 'APROBAR_DESPACHO') {
-          const d = storage.getDespachoById?.(accion.despachoId)?.data
-          if (d) { storage.saveDespacho({ ...d, estado: 'APROBADO' }); procesadas++ }
+          await aprobarAsync(accion.despachoId); procesadas++
         }
         if (accion.tipo === 'RECHAZAR_DESPACHO') {
-          const d = storage.getDespachoById?.(accion.despachoId)?.data
-          if (d) { storage.saveDespacho({ ...d, estado: 'ANULADO' }); procesadas++ }
+          await cancelarAsync(accion.despachoId); procesadas++
         }
-      } catch (e) { /* continúa con la siguiente */ }
+      } catch { /* continúa con la siguiente */ }
     }
     guardarCola([])
     setColaOffline([])
-    recargarDespachos()
     setSincronizando(false)
     if (procesadas > 0) toast(`${procesadas} acciones sincronizadas correctamente`, 'success')
   }
@@ -159,16 +162,23 @@ export default function PWAMovil() {
 
   // ── Acción swipe despacho ──────────────────────────
   function swipeAprobar(des) {
-    if (!isOnline) { agregarACola({ tipo:'APROBAR_DESPACHO', despachoId: des.id, numero: des.numero }); return }
-    storage.saveDespacho({ ...des, estado:'APROBADO' })
-    recargarDespachos()
-    toast(`Despacho ${des.numero} aprobado`, 'success')
+    if (!isOnline) {
+      agregarACola({ tipo:'APROBAR_DESPACHO', despachoId: des.id, numero: des.numero })
+      return
+    }
+    aprobarAsync(des.id)
+      .then(() => toast(`Despacho ${des.numero} aprobado`, 'success'))
+      .catch(() => toast('Error al aprobar despacho', 'error'))
   }
+
   function swipeRechazar(des) {
-    if (!isOnline) { agregarACola({ tipo:'RECHAZAR_DESPACHO', despachoId: des.id, numero: des.numero }); return }
-    storage.saveDespacho({ ...des, estado:'ANULADO' })
-    recargarDespachos()
-    toast(`Despacho ${des.numero} rechazado`, 'warning')
+    if (!isOnline) {
+      agregarACola({ tipo:'RECHAZAR_DESPACHO', despachoId: des.id, numero: des.numero })
+      return
+    }
+    cancelarAsync(des.id)
+      .then(() => toast(`Despacho ${des.numero} rechazado`, 'warning'))
+      .catch(() => toast('Error al rechazar despacho', 'error'))
   }
 
   const VISTAS = [
@@ -248,17 +258,17 @@ export default function PWAMovil() {
               { label:'Despachos activos', val:kpisMovil.despActivos, color:'#3b82f6', icon:Truck    },
               { label:'Acciones en cola',  val:kpisMovil.colaItems,   color: kpisMovil.colaItems>0?'#f59e0b':'#5f6f80', icon:Clock },
             ].map(({ label, val, color, icon:Icon }) => (
-              <div key={label} className="bg-[#161d28] border border-white/[0.08] rounded-xl p-4 relative overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ background:color }}/>
+              <div key={label} className="bg-[#161d28] border border-white/8 rounded-xl p-4 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-0.75 rounded-t-xl" style={{ background:color }}/>
                 <Icon size={14} style={{ color }} className="mb-2 opacity-80"/>
-                <div className="text-[26px] font-bold" style={{ color }}>{val}</div>
+                <div className="text-[28px] font-semibold" style={{ color }}>{val}</div>
                 <div className="text-[10px] text-[#5f6f80] uppercase tracking-wide mt-0.5">{label}</div>
               </div>
             ))}
           </div>
 
           {/* Estado SW */}
-          <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-4">
+          <div className="bg-[#161d28] border border-white/8 rounded-xl p-4">
             <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide mb-3">Estado de la PWA</div>
             {[
               ['Service Worker', swStatus==='activo'?'Activo':'Inactivo', swStatus==='activo'],
@@ -266,7 +276,7 @@ export default function PWAMovil() {
               ['Instalada',      installed?'Sí':'No (disponible)',        installed],
               ['Cola offline',   `${colaOffline.length} acciones pendientes`, colaOffline.length===0],
             ].map(([k,v,ok]) => (
-              <div key={k} className="flex justify-between items-center py-2 border-b border-white/[0.05] last:border-0">
+              <div key={k} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
                 <span className="text-[12px] text-[#5f6f80]">{k}</span>
                 <span className={`text-[12px] font-medium ${ok?'text-green-400':'text-amber-400'}`}>{v}</span>
               </div>
@@ -274,7 +284,7 @@ export default function PWAMovil() {
           </div>
 
           {/* Guía UX móvil */}
-          <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-4">
+          <div className="bg-[#161d28] border border-white/8 rounded-xl p-4">
             <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide mb-3">
               Gestos disponibles en móvil
             </div>
@@ -284,7 +294,7 @@ export default function PWAMovil() {
               ['📷 Cámara',          'Escanear código de barras en Entradas', '#3b82f6'],
               ['⚡ Offline',         'Acciones guardadas y sincronizadas al reconectar', '#f59e0b'],
             ].map(([gesto, accion, color]) => (
-              <div key={gesto} className="flex items-start gap-3 py-2 border-b border-white/[0.05] last:border-0">
+              <div key={gesto} className="flex items-start gap-3 py-2 border-b border-white/5 last:border-0">
                 <span className="text-[14px] shrink-0">{gesto.slice(0,2)}</span>
                 <div>
                   <div className="text-[12px] font-medium" style={{color}}>{gesto.slice(2).trim()}</div>
@@ -312,7 +322,7 @@ export default function PWAMovil() {
               const est = estadoStock(p.stockActual, p.stockMinimo)
               const color = est.estado==='agotado'?'#ef4444':est.estado==='critico'?'#f59e0b':'#00c896'
               return (
-                <div key={p.id} className="bg-[#1a2230] rounded-xl px-4 py-3 border border-white/[0.07] flex items-center gap-3">
+                <div key={p.id} className="bg-[#1a2230] rounded-xl px-4 py-3 border border-white/8 flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full shrink-0" style={{background:color}}/>
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] font-medium text-[#e8edf2] truncate">{p.nombre}</div>
@@ -370,7 +380,7 @@ export default function PWAMovil() {
             <div className="flex flex-col gap-2 mt-2">
               <div className="text-[11px] text-[#5f6f80] uppercase tracking-wide">En proceso</div>
               {despachosActivos.filter(d=>d.estado!=='PEDIDO').map(des => (
-                <div key={des.id} className="bg-[#1a2230] rounded-xl px-4 py-3 border border-white/[0.07] flex items-center gap-3">
+                <div key={des.id} className="bg-[#1a2230] rounded-xl px-4 py-3 border border-white/8 flex items-center gap-3">
                   <Truck size={14} className="text-[#5f6f80] shrink-0"/>
                   <div className="flex-1 min-w-0">
                     <div className="font-mono text-[11px] text-[#00c896]">{des.numero}</div>

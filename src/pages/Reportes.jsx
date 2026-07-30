@@ -2,15 +2,20 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
          LineChart, Line, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
 import { Download, TrendingUp, TrendingDown, DollarSign, Percent, Package } from 'lucide-react'
-import { useApp } from '../store/AppContext'
 import { formatCurrency, clasificarABC, formatDate } from '../utils/helpers'
-import { valorarStock, calcularPMP } from '../utils/valorizacion'
+// batches no existe en el backend — precioCompra es el proxy ya probado (ver Financiero.jsx).
+const pmpProxy   = (p) => Number(p?.precioCompra || 0)
+const valorProxy = (p) => Number(p?.precioCompra || 0) * Number(p?.stockActual || 0)
 import { Badge, Btn } from '../components/ui/index'
 import { exportarRentabilidadXLSX, exportarInventarioXLSX } from '../utils/exportXLSX'
 import { exportarRentabilidadPDF, exportarInventarioPDF } from '../utils/exportPDF'
+import { useProductosList } from '../queries/productos.queries'
+import { useMovimientosList } from '../queries/movimientos.queries'
+import { useCategoriasList } from '../queries/categorias.queries'
+import { useAlmacenesList } from '../queries/almacenes.queries'
 
 const TT = { background:'#0f172a', border:'1px solid rgba(255,255,255,0.15)', borderRadius:8, fontSize:12, color:'#fff', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.5)' }
-const TH = ({c,r,center})=><th className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/[0.08] sticky top-0 ${r?'text-right':center?'text-center':'text-left'}`}>{c}</th>
+const TH = ({c,r,center})=><th className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 sticky top-0 ${r?'text-right':center?'text-center':'text-left'}`}>{c}</th>
 const PIE_COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#06b6d4']
 
 const TABS = [
@@ -22,19 +27,26 @@ const TABS = [
 ]
 
 export default function Reportes() {
-  const { productos, movimientos, categorias, almacenes,
-          formulaValorizacion, simboloMoneda, config } = useApp()
+  const { data: productos   = [] } = useProductosList()
+  const { data: movimientos = [] } = useMovimientosList()
+  const { data: categorias  = [] } = useCategoriasList()
+  const { data: almacenes   = [] } = useAlmacenesList()
+  const formulaValorizacion = 'PMP'
+  const simboloMoneda       = 'S/'
+  const config              = null
   const [tab, setTab] = useState('rentabilidad')
 
   // ── Inventario enriquecido ────────────────────────────
+  // batches no existe en el backend (se reemplazó por LoteProducto) — se usa
+  // precioCompra como proxy del costo, mismo patrón ya probado en Financiero.jsx.
   const inventario = useMemo(() =>
     productos.filter(p => p.activo !== false).map(p => ({
       ...p,
-      pmp:         calcularPMP(p.batches || []),
-      valorStock:  valorarStock(p.batches || [], formulaValorizacion),
+      pmp:         p.precioCompra || 0,
+      valorStock:  (p.precioCompra || 0) * (p.stockActual || 0),
       catNombre:   categorias.find(c => c.id === p.categoriaId)?.nombre || '—',
       margenNum:   (p.precioVenta || 0) > 0
-        ? (((p.precioVenta || 0) - calcularPMP(p.batches || [])) / (p.precioVenta || 1)) * 100
+        ? (((p.precioVenta || 0) - (p.precioCompra || 0)) / (p.precioVenta || 1)) * 100
         : null,
     })).sort((a, b) => b.valorStock - a.valorStock)
   , [productos, categorias, formulaValorizacion])
@@ -47,7 +59,7 @@ export default function Reportes() {
     // Por producto: calcular ingresos y costos reales de las salidas
     const map = {}
     productos.filter(p => p.activo !== false).forEach(p => {
-      const pmp          = calcularPMP(p.batches || [])
+      const pmp          = p.precioCompra || 0
       const precioVenta  = p.precioVenta || 0
       // Salidas de este producto (historial de movimientos)
       const salidas      = movimientos.filter(m => m.productoId === p.id && m.tipo === 'SALIDA')
@@ -98,8 +110,9 @@ export default function Reportes() {
     movimientos.forEach(m => {
       const mes = m.fecha?.substring(0, 7) || '—'
       if (!map[mes]) map[mes] = { mes, entradas: 0, salidas: 0 }
-      if (m.tipo === 'ENTRADA') map[mes].entradas += m.costoTotal
-      if (m.tipo === 'SALIDA')  map[mes].salidas  += m.costoTotal
+      const costoTotal = Number(m.costoUnitario||0) * Number(m.cantidad||0)
+      if (m.tipo === 'ENTRADA') map[mes].entradas += costoTotal
+      if (m.tipo === 'SALIDA')  map[mes].salidas  += costoTotal
     })
     return Object.values(map).sort((a, b) => a.mes.localeCompare(b.mes)).slice(-12)
   }, [movimientos])
@@ -110,7 +123,7 @@ export default function Reportes() {
     categorias.forEach(c => { map[c.id] = { nombre: c.nombre, salidas: 0, valor: 0 } })
     movimientos.filter(m => m.tipo === 'SALIDA').forEach(m => {
       const p = productos.find(x => x.id === m.productoId)
-      if (p && map[p.categoriaId]) { map[p.categoriaId].salidas += m.cantidad; map[p.categoriaId].valor += m.costoTotal }
+      if (p && map[p.categoriaId]) { map[p.categoriaId].salidas += Number(m.cantidad||0); map[p.categoriaId].valor += Number(m.costoUnitario||0) * Number(m.cantidad||0) }
     })
     return Object.values(map).sort((a, b) => b.valor - a.valor)
   }, [movimientos, productos, categorias])
@@ -155,7 +168,7 @@ export default function Reportes() {
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* Tabs */}
-      <div className="flex gap-0.5 border-b border-white/[0.08] overflow-x-auto">
+      <div className="flex gap-0.5 border-b border-white/8 overflow-x-auto">
         {TABS.map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`px-4 py-2 text-[13px] font-medium border-b-2 -mb-px transition-all whitespace-nowrap
@@ -180,13 +193,13 @@ export default function Reportes() {
               { label:'Margen %',         val: kpisRent.margenPct.toFixed(1) + '%',                  color: kpisRent.margenPct >= 20 ? '#22c55e' : kpisRent.margenPct >= 0 ? '#f59e0b' : '#ef4444', icon:Percent },
               { label:'Sin precio venta', val: kpisRent.sinPrecio,                                   color: kpisRent.sinPrecio > 0 ? '#f59e0b' : '#22c55e', icon:TrendingDown, sub: kpisRent.sinPrecio > 0 ? 'Requieren precio' : 'Todo configurado' },
             ].map(({ label, val, color, icon:Icon, mono, sub }) => (
-              <div key={label} className="relative bg-[#161d28] border border-white/[0.08] rounded-xl px-5 py-4 overflow-hidden">
+              <div key={label} className="relative bg-[#161d28] border border-white/8 rounded-xl px-5 py-4 overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ background: color }}/>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Icon size={11} style={{ color, opacity: 0.8 }}/>
                   <span className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-[0.07em]">{label}</span>
                 </div>
-                <div className={`font-bold text-[#e8edf2] leading-none ${mono ? 'text-[15px] font-mono' : 'text-[22px]'}`}>{val}</div>
+                <div className={`font-semibold text-[#e8edf2] leading-none ${mono ? 'text-[17px] font-mono' : 'text-[28px]'}`}>{val}</div>
                 {sub && <div className="text-[10px] text-[#5f6f80] mt-1">{sub}</div>}
               </div>
             ))}
@@ -205,7 +218,7 @@ export default function Reportes() {
 
           {/* Gráfico y Distribución */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            <div className="lg:col-span-2 bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+            <div className="lg:col-span-2 bg-[#161d28] border border-white/8 rounded-xl p-5">
                 <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] block mb-4">Distribución de Margen por Categoría</span>
                 <div className="h-[280px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -239,7 +252,7 @@ export default function Reportes() {
                 </div>
             </div>
 
-            <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5 flex flex-col">
+            <div className="bg-[#161d28] border border-white/8 rounded-xl p-5 flex flex-col">
               <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] block mb-4">Resumen por Categoría</span>
               <div className="flex flex-col gap-3 overflow-y-auto max-h-[280px] custom-scrollbar">
                 {rentPorCat.map((c, i) => (
@@ -260,7 +273,7 @@ export default function Reportes() {
           </div>
 
           {/* Tabla rentabilidad por producto */}
-          <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+          <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Rentabilidad por Producto</span>
                 <div className="flex items-center gap-2">
@@ -277,7 +290,7 @@ export default function Reportes() {
                   </Btn>
                 </div>
               </div>
-              <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+              <div className="overflow-x-auto rounded-xl border border-white/8">
                 <table className="w-full border-collapse text-[13px]">
                   <thead><tr>
                     <TH c="SKU"/><TH c="Producto"/><TH c="P. Costo" r/><TH c="P. Venta" r/>
@@ -290,7 +303,7 @@ export default function Reportes() {
                         : r.margenPct >= 0  ? '#f59e0b'
                         : '#ef4444'
                       return (
-                        <tr key={r.id} className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.02]">
+                        <tr key={r.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
                           <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#00c896]">{r.sku}</td>
                           <td className="px-3.5 py-2.5 text-[12px] max-w-[160px] truncate font-medium text-[#e8edf2]">{r.nombre}</td>
                           <td className="px-3.5 py-2.5 font-mono text-[12px] text-right text-[#9ba8b6]">{formatCurrency(r.pmp, simboloMoneda)}</td>
@@ -320,7 +333,7 @@ export default function Reportes() {
                     })}
                   </tbody>
                   <tfoot>
-                    <tr className="bg-[#1a2230] border-t border-white/[0.1]">
+                    <tr className="bg-[#1a2230] border-t border-white/10">
                       <td colSpan={5} className="px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide">TOTAL</td>
                       <td className="px-3.5 py-2.5 font-mono text-[13px] text-right font-bold text-[#3b82f6]">{formatCurrency(kpisRent.totalIngresos, simboloMoneda)}</td>
                       <td className="px-3.5 py-2.5 font-mono text-[13px] text-right font-bold" style={{ color: kpisRent.totalMargen >= 0 ? '#22c55e' : '#ef4444' }}>{formatCurrency(kpisRent.totalMargen, simboloMoneda)}</td>
@@ -443,7 +456,7 @@ export default function Reportes() {
           INVENTARIO VALORIZADO
       ══════════════════════════════════════════════════ */}
       {tab === 'inventario' && (
-        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+        <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">
               Inventario Valorizado — Método {formulaValorizacion}
@@ -452,18 +465,18 @@ export default function Reportes() {
               <span className="text-[13px] text-[#9ba8b6]">Total: <span className="text-[#00c896] font-semibold">{formatCurrency(valorTotal, simboloMoneda)}</span></span>
               <Btn variant="secondary" size="sm" onClick={exportarInventario}><Download size={13}/>CSV</Btn>
               <Btn variant="secondary" size="sm"
-                onClick={async()=>{ await exportarInventarioXLSX(productos, categorias, almacenes, formulaValorizacion, simboloMoneda, calcularPMP, valorarStock) }}
+                onClick={async()=>{ await exportarInventarioXLSX(productos, categorias, almacenes, formulaValorizacion, simboloMoneda, pmpProxy, valorProxy) }}
                 style={{background:'#1e7b47',color:'#fff',borderColor:'#1e7b47'}}>
                 <Download size={13}/>Excel
               </Btn>
               <Btn variant="secondary" size="sm"
-                onClick={async()=>{ await exportarInventarioPDF(productos, categorias, almacenes, formulaValorizacion, simboloMoneda, calcularPMP, valorarStock, config?.empresa) }}
+                onClick={async()=>{ await exportarInventarioPDF(productos, categorias, almacenes, formulaValorizacion, simboloMoneda, pmpProxy, valorProxy, config?.empresa) }}
                 style={{background:'#c0392b',color:'#fff',borderColor:'#c0392b'}}>
                 <Download size={13}/>PDF
               </Btn>
             </div>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+          <div className="overflow-x-auto rounded-xl border border-white/8">
             <table className="w-full border-collapse text-[13px]">
               <thead><tr>
                 <TH c="SKU"/><TH c="Producto"/><TH c="Categoría"/>
@@ -478,7 +491,7 @@ export default function Reportes() {
                     : p.margenNum >= 0  ? '#f59e0b'
                     : '#ef4444'
                   return (
-                    <tr key={p.id} className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.02]">
+                    <tr key={p.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
                       <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#00c896]">{p.sku}</td>
                       <td className="px-3.5 py-2.5 font-medium text-[#e8edf2] max-w-[160px] truncate">{p.nombre}</td>
                       <td className="px-3.5 py-2.5 text-[#9ba8b6]">{p.catNombre}</td>
@@ -514,7 +527,7 @@ export default function Reportes() {
           MOVIMIENTOS POR PERÍODO
       ══════════════════════════════════════════════════ */}
       {tab === 'movimientos' && (
-        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+        <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
           <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-1">Entradas y Salidas por Mes</div>
           <div className="flex gap-4 text-[11px] text-[#5f6f80] mb-4">
             <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-[#00c896]"/>Entradas</span>
@@ -538,7 +551,7 @@ export default function Reportes() {
           ANÁLISIS ABC
       ══════════════════════════════════════════════════ */}
       {tab === 'abc' && (
-        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5 flex flex-col gap-5">
+        <div className="bg-[#161d28] border border-white/8 rounded-xl p-5 flex flex-col gap-5">
 
           {/* Título */}
           <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">
@@ -562,14 +575,14 @@ export default function Reportes() {
           </div>
 
           {/* ── Tabla detallada ──────────────────────────── */}
-          <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+          <div className="overflow-x-auto rounded-xl border border-white/8">
             <table className="w-full border-collapse text-[13px]">
               <thead><tr><TH c="Clase"/><TH c="SKU"/><TH c="Producto"/><TH c="Stock" r/><TH c="Valor" r/><TH c="% Acum." r/></tr></thead>
               <tbody>
                 {abc.map((p, i) => {
                   const acum = abc.slice(0, i + 1).reduce((s, x) => s + x.valorStock, 0)
                   return (
-                    <tr key={p.id} className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.02]">
+                    <tr key={p.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
                       <td className="px-3.5 py-2.5"><Badge variant={p.abc==='A'?'success':p.abc==='B'?'info':'neutral'}>{p.abc}</Badge></td>
                       <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#00c896]">{p.sku}</td>
                       <td className="px-3.5 py-2.5 font-medium text-[#e8edf2]">{p.nombre}</td>
@@ -669,7 +682,7 @@ export default function Reportes() {
           ROTACIÓN POR CATEGORÍA
       ══════════════════════════════════════════════════ */}
       {tab === 'rotacion' && (
-        <div className="bg-[#161d28] border border-white/[0.08] rounded-xl p-5">
+        <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
           <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">Rotación de Stock por Categoría</div>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={rotacion} layout="vertical">
