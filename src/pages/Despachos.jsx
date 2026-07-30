@@ -412,7 +412,7 @@ export default function Despachos() {
 }
 
 // ── Modal Nuevo Pedido ────────────────────────────────────
-function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, almacenes, transportistas=[], simboloMoneda, saving }) {
+export function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, almacenes, transportistas=[], simboloMoneda, saving }) {
   const initForm = { clienteId:'', almacenId: almacenes[0]?.id || '', fecha: fechaHoy(), fechaEntrega:'', transportistaId:'', direccionEntrega:'', observaciones:'' }
   const [form, setForm]   = useState(initForm)
   const [items, setItems] = useState([])
@@ -702,7 +702,7 @@ function ModalEvidencia({ des, onClose, onConfirm }) {
 }
 
 /** Asigna guiaNumero a despachos que salieron sin ella (p. ej. despachados vía Ruta, ver Transportes.jsx). */
-function ModalAsignarGuia({ des, onClose, onSave, saving }) {
+export function ModalAsignarGuia({ des, onClose, onSave, saving }) {
   const [guiaNumero, setGuiaNumero] = useState(des.guiaNumero || generarNumDoc('GR'))
   const SI2 = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
 

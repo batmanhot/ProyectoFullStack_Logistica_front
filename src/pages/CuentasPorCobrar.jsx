@@ -245,7 +245,7 @@ export default function CuentasPorCobrar() {
   )
 }
 
-function ModalPago({ doc, simboloMoneda, saving, onClose, onConfirm }) {
+export function ModalPago({ doc, simboloMoneda, saving, onClose, onConfirm }) {
   const [monto, setMonto] = useState('')
 
   useEffect(() => {
