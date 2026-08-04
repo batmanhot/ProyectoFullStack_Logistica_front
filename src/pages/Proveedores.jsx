@@ -1,16 +1,13 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Plus, Search, Edit2, Trash2, Building2, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field } from '../components/ui/index'
+import { Modal, ConfirmDialog, Badge, Btn, Field, Input, DataTable } from '../components/ui/index'
 import { usePlanLimits } from '../hooks/usePlanLimits'
 import { exportarProveedoresXLSX } from '../utils/exportXLSX'
 import { exportarProveedoresPDF } from '../utils/exportPDF'
 import {
   useProveedoresList, useCrearProveedor, useActualizarProveedor, useEliminarProveedor,
 } from '../queries/proveedores.queries'
-
-const TH = ({c}) => <th className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 sticky top-0">{c}</th>
-const SI = 'px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 w-full font-[inherit] placeholder-[#5f6f80]'
 
 export default function Proveedores() {
   const { toast, sesion } = useApp()
@@ -66,7 +63,7 @@ export default function Proveedores() {
             <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] whitespace-nowrap">Proveedores</span>
             <div className="relative w-[220px]">
               <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-              <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar razón social, RUC..."
+              <Input className="pl-8 !py-[5px] text-[12px]" placeholder="Buscar razón social, RUC..."
                 value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
             </div>
           </div>
@@ -97,50 +94,55 @@ export default function Proveedores() {
           </div>
         </div>
 
-        {isLoading ? (
-          <div className="text-center py-8 text-[#5f6f80] text-[13px]">Cargando…</div>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-white/8">
-            <table className="w-full border-collapse text-[13px]">
-              <thead><tr>
-                <TH c="Razón Social"/><TH c="RUC"/><TH c="Teléfono"/>
-                <TH c="Email"/><TH c="Dirección"/><TH c="Estado"/><TH c="Acciones"/>
-              </tr></thead>
-              <tbody>
-                {filtered.length === 0 && (
-                  <tr><td colSpan={7}>
-                    <EmptyState icon={Building2} title="Sin proveedores" description="Agrega tu primer proveedor."/>
-                  </td></tr>
-                )}
-                {filtered.map(p => (
-                  <tr key={p.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
-                    <td className="px-3.5 py-2.5 font-medium text-[#e8edf2]">{p.razonSocial}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{p.ruc || '—'}</td>
-                    <td className="px-3.5 py-2.5 text-[#9ba8b6]">{p.telefono || '—'}</td>
-                    <td className="px-3.5 py-2.5 text-[12px] text-blue-400">{p.email || '—'}</td>
-                    <td className="px-3.5 py-2.5 text-[#9ba8b6] max-w-[180px] truncate">{p.direccion || '—'}</td>
-                    <td className="px-3.5 py-2.5">
-                      <Badge variant={p.activo ? 'success' : 'neutral'}>{p.activo ? 'Activo' : 'Inactivo'}</Badge>
-                    </td>
-                    <td className="px-3.5 py-2.5">
-                      <div className="flex gap-1">
-                        <Btn variant="ghost" size="icon" title="Editar"
-                          onClick={() => { setEditando(p); setModal(true) }}>
-                          <Edit2 size={13}/>
-                        </Btn>
-                        <Btn variant="ghost" size="icon" title="Eliminar"
-                          className="text-red-400 hover:text-red-300"
-                          onClick={() => setConfirmDel(p.id)}>
-                          <Trash2 size={13}/>
-                        </Btn>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          loading={isLoading}
+          rows={filtered}
+          rowKey={p => p.id}
+          onRowClick={p => { setEditando(p); setModal(true) }}
+          emptyIcon={Building2}
+          emptyTitle="Sin proveedores"
+          emptyDescription="Agrega tu primer proveedor."
+          columns={[
+            { key:'razonSocial', header:'Razón Social', render: p => <span className="font-medium text-[#e8edf2]">{p.razonSocial}</span> },
+            { key:'ruc', header:'RUC', render: p => <span className="font-mono text-[12px] text-[#9ba8b6]">{p.ruc || '—'}</span> },
+            { key:'telefono', header:'Teléfono', render: p => <span className="text-[#9ba8b6]">{p.telefono || '—'}</span> },
+            { key:'email', header:'Email', render: p => <span className="text-[12px] text-blue-400">{p.email || '—'}</span> },
+            { key:'direccion', header:'Dirección', render: p => <span className="text-[#9ba8b6] max-w-[180px] truncate block">{p.direccion || '—'}</span> },
+            { key:'estado', header:'Estado', render: p => <Badge variant={p.activo ? 'success' : 'neutral'}>{p.activo ? 'Activo' : 'Inactivo'}</Badge> },
+            { key:'acciones', header:'Acciones', stopPropagation:true, render: p => (
+              <div className="flex gap-1">
+                <Btn variant="ghost" size="icon" title="Editar"
+                  onClick={() => { setEditando(p); setModal(true) }}>
+                  <Edit2 size={13}/>
+                </Btn>
+                <Btn variant="ghost" size="icon" title="Eliminar"
+                  className="text-red-400 hover:text-red-300"
+                  onClick={() => setConfirmDel(p.id)}>
+                  <Trash2 size={13}/>
+                </Btn>
+              </div>
+            ) },
+          ]}
+        />
+      </div>
+
+      {/* Guía de uso */}
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Proveedores?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          {[
+            ['1. Registrar proveedor', 'Solo la Razón Social es obligatoria — RUC, teléfono, email y dirección son opcionales pero recomendados para las Órdenes de Compra y Cotizaciones.'],
+            ['2. Usar en el sistema',  'Un proveedor activo aparece en los selectores de Entradas, Órdenes de Compra y Cotizaciones. Uno inactivo queda oculto de esos formularios pero conserva su historial.'],
+            ['3. Editar o eliminar',   'Haz clic en la fila (o en el ícono de editar) para actualizar sus datos. Eliminar es permanente — revisa que no tenga movimientos u OC en curso antes de borrarlo.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <ModalProveedor
@@ -168,7 +170,13 @@ function ModalProveedor({ open, onClose, editando, onSave }) {
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   useEffect(() => {
-    setForm(editando ? { ...init, ...editando } : init)
+    setForm(editando ? {
+      ...init, ...editando,
+      ruc:       editando.ruc       || '',
+      telefono:  editando.telefono  || '',
+      email:     editando.email     || '',
+      direccion: editando.direccion || '',
+    } : init)
   }, [editando, open])
 
   const canSave = form.razonSocial.trim().length > 0
@@ -189,32 +197,32 @@ function ModalProveedor({ open, onClose, editando, onSave }) {
       }
     >
       <Field label="Razón Social *">
-        <input className={SI} value={form.razonSocial}
+        <Input value={form.razonSocial}
           onChange={e => f('razonSocial', e.target.value)}
           placeholder="Importaciones XYZ S.A.C."/>
       </Field>
 
       <div className="grid grid-cols-2 gap-3.5">
         <Field label="RUC">
-          <input className={SI} value={form.ruc}
+          <Input value={form.ruc}
             onChange={e => f('ruc', e.target.value)}
             placeholder="20123456789" maxLength={11}/>
         </Field>
         <Field label="Teléfono">
-          <input className={SI} value={form.telefono}
+          <Input value={form.telefono}
             onChange={e => f('telefono', e.target.value)}
             placeholder="01-2345678 / 987654321"/>
         </Field>
       </div>
 
       <Field label="Email">
-        <input type="email" className={SI} value={form.email}
+        <Input type="email" value={form.email}
           onChange={e => f('email', e.target.value)}
           placeholder="ventas@proveedor.pe"/>
       </Field>
 
       <Field label="Dirección">
-        <input className={SI} value={form.direccion}
+        <Input value={form.direccion}
           onChange={e => f('direccion', e.target.value)}
           placeholder="Av. Industrial 123, Lima"/>
       </Field>

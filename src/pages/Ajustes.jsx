@@ -1,20 +1,19 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, SlidersHorizontal, TrendingUp, TrendingDown, Eye, X } from 'lucide-react'
+import { Plus, Search, SlidersHorizontal, TrendingUp, TrendingDown, Eye, XCircle, X, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
-import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field } from '../components/ui/index'
+import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, DataTable } from '../components/ui/index'
 import { useMovimientosList, useCrearMovimiento } from '../queries/movimientos.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
-
-const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
-const SEL = SI + ' pr-8'
+import { exportarAjustesXLSX } from '../utils/exportXLSX'
+import { exportarAjustesPDF } from '../utils/exportPDF'
 
 const MOTIVOS_POS = ['Sobrante en conteo físico','Devolución no registrada','Error en sistema','Reposición emergencia','Otro']
 const MOTIVOS_NEG = ['Faltante en conteo físico','Merma / daño','Robo / pérdida','Producto vencido / dado de baja','Error en sistema','Otro']
 
 export default function Ajustes() {
-  const { toast } = useApp()
+  const { toast, sesion } = useApp()
   const simboloMoneda = 'S/'
 
   const { data: movimientos = [], isLoading } = useMovimientosList({ tipo: 'AJUSTE' })
@@ -24,6 +23,7 @@ export default function Ajustes() {
 
   const [modal,    setModal]    = useState(false)
   const [verAj,    setVerAj]    = useState(null)
+  const [anular,   setAnular]   = useState(null)
   const [busqueda, setBusqueda] = useState('')
   const [filtDir,  setFiltDir]  = useState('')
   const [filtAlm,  setFiltAlm]  = useState('')
@@ -61,6 +61,26 @@ export default function Ajustes() {
     setModal(false)
   }
 
+  async function handleAnular(mov) {
+    // mov.cantidad ya viene firmado desde el backend (positivo = incremento,
+    // negativo = decremento) — el campo `direccion` nunca se persiste, así
+    // que el sentido original se lee del signo de la cantidad, no de mov.direccion.
+    const eraIncremento = Number(mov.cantidad) >= 0
+    const res = await crearMovimiento.mutateAsync({
+      tipo:          'AJUSTE',
+      direccion:     eraIncremento ? 'decremento' : 'incremento',
+      productoId:    mov.productoId,
+      almacenId:     mov.almacenId,
+      cantidad:      Math.abs(Number(mov.cantidad)),
+      costoUnitario: Number(mov.costoUnitario || 0),
+      motivo:        `Anulación de ${mov.documento || 'ajuste'}`,
+      documento:     `ANUL-${mov.documento || String(mov.id).slice(0, 8)}`,
+    })
+    if (res.error) { toast(res.error, 'error'); setAnular(null); return }
+    toast('Ajuste anulado', 'success')
+    setAnular(null)
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
@@ -93,64 +113,71 @@ export default function Ajustes() {
       <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="flex items-center justify-between gap-3 mb-3">
           <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] whitespace-nowrap">Ajustes de Inventario</span>
-          <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nuevo Ajuste</Btn>
+          <div className="flex items-center gap-2">
+            <Btn variant="ghost" size="sm" onClick={() => exportarAjustesXLSX(filtered, productos, almacenes, simboloMoneda)}>
+              <Download size={13}/> Excel
+            </Btn>
+            <Btn variant="ghost" size="sm" onClick={() => exportarAjustesPDF(filtered, productos, almacenes, simboloMoneda, sesion?.nombre)}>
+              <FileText size={13}/> PDF
+            </Btn>
+            <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nuevo Ajuste</Btn>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <div className="relative flex-1 min-w-[180px]">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar producto, motivo o documento..."
+            <Input className="pl-8 !py-[5px] text-[12px]" placeholder="Buscar producto, motivo o documento..."
               value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select className={SEL} style={{width:160,padding:'5px 8px',fontSize:12}} value={filtDir} onChange={e => setFiltDir(e.target.value)}>
+          <Select style={{width:160,padding:'5px 8px',fontSize:12}} value={filtDir} onChange={e => setFiltDir(e.target.value)}>
             <option value="">Todos los tipos</option>
             <option value="incremento">Positivo (+)</option>
             <option value="decremento">Negativo (-)</option>
-          </select>
-          <select className={SEL} style={{width:148,padding:'5px 8px',fontSize:12}} value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
+          </Select>
+          <Select style={{width:148,padding:'5px 8px',fontSize:12}} value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
             <option value="">Todos los almacenes</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
+          </Select>
           <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
           {hayFiltros && <Btn variant="ghost" size="sm" onClick={limpiarFiltros}><X size={12}/> Limpiar</Btn>}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[13px]">
-            <thead><tr>
-              {['Fecha','Documento','Producto','Tipo','Cantidad','Costo Unit.','Total','Motivo','Acciones'].map((h, i) => (
-                <th key={h} className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 ${[4,5,6].includes(i) ? 'text-right' : 'text-left'}`}>{h}</th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {isLoading && <tr><td colSpan={9} className="text-center text-[#5f6f80] py-8 text-[12px]">Cargando ajustes...</td></tr>}
-              {!isLoading && filtered.length === 0 && <tr><td colSpan={9}><EmptyState icon={SlidersHorizontal} title="Sin ajustes" description="Registra tu primer ajuste de inventario."/></td></tr>}
-              {filtered.map(m => {
-                const p   = productMap.get(m.productoId)
-                const pos = m.direccion !== 'decremento'
-                return (
-                  <tr key={m.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{formatDate(m.fecha || m.createdAt)}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#00c896]">{m.documento || '—'}</td>
-                    <td className="px-3.5 py-2.5"><div className="font-medium text-[#e8edf2]">{p?.nombre || '—'}</div><div className="text-[11px] text-[#5f6f80]">{p?.sku}</div></td>
-                    <td className="px-3.5 py-2.5">
-                      <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${pos ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
-                        {pos ? <TrendingUp size={10}/> : <TrendingDown size={10}/>} {pos ? 'Positivo' : 'Negativo'}
-                      </span>
-                    </td>
-                    <td className={`px-3.5 py-2.5 font-mono text-[12px] text-right font-semibold ${pos ? 'text-green-400' : 'text-red-400'}`}>{pos ? '+' : '-'}{m.cantidad}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-right">{formatCurrency(Number(m.costoUnitario || 0), simboloMoneda)}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-right font-semibold">{formatCurrency(Number(m.costoTotal || 0), simboloMoneda)}</td>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6] max-w-[140px] truncate">{m.motivo}</td>
-                    <td className="px-3.5 py-2.5">
-                      <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setVerAj(m)}><Eye size={13}/></Btn>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          loading={isLoading}
+          rows={filtered}
+          rowKey={m => m.id}
+          onRowClick={m => setVerAj(m)}
+          emptyIcon={SlidersHorizontal}
+          emptyTitle="Sin ajustes"
+          emptyDescription="Registra tu primer ajuste de inventario."
+          columns={[
+            { key:'fecha', header:'Fecha', render: m => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatDate(m.fecha || m.createdAt)}</span> },
+            { key:'documento', header:'Documento', render: m => <span className="font-mono text-[12px] text-[#00c896]">{m.documento || '—'}</span> },
+            { key:'producto', header:'Producto', render: m => {
+              const p = productMap.get(m.productoId)
+              return <><div className="font-medium text-[#e8edf2]">{p?.nombre || '—'}</div><div className="text-[11px] text-[#5f6f80]">{p?.sku}</div></>
+            } },
+            { key:'tipo', header:'Tipo', render: m => {
+              const pos = Number(m.cantidad) >= 0
+              return <Badge variant={pos ? 'success' : 'danger'}>{pos ? <TrendingUp size={10}/> : <TrendingDown size={10}/>} {pos ? 'Positivo' : 'Negativo'}</Badge>
+            } },
+            { key:'cantidad', header:'Cantidad', align:'right', render: m => {
+              const cant = Number(m.cantidad)
+              const pos  = cant >= 0
+              return <span className={`font-mono text-[12px] font-semibold ${pos ? 'text-green-400' : 'text-red-400'}`}>{pos ? '+' : ''}{cant}</span>
+            } },
+            { key:'costoUnit', header:'Costo Unit.', align:'right', render: m => <span className="font-mono text-[12px]">{formatCurrency(Number(m.costoUnitario || 0), simboloMoneda)}</span> },
+            { key:'total', header:'Total', align:'right', render: m => <span className="font-mono text-[12px] font-semibold">{formatCurrency(Number(m.costoTotal || 0), simboloMoneda)}</span> },
+            { key:'motivo', header:'Motivo', render: m => <span className="text-[12px] text-[#9ba8b6] max-w-[140px] truncate block">{m.motivo}</span> },
+            { key:'acciones', header:'Acciones', stopPropagation: true, render: m => (
+              <div className="flex gap-1">
+                <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setVerAj(m)}><Eye size={13}/></Btn>
+                <Btn variant="ghost" size="icon" title="Anular" className="text-red-400 hover:text-red-300" onClick={() => setAnular(m)}><XCircle size={13}/></Btn>
+              </div>
+            ) },
+          ]}
+        />
       </div>
 
       {/* Guía de uso */}
@@ -178,14 +205,19 @@ export default function Ajustes() {
         saving={crearMovimiento.isPending}/>
 
       {verAj && <ModalDetalle aj={verAj} productMap={productMap} almacenes={almacenes} simboloMoneda={simboloMoneda} onClose={() => setVerAj(null)}/>}
+
+      <ConfirmDialog open={!!anular} onClose={() => setAnular(null)} onConfirm={() => handleAnular(anular)}
+        danger title="Anular ajuste"
+        message={`¿Anular ${anular?.documento}? Se creará un ajuste en sentido contrario que revertirá el efecto en el stock.`}/>
     </div>
   )
 }
 
 function ModalDetalle({ aj, productMap, almacenes, simboloMoneda, onClose }) {
-  const p   = productMap.get(aj.productoId)
-  const alm = almacenes.find(a => a.id === aj.almacenId)
-  const pos = aj.direccion !== 'decremento'
+  const p    = productMap.get(aj.productoId)
+  const alm  = almacenes.find(a => a.id === aj.almacenId)
+  const cant = Number(aj.cantidad)
+  const pos  = cant >= 0
   return (
     <Modal open title={`Ajuste — ${aj.documento || 'Detalle'}`} onClose={onClose} size="sm"
       footer={<Btn variant="secondary" onClick={onClose}>Cerrar</Btn>}>
@@ -196,7 +228,7 @@ function ModalDetalle({ aj, productMap, almacenes, simboloMoneda, onClose }) {
           ['Producto',   p ? `${p.sku} — ${p.nombre}` : '—'],
           ['Almacén',    alm?.nombre || '—'],
           ['Tipo',       pos ? 'Positivo (+)' : 'Negativo (-)'],
-          ['Cantidad',   `${pos ? '+' : '-'}${aj.cantidad} ${p?.unidadMedida || ''}`],
+          ['Cantidad',   `${pos ? '+' : ''}${cant} ${p?.unidadMedida || ''}`],
           ['Costo Unit.',formatCurrency(Number(aj.costoUnitario || 0), simboloMoneda)],
           ['Total',      formatCurrency(Number(aj.costoTotal || 0), simboloMoneda)],
           ['Motivo',     aj.motivo || '—'],
@@ -253,8 +285,8 @@ function ModalAjuste({ open, onClose, onSave, productos, almacenes, simboloMoned
       footer={<><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Registrar Ajuste'}</Btn></>}>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Documento"><input className={SI} value={form.documento} onChange={e => f('documento', e.target.value)} placeholder="AJU-001"/></Field>
-        <Field label="Fecha"><input type="date" className={SI} value={form.fecha} onChange={e => f('fecha', e.target.value)}/></Field>
+        <Field label="Documento"><Input value={form.documento} onChange={e => f('documento', e.target.value)} placeholder="AJU-001"/></Field>
+        <Field label="Fecha"><Input type="date" value={form.fecha} onChange={e => f('fecha', e.target.value)}/></Field>
       </div>
 
       <Field label="Tipo de ajuste *">
@@ -270,32 +302,32 @@ function ModalAjuste({ open, onClose, onSave, productos, almacenes, simboloMoned
       </Field>
 
       <Field label="Producto *" error={err.productoId}>
-        <select className={SEL} value={form.productoId} onChange={e => f('productoId', e.target.value)}>
+        <Select value={form.productoId} onChange={e => f('productoId', e.target.value)}>
           <option value="">Seleccionar producto...</option>
           {productosActivos.map(p => <option key={p.id} value={p.id}>{p.sku} — {p.nombre}</option>)}
-        </select>
+        </Select>
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Almacén *" error={err.almacenId}>
-          <select className={SEL} value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
+          <Select value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
             <option value="">Seleccionar...</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Motivo">
-          <select className={SEL} value={form.motivo} onChange={e => f('motivo', e.target.value)}>
+          <Select value={form.motivo} onChange={e => f('motivo', e.target.value)}>
             {motivosDisp.map(m => <option key={m}>{m}</option>)}
-          </select>
+          </Select>
         </Field>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Cantidad *" error={err.cantidad}>
-          <input type="number" className={SI} value={form.cantidad} onChange={e => f('cantidad', e.target.value)} min="0.001" step="any" placeholder="0"/>
+          <Input type="number" value={form.cantidad} onChange={e => f('cantidad', e.target.value)} min="0.001" step="any" placeholder="0"/>
         </Field>
         <Field label={`Costo unitario (${simboloMoneda})`}>
-          <input type="number" className={SI} value={form.costoUnitario} onChange={e => f('costoUnitario', e.target.value)} min="0" step="0.01" placeholder="0.00"/>
+          <Input type="number" value={form.costoUnitario} onChange={e => f('costoUnitario', e.target.value)} min="0" step="0.01" placeholder="0.00"/>
         </Field>
       </div>
     </Modal>

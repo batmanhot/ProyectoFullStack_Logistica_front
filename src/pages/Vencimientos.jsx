@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { AlertTriangle, CheckCircle, Package, Eye, XCircle, Calendar, Hash, DollarSign, Layers, Info, Clock, Download, FileText, X, Search } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, diasParaVencer, fechaHoy, generarNumDoc, vencimientoMasUrgentePorProducto } from '../utils/helpers'
-import { Badge, Btn, EmptyState, Modal } from '../components/ui/index'
+import { Badge, Btn, Modal, Input, Select, Textarea, DataTable } from '../components/ui/index'
 import { exportarVencimientosXLSX } from '../utils/exportXLSX'
 import { exportarVencimientosPDF } from '../utils/exportPDF'
 import { useProductosList } from '../queries/productos.queries'
@@ -27,9 +27,6 @@ function clasificar(dias) {
   if (dias === null) return null
   return RANGOS.find(r => dias >= r.dias[0] && dias <= r.dias[1])
 }
-
-const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
-const SEL = SI + ' pr-8'
 
 export default function Vencimientos() {
   const { toast } = useApp()
@@ -182,10 +179,10 @@ export default function Vencimientos() {
             {filtroRango !== 'all' && <span className="ml-2 text-[#00c896]">— {RANGOS.find(r => r.key === filtroRango)?.label}</span>}
           </span>
           <div className="flex gap-2 items-center">
-            <select className={SEL} style={{ width:160, padding:'5px 8px', fontSize:12 }} value={filtCat} onChange={e => setFiltCat(e.target.value)}>
+            <Select className="w-auto" value={filtCat} onChange={e => setFiltCat(e.target.value)}>
               <option value="">Todas las categorías</option>
               {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-            </select>
+            </Select>
             {hayFiltros && <Btn variant="ghost" size="sm" onClick={limpiarFiltros}><X size={12}/> Limpiar</Btn>}
             <Btn variant="ghost" size="sm" onClick={async () => { await exportarVencimientosXLSX(filtered, categorias, almacenes, simboloMoneda, calcFn) }}>
               <Download size={13}/> Excel
@@ -199,71 +196,62 @@ export default function Vencimientos() {
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <div className="relative flex-1 min-w-40">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-8'} style={{ padding:'5px 8px 5px 32px', fontSize:12 }} placeholder="Buscar producto o SKU..."
+            <Input className="pl-8" placeholder="Buscar producto o SKU..."
               value={filtProd} onChange={e => setFiltProd(e.target.value)}/>
           </div>
-          <select className={SEL} style={{ width:155, padding:'5px 8px', fontSize:12 }} value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
+          <Select className="w-auto" value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
             <option value="">Todos los almacenes</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
-          <select className={SEL} style={{ width:148, padding:'5px 8px', fontSize:12 }} value={filtEstado} onChange={e => setFiltEstado(e.target.value)}>
+          </Select>
+          <Select className="w-auto" value={filtEstado} onChange={e => setFiltEstado(e.target.value)}>
             <option value="">Todos los estados</option>
             {RANGOS.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
-          </select>
+          </Select>
           <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[13px]">
-            <thead><tr>
-              {['Producto','Categoría','Almacén','Stock','F. Vencimiento','Días restantes','Estado','Valor en riesgo','Acción'].map(h => (
-                <th key={h} className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/8 whitespace-nowrap">{h}</th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {filtered.length === 0 && (
-                <tr><td colSpan={9}>
-                  <EmptyState icon={CheckCircle} title="Sin productos en este rango"
-                    description={filtroRango === 'all' ? 'Ningún producto tiene fecha de vencimiento configurada.' : 'No hay productos en este rango.'}/>
-                </td></tr>
-              )}
-              {filtered.map(p => {
+        <DataTable
+          rows={filtered}
+          rowKey={p => p.id}
+          onRowClick={p => setVerProd(p)}
+          emptyIcon={CheckCircle}
+          emptyTitle="Sin productos en este rango"
+          emptyDescription={filtroRango === 'all' ? 'Ningún producto tiene fecha de vencimiento configurada.' : 'No hay productos en este rango.'}
+          columns={[
+            { key: 'producto', header: 'Producto', render: p => <div><div className="font-medium text-[#e8edf2]">{p.nombre}</div><div className="text-[11px] text-[#5f6f80]">{p.sku}</div></div> },
+            { key: 'categoria', header: 'Categoría', render: p => <span className="text-[12px] text-[#9ba8b6]">{p.catNombre}</span> },
+            { key: 'almacen', header: 'Almacén', render: p => <span className="text-[12px] text-[#9ba8b6]">{p.almNombre}</span> },
+            { key: 'stock', header: 'Stock', render: p => <span className="font-mono text-[12px]">{p.stockActual} <span className="text-[#5f6f80] text-[11px]">{p.unidadMedida}</span></span> },
+            { key: 'venc', header: 'F. Vencimiento', render: p => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatDate(p.fechaVencimiento)}</span> },
+            { key: 'dias', header: 'Días restantes', render: p => {
                 const rango = clasificar(p.dias)
-                return (
-                  <tr key={p.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
-                    <td className="px-3.5 py-2.5"><div className="font-medium text-[#e8edf2]">{p.nombre}</div><div className="text-[11px] text-[#5f6f80]">{p.sku}</div></td>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6]">{p.catNombre}</td>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6]">{p.almNombre}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px]">{p.stockActual} <span className="text-[#5f6f80] text-[11px]">{p.unidadMedida}</span></td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{formatDate(p.fechaVencimiento)}</td>
-                    <td className="px-3.5 py-2.5">
-                      {p.dias === null ? '—' : (
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 h-1.5 bg-[#0e1117] rounded-full overflow-hidden">
-                            <div className="h-full rounded-full transition-all" style={{
-                              width: p.dias < 0 ? '100%' : p.dias > 90 ? '8%' : `${Math.max(5, 100-(p.dias/90)*100)}%`,
-                              background: rango?.color || '#22c55e',
-                            }}/>
-                          </div>
-                          <span className="font-mono text-[12px] font-semibold" style={{ color: rango?.color }}>
-                            {p.dias < 0 ? `${Math.abs(p.dias)}d vencido` : `${p.dias}d`}
-                          </span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3.5 py-2.5">{rango ? <Badge variant={rango.badge}>{rango.label.split(' ')[0]}</Badge> : '—'}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] font-semibold" style={{ color: rango?.color || '#00c896' }}>
-                      {formatCurrency(p.valorStock, simboloMoneda)}
-                    </td>
-                    <td className="px-3.5 py-2.5">
-                      <Btn variant="ghost" size="sm" onClick={() => setVerProd(p)}><Eye size={12}/> Ver detalle</Btn>
-                    </td>
-                  </tr>
+                return p.dias === null ? '—' : (
+                  <div className="flex items-center gap-2">
+                    <div className="w-16 h-1.5 bg-[#0e1117] rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all" style={{
+                        width: p.dias < 0 ? '100%' : p.dias > 90 ? '8%' : `${Math.max(5, 100-(p.dias/90)*100)}%`,
+                        background: rango?.color || '#22c55e',
+                      }}/>
+                    </div>
+                    <span className="font-mono text-[12px] font-semibold" style={{ color: rango?.color }}>
+                      {p.dias < 0 ? `${Math.abs(p.dias)}d vencido` : `${p.dias}d`}
+                    </span>
+                  </div>
                 )
-              })}
-            </tbody>
-          </table>
-        </div>
+              } },
+            { key: 'estado', header: 'Estado', render: p => {
+                const rango = clasificar(p.dias)
+                return rango ? <Badge variant={rango.badge}>{rango.label.split(' ')[0]}</Badge> : '—'
+              } },
+            { key: 'valor', header: 'Valor en riesgo', render: p => {
+                const rango = clasificar(p.dias)
+                return <span className="font-mono text-[12px] font-semibold" style={{ color: rango?.color || '#00c896' }}>{formatCurrency(p.valorStock, simboloMoneda)}</span>
+              } },
+            { key: 'accion', header: 'Acción', stopPropagation: true, render: p => (
+                <Btn variant="ghost" size="sm" onClick={() => setVerProd(p)}><Eye size={12}/> Ver detalle</Btn>
+              ) },
+          ]}
+        />
 
         {filtered.length > 0 && (
           <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/6 text-[13px]">
@@ -276,6 +264,25 @@ export default function Vencimientos() {
             </span>
           </div>
         )}
+      </div>
+
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Vencimientos?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+          {[
+            ['1. Semáforo de riesgo', 'Los productos se clasifican automáticamente por días restantes: Vencidos, Crítico (0-15d), Urgente (16-30d), Próximo (31-90d) y Normal.'],
+            ['2. Ver detalle', 'Haz clic en la fila para ver el detalle completo del producto, incluyendo sus lotes registrados y una recomendación según su urgencia.'],
+            ['3. Filtrar', 'Combina categoría, almacén y estado para enfocarte en lo más urgente primero.'],
+            ['4. Dar de baja', 'Para productos vencidos o muy próximos a vencer, usa "Dar de baja" para retirarlos del inventario con trazabilidad completa en Kardex.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {verProd && (
@@ -445,7 +452,7 @@ function ModalConfirmarBaja({ prod, onClose, onConfirm, saving }) {
 
       <div className="flex flex-col gap-1.5">
         <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em]">Motivo de baja *</label>
-        <textarea className={SI + ' resize-y min-h-[68px]'} value={motivo}
+        <Textarea className="resize-y min-h-17" value={motivo}
           onChange={e => setMotivo(e.target.value)} placeholder="Describe el motivo de la baja..."/>
         <p className="text-[11px] text-[#5f6f80]">Este texto quedará registrado en el Kardex y en el historial de Movimientos.</p>
       </div>

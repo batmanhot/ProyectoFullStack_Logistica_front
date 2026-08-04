@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Check, X } from 'lucide-react'
-import { SI } from './constants'
+import { Textarea } from '../../components/ui'
 
 // ── Modal Aprobar / Rechazar ────────────────────────────────
 export function ModalAprobacion({ pedido, onClose, onAprobar, onRechazar, saving }) {
@@ -45,13 +45,13 @@ export function ModalAprobacion({ pedido, onClose, onAprobar, onRechazar, saving
           {accion === 'aprobar' ? (
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wide">Notas de aprobación (opcional)</label>
-              <textarea className={SI + ' resize-none h-20'} placeholder="Comentarios..."
+              <Textarea className="resize-none h-20" placeholder="Comentarios..."
                 value={notas} onChange={e => setNotas(e.target.value)}/>
             </div>
           ) : (
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wide">Motivo del rechazo *</label>
-              <textarea className={SI + ' resize-none h-20'} placeholder="Indica el motivo..."
+              <Textarea className="resize-none h-20" placeholder="Indica el motivo..."
                 value={motivo} onChange={e => setMotivo(e.target.value)}/>
             </div>
           )}

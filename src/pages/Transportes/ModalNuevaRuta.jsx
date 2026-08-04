@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Navigation as NavIcon } from 'lucide-react'
 import { fechaHoyISO } from '../../utils/helpers'
-import { Modal, Btn, Field, Alert } from '../../components/ui/index'
-import { SI, SEL } from './constants'
+import { Modal, Btn, Field, Alert, Input, Select, Textarea } from '../../components/ui/index'
 
 // ── Modal Nueva Ruta ─────────────────────────────────────
 export default function ModalNuevaRuta({ onClose, onSave, despachos, transportistas, clientes, almacenes, saving }) {
@@ -12,6 +11,12 @@ export default function ModalNuevaRuta({ onClose, onSave, despachos, transportis
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   const disponibles = despachos.filter(d => d.estado === 'LISTO')
+  // El empaque (Empaque.estado) y el estado del Despacho son dos flags
+  // independientes — confirmar el packing NO avanza el despacho a LISTO,
+  // eso exige el botón "Marcar Listo" en Despachos. Detectamos el caso más
+  // confuso (packing ya confirmado, pero el despacho sigue en Picking) para
+  // no dejar al usuario adivinando por qué no aparece en esta lista.
+  const empacadosSinListo = despachos.filter(d => d.estado === 'PICKING' && d.empaque?.estado === 'CONFIRMADO')
   const cliNombre   = id => clientes.find(c => c.id === id)?.razonSocial?.slice(0,30) || '—'
   const toggleDes   = id => setSelDes(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
 
@@ -44,25 +49,25 @@ export default function ModalNuevaRuta({ onClose, onSave, despachos, transportis
 
       <div className="grid grid-cols-2 gap-3.5">
         <Field label="Transportista *">
-          <select className={SEL} value={form.transportistaId} onChange={e => f('transportistaId', e.target.value)}>
+          <Select value={form.transportistaId} onChange={e => f('transportistaId', e.target.value)}>
             <option value="">Seleccionar...</option>
             {transportistas.map(t => <option key={t.id} value={t.id}>{t.nombre}{t.placa ? ` · ${t.placa}` : ''}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Almacén de Origen">
-          <select className={SEL} value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
+          <Select value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
             <option value="">Seleccionar...</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Fecha de Salida">
-          <input type="date" className={SI} value={form.fechaSalida} onChange={e => f('fechaSalida', e.target.value)}/>
+          <Input type="date" value={form.fechaSalida} onChange={e => f('fechaSalida', e.target.value)}/>
         </Field>
         <Field label="Hora de Salida">
-          <input type="time" className={SI} value={form.horaSalida} onChange={e => f('horaSalida', e.target.value)}/>
+          <Input type="time" value={form.horaSalida} onChange={e => f('horaSalida', e.target.value)}/>
         </Field>
         <Field label="Costo del Viaje (S/)">
-          <input type="number" className={SI} value={form.costoViaje} onChange={e => f('costoViaje', e.target.value)} min="0" step="0.50"/>
+          <Input type="number" value={form.costoViaje} onChange={e => f('costoViaje', e.target.value)} min="0" step="0.50"/>
           {selDes.length > 1 && (
             <div className="col-span-2 mt-1">
               <label className="flex items-center gap-2.5 cursor-pointer px-3.5 py-3 bg-[#1a2230] rounded-xl border border-white/7 hover:border-white/12 transition-colors">
@@ -84,7 +89,11 @@ export default function ModalNuevaRuta({ onClose, onSave, despachos, transportis
       </div>
 
       {disponibles.length === 0 ? (
-        <Alert variant="warning">No hay despachos en estado "Listo". Avanza el estado de los despachos primero.</Alert>
+        <Alert variant="warning">
+          {empacadosSinListo.length > 0
+            ? `Hay ${empacadosSinListo.length} despacho${empacadosSinListo.length !== 1 ? 's' : ''} con el empaque ya confirmado, pero el estado del pedido sigue en "Picking" — confirmar el empaque no lo avanza automáticamente. Ve a Despachos y usa "Marcar Listo" en ${empacadosSinListo.length !== 1 ? 'esos pedidos' : 'ese pedido'} (${empacadosSinListo.map(d => d.numero).join(', ')}) para poder incluirlo${empacadosSinListo.length !== 1 ? 's' : ''} aquí.`
+            : 'No hay despachos en estado "Listo". Avanza el estado de los despachos primero.'}
+        </Alert>
       ) : (
         <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
           {disponibles.map(d => (
@@ -106,7 +115,7 @@ export default function ModalNuevaRuta({ onClose, onSave, despachos, transportis
       )}
 
       <Field label="Observaciones">
-        <textarea className={SI + ' resize-y min-h-[52px]'} value={form.observaciones}
+        <Textarea className="min-h-13" value={form.observaciones}
           onChange={e => f('observaciones', e.target.value)} placeholder="Instrucciones para el conductor..."/>
       </Field>
     </Modal>

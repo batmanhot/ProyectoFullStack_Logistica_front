@@ -1,18 +1,19 @@
 import { useState, useMemo } from 'react'
 import {
-  Plus, Search, Edit2, Trash2, Truck, ChevronUp, ChevronDown
+  Plus, Search, Edit2, Trash2, Truck, Download, FileText
 } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
-import { EmptyState, Badge, Btn, ConfirmDialog } from '../../components/ui/index'
+import { Badge, Btn, ConfirmDialog, Input, DataTable } from '../../components/ui/index'
 import { useTransportistasList, useCrearTransportista, useActualizarTransportista, useEliminarTransportista } from '../../queries/transportistas.queries'
-import { SI } from './constants'
+import { exportarTransportistasXLSX } from '../../utils/exportXLSX'
+import { exportarTransportistasPDF } from '../../utils/exportPDF'
 import ModalTransportista from './ModalTransportista'
 
 // ════════════════════════════════════════════════════════
 // TAB TRANSPORTISTAS
 // ════════════════════════════════════════════════════════
 export default function TabTransportistas() {
-  const { toast } = useApp()
+  const { toast, sesion } = useApp()
 
   const { data: transRaw = [], isLoading } = useTransportistasList({ incluirInactivos: true })
   const crearTransportista    = useCrearTransportista()
@@ -82,49 +83,64 @@ export default function TabTransportistas() {
       <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Transportistas</span>
-          <Btn variant="primary" size="sm" onClick={() => { setEditando(null); setModal(true) }}><Plus size={13}/> Nuevo</Btn>
+          <div className="flex items-center gap-2">
+            <Btn variant="ghost" size="sm" onClick={() => exportarTransportistasXLSX(filtered)}>
+              <Download size={13}/> Excel
+            </Btn>
+            <Btn variant="ghost" size="sm" onClick={() => exportarTransportistasPDF(filtered, sesion?.nombre)}>
+              <FileText size={13}/> PDF
+            </Btn>
+            <Btn variant="primary" size="sm" onClick={() => { setEditando(null); setModal(true) }}><Plus size={13}/> Nuevo</Btn>
+          </div>
         </div>
         <div className="relative mb-3 max-w-sm">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-          <input className={SI + ' pl-8'} placeholder="Buscar nombre, placa..."
+          <Input className="pl-8" placeholder="Buscar nombre, placa..."
             value={busq} onChange={e => setBusq(e.target.value)}/>
         </div>
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[13px]">
-            <thead><tr>
-              {[{l:'Nombre',k:'nombre'},{l:'Tipo',k:'tipo'},{l:'Placa',k:'placa'},{l:'Vehículo',k:'vehiculo'},{l:'Teléfono',k:'telefono'},{l:'Licencia',k:'licencia'},{l:'Estado',k:'activo'},{l:'Acciones'}].map(h => (
-                <th key={h.l}
-                  className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/8 cursor-pointer hover:bg-white/2 whitespace-nowrap"
-                  onClick={() => h.k && handleSort(h.k)}>
-                  <div className="flex items-center gap-1.5">
-                    {h.l}
-                    {sortConfig.key === h.k && (sortConfig.direction === 'asc' ? <ChevronUp size={10}/> : <ChevronDown size={10}/>)}
-                  </div>
-                </th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {isLoading && <tr><td colSpan={8} className="text-center text-[#5f6f80] py-8 text-[12px]">Cargando...</td></tr>}
-              {!isLoading && filtered.length === 0 && <tr><td colSpan={8}><EmptyState icon={Truck} title="Sin transportistas" description="Agrega el primer transportista."/></td></tr>}
-              {filtered.map(t => (
-                <tr key={t.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
-                  <td className="px-3.5 py-2.5 font-medium text-[#e8edf2]">{t.nombre}</td>
-                  <td className="px-3.5 py-2.5"><Badge variant={t.tipo === 'PROPIO' ? 'teal' : 'neutral'}>{t.tipo}</Badge></td>
-                  <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{t.placa || '—'}</td>
-                  <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6]">{t.vehiculo || '—'}</td>
-                  <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6]">{t.telefono || '—'}</td>
-                  <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{t.licencia || '—'}</td>
-                  <td className="px-3.5 py-2.5"><Badge variant={t.activo ? 'success' : 'neutral'}>{t.activo ? 'Activo' : 'Inactivo'}</Badge></td>
-                  <td className="px-3.5 py-2.5">
-                    <div className="flex gap-1">
-                      <Btn variant="ghost" size="icon" onClick={() => { setEditando(t); setModal(true) }}><Edit2 size={13}/></Btn>
-                      <Btn variant="ghost" size="icon" className="text-red-400 hover:text-red-300" onClick={() => setConfirmDel(t.id)}><Trash2 size={13}/></Btn>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <DataTable
+          loading={isLoading}
+          rows={filtered}
+          rowKey={t => t.id}
+          onRowClick={t => { setEditando(t); setModal(true) }}
+          sortConfig={sortConfig}
+          onSort={handleSort}
+          emptyIcon={Truck}
+          emptyTitle="Sin transportistas"
+          emptyDescription="Agrega el primer transportista."
+          columns={[
+            { key: 'nombre',   header: 'Nombre', sortable: true, render: t => <span className="font-medium text-[#e8edf2]">{t.nombre}</span> },
+            { key: 'tipo',     header: 'Tipo', sortable: true, render: t => <Badge variant={t.tipo === 'PROPIO' ? 'teal' : 'neutral'}>{t.tipo}</Badge> },
+            { key: 'placa',    header: 'Placa', sortable: true, render: t => <span className="font-mono text-[12px] text-[#9ba8b6]">{t.placa || '—'}</span> },
+            { key: 'vehiculo', header: 'Vehículo', sortable: true, render: t => <span className="text-[12px] text-[#9ba8b6]">{t.vehiculo || '—'}</span> },
+            { key: 'telefono', header: 'Teléfono', sortable: true, render: t => <span className="text-[12px] text-[#9ba8b6]">{t.telefono || '—'}</span> },
+            { key: 'licencia', header: 'Licencia', sortable: true, render: t => <span className="font-mono text-[12px] text-[#9ba8b6]">{t.licencia || '—'}</span> },
+            { key: 'activo',   header: 'Estado', sortable: true, render: t => <Badge variant={t.activo ? 'success' : 'neutral'}>{t.activo ? 'Activo' : 'Inactivo'}</Badge> },
+            { key: 'acciones', header: 'Acciones', stopPropagation: true, render: t => (
+                <div className="flex gap-1">
+                  <Btn variant="ghost" size="icon" onClick={() => { setEditando(t); setModal(true) }}><Edit2 size={13}/></Btn>
+                  <Btn variant="ghost" size="icon" className="text-red-400 hover:text-red-300" onClick={() => setConfirmDel(t.id)}><Trash2 size={13}/></Btn>
+                </div>
+              ) },
+          ]}
+        />
+      </div>
+
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Transportistas?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          {[
+            ['1. Registrar', 'Agrega cada transportista con su tipo (Propio o Tercero), placa, vehículo y datos de contacto.'],
+            ['2. Asignar', 'Al programar una Ruta, eliges el transportista de esta lista — solo se listan los activos.'],
+            ['3. Mantener', 'Marca como inactivo al transportista que ya no opera, sin perder su historial de rutas pasadas.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+            </div>
+          ))}
         </div>
       </div>
 

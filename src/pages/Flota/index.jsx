@@ -19,7 +19,7 @@ import ModalMantenimiento from './ModalMantenimiento'
 // COMPONENTE PRINCIPAL
 // ════════════════════════════════════════════════════════
 export default function Flota() {
-  const { toast } = useApp()
+  const { toast, sesion } = useApp()
 
   const [tab,          setTab]          = useState('unidades')
   const [modal,        setModal]        = useState(false)
@@ -161,6 +161,7 @@ export default function Flota() {
           setFiltHasta={setFiltHasta}
           setEditandoMant={setEditandoMant}
           setConfirmDelMant={setConfirmDelMant}
+          empresa={sesion?.nombre}
         />
       )}
 
@@ -173,6 +174,26 @@ export default function Flota() {
       {tab === 'alertas' && (
         <TabAlertas alertas={alertas} />
       )}
+
+      {/* ── Guía de uso ───────────────────────────────── */}
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Flota?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+          {[
+            ['1. Unidades', 'Registra cada vehículo con placa, conductor asignado y fechas de vencimiento de SOAT y Revisión Técnica.'],
+            ['2. Mantenimiento', 'Desde cada unidad, usa "Registrar" para dejar historial de cambios de aceite, afinamientos y otros servicios.'],
+            ['3. Alertas', 'Aquí aparecen automáticamente los vencimientos próximos (SOAT, Rev. Técnica, mantenimiento) de todas las unidades activas.'],
+            ['4. Combustible', 'Registra cada carga de combustible con el odómetro antes/después para calcular km recorridos y costo por km.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* ── Modales ───────────────────────────────────── */}
       <ModalUnidad

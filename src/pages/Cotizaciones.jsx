@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Search, Eye, Edit2, CheckCircle, FileText, X, ChevronUp, ChevronDown, Download } from 'lucide-react'
+import { Plus, Search, Eye, Edit2, CheckCircle, FileText, X, Download } from 'lucide-react'
 
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy } from '../utils/helpers'
-import { Modal, EmptyState, Badge, Btn, Field } from '../components/ui/index'
+import { Modal, Badge, Btn, Field, Input, Select, Textarea, DataTable } from '../components/ui/index'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
 import { imprimirRFQ } from '../utils/pdfTemplates'
 import { exportarCotizacionesXLSX } from '../utils/exportXLSX'
@@ -13,8 +13,6 @@ import { useProductosList } from '../queries/productos.queries'
 import { useProveedoresList } from '../queries/proveedores.queries'
 
 const simboloMoneda = 'S/'
-const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
-const SEL = SI + ' pr-8'
 
 const ESTADOS_COT = {
   BORRADOR:   { color: 'neutral',  label: 'Borrador'   },
@@ -154,84 +152,54 @@ export default function Cotizaciones() {
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <div className="relative flex-1 min-w-44">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-8 py-1.25! text-[12px]'} placeholder="Buscar número, notas..."
+            <Input className="pl-8 py-1.25! text-[12px]" placeholder="Buscar número, notas..."
               value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select className={SEL} style={{ width: 160, padding: '5px 8px', fontSize: 12 }} value={filtEst} onChange={e => setFiltEst(e.target.value)}>
+          <Select style={{ width: 160, padding: '5px 8px', fontSize: 12 }} value={filtEst} onChange={e => setFiltEst(e.target.value)}>
             <option value="">Todos los estados</option>
             {Object.keys(ESTADOS_COT).map(k => <option key={k} value={k}>{ESTADOS_COT[k].label}</option>)}
-          </select>
+          </Select>
           <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
           {(busqueda || filtEst) && (
             <Btn variant="ghost" size="sm" onClick={() => { setBusqueda(''); setFiltEst('') }}><X size={12}/> Limpiar</Btn>
           )}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[13px]">
-            <thead>
-              <tr>
-                {[
-                  { l: 'N° RFQ',      k: 'numero'          },
-                  { l: 'Fecha',       k: 'fecha'           },
-                  { l: 'Vence',       k: 'fechaVencimiento'},
-                  { l: 'Ítems'                              },
-                  { l: 'Respuestas',  k: 'respuestas'      },
-                  { l: 'Estado',      k: 'estado'          },
-                  { l: 'Notas',       k: 'notas'           },
-                  { l: 'Acciones'                           },
-                ].map(h => (
-                  <th key={h.l}
-                    className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/8 cursor-pointer hover:bg-white/2 whitespace-nowrap"
-                    onClick={() => h.k && handleSort(h.k)}>
-                    <div className="flex items-center gap-1.5">
-                      {h.l}
-                      {sortConfig.key === h.k && (sortConfig.direction === 'asc' ? <ChevronUp size={10}/> : <ChevronDown size={10}/>)}
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading && <tr><td colSpan={8} className="text-center text-[#5f6f80] py-8 text-[12px]">Cargando cotizaciones...</td></tr>}
-              {!isLoading && filtered.length === 0 && (
-                <tr><td colSpan={8}>
-                  <EmptyState icon={FileText} title="Sin cotizaciones" description="Crea tu primera solicitud de cotización."/>
-                </td></tr>
-              )}
-              {filtered.map(c => (
-                <tr key={c.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
-                  <td className="px-3.5 py-2.5 font-mono text-[12px] font-semibold text-[#00c896]">{c.numero}</td>
-                  <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{formatDate(c.fecha)}</td>
-                  <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{formatDate(c.fechaVencimiento)}</td>
-                  <td className="px-3.5 py-2.5 text-center text-[#9ba8b6]">{c.items?.length || 0}</td>
-                  <td className="px-3.5 py-2.5 text-center">
-                    <span className={`font-semibold text-[13px] ${(c.respuestas?.length || 0) > 0 ? 'text-[#00c896]' : 'text-[#5f6f80]'}`}>
-                      {c.respuestas?.length || 0}
-                    </span>
-                  </td>
-                  <td className="px-3.5 py-2.5">
-                    <Badge variant={ESTADOS_COT[c.estado]?.color || 'neutral'}>{ESTADOS_COT[c.estado]?.label || c.estado}</Badge>
-                  </td>
-                  <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6] max-w-40 truncate">{c.notas}</td>
-                  <td className="px-3.5 py-2.5">
-                    <div className="flex gap-1">
-                      <Btn variant="ghost" size="icon" onClick={() => setDetalle(c)}><Eye size={13}/></Btn>
-                      {['BORRADOR', 'ENVIADA'].includes(c.estado) && (
-                        <Btn variant="ghost" size="icon" title="Editar" onClick={() => setEditando(c)}><Edit2 size={13}/></Btn>
-                      )}
-                      {c.estado === 'ENVIADA' && (
-                        <Btn variant="ghost" size="icon" title="PDF / Compartir" className="text-[#00c896]" onClick={() => setShareRFQ(c)}>
-                          <FileText size={13}/>
-                        </Btn>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          loading={isLoading}
+          rows={filtered}
+          rowKey={c => c.id}
+          onRowClick={c => setDetalle(c)}
+          emptyIcon={FileText}
+          emptyTitle="Sin cotizaciones"
+          emptyDescription="Crea tu primera solicitud de cotización."
+          sortConfig={sortConfig}
+          onSort={handleSort}
+          columns={[
+            { key:'numero', header:'N° RFQ', sortable:true, render: c => <span className="font-mono text-[12px] font-semibold text-[#00c896]">{c.numero}</span> },
+            { key:'fecha', header:'Fecha', sortable:true, render: c => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatDate(c.fecha)}</span> },
+            { key:'fechaVencimiento', header:'Vence', sortable:true, render: c => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatDate(c.fechaVencimiento)}</span> },
+            { key:'items', header:'Ítems', render: c => <span className="text-[#9ba8b6]">{c.items?.length || 0}</span> },
+            { key:'respuestas', header:'Respuestas', sortable:true, render: c => (
+              <span className={`font-semibold text-[13px] ${(c.respuestas?.length || 0) > 0 ? 'text-[#00c896]' : 'text-[#5f6f80]'}`}>{c.respuestas?.length || 0}</span>
+            ) },
+            { key:'estado', header:'Estado', sortable:true, render: c => <Badge variant={ESTADOS_COT[c.estado]?.color || 'neutral'}>{ESTADOS_COT[c.estado]?.label || c.estado}</Badge> },
+            { key:'notas', header:'Notas', sortable:true, render: c => <span className="text-[12px] text-[#9ba8b6] max-w-40 truncate block">{c.notas}</span> },
+            { key:'acciones', header:'Acciones', stopPropagation:true, render: c => (
+              <div className="flex gap-1">
+                <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetalle(c)}><Eye size={13}/></Btn>
+                {['BORRADOR', 'ENVIADA'].includes(c.estado) && (
+                  <Btn variant="ghost" size="icon" title="Editar" onClick={() => setEditando(c)}><Edit2 size={13}/></Btn>
+                )}
+                {c.estado === 'ENVIADA' && (
+                  <Btn variant="ghost" size="icon" title="PDF / Compartir" className="text-[#00c896]" onClick={() => setShareRFQ(c)}>
+                    <FileText size={13}/>
+                  </Btn>
+                )}
+              </div>
+            ) },
+          ]}
+        />
       </div>
 
       {/* Guía de uso */}
@@ -330,10 +298,10 @@ function ModalNuevaRFQ({ open, onClose, productos, saving, onSave }) {
       </>}>
       <div className="grid grid-cols-2 gap-3.5">
         <Field label="Fecha vencimiento" hint="Límite para recibir respuestas">
-          <input type="date" className={SI} value={form.fechaVencimiento} onChange={e => f('fechaVencimiento', e.target.value)}/>
+          <Input type="date" value={form.fechaVencimiento} onChange={e => f('fechaVencimiento', e.target.value)}/>
         </Field>
         <Field label="Notas / Especificaciones">
-          <input className={SI} value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Condiciones especiales..."/>
+          <Input value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Condiciones especiales..."/>
         </Field>
       </div>
 
@@ -341,17 +309,17 @@ function ModalNuevaRFQ({ open, onClose, productos, saving, onSave }) {
       <div className="flex gap-2 flex-wrap items-end">
         <div className="flex-2 min-w-50">
           <Field label="Producto">
-            <select className={SEL} value={ni.productoId} onChange={e => setNi(p => ({ ...p, productoId: e.target.value }))}>
+            <Select value={ni.productoId} onChange={e => setNi(p => ({ ...p, productoId: e.target.value }))}>
               <option value="">Seleccionar...</option>
               {productos.filter(p => p.estado === 'Activo' && !items.find(i => i.productoId === p.id)).map(p => (
                 <option key={p.id} value={p.id}>{p.sku} — {p.nombre}</option>
               ))}
-            </select>
+            </Select>
           </Field>
         </div>
         <div className="flex-1 min-w-25">
           <Field label="Cantidad">
-            <input type="number" className={SI} value={ni.cantidad} onChange={e => setNi(p => ({ ...p, cantidad: e.target.value }))} min="1"/>
+            <Input type="number" value={ni.cantidad} onChange={e => setNi(p => ({ ...p, cantidad: e.target.value }))} min="1"/>
           </Field>
         </div>
         <Btn variant="secondary" onClick={addItem}>+ Agregar</Btn>
@@ -513,16 +481,16 @@ function ModalDetalleRFQ({ cotiz, productos, proveedores, simboloMoneda, onClose
           <div className="text-[13px] font-semibold text-[#e8edf2]">Registrar respuesta de proveedor</div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             <Field label="Proveedor *">
-              <select className={SEL} value={respForm.proveedorId} onChange={e => setRespForm(p => ({ ...p, proveedorId: e.target.value }))}>
+              <Select value={respForm.proveedorId} onChange={e => setRespForm(p => ({ ...p, proveedorId: e.target.value }))}>
                 <option value="">Seleccionar...</option>
                 {proveedores.map(p => <option key={p.id} value={p.id}>{p.razonSocial}</option>)}
-              </select>
+              </Select>
             </Field>
             <Field label="Plazo entrega (días)">
-              <input type="number" className={SI} value={respForm.tiempoEntrega} onChange={e => setRespForm(p => ({ ...p, tiempoEntrega: +e.target.value }))} min="0"/>
+              <Input type="number" value={respForm.tiempoEntrega} onChange={e => setRespForm(p => ({ ...p, tiempoEntrega: +e.target.value }))} min="0"/>
             </Field>
             <Field label="Notas">
-              <input className={SI} value={respForm.notas} onChange={e => setRespForm(p => ({ ...p, notas: e.target.value }))} placeholder="Condiciones..."/>
+              <Input value={respForm.notas} onChange={e => setRespForm(p => ({ ...p, notas: e.target.value }))} placeholder="Condiciones..."/>
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -533,7 +501,7 @@ function ModalDetalleRFQ({ cotiz, productos, proveedores, simboloMoneda, onClose
                 <div key={item.productoId} className="bg-[#1a2230] rounded-lg p-3">
                   <div className="text-[12px] font-medium text-[#e8edf2] mb-2">{prod?.nombre} × {cant}</div>
                   <Field label="Precio unitario">
-                    <input type="number" className={SI} value={item.precioUnitario} onChange={e => updatePrecio(item.productoId, e.target.value)} min="0" step="0.01"/>
+                    <Input type="number" value={item.precioUnitario} onChange={e => updatePrecio(item.productoId, e.target.value)} min="0" step="0.01"/>
                   </Field>
                   {item.subtotal > 0 && <div className="text-[11px] text-[#00c896] mt-1 font-mono">Subtotal: {formatCurrency(item.subtotal, simboloMoneda)}</div>}
                 </div>
@@ -590,15 +558,15 @@ function ModalEditarCotizacion({ cotiz, saving, onClose, onSave }) {
         </Btn>
       </>}>
       <Field label="Estado">
-        <select className={SEL} value={form.estado} onChange={e => f('estado', e.target.value)}>
+        <Select value={form.estado} onChange={e => f('estado', e.target.value)}>
           {estadosEditables.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Fecha vencimiento">
-        <input type="date" className={SI} value={form.fechaVencimiento} onChange={e => f('fechaVencimiento', e.target.value)}/>
+        <Input type="date" value={form.fechaVencimiento} onChange={e => f('fechaVencimiento', e.target.value)}/>
       </Field>
       <Field label="Notas">
-        <textarea className={SI + ' resize-y min-h-13'} value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Observaciones..."/>
+        <Textarea className="min-h-13" value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Observaciones..."/>
       </Field>
     </Modal>
   )

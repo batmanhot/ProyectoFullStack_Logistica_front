@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useMemo, useState, useRef, useEffect } from 'react'
 import logoImg from '../../assets/logo.webp'
-import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, ShieldCheck, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Globe, Target, Zap, Palette, Check, RefreshCw, Crown} from 'lucide-react'
+import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, ShieldCheck, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Globe, Target, Zap, Palette, Check, RefreshCw, Crown, Bug} from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { useTheme } from '../../hooks/useTheme'
 import { estadoStock, diasParaVencer } from '../../utils/helpers'
@@ -35,6 +35,7 @@ const NAV = [
   { label:'Clientes',              path:'/clientes',        icon:Users,            modulo:'clientes',       color:'#10b981' },
   { label:'Despachos',             path:'/despachos',       icon:Truck,            modulo:'despachos',      color:'#3b82f6' },
   { label:'Pedidos Internos',      path:'/pedidos-internos',icon:ClipboardList,    modulo:'pedidos-internos', color:'#f97316', badge:'pedidos-internos' },
+  { label:'Portal de Pedidos',     path:'/portal-pedidos',  icon:Globe,            modulo:'portal-pedidos', color:'#0ea5e9' },
   { label:'Empaque / Packing',     path:'/empaque',         icon:Package,          modulo:'empaque',        color:'#06b6d4' },
   { label:'Transportes',           path:'/transportes',     icon:NavIcon,          modulo:'transportes',    color:'#0ea5e9' },
   { label:'Flota y Mantenimiento', path:'/flota',           icon:Wrench,           modulo:'flota',          color:'#94a3b8' },
@@ -52,7 +53,6 @@ const NAV = [
   { divider:true, label:'VENTAS' },
   { label:'Proformas / Cotiz.',    path:'/proformas',       icon:FileText,         modulo:'proformas',      color:'#84cc16' },
   { label:'Cuentas por Cobrar',    path:'/cxc',             icon:DollarSign,       modulo:'cxc',            color:'#f43f5e' },
-  { label:'Portal de Pedidos',     path:'/portal-pedidos',  icon:Globe,            modulo:'portal-pedidos', color:'#0ea5e9' },
   { divider:true, label:'ALMACÉN' },
   { label:'Mapa de Almacén',       path:'/mapa-almacen',    icon:Grid3x3,          modulo:'mapa-almacen',   color:'#8b5cf6' },
   { label:'Lotes y Series',        path:'/lotes-series',    icon:Layers,           modulo:'lotes-series',   color:'#f97316' },
@@ -61,6 +61,7 @@ const NAV = [
   { label:'Usuarios y Roles',      path:'/usuarios',        icon:Users,            modulo:'usuarios',       color:'#6366f1' },
   { label:'Auditoría',             path:'/auditoria',       icon:Shield,           modulo:'auditoria',      color:'#ef4444' },
   { label:'Panel de Auditoría',    path:'/panel-auditoria', icon:ShieldCheck,      modulo:'panel-auditoria', color:'#06b6d4' },
+  { label:'Incidencias',           path:'/incidencias',     icon:Bug,              modulo:'incidencias',    color:'#ef4444' },
   { label:'Cola de Sincronización',path:'/cola-sync',       icon:RefreshCw,        modulo:'cola-sync',      color:'#f59e0b' },
   { label:'Configuración',         path:'/configuracion',   icon:Settings,         modulo:'configuracion',  color:'#94a3b8' },
 

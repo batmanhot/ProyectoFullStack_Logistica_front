@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { X, PlayCircle, Flag, Navigation as NavIcon, CheckCircle } from 'lucide-react'
 import { formatCurrency, formatDate, formatTime } from '../../utils/helpers'
-import { Modal, Btn, Badge, ConfirmDialog } from '../../components/ui/index'
-import { SI, ESTADO_RUTA, ESTADO_PARADA } from './constants'
+import { Modal, Btn, Badge, ConfirmDialog, Input } from '../../components/ui/index'
+import { ESTADO_RUTA, ESTADO_PARADA } from './constants'
 
 // ── Modal Detalle / Gestión de Ruta ──────────────────────
 export default function ModalDetalleRuta({ ruta, despachos, clientes, transportistas, almacenes, onClose, onIniciar, onCompletar, onCancelar, onMarcarParada }) {
@@ -92,7 +92,7 @@ export default function ModalDetalleRuta({ ruta, despachos, clientes, transporti
                     </div>
                     {parada.horaLlegada && (
                       <div className="text-[11px] text-[#5f6f80] mt-0.5">
-                        Llegada: {parada.horaLlegada}{parada.horaPartida ? ` · Partida: ${parada.horaPartida}` : ''}
+                        Llegada: {formatTime(parada.horaLlegada) || parada.horaLlegada}{parada.horaPartida ? ` · Partida: ${formatTime(parada.horaPartida) || parada.horaPartida}` : ''}
                       </div>
                     )}
                   </div>
@@ -102,7 +102,7 @@ export default function ModalDetalleRuta({ ruta, despachos, clientes, transporti
 
               {ruta.estado === 'EN_RUTA' && (parada.estado === 'EN_CAMINO' || parada.estado === 'PENDIENTE') && (
                 <div className="mt-3 pt-3 border-t border-white/6">
-                  <input className={SI + ' mb-2'} placeholder="Observación (opcional)"
+                  <Input className="mb-2" placeholder="Observación (opcional)"
                     value={obsParada[parada.despachoId] || ''}
                     onChange={e => setObsParada(p => ({ ...p, [parada.despachoId]: e.target.value }))}/>
                   <div className="flex gap-2">

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Eye, EyeOff, Shield, Key, CheckSquare, Square } from 'lucide-react'
-import { Modal, Field, Btn } from '../../components/ui/index'
+import { Modal, Field, Btn, Input, Select } from '../../components/ui/index'
 import { useAreasInternasList } from '../../queries/areas-internas.queries'
-import { SI, SEL, MODULOS_GRUPOS } from './constants'
+import { MODULOS_GRUPOS } from './constants'
 
 // ════════════════════════════════════════════════════════
 // MODAL USUARIO
@@ -37,18 +37,18 @@ export default function ModalUsuario({ open, onClose, editando, onSave, sesionId
       </>}>
 
       <Field label="Nombre completo *">
-        <input className={SI} value={form.nombre} onChange={e => f('nombre', e.target.value)} placeholder="Juan Pérez"/>
+        <Input value={form.nombre} onChange={e => f('nombre', e.target.value)} placeholder="Juan Pérez"/>
       </Field>
 
       <div className="grid grid-cols-2 gap-3.5">
         <Field label="Email *">
-          <input type="email" className={SI} value={form.email} onChange={e => f('email', e.target.value)}
+          <Input type="email" value={form.email} onChange={e => f('email', e.target.value)}
             placeholder="usuario@empresa.pe" disabled={!!editando} style={editando?{opacity:.5}:{}}/>
           {editando && <span className="text-[10px] text-[#5f6f80]">El email no se puede cambiar</span>}
         </Field>
         <Field label={editando ? 'Nueva contraseña (vacío = no cambiar)' : 'Contraseña *'}>
           <div className="relative">
-            <input type={showPass?'text':'password'} className={SI+' pr-10'} value={form.password}
+            <Input type={showPass?'text':'password'} className="pr-10" value={form.password}
               onChange={e => f('password', e.target.value)} placeholder="Mínimo 8 caracteres"/>
             <button type="button" onClick={() => setShowPass(p=>!p)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5f6f80] hover:text-[#9ba8b6]">
@@ -59,21 +59,21 @@ export default function ModalUsuario({ open, onClose, editando, onSave, sesionId
       </div>
 
       <Field label="Rol *">
-        <select className={SEL} value={form.rol} onChange={e => f('rol', e.target.value)}>
+        <Select value={form.rol} onChange={e => f('rol', e.target.value)}>
           {Object.entries(roles).map(([codigo, r]) => (
             <option key={codigo} value={codigo}>{r.label}{r.desc ? ` — ${r.desc}` : ''}</option>
           ))}
-        </select>
+        </Select>
       </Field>
 
       {form.rol === 'solicitante' && (
         <Field label="Área asignada *">
-          <select className={SEL} value={form.areaId || ''} onChange={e => f('areaId', e.target.value)}>
+          <Select value={form.areaId || ''} onChange={e => f('areaId', e.target.value)}>
             <option value="">Selecciona un área...</option>
             {(areas || []).filter(a => a.activo).map(a => (
               <option key={a.id} value={a.id}>{a.nombre} ({a.codigo})</option>
             ))}
-          </select>
+          </Select>
           <span className="text-[10px] text-[#5f6f80] mt-1">El solicitante solo verá pedidos internos de esta área</span>
         </Field>
       )}

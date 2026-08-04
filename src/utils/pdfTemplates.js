@@ -4,6 +4,7 @@
  * No requiere dependencias externas. Funciona en todos los navegadores.
  * El iframe se inserta en el DOM, se inyecta el HTML, se imprime y se destruye.
  */
+import { formatDate } from './helpers'
 
 // ── CSS del documento PDF ────────────────────────────────
 const CSS = `
@@ -19,6 +20,7 @@ const CSS = `
   .verde{background:#dcfce7;color:#166534}
   .azul{background:#dbeafe;color:#1e40af}
   .ambar{background:#fef3c7;color:#92400e}
+  .rojo{background:#fee2e2;color:#991b1b}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
   .stitle{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;border-bottom:1px solid #e5e7eb;padding-bottom:4px;margin-bottom:8px}
   .fl{margin-bottom:5px}
@@ -628,6 +630,114 @@ ${doc.notas ? `<div class="notas"><strong>Notas y condiciones:</strong> ${doc.no
 <div class="footer">
   <span>Proforma generada por StockPro &nbsp;&middot;&nbsp; ${new Date().toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit',year:'numeric'})}</span>
   <span>${emp} &nbsp;&middot;&nbsp; ${doc.numero}</span>
+</div>
+</body></html>`
+
+  imprimirConIframe(html)
+}
+
+// ════════════════════════════════════════════════════════
+// PEDIDO — Portal de Clientes
+// ════════════════════════════════════════════════════════
+const ESTADO_PEDIDO = {
+  NUEVO:      { label:'Nuevo',        cls:'azul'  },
+  REVISANDO:  { label:'En revisión',  cls:'ambar' },
+  APROBADO:   { label:'Aprobado',     cls:'verde' },
+  CONVERTIDO: { label:'En despacho',  cls:'verde' },
+  RECHAZADO:  { label:'Rechazado',    cls:'rojo'  },
+}
+
+/**
+ * cliente/config aceptan datos parciales a propósito: desde el portal público
+ * (sin sesión de tenant) solo se conoce el nombre del cliente y de la empresa
+ * emisora (decodificados del JWT) — no hay RUC/dirección/teléfono propios ni
+ * del cliente. Los campos ausentes caen a '—' igual que en el resto de plantillas.
+ */
+export function imprimirPedidoPortal({ pedido, cliente, productos, config }) {
+  const s    = config?.simboloMoneda || 'S/'
+  const emp  = config?.empresa        || 'Mi Empresa S.A.C.'
+  const ruc  = config?.ruc             || ''
+  const tel  = config?.telefono        || ''
+  const ema  = config?.email           || ''
+  const dir  = config?.direccion       || ''
+  const meta = ESTADO_PEDIDO[pedido.estado] || ESTADO_PEDIDO.NUEVO
+
+  const filas = (pedido.items || []).map(item => {
+    const p = productos.find(x => x.id === item.productoId)
+    return `<tr>
+      <td>${p?.sku || '—'}</td>
+      <td><strong>${p?.nombre || item.productoId}</strong></td>
+      <td class="r">${item.cantidad} ${p?.unidadMedida || ''}</td>
+      <td class="r">${fm(item.precioUnitario, s)}</td>
+      <td class="r" style="font-weight:700">${fm(item.subtotal, s)}</td>
+    </tr>`
+  }).join('')
+
+  const html = `<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="UTF-8"><title>Pedido ${pedido.numero}</title>
+<style>${CSS}</style>
+</head><body>
+
+<div class="header">
+  <div>
+    <h1>${emp}</h1>
+    <div class="sub">${ruc ? `RUC: ${ruc}` : ''}${dir ? ` &nbsp;&middot;&nbsp; ${dir}` : ''}</div>
+    <div class="sub">${tel}${ema ? ` &nbsp;&middot;&nbsp; ${ema}` : ''}</div>
+  </div>
+  <div class="doc-right">
+    <div class="doc-tipo">Pedido &middot; Portal de Clientes</div>
+    <div class="doc-num">${pedido.numero}</div>
+    <span class="badge ${meta.cls}">${meta.label}</span>
+    <div style="font-size:11px;color:#888;margin-top:6px">Fecha: <strong>${formatDate(pedido.createdAt)}</strong></div>
+  </div>
+</div>
+
+<div class="grid2">
+  <div>
+    <div class="stitle">Empresa</div>
+    <div class="fl"><label>Empresa</label><span>${emp}</span></div>
+    <div class="fl"><label>RUC</label><span>${ruc || '—'}</span></div>
+    <div class="fl"><label>Contacto</label><span>${tel || ema ? `${tel} ${ema}`.trim() : '—'}</span></div>
+  </div>
+  <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px 16px">
+    <div class="stitle" style="color:#166534">Cliente</div>
+    <div class="fl"><label>Cliente</label><span><strong>${cliente?.razonSocial || '—'}</strong></span></div>
+    <div class="fl"><label>RUC/DNI</label><span>${cliente?.ruc || '—'}</span></div>
+    <div class="fl"><label>Entrega deseada</label><span>${pedido.fechaEntregaDeseada ? formatDate(pedido.fechaEntregaDeseada) : 'Sin especificar'}</span></div>
+  </div>
+</div>
+
+<div class="stitle">Productos pedidos</div>
+<table>
+  <thead><tr>
+    <th style="width:75px">SKU</th><th>Descripción</th>
+    <th class="r" style="width:95px">Cantidad</th>
+    <th class="r" style="width:120px">P. Unitario</th>
+    <th class="r" style="width:120px">Subtotal</th>
+  </tr></thead>
+  <tbody>${filas}</tbody>
+</table>
+
+<div class="totales">
+  <div class="trow"><label>Subtotal</label><span>${fm(pedido.subtotal, s)}</span></div>
+  <div class="trow"><label>IGV (18%)</label><span>${fm(pedido.igv, s)}</span></div>
+  <div class="trow grand"><label>TOTAL</label><span>${fm(pedido.total, s)}</span></div>
+</div>
+
+${pedido.observaciones ? `<div class="notas"><strong>Observaciones:</strong> ${pedido.observaciones}</div>` : ''}
+
+${pedido.motivoRechazo ? `<div class="notas" style="background:#fef2f2;border-left-color:#ef4444"><strong>Motivo de rechazo:</strong> ${pedido.motivoRechazo}</div>` : ''}
+
+<div class="aviso" style="margin-top:20px">
+  <b>Este documento es un comprobante de pedido, no un comprobante de pago.</b>
+  Tu pedido será revisado por nuestro equipo y confirmado — el estado puede seguir cambiando hasta su despacho.
+  Puedes seguir su avance en el portal, en la pestaña "Mis Despachos" o "Historial".
+</div>
+
+<div class="footer">
+  <span>Generado por StockPro &nbsp;&middot;&nbsp; ${new Date().toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit',year:'numeric'})}</span>
+  <span>${emp} &nbsp;&middot;&nbsp; ${pedido.numero}</span>
 </div>
 </body></html>`
 

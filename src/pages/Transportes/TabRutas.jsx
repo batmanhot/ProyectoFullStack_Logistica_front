@@ -2,17 +2,19 @@ import { useState, useMemo } from 'react'
 import {
   Plus, Search, Truck, Clock,
   CheckCircle, Eye, Navigation as NavIcon,
-  PlayCircle, ChevronUp, ChevronDown
+  PlayCircle, Download, FileText,
 } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { formatDate, formatTime } from '../../utils/helpers'
-import { EmptyState, Badge, Btn } from '../../components/ui/index'
+import { Badge, Btn, Input, Select, DataTable } from '../../components/ui/index'
 import { useRutasList, useCrearRuta, useIniciarRuta, useCompletarRuta, useCancelarRuta, useMarcarParada } from '../../queries/rutas.queries'
 import { useTransportistasList } from '../../queries/transportistas.queries'
 import { useDespachosList } from '../../queries/despachos.queries'
 import { useClientesList } from '../../queries/clientes.queries'
 import { useAlmacenesList } from '../../queries/almacenes.queries'
-import { SI, SEL, ESTADO_RUTA } from './constants'
+import { exportarRutasXLSX } from '../../utils/exportXLSX'
+import { exportarRutasPDF } from '../../utils/exportPDF'
+import { ESTADO_RUTA } from './constants'
 import ModalNuevaRuta from './ModalNuevaRuta'
 import ModalDetalleRuta from './ModalDetalleRuta'
 
@@ -106,17 +108,6 @@ export default function TabRutas() {
     toast(`Ruta ${res.data?.numero} programada`, 'success')
   }
 
-  const COLS = [
-    { l:'N° Ruta',        k:'numero'        },
-    { l:'Transportista',  k:'transportista' },
-    { l:'Placa/Vehículo'                    },
-    { l:'F. Salida',      k:'fechaSalida'   },
-    { l:'Hora'                              },
-    { l:'Paradas'                           },
-    { l:'Estado',         k:'estado'        },
-    { l:'Acciones'                          },
-  ]
-
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
@@ -140,84 +131,92 @@ export default function TabRutas() {
       <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Rutas de Entrega</span>
-          <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nueva Ruta</Btn>
+          <div className="flex items-center gap-2">
+            <Btn variant="ghost" size="sm" onClick={() => exportarRutasXLSX(filtered, transportistas)}>
+              <Download size={13}/> Excel
+            </Btn>
+            <Btn variant="ghost" size="sm" onClick={() => exportarRutasPDF(filtered, transportistas, sesion?.nombre)}>
+              <FileText size={13}/> PDF
+            </Btn>
+            <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nueva Ruta</Btn>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2 mb-3">
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative flex-1 min-w-50">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-8'} placeholder="Buscar número, transportista..."
+            <Input className="pl-8" placeholder="Buscar número, transportista..."
               value={busq} onChange={e => setBusq(e.target.value)}/>
           </div>
-          <select className={SEL} style={{ width:160 }} value={filtEst} onChange={e => setFiltEst(e.target.value)}>
+          <Select className="w-auto" value={filtEst} onChange={e => setFiltEst(e.target.value)}>
             <option value="">Todos los estados</option>
             {Object.entries(ESTADO_RUTA).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select>
+          </Select>
           {(busq || filtEst) && <Btn variant="ghost" size="sm" onClick={() => { setBusq(''); setFiltEst('') }}>Limpiar</Btn>}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[13px]">
-            <thead><tr>
-              {COLS.map(h => (
-                <th key={h.l}
-                  className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/8 cursor-pointer hover:bg-white/2 whitespace-nowrap"
-                  onClick={() => h.k && handleSort(h.k)}>
-                  <div className="flex items-center gap-1.5">
-                    {h.l}
-                    {sortConfig.key === h.k && (sortConfig.direction === 'asc' ? <ChevronUp size={10}/> : <ChevronDown size={10}/>)}
+        <DataTable
+          loading={isLoading}
+          rows={filtered}
+          rowKey={ruta => ruta.id}
+          onRowClick={ruta => setDetalle(ruta)}
+          sortConfig={sortConfig}
+          onSort={handleSort}
+          emptyIcon={NavIcon}
+          emptyTitle="Sin rutas"
+          emptyDescription="Programa la primera ruta de entrega."
+          columns={[
+            { key: 'numero', header: 'N° Ruta', sortable: true, render: ruta => <span className="font-mono text-[12px] font-semibold text-[#00c896]">{ruta.numero}</span> },
+            { key: 'transportista', header: 'Transportista', sortable: true, render: ruta => {
+                const tra = transportistas.find(t => t.id === ruta.transportistaId)
+                return (
+                  <div>
+                    <div className="font-medium text-[#e8edf2]">{tra?.nombre || '—'}</div>
+                    <div className="text-[11px] text-[#5f6f80]">{tra?.tipo === 'PROPIO' ? 'Propio' : 'Tercero'}</div>
                   </div>
-                </th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {isLoading && <tr><td colSpan={8} className="text-center text-[#5f6f80] py-8 text-[12px]">Cargando rutas...</td></tr>}
-              {!isLoading && filtered.length === 0 && <tr><td colSpan={8}><EmptyState icon={NavIcon} title="Sin rutas" description="Programa la primera ruta de entrega."/></td></tr>}
-              {filtered.map(ruta => {
-                const meta = ESTADO_RUTA[ruta.estado] || ESTADO_RUTA.PROGRAMADA
-                const Icon = meta.icon
-                const tra  = transportistas.find(t => t.id === ruta.transportistaId)
+                )
+              } },
+            { key: 'placa', header: 'Placa/Vehículo', render: ruta => {
+                const tra = transportistas.find(t => t.id === ruta.transportistaId)
+                return (
+                  <div className="text-[12px] text-[#9ba8b6]">
+                    {tra?.placa ? <span className="font-mono">{tra.placa}</span> : '—'}
+                    <div className="text-[11px] text-[#5f6f80] truncate max-w-30">{tra?.vehiculo}</div>
+                  </div>
+                )
+              } },
+            { key: 'fechaSalida', header: 'F. Salida', sortable: true, render: ruta => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatDate(ruta.fechaSalida)}</span> },
+            { key: 'hora', header: 'Hora', render: ruta => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatTime(ruta.fechaSalida) || '—'}</span> },
+            { key: 'paradas', header: 'Paradas', render: ruta => {
                 const entregadas = (ruta.paradas || []).filter(p => p.estado === 'ENTREGADO').length
                 return (
-                  <tr key={ruta.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] font-semibold text-[#00c896]">{ruta.numero}</td>
-                    <td className="px-3.5 py-2.5">
-                      <div className="font-medium text-[#e8edf2]">{tra?.nombre || '—'}</div>
-                      <div className="text-[11px] text-[#5f6f80]">{tra?.tipo === 'PROPIO' ? 'Propio' : 'Tercero'}</div>
-                    </td>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6]">
-                      {tra?.placa ? <span className="font-mono">{tra.placa}</span> : '—'}
-                      <div className="text-[11px] text-[#5f6f80] truncate max-w-[120px]">{tra?.vehiculo}</div>
-                    </td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{formatDate(ruta.fechaSalida)}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{formatTime(ruta.fechaSalida) || '—'}</td>
-                    <td className="px-3.5 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-semibold text-[#e8edf2]">{entregadas}/{(ruta.paradas||[]).length}</span>
-                        <div className="w-16 h-1.5 bg-[#1a2230] rounded-full overflow-hidden">
-                          <div className="h-full bg-[#00c896] rounded-full transition-all"
-                            style={{ width: ruta.paradas?.length ? `${(entregadas/ruta.paradas.length)*100}%` : '0%' }}/>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-3.5 py-2.5"><Badge variant={meta.color}><Icon size={9}/> {meta.label}</Badge></td>
-                    <td className="px-3.5 py-2.5">
-                      <div className="flex gap-1 items-center">
-                        <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetalle(ruta)}><Eye size={13}/></Btn>
-                        {ruta.estado === 'PROGRAMADA' && (
-                          <Btn variant="primary" size="sm" onClick={() => handleIniciar(ruta)}><PlayCircle size={12}/> Iniciar</Btn>
-                        )}
-                        {ruta.estado === 'EN_RUTA' && (
-                          <Btn variant="secondary" size="sm" onClick={() => setDetalle(ruta)}><NavIcon size={12}/> Gestionar</Btn>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-semibold text-[#e8edf2]">{entregadas}/{(ruta.paradas||[]).length}</span>
+                    <div className="w-16 h-1.5 bg-[#1a2230] rounded-full overflow-hidden">
+                      <div className="h-full bg-[#00c896] rounded-full transition-all"
+                        style={{ width: ruta.paradas?.length ? `${(entregadas/ruta.paradas.length)*100}%` : '0%' }}/>
+                    </div>
+                  </div>
                 )
-              })}
-            </tbody>
-          </table>
-        </div>
+              } },
+            { key: 'estado', header: 'Estado', sortable: true, render: ruta => {
+                const meta = ESTADO_RUTA[ruta.estado] || ESTADO_RUTA.PROGRAMADA
+                const Icon = meta.icon
+                return <Badge variant={meta.color}><Icon size={9}/> {meta.label}</Badge>
+              } },
+            { key: 'acciones', header: 'Acciones', stopPropagation: true, render: ruta => (
+                <div className="flex gap-1 items-center">
+                  <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetalle(ruta)}><Eye size={13}/></Btn>
+                  {ruta.estado === 'PROGRAMADA' && (
+                    <Btn variant="primary" size="sm" onClick={() => handleIniciar(ruta)}><PlayCircle size={12}/> Iniciar</Btn>
+                  )}
+                  {ruta.estado === 'EN_RUTA' && (
+                    <Btn variant="secondary" size="sm" onClick={() => setDetalle(ruta)}><NavIcon size={12}/> Gestionar</Btn>
+                  )}
+                </div>
+              ) },
+          ]}
+        />
       </div>
 
       {modal && (
@@ -244,27 +243,22 @@ export default function TabRutas() {
         />
       )}
 
-      <div className="bg-[#161d28] border border-amber-500/20 rounded-xl p-5">
-        <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0 mt-0.5">
-            <span className="text-amber-400 text-[14px] font-bold">?</span>
-          </div>
-          <div className="flex-1">
-            <div className="text-[13px] font-semibold text-[#e8edf2] mb-2">¿Para qué sirven las Rutas y Salidas?</div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-              {[
-                ['🗓️ 1. Programar','Crea la ruta: elige transportista, fecha/hora y selecciona despachos en estado "Listo".'],
-                ['🚀 2. Iniciar','Al iniciar, se despachan todos los pedidos de la ruta a la vez: el stock se descuenta automáticamente. No se emite número de guía de remisión en este paso.'],
-                ['📍 3. Gestionar','Marca cada parada como "Entregado" o "No Entregado" durante el viaje. Solo se puede cancelar la ruta antes de iniciarla.'],
-                ['🏁 4. Cerrar','Al cerrar, quedan registradas las entregas y el estado final de la ruta.'],
-              ].map(([t, d]) => (
-                <div key={t} className="bg-[#1a2230] rounded-lg p-3">
-                  <div className="text-[11px] font-semibold text-[#e8edf2] mb-1">{t}</div>
-                  <div className="text-[11px] text-[#9ba8b6] leading-snug">{d}</div>
-                </div>
-              ))}
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Rutas y Salidas?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+          {[
+            ['1. Programar', 'Crea la ruta: elige transportista, fecha/hora y selecciona despachos en estado "Listo".'],
+            ['2. Iniciar', 'Al iniciar, se despachan todos los pedidos de la ruta a la vez: el stock se descuenta automáticamente. No se emite número de guía de remisión en este paso.'],
+            ['3. Gestionar', 'Marca cada parada como "Entregado" o "No Entregado" durante el viaje. Solo se puede cancelar la ruta antes de iniciarla.'],
+            ['4. Cerrar', 'Al cerrar, quedan registradas las entregas y el estado final de la ruta.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     </>

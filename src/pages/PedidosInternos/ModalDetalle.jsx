@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Package, Printer, Layers, CheckCircle, PackageCheck, X } from 'lucide-react'
-import { ESTADOS } from './constants'
+import { formatDateTime } from '../../utils/helpers'
+import { LineaTiempo } from '../../components/ui/index'
+import { ESTADOS, flujoTimeline, pasosTrazabilidad } from './constants'
 import { Badge } from './Badge'
 
 // ── Modal Detalle / Entrega ─────────────────────────────────
@@ -103,20 +105,28 @@ export function ModalDetalle({ pedido, onClose, onSave, areas, productos, almace
             </div>
             <div className="bg-white/3 rounded-lg p-3">
               <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">Fecha requerida</div>
-              <div className="text-white/80 font-medium">{pedido.fechaRequerida || '—'}</div>
+              <div className="text-white/80 font-medium">{pedido.fechaRequerida?.split('T')[0] || '—'}</div>
             </div>
-            {pedido.fechaAprobacion && (
-              <div className="bg-white/3 rounded-lg p-3">
-                <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">Aprobado</div>
-                <div className="text-white/80 font-medium">{pedido.fechaAprobacion}</div>
-              </div>
-            )}
-            {pedido.fechaEntrega && (
-              <div className="bg-white/3 rounded-lg p-3">
-                <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">Entregado</div>
-                <div className="text-white/80 font-medium">{pedido.fechaEntrega}</div>
-              </div>
-            )}
+          </div>
+
+          <div>
+            <div className="text-[11px] font-semibold text-white/40 uppercase tracking-wide mb-1">Trazabilidad</div>
+            <LineaTiempo {...flujoTimeline(pedido)}/>
+            <div className="flex flex-col gap-2 mt-3">
+              {pasosTrazabilidad(pedido).map(p => (
+                <div key={p.id} className="flex items-start gap-2.5 text-[12px]">
+                  <span className="text-[13px] leading-none mt-0.5 shrink-0">{p.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-white/80 font-medium">{p.label}</span>
+                      <span className="text-white/30 text-[11px] font-mono">{formatDateTime(p.fecha)}</span>
+                      {p.actor && <span className="text-white/40 text-[11px]">· {p.actor}</span>}
+                    </div>
+                    {p.nota && <div className="text-white/40 text-[11px] mt-0.5">{p.nota}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div>
@@ -146,18 +156,6 @@ export function ModalDetalle({ pedido, onClose, onSave, areas, productos, almace
             <div className="bg-white/3 rounded-lg p-3">
               <div className="text-[10px] text-white/35 uppercase tracking-wide mb-1">Notas de solicitud</div>
               <div className="text-[12px] text-white/60">{pedido.notasSolicitud}</div>
-            </div>
-          )}
-          {pedido.notasAprobacion && (
-            <div className="bg-[#00c896]/5 border border-[#00c896]/15 rounded-lg p-3">
-              <div className="text-[10px] text-[#00c896]/60 uppercase tracking-wide mb-1">Notas de aprobación</div>
-              <div className="text-[12px] text-white/60">{pedido.notasAprobacion}</div>
-            </div>
-          )}
-          {pedido.motivoRechazo && (
-            <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
-              <div className="text-[10px] text-red-400/60 uppercase tracking-wide mb-1">Motivo de rechazo</div>
-              <div className="text-[12px] text-white/60">{pedido.motivoRechazo}</div>
             </div>
           )}
           {error && <div className="px-3 py-2 bg-red-500/10 border border-red-500/25 rounded-lg text-[13px] text-red-400">{error}</div>}

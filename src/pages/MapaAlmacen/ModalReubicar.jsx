@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ArrowRight, AlertTriangle, Loader2 } from 'lucide-react'
+import { Input, Select } from '../../components/ui/index'
 
 // ── Modal: Asignar o Liberar ─────────────────────────────────────────────────
 export default function ModalReubicar({ modo, ubicacion, invLinea, prod, sinUbicLines, prodMap, ubicacionesDisponibles = [], asignarMut, liberarMut, onClose }) {
@@ -83,10 +84,9 @@ export default function ModalReubicar({ modo, ubicacion, invLinea, prod, sinUbic
                   No hay stock sin ubicar en este almacén
                 </div>
               ) : (
-                <select
+                <Select
                   value={productoId}
-                  onChange={e => { setProductoId(e.target.value); setCantidad(1); setError('') }}
-                  className="w-full px-3 py-2.5 bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896]">
+                  onChange={e => { setProductoId(e.target.value); setCantidad(1); setError('') }}>
                   <option value="">Seleccionar producto...</option>
                   {sinUbicLines.map(l => {
                     const p = prodMap[l.productoId]
@@ -94,7 +94,7 @@ export default function ModalReubicar({ modo, ubicacion, invLinea, prod, sinUbic
                     if (!p || disp <= 0) return null
                     return <option key={l.productoId} value={l.productoId}>{p.sku} — {p.nombre} ({disp} disp.)</option>
                   })}
-                </select>
+                </Select>
               )}
             </div>
           )}
@@ -111,10 +111,9 @@ export default function ModalReubicar({ modo, ubicacion, invLinea, prod, sinUbic
                   Este almacén no tiene ubicaciones creadas. Cierra este modal y usa "Nueva ubicación" primero.
                 </div>
               ) : (
-                <select
+                <Select
                   value={ubicacionIdSel}
-                  onChange={e => { setUbicacionIdSel(e.target.value); setError('') }}
-                  className="w-full px-3 py-2.5 bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896]">
+                  onChange={e => { setUbicacionIdSel(e.target.value); setError('') }}>
                   <option value="">Seleccionar ubicación...</option>
                   {ubicacionesDisponibles.map(u => {
                     const llena = u.capacidadMax > 0 && u.capacidadActual >= u.capacidadMax
@@ -124,7 +123,7 @@ export default function ModalReubicar({ modo, ubicacion, invLinea, prod, sinUbic
                       </option>
                     )
                   })}
-                </select>
+                </Select>
               )}
             </div>
           )}
@@ -146,11 +145,10 @@ export default function ModalReubicar({ modo, ubicacion, invLinea, prod, sinUbic
               Cantidad a {modo === 'asignar' ? 'mover al rack' : 'regresar al bucket'}
               {maxCantidad > 0 && <span className="ml-2 text-[#3d4f60] font-normal normal-case">máx. {maxCantidad}</span>}
             </label>
-            <input
+            <Input
               type="number" min={1} max={maxCantidad || undefined}
               value={cantidad}
               onChange={e => { setCantidad(Number(e.target.value)); setError('') }}
-              className="w-full px-3 py-2.5 bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896]"
             />
             {prodSel && productoId && modo === 'asignar' && (
               <div className="text-[10px] text-[#5f6f80] mt-1">

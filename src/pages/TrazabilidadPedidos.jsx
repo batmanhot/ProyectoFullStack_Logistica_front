@@ -10,10 +10,10 @@
  */
 import { useState, useMemo } from 'react'
 import { Search, Package, Truck, ShoppingCart, CheckCircle,
-         Clock, XCircle, ChevronDown, ChevronUp, ArrowRight,
+         Clock, XCircle, ChevronDown, ChevronUp,
          FileText, Building2, Users, X, ClipboardList } from 'lucide-react'
 import { formatDate, formatCurrency } from '../utils/helpers'
-import { Badge } from '../components/ui/index'
+import { Badge, Input, Select, LineaTiempo } from '../components/ui/index'
 import { useDespachosList } from '../queries/despachos.queries'
 import { useRutasList } from '../queries/rutas.queries'
 import { useOrdenesCompraList } from '../queries/ordenes-compra.queries'
@@ -23,8 +23,6 @@ import { useProductosList } from '../queries/productos.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
 import { useAreasInternasList } from '../queries/areas-internas.queries'
 import { usePedidosInternosList } from '../queries/pedidos-internos.queries'
-
-const SI = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
 
 // ── Flujo de estados ──────────────────────────────────
 const FLUJO_DESPACHO = [
@@ -53,63 +51,6 @@ const FLUJO_PEDIDO_INTERNO = [
   { id:'ENTREGADO', label:'Entregado', desc:'Entregado al área solicitante',   color:'#10b981', icon:'✔️' },
 ]
 const FLUJO_PI_RECHAZADO = [{ id:'RECHAZADO', label:'Rechazado', color:'#ef4444', icon:'❌' }]
-
-// ── Componente: línea de tiempo ───────────────────────
-function LineaTiempo({ flujo, flujoCancelado, estadoActual, cancelado }) {
-  const flujoEfectivo = cancelado ? [...flujo, ...flujoCancelado] : flujo
-
-  const idxActual = flujoEfectivo.findIndex(s => s.id === estadoActual)
-
-  return (
-    <div className="flex items-start gap-0 mt-4 mb-1 overflow-x-auto pb-1">
-      {flujoEfectivo.map((paso, i) => {
-        const done    = i < idxActual
-        const current = i === idxActual
-        const color   = current ? paso.color : done ? paso.color : '#3d4f60'
-
-        return (
-          <div key={paso.id} className="flex items-center flex-1 min-w-0">
-            <div className="flex flex-col items-center flex-1 min-w-[64px]">
-              {/* Círculo */}
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[14px] transition-all relative
-                ${current ? 'shadow-lg' : ''}`}
-                style={{
-                  background: current ? `${paso.color}25` : done ? `${paso.color}15` : 'rgba(255,255,255,0.04)',
-                  border: `2px solid ${current ? paso.color : done ? `${paso.color}60` : 'rgba(255,255,255,0.08)'}`,
-                  boxShadow: current ? `0 0 12px ${paso.color}50` : 'none',
-                }}>
-                <span className={`${!done && !current ? 'opacity-30' : ''} text-[13px]`}>
-                  {done ? '✓' : paso.icon}
-                </span>
-                {current && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-[#0e1117]"
-                    style={{background: paso.color}}/>
-                )}
-              </div>
-              {/* Etiqueta */}
-              <div className={`text-[10px] font-semibold mt-1.5 text-center leading-tight ${
-                current ? 'text-white' : done ? '' : 'text-white/20'
-              }`}
-                style={{ color: current || done ? color : undefined }}>
-                {paso.label}
-              </div>
-              {current && paso.desc && (
-                <div className="text-[9px] text-white/40 text-center mt-0.5 max-w-[72px] leading-tight">{paso.desc}</div>
-              )}
-            </div>
-            {/* Línea conectora */}
-            {i < flujoEfectivo.length - 1 && (
-              <div className="h-[2px] flex-1 mx-0.5 rounded transition-all" style={{
-                background: done ? `linear-gradient(90deg, ${paso.color}60, ${flujoEfectivo[i+1].color}40)` : 'rgba(255,255,255,0.06)',
-                minWidth: 16,
-              }}/>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
 
 // ── Card de Despacho / Pedido Cliente ─────────────────
 function CardDespacho({ des, clientes, almacenes=[], productos, simboloMoneda, rutaInfo }) {
@@ -517,16 +458,6 @@ export default function TrazabilidadPedidos() {
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
-      {/* Header */}
-      <div>
-        <h2 className="text-[16px] font-bold text-[#e8edf2] flex items-center gap-2">
-          <ArrowRight size={18} className="text-[#00c896]"/> Trazabilidad de Pedidos
-        </h2>
-        <p className="text-[12px] text-[#5f6f80] mt-0.5">
-          Consulta el estado y recorrido completo de pedidos de clientes, órdenes de compra y pedidos internos entre áreas
-        </p>
-      </div>
-
       {/* Selector de tipo */}
       <div className="flex gap-2">
         <button onClick={()=>{setTipo('clientes');setFiltEst('');setBusqueda('')}}
@@ -607,15 +538,14 @@ export default function TrazabilidadPedidos() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-          <input className={SI+' pl-8 !py-[5px] text-[12px]'}
+          <Input className="pl-8"
             placeholder={tipo==='clientes' ? 'Buscar N° despacho o cliente...' : tipo==='oc' ? 'Buscar N° OC o proveedor...' : 'Buscar N° pedido o área...'}
             value={busqueda} onChange={e=>setBusqueda(e.target.value)}/>
         </div>
-        <select className="px-3 py-[5px] bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896]"
-          style={{minWidth:155}} value={filtEst} onChange={e=>setFiltEst(e.target.value)}>
+        <Select className="w-auto!" style={{minWidth:155}} value={filtEst} onChange={e=>setFiltEst(e.target.value)}>
           <option value="">Todos los estados</option>
           {estados.map(e=><option key={e} value={e}>{e}</option>)}
-        </select>
+        </Select>
         <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">{registros} resultados</span>
         {(busqueda||filtEst) && (
           <button onClick={()=>{setBusqueda('');setFiltEst('')}}
@@ -661,6 +591,27 @@ export default function TrazabilidadPedidos() {
                   almacenes={almacenes} productos={productos}/>
               ))
         )}
+      </div>
+
+      {/* Guía de uso */}
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Trazabilidad de Pedidos?
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[
+            { t:'Pedidos de Clientes', d:'Sigue el recorrido de un despacho desde Pedido hasta Entregado — 6 estados, incluyendo los que llegan del Portal de Pedidos.' },
+            { t:'Órdenes de Compra', d:'Sigue una OC a proveedor desde Pendiente hasta Recibida, con la barra de recepción por producto para ver qué falta llegar.' },
+            { t:'Pedidos Internos', d:'Sigue una solicitud entre áreas desde Borrador hasta Entregado al área solicitante, con prioridad y motivo de rechazo si aplica.' },
+            { t:'Línea de tiempo', d:'Cada tarjeta expandible muestra el flujo completo de estados: los pasados en verde/color, el actual resaltado, los pendientes en gris.' },
+            { t:'Filtros', d:'Busca por número de documento, cliente/proveedor/área, o filtra por un estado específico dentro de cada uno de los 3 flujos.' },
+          ].map(({t,d}) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[12px] font-semibold text-[#e8edf2] mb-1">{t}</div>
+              <div className="text-[11px] text-[#9ba8b6] leading-relaxed">{d}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

@@ -36,6 +36,7 @@ const Despachos       = lazy(() => import('./pages/Despachos'))
 const Transportes     = lazy(() => import('./pages/Transportes'))
 const Auditoria       = lazy(() => import('./pages/Auditoria'))
 const PanelAuditoria  = lazy(() => import('./pages/PanelAuditoria'))
+const Incidencias     = lazy(() => import('./pages/Incidencias'))
 const Flota           = lazy(() => import('./pages/Flota'))
 const Financiero      = lazy(() => import('./pages/Financiero'))
 const CuentasPorCobrar= lazy(() => import('./pages/CuentasPorCobrar'))
@@ -82,6 +83,7 @@ const PAGE_TITLES = {
   '/transportes':    'Gestión de Transportes',
   '/auditoria':      'Auditoría del Sistema',
   '/panel-auditoria': 'Panel de Auditoría',
+  '/incidencias':    'Registro de Incidencias',
   '/flota':          'Flota y Mantenimiento',
   '/financiero':     'Dashboard Financiero — P&L',
   '/cxc':            'Cuentas por Cobrar',
@@ -401,6 +403,7 @@ function AppLayout() {
             <Route path="/transportes"    element={<Transportes />} />
             <Route path="/auditoria"      element={<Auditoria />} />
             <Route path="/panel-auditoria" element={<PanelAuditoria />} />
+            <Route path="/incidencias"    element={<Incidencias />} />
             <Route path="/flota"          element={<Flota />} />
             <Route path="/financiero"     element={<Financiero />} />
             <Route path="/cxc"            element={<CuentasPorCobrar />} />

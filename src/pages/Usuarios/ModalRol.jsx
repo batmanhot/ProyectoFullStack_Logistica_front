@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Shield, Lock, Key, CheckSquare, Square } from 'lucide-react'
-import { Modal, Field, Btn } from '../../components/ui/index'
-import { SI, MODULOS_GRUPOS, TODOS_MODULOS, ROLES_BASE_META } from './constants'
+import { Modal, Field, Btn, Input } from '../../components/ui/index'
+import { MODULOS_GRUPOS, TODOS_MODULOS, ROLES_BASE_META } from './constants'
 
 // ════════════════════════════════════════════════════════
 // MODAL ROL
@@ -68,11 +68,11 @@ export default function ModalRol({ open, onClose, editando, onSave }) {
 
       <div className="grid grid-cols-2 gap-3.5">
         <Field label="Nombre del rol *">
-          <input className={SI} value={form.label} onChange={e => f('label', e.target.value)}
+          <Input value={form.label} onChange={e => f('label', e.target.value)}
             placeholder="Ej: Vendedor, Auditor..." disabled={esBase}/>
         </Field>
         <Field label="Descripción breve">
-          <input className={SI} value={form.desc} onChange={e => f('desc', e.target.value)}
+          <Input value={form.desc} onChange={e => f('desc', e.target.value)}
             placeholder="Ej: Acceso de solo lectura..." disabled={esBase}/>
         </Field>
       </div>

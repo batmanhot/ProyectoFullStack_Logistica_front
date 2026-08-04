@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Plus, ClipboardList, CheckCircle, SlidersHorizontal, Download } from 'lucide-react'
+import { Plus, ClipboardList, CheckCircle, SlidersHorizontal, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate } from '../utils/helpers'
-import { Modal, EmptyState, Badge, Btn, Field, Alert } from '../components/ui/index'
+import { Modal, EmptyState, Badge, Btn, Field, Alert, Select, Textarea, DataTable } from '../components/ui/index'
 import { useCategoriasList } from '../queries/categorias.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
 import {
@@ -12,9 +12,8 @@ import {
   useActualizarLineaInventario,
   useCerrarInventarioFisico,
 } from '../queries/inventario-fisico.queries'
-
-const SEL = 'px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] pr-8'
-const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] font-[inherit] placeholder-[#5f6f80]'
+import { exportarInventarioFisicoXLSX } from '../utils/exportXLSX'
+import { exportarInventarioFisicoPDF } from '../utils/exportPDF'
 
 export default function InventarioFisico() {
   const { toast } = useApp()
@@ -57,7 +56,8 @@ export default function InventarioFisico() {
                 {inventarios.map(inv => {
                   const totalLineas = inv._count?.lineas ?? inv.lineas?.length ?? 0
                   return (
-                    <div key={inv.id} className="flex items-center justify-between p-4 bg-[#1a2230] border border-white/6 rounded-xl hover:border-white/12 transition-colors">
+                    <div key={inv.id} onClick={() => setActiveId(inv.id)}
+                      className="flex items-center justify-between p-4 bg-[#1a2230] border border-white/6 rounded-xl hover:border-white/12 transition-colors cursor-pointer">
                       <div className="flex items-center gap-3">
                         <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${inv.estado === 'CERRADO' ? 'bg-green-500/15' : 'bg-amber-500/15'}`}>
                           {inv.estado === 'CERRADO' ? <CheckCircle size={16} className="text-green-400"/> : <ClipboardList size={16} className="text-amber-400"/>}
@@ -69,7 +69,7 @@ export default function InventarioFisico() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-2 items-center">
+                      <div className="flex gap-2 items-center" onClick={e => e.stopPropagation()}>
                         <Badge variant={inv.estado === 'CERRADO' ? 'success' : 'warning'}>
                           {inv.estado === 'CERRADO' ? 'Cerrado' : 'En curso'}
                         </Badge>
@@ -87,37 +87,33 @@ export default function InventarioFisico() {
             )}
           </div>
 
-          <div className="bg-[#161d28] border border-[#00c896]/20 rounded-xl p-5">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#00c896]/10 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-[#00c896] text-[14px] font-bold">?</span>
-              </div>
-              <div className="flex-1">
-                <div className="text-[13px] font-semibold text-[#e8edf2] mb-2">¿Para qué sirve el Inventario Físico?</div>
-                <p className="text-[12px] text-[#9ba8b6] leading-relaxed mb-3">
-                  El <strong className="text-[#e8edf2]">Inventario Físico o Conteo Cíclico</strong> es el proceso de
-                  contar manualmente las existencias reales en el almacén y compararlas contra lo que
-                  tiene registrado el sistema. Es obligatorio para detectar diferencias por
-                  robos, errores de registro, mermas o daños no reportados.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
-                  {[
-                    ['📋 1. Iniciar conteo', 'Selecciona el almacén y categoría. El sistema genera una hoja con el stock actual registrado.'],
-                    ['✏️ 2. Ingresar físico', 'El almacenero cuenta físicamente cada producto e ingresa la cantidad real contada.'],
-                    ['🔍 3. Ver diferencias', 'El sistema calcula automáticamente sobrantes (+) y faltantes (−) con su valor monetario estimado.'],
-                    ['⚡ 4. Cerrar inventario', 'Al cerrar se registran todos los ajustes al inventario, actualizando el stock con trazabilidad completa.'],
-                  ].map(([t, d]) => (
-                    <div key={t} className="bg-[#1a2230] rounded-lg p-3">
-                      <div className="text-[11px] font-semibold text-[#e8edf2] mb-1">{t}</div>
-                      <div className="text-[11px] text-[#9ba8b6] leading-snug">{d}</div>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-[11px] text-[#5f6f80] leading-relaxed">
-                  <strong className="text-[#9ba8b6]">Nota:</strong> Se debe ingresar el conteo de TODOS los productos antes de poder cerrar el inventario.
-                </p>
-              </div>
+          {/* Guía de uso */}
+          <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+            <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+              ¿Cómo funciona el módulo de Inventario Físico?
             </div>
+            <p className="text-[12px] text-[#9ba8b6] leading-relaxed mb-3">
+              El <strong className="text-[#e8edf2]">Inventario Físico o Conteo Cíclico</strong> es el proceso de
+              contar manualmente las existencias reales en el almacén y compararlas contra lo que
+              tiene registrado el sistema. Es obligatorio para detectar diferencias por
+              robos, errores de registro, mermas o daños no reportados.
+            </p>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+              {[
+                ['1. Iniciar conteo',     'Selecciona el almacén y categoría. El sistema genera una hoja con el stock actual registrado.'],
+                ['2. Ingresar físico',    'El almacenero cuenta físicamente cada producto e ingresa la cantidad real contada.'],
+                ['3. Ver diferencias',    'El sistema calcula automáticamente sobrantes (+) y faltantes (−) con su valor monetario estimado.'],
+                ['4. Cerrar inventario',  'Al cerrar se registran todos los ajustes al inventario, actualizando el stock con trazabilidad completa.'],
+              ].map(([t, d]) => (
+                <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+                  <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+                  <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-[#5f6f80] leading-relaxed mt-3">
+              <strong className="text-[#9ba8b6]">Nota:</strong> Se debe ingresar el conteo de TODOS los productos antes de poder cerrar el inventario.
+            </p>
           </div>
         </>
       )}
@@ -139,7 +135,7 @@ export default function InventarioFisico() {
 
 // ── Conteo cíclico (vista de detalle) ────────────────────────
 function ConteoCiclico({ inventarioId, simboloMoneda, onVolver }) {
-  const { toast } = useApp()
+  const { toast, sesion } = useApp()
 
   const { data: inv, isLoading } = useInventarioFisico(inventarioId)
   const actualizarLinea = useActualizarLineaInventario()
@@ -185,22 +181,6 @@ function ConteoCiclico({ inventarioId, simboloMoneda, onVolver }) {
     onVolver()
   }
 
-  function exportarHoja() {
-    if (!inv?.lineas) return
-    const rows = [['SKU','Producto','U.M.','Sistema','Contado','Diferencia','Costo Unit.','Valor Dif.']]
-    inv.lineas.forEach(l => {
-      const sku  = l.producto?.sku || ''
-      const nom  = l.producto?.nombre || ''
-      const um   = l.producto?.unidadMedida || ''
-      const dif  = l.diferencia !== null && l.diferencia !== undefined ? l.diferencia : ''
-      const valDif = dif !== '' && l.costoUnitario ? (Number(dif) * Number(l.costoUnitario)).toFixed(2) : ''
-      rows.push([sku, nom, um, l.stockSistema, l.stockFisico ?? '', dif, Number(l.costoUnitario || 0).toFixed(2), valDif])
-    })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' }))
-    a.download = `conteo_${inv.numero}.csv`; a.click()
-  }
-
   if (isLoading) {
     return <div className="text-center text-[#5f6f80] py-16 text-[13px]">Cargando inventario...</div>
   }
@@ -226,7 +206,8 @@ function ConteoCiclico({ inventarioId, simboloMoneda, onVolver }) {
         </div>
         <div className="flex gap-2">
           <Btn variant="ghost" size="sm" onClick={onVolver}>← Volver</Btn>
-          <Btn variant="secondary" size="sm" onClick={exportarHoja}><Download size={13}/> Exportar</Btn>
+          <Btn variant="secondary" size="sm" onClick={() => exportarInventarioFisicoXLSX(lineas, inv, simboloMoneda)}><Download size={13}/> Excel</Btn>
+          <Btn variant="secondary" size="sm" onClick={() => exportarInventarioFisicoPDF(lineas, inv, simboloMoneda, sesion?.nombre)}><FileText size={13}/> PDF</Btn>
           {inv.estado === 'EN_CURSO' && (
             <Btn variant="primary" size="sm" onClick={handleCerrar} disabled={cerrar.isPending}>
               <SlidersHorizontal size={13}/> {cerrar.isPending ? 'Cerrando...' : `Cerrar inventario`}
@@ -258,67 +239,69 @@ function ConteoCiclico({ inventarioId, simboloMoneda, onVolver }) {
       </div>
 
       <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[13px]">
-            <thead><tr>
-              {['SKU','Producto','U.M.','Sistema','Contado','Diferencia','Valor Dif.','Estado'].map(h => (
-                <th key={h} className="bg-[#1a2230] px-3 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/8 whitespace-nowrap">{h}</th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {lineas.map(l => {
-                const dif       = l.diferencia !== null && l.diferencia !== undefined ? Number(l.diferencia) : null
-                const sinConteo = localStock[l.productoId] === '' || localStock[l.productoId] === undefined
-                return (
-                  <tr key={l.productoId} className={`border-b border-white/6 last:border-0 ${
-                    l.ajustado        ? 'opacity-50' :
-                    dif !== null && dif < 0 ? 'bg-red-500/3' :
-                    dif !== null && dif > 0 ? 'bg-green-500/3' : 'hover:bg-white/2'
-                  }`}>
-                    <td className="px-3 py-2.5 font-mono text-[12px] text-[#00c896]">{l.producto?.sku}</td>
-                    <td className="px-3 py-2.5 font-medium text-[#e8edf2] max-w-45 truncate">{l.producto?.nombre}</td>
-                    <td className="px-3 py-2.5 text-[#9ba8b6]">{l.producto?.unidadMedida}</td>
-                    <td className="px-3 py-2.5 font-mono text-[12px] font-semibold">{l.stockSistema}</td>
-                    <td className="px-3 py-2.5">
-                      {inv.estado === 'CERRADO' ? (
-                        <span className="font-mono text-[12px]">{l.stockFisico ?? '—'}</span>
-                      ) : (
-                        <input type="number" min="0" step="0.01"
-                          value={localStock[l.productoId] ?? ''}
-                          placeholder="—"
-                          disabled={l.ajustado}
-                          onChange={e => setLocalStock(prev => ({ ...prev, [l.productoId]: e.target.value }))}
-                          onBlur={() => handleBlur(l.productoId)}
-                          className="w-24 px-2 py-1 bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] font-mono"
-                        />
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 font-mono text-[12px]">
-                      {dif === null ? <span className="text-[#5f6f80]">—</span> :
-                       dif === 0   ? <span className="text-green-400">0</span> :
-                       dif > 0     ? <span className="text-green-400 font-semibold">+{dif}</span> :
-                                     <span className="text-red-400 font-semibold">{dif}</span>}
-                    </td>
-                    <td className="px-3 py-2.5 font-mono text-[12px]">
-                      {dif !== null && dif !== 0
-                        ? <span className={dif > 0 ? 'text-green-400' : 'text-red-400'}>
-                            {dif > 0 ? '+' : ''}{formatCurrency(Math.abs(dif * Number(l.costoUnitario || 0)), simboloMoneda)}
-                          </span>
-                        : <span className="text-[#5f6f80]">—</span>
-                      }
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {l.ajustado    ? <Badge variant="success"><CheckCircle size={9}/> Ajustado</Badge>
-                       : sinConteo   ? <Badge variant="neutral">Pendiente</Badge>
-                       : dif === 0   ? <Badge variant="success">OK</Badge>
-                                     : <Badge variant="warning">Diferencia</Badge>}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          rows={lineas}
+          rowKey={l => l.productoId}
+          emptyIcon={ClipboardList}
+          emptyTitle="Sin productos"
+          emptyDescription="Este inventario no tiene productos en su hoja de conteo."
+          rowClassName={l => {
+            const dif = l.diferencia !== null && l.diferencia !== undefined ? Number(l.diferencia) : null
+            return l.ajustado ? 'opacity-50' : dif !== null && dif < 0 ? 'bg-red-500/3' : dif !== null && dif > 0 ? 'bg-green-500/3' : ''
+          }}
+          columns={[
+            { key:'sku', header:'SKU', render: l => <span className="font-mono text-[12px] text-[#00c896]">{l.producto?.sku}</span> },
+            { key:'producto', header:'Producto', render: l => <span className="font-medium text-[#e8edf2] max-w-45 truncate block">{l.producto?.nombre}</span> },
+            { key:'um', header:'U.M.', render: l => <span className="text-[#9ba8b6]">{l.producto?.unidadMedida}</span> },
+            { key:'sistema', header:'Sistema', render: l => <span className="font-mono text-[12px] font-semibold">{l.stockSistema}</span> },
+            { key:'contado', header:'Contado', render: l => (
+              inv.estado === 'CERRADO' ? (
+                <span className="font-mono text-[12px]">{l.stockFisico ?? '—'}</span>
+              ) : (
+                <input type="number" min="0" step="0.01"
+                  value={localStock[l.productoId] ?? ''}
+                  placeholder="—"
+                  disabled={l.ajustado}
+                  onChange={e => setLocalStock(prev => ({ ...prev, [l.productoId]: e.target.value }))}
+                  onBlur={() => handleBlur(l.productoId)}
+                  className="w-24 px-2 py-1 bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] font-mono"
+                />
+              )
+            ) },
+            { key:'diferencia', header:'Diferencia', render: l => {
+              const dif = l.diferencia !== null && l.diferencia !== undefined ? Number(l.diferencia) : null
+              return (
+                <span className="font-mono text-[12px]">
+                  {dif === null ? <span className="text-[#5f6f80]">—</span> :
+                   dif === 0   ? <span className="text-green-400">0</span> :
+                   dif > 0     ? <span className="text-green-400 font-semibold">+{dif}</span> :
+                                 <span className="text-red-400 font-semibold">{dif}</span>}
+                </span>
+              )
+            } },
+            { key:'valorDif', header:'Valor Dif.', render: l => {
+              const dif = l.diferencia !== null && l.diferencia !== undefined ? Number(l.diferencia) : null
+              return (
+                <span className="font-mono text-[12px]">
+                  {dif !== null && dif !== 0
+                    ? <span className={dif > 0 ? 'text-green-400' : 'text-red-400'}>
+                        {dif > 0 ? '+' : ''}{formatCurrency(Math.abs(dif * Number(l.costoUnitario || 0)), simboloMoneda)}
+                      </span>
+                    : <span className="text-[#5f6f80]">—</span>
+                  }
+                </span>
+              )
+            } },
+            { key:'estado', header:'Estado', render: l => {
+              const dif       = l.diferencia !== null && l.diferencia !== undefined ? Number(l.diferencia) : null
+              const sinConteo = localStock[l.productoId] === '' || localStock[l.productoId] === undefined
+              return l.ajustado    ? <Badge variant="success"><CheckCircle size={9}/> Ajustado</Badge>
+                   : sinConteo   ? <Badge variant="neutral">Pendiente</Badge>
+                   : dif === 0   ? <Badge variant="success">OK</Badge>
+                                 : <Badge variant="warning">Diferencia</Badge>
+            } },
+          ]}
+        />
       </div>
     </div>
   )
@@ -344,19 +327,19 @@ function ModalNuevoInventario({ open, onClose, onCrear, almacenes, categorias, s
       </>}>
       <Alert variant="info">Se generará una hoja de conteo con el stock actual del almacén seleccionado. Ingresa el conteo físico para detectar diferencias.</Alert>
       <Field label="Almacén *" hint="Obligatorio — el conteo es por almacén específico">
-        <select className={SI + ' pr-8'} value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
+        <Select value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
           <option value="">Seleccionar almacén...</option>
           {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Categoría (opcional)" hint="Dejar vacío para todas las categorías">
-        <select className={SI + ' pr-8'} value={form.categoriaId} onChange={e => f('categoriaId', e.target.value)}>
+        <Select value={form.categoriaId} onChange={e => f('categoriaId', e.target.value)}>
           <option value="">Todas las categorías</option>
           {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label="Notas">
-        <textarea className={SI + ' resize-y min-h-14'} value={form.notas}
+        <Textarea className="min-h-14" value={form.notas}
           onChange={e => f('notas', e.target.value)} placeholder="Responsable, observaciones..."/>
       </Field>
     </Modal>

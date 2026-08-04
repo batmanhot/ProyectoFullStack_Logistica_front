@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react'
 import { Plus, Search, Eye, Truck, Package, CheckCircle, X,
-         ClipboardList, ArrowRight, FileText, MapPin, ChevronUp, ChevronDown, Printer, Download } from 'lucide-react'
+         ClipboardList, ArrowRight, FileText, MapPin, Printer, Download } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
-import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field, Alert } from '../components/ui/index'
+import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, Textarea, Alert, DataTable } from '../components/ui/index'
 import DireccionInput from '../components/ui/DireccionInput'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
 import { imprimirGuia, imprimirPickingList } from '../utils/pdfTemplates'
@@ -12,6 +12,7 @@ import {
   useAprobarDespacho, useIniciarPicking, useMarcarListo, useDespachar,
   useEntregarDespacho, useCancelarDespacho, useAsignarGuia,
 } from '../queries/despachos.queries'
+import { usePickingByDespacho, useConfirmarLineaPicking } from '../queries/picking.queries'
 import { useClientesList } from '../queries/clientes.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
 import { useProductosList } from '../queries/productos.queries'
@@ -19,9 +20,6 @@ import { useInventarioList } from '../queries/inventario.queries'
 import { useTransportistasList } from '../queries/transportistas.queries'
 import { exportarDespachosXLSX } from '../utils/exportXLSX'
 import { exportarDespachosPDF } from '../utils/exportPDF'
-
-const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
-const SEL = SI + ' pr-8'
 
 const ESTADOS = {
   PEDIDO:     { label:'Pedido',     color:'neutral', next:'APROBADO',   accion:'Aprobar',          icon:ClipboardList },
@@ -66,6 +64,7 @@ export default function Despachos() {
   const [confirmAnu,    setConfirmAnu]    = useState(null)
   const [evidenciaModal,setEvidenciaModal]= useState(null)
   const [guiaModal,     setGuiaModal]     = useState(null)
+  const [pickingModal,  setPickingModal]  = useState(null)
   const [busqueda,      setBusqueda]      = useState('')
   const [filtEst,       setFiltEst]       = useState('')
   const [filtAlm,       setFiltAlm]       = useState('')
@@ -174,18 +173,6 @@ export default function Despachos() {
     toast(`Pedido registrado`, 'success')
   }
 
-  const COLS = [
-    { l:'N° Despacho', k:'numero'      },
-    { l:'Cliente',     k:'cliente'     },
-    { l:'Fecha Pedido',k:'fecha'       },
-    { l:'F. Entrega',  k:'fechaEntrega'},
-    { l:'Ítems'                        },
-    { l:'Total',       k:'total'       },
-    { l:'Guía',        k:'guiaNumero'  },
-    { l:'Estado',      k:'estado'      },
-    { l:'Acciones'                     },
-  ]
-
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
@@ -247,98 +234,90 @@ export default function Despachos() {
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <div className="relative flex-1 min-w-[180px]">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar número, cliente, guía..."
+            <Input className="pl-8 !py-[5px] text-[12px]" placeholder="Buscar número, cliente, guía..."
               value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select aria-label="Filtrar por estado" className={SEL} style={{ width:155, padding:'5px 8px', fontSize:12 }} value={filtEst} onChange={e => setFiltEst(e.target.value)}>
+          <Select aria-label="Filtrar por estado" style={{ width:155, padding:'5px 8px', fontSize:12 }} value={filtEst} onChange={e => setFiltEst(e.target.value)}>
             <option value="">Todos los estados</option>
             {Object.entries(ESTADOS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select>
-          <select aria-label="Filtrar por almacén" className={SEL} style={{ width:165, padding:'5px 8px', fontSize:12 }} value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
+          </Select>
+          <Select aria-label="Filtrar por almacén" style={{ width:165, padding:'5px 8px', fontSize:12 }} value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
             <option value="">Todos los almacenes</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
+          </Select>
           <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
           {(busqueda || filtEst || filtAlm) && (
             <Btn variant="ghost" size="sm" onClick={() => { setBusqueda(''); setFiltEst(''); setFiltAlm('') }}><X size={12}/> Limpiar</Btn>
           )}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[13px]">
-            <thead><tr>
-              {COLS.map(h => (
-                <th key={h.l}
-                  className={`bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/8 whitespace-nowrap ${h.k ? 'cursor-pointer hover:bg-white/2' : ''}`}
-                  onClick={() => h.k && handleSort(h.k)}>
-                  <div className="flex items-center gap-1.5">
-                    {h.l}
-                    {sortConfig.key === h.k && (sortConfig.direction === 'asc' ? <ChevronUp size={10}/> : <ChevronDown size={10}/>)}
-                  </div>
-                </th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {isLoading && <tr><td colSpan={9} className="text-center text-[#5f6f80] py-8 text-[12px]">Cargando despachos...</td></tr>}
-              {!isLoading && filtered.length === 0 && <tr><td colSpan={9}><EmptyState icon={Truck} title="Sin despachos" description="Registra el primer pedido de despacho."/></td></tr>}
-              {filtered.map(des => {
-                const estadoMeta = ESTADOS[des.estado] || ESTADOS.PEDIDO
-                const EstIcon    = estadoMeta.icon
-                return (
-                  <tr key={des.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] font-semibold text-[#00c896]">{des.numero}</td>
-                    <td className="px-3.5 py-2.5">
-                      <div className="font-medium text-[#e8edf2] max-w-[160px] truncate">{cliNombre(des.clienteId)}</div>
-                      <div className="text-[11px] text-[#5f6f80]">{almNombre(des.almacenId)}</div>
-                    </td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{formatDate(des.fecha || des.createdAt)}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{des.fechaEntrega ? formatDate(des.fechaEntrega) : '—'}</td>
-                    <td className="px-3.5 py-2.5 text-center text-[#9ba8b6]">{des.items?.length || des._count?.items || 0}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] font-semibold">{formatCurrency(Number(des.total || 0), simboloMoneda)}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{des.guiaNumero || '—'}</td>
-                    <td className="px-3.5 py-2.5">
-                      <Badge variant={estadoMeta.color}><EstIcon size={9}/> {estadoMeta.label}</Badge>
-                    </td>
-                    <td className="px-3.5 py-2.5">
-                      <div className="flex gap-1 items-center">
-                        <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetalle(des)}><Eye size={13}/></Btn>
-                        {estadoMeta.next && (
-                          <Btn variant="primary" size="sm" onClick={() => avanzarEstado(des)}>{estadoMeta.accion}</Btn>
-                        )}
-                        {des.guiaNumero && (
-                          <Btn variant="ghost" size="icon" title="PDF / Compartir" className="text-[#00c896]" onClick={() => setShareDoc(des)}>
-                            <FileText size={13}/>
-                          </Btn>
-                        )}
-                        {!des.guiaNumero && ['DESPACHADO','ENTREGADO'].includes(des.estado) && (
-                          <Btn variant="ghost" size="icon" title="Asignar guía de remisión" className="text-amber-400" onClick={() => setGuiaModal(des)}>
-                            <FileText size={13}/>
-                          </Btn>
-                        )}
-                        {des.estado === 'DESPACHADO' && (
-                          <Btn variant="ghost" size="icon" title="Registrar entrega" className="text-green-400" onClick={() => setEvidenciaModal(des)}>
-                            <CheckCircle size={13}/>
-                          </Btn>
-                        )}
-                        {['APROBADO','PICKING'].includes(des.estado) && (
-                          <Btn variant="ghost" size="icon" title="Picking List" className="text-amber-400"
-                            onClick={() => imprimirPickingList({ des, cliente: cliMap.get(des.clienteId), productos, almacen: almMap.get(des.almacenId), config: null, sesion })}>
-                            <Printer size={13}/>
-                          </Btn>
-                        )}
-                        {!['ENTREGADO','CANCELADO','DESPACHADO'].includes(des.estado) && (
-                          <Btn variant="ghost" size="icon" title="Anular" className="text-red-400" onClick={() => setConfirmAnu(des)}>
-                            <X size={13}/>
-                          </Btn>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          loading={isLoading}
+          rows={filtered}
+          rowKey={des => des.id}
+          onRowClick={des => setDetalle(des)}
+          emptyIcon={Truck}
+          emptyTitle="Sin despachos"
+          emptyDescription="Registra el primer pedido de despacho."
+          sortConfig={sortConfig}
+          onSort={handleSort}
+          columns={[
+            { key:'numero', header:'N° Despacho', sortable:true, render: des => <span className="font-mono text-[12px] font-semibold text-[#00c896]">{des.numero}</span> },
+            { key:'cliente', header:'Cliente', sortable:true, render: des => (
+              <>
+                <div className="font-medium text-[#e8edf2] max-w-[160px] truncate">{cliNombre(des.clienteId)}</div>
+                <div className="text-[11px] text-[#5f6f80]">{almNombre(des.almacenId)}</div>
+              </>
+            ) },
+            { key:'fecha', header:'Fecha Pedido', sortable:true, render: des => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatDate(des.fecha || des.createdAt)}</span> },
+            { key:'fechaEntrega', header:'F. Entrega', sortable:true, render: des => <span className="font-mono text-[12px] text-[#9ba8b6]">{des.fechaEntrega ? formatDate(des.fechaEntrega) : '—'}</span> },
+            { key:'items', header:'Ítems', render: des => <span className="text-[#9ba8b6]">{des.items?.length || des._count?.items || 0}</span> },
+            { key:'total', header:'Total', sortable:true, render: des => <span className="font-mono text-[12px] font-semibold">{formatCurrency(Number(des.total || 0), simboloMoneda)}</span> },
+            { key:'guiaNumero', header:'Guía', sortable:true, render: des => <span className="font-mono text-[12px] text-[#9ba8b6]">{des.guiaNumero || '—'}</span> },
+            { key:'estado', header:'Estado', sortable:true, render: des => {
+              const estadoMeta = ESTADOS[des.estado] || ESTADOS.PEDIDO
+              const EstIcon = estadoMeta.icon
+              return <Badge variant={estadoMeta.color}><EstIcon size={9}/> {estadoMeta.label}</Badge>
+            } },
+            { key:'acciones', header:'Acciones', stopPropagation:true, render: des => {
+              const estadoMeta = ESTADOS[des.estado] || ESTADOS.PEDIDO
+              return (
+                <div className="flex gap-1 items-center">
+                  <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetalle(des)}><Eye size={13}/></Btn>
+                  {estadoMeta.next && (
+                    <Btn variant="primary" size="sm" onClick={() => des.estado === 'PICKING' ? setPickingModal(des) : avanzarEstado(des)}>{estadoMeta.accion}</Btn>
+                  )}
+                  {des.guiaNumero && (
+                    <Btn variant="ghost" size="icon" title="PDF / Compartir" className="text-[#00c896]" onClick={() => setShareDoc(des)}>
+                      <FileText size={13}/>
+                    </Btn>
+                  )}
+                  {!des.guiaNumero && ['DESPACHADO','ENTREGADO'].includes(des.estado) && (
+                    <Btn variant="ghost" size="icon" title="Asignar guía de remisión" className="text-amber-400" onClick={() => setGuiaModal(des)}>
+                      <FileText size={13}/>
+                    </Btn>
+                  )}
+                  {des.estado === 'DESPACHADO' && (
+                    <Btn variant="ghost" size="icon" title="Registrar entrega" className="text-green-400" onClick={() => setEvidenciaModal(des)}>
+                      <CheckCircle size={13}/>
+                    </Btn>
+                  )}
+                  {['APROBADO','PICKING'].includes(des.estado) && (
+                    <Btn variant="ghost" size="icon" title="Picking List" className="text-amber-400"
+                      onClick={() => imprimirPickingList({ des, cliente: cliMap.get(des.clienteId), productos, almacen: almMap.get(des.almacenId), config: null, sesion })}>
+                      <Printer size={13}/>
+                    </Btn>
+                  )}
+                  {!['ENTREGADO','CANCELADO','DESPACHADO'].includes(des.estado) && (
+                    <Btn variant="ghost" size="icon" title="Anular" className="text-red-400" onClick={() => setConfirmAnu(des)}>
+                      <X size={13}/>
+                    </Btn>
+                  )}
+                </div>
+              )
+            } },
+          ]}
+        />
       </div>
 
       <ModalNuevoPedido
@@ -350,7 +329,8 @@ export default function Despachos() {
         <ModalDetalle
           des={detalle} productos={productos} clientes={clientes} almacenes={almacenes}
           simboloMoneda={simboloMoneda} onClose={() => setDetalle(null)}
-          onAvanzar={() => avanzarEstado(detalle)} onAnular={() => setConfirmAnu(detalle)}/>
+          onAvanzar={() => detalle.estado === 'PICKING' ? setPickingModal(detalle) : avanzarEstado(detalle)}
+          onAnular={() => setConfirmAnu(detalle)}/>
       )}
 
       {shareDoc && (
@@ -382,29 +362,34 @@ export default function Despachos() {
           saving={asignarGuia.isPending}/>
       )}
 
-      <div className="bg-[#161d28] border border-[#00c896]/20 rounded-xl p-5">
-        <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#00c896]/10 flex items-center justify-center shrink-0 mt-0.5">
-            <span className="text-[#00c896] text-[14px] font-bold">?</span>
-          </div>
-          <div className="flex-1">
-            <div className="text-[13px] font-semibold text-[#e8edf2] mb-2">¿Para qué sirve la Gestión de Despachos?</div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
-              {[
-                ['📋 1. Pedido','Se registra la solicitud del cliente: qué productos, qué cantidades y dirección de entrega.'],
-                ['✅ 2. Aprobado','Un supervisor aprueba el pedido antes de preparar.'],
-                ['📦 3. Picking','El almacenero prepara físicamente los productos.'],
-                ['🟢 4. Listo','La mercadería está empacada y lista en el área de despacho.'],
-                ['🚚 5. Despachado','Se emite la Guía de Remisión y el stock se descuenta.'],
-                ['🏁 6. Entregado','El cliente confirma la recepción. El ciclo se cierra.'],
-              ].map(([t, d]) => (
-                <div key={t} className="bg-[#1a2230] rounded-lg p-3">
-                  <div className="text-[11px] font-semibold text-[#e8edf2] mb-1">{t}</div>
-                  <div className="text-[11px] text-[#9ba8b6] leading-snug">{d}</div>
-                </div>
-              ))}
+      {pickingModal && (
+        <ModalPicking despacho={pickingModal} onClose={() => setPickingModal(null)}
+          onListo={() => {
+            toast(`${pickingModal.numero} listo para despachar`, 'success')
+            if (detalle?.id === pickingModal.id) setDetalle(null)
+            setPickingModal(null)
+          }}/>
+      )}
+
+      {/* Guía de uso */}
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Despachos?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
+          {[
+            ['1. Pedido',     'Se registra la solicitud del cliente: qué productos, qué cantidades y dirección de entrega.'],
+            ['2. Aprobado',   'Un supervisor aprueba el pedido antes de preparar.'],
+            ['3. Picking',    'El almacenero prepara físicamente los productos.'],
+            ['4. Listo',      'Picking 100% completo y empaque confirmado — pasa a Listo automáticamente en cuanto se cumplen ambas condiciones (en cualquier orden). Si tu operación no usa empaque formal, "Marcar Listo" en Despachos sigue disponible con solo el picking completo.'],
+            ['5. Despachado', 'Se emite la Guía de Remisión y el stock se descuenta.'],
+            ['6. Entregado',  'El cliente confirma la recepción. El ciclo se cierra.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>
@@ -470,47 +455,47 @@ export function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, a
 
       <div className="grid grid-cols-2 gap-3.5">
         <Field label="Cliente *">
-          <select className={SEL} value={form.clienteId} onChange={e => {
+          <Select value={form.clienteId} onChange={e => {
             const cli = clientes.find(c => c.id === e.target.value)
             f('clienteId', e.target.value)
             if (cli?.direccion) f('direccionEntrega', cli.direccion)
           }}>
             <option value="">Seleccionar cliente...</option>
             {clientes.filter(c => c.activo).map(c => <option key={c.id} value={c.id}>{c.razonSocial}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Almacén de despacho">
-          <select className={SEL} value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
+          <Select value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
+          </Select>
         </Field>
-        <Field label="Fecha pedido"><input type="date" className={SI} value={form.fecha} onChange={e => f('fecha', e.target.value)}/></Field>
-        <Field label="Fecha entrega comprometida"><input type="date" className={SI} value={form.fechaEntrega} onChange={e => f('fechaEntrega', e.target.value)}/></Field>
+        <Field label="Fecha pedido"><Input type="date" value={form.fecha} onChange={e => f('fecha', e.target.value)}/></Field>
+        <Field label="Fecha entrega comprometida"><Input type="date" value={form.fechaEntrega} onChange={e => f('fechaEntrega', e.target.value)}/></Field>
       </div>
 
       <DireccionInput label="Dirección de entrega" value={form.direccionEntrega} onChange={v => f('direccionEntrega', v)} placeholder="Av. Principal 123, Distrito, Lima" required/>
       <Field label="Transportista / Carrier">
-        <select className={SEL} value={form.transportistaId} onChange={e => f('transportistaId', e.target.value)}>
+        <Select value={form.transportistaId} onChange={e => f('transportistaId', e.target.value)}>
           <option value="">Sin asignar (se puede asignar al armar la Ruta)</option>
           {transportistas.filter(t => t.activo !== false).map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
-        </select>
+        </Select>
       </Field>
 
       <div className="text-[13px] font-semibold text-[#e8edf2]">Productos a despachar</div>
       <div className="flex gap-2 flex-wrap items-end">
         <div className="flex-[2] min-w-[180px]">
           <Field label="Producto">
-            <select className={SEL} value={ni.productoId} onChange={e => {
+            <Select value={ni.productoId} onChange={e => {
               const p = productos.find(x => x.id === e.target.value)
               setNi(prev => ({ ...prev, productoId: e.target.value, precioVenta: p?.precioVenta || '' }))
             }}>
               <option value="">Seleccionar...</option>
               {productosConStock.map(p => <option key={p.id} value={p.id}>{p.sku} — {p.nombre} (Stock: {p.stockActual} {p.unidadMedida})</option>)}
-            </select>
+            </Select>
           </Field>
         </div>
-        <div className="flex-1 min-w-[90px]"><Field label="Cantidad"><input type="number" className={SI} value={ni.cantidad} onChange={e => setNi(p => ({ ...p, cantidad: e.target.value }))} min="0.01" step="0.01"/></Field></div>
-        <div className="flex-1 min-w-[100px]"><Field label="Precio Venta"><input type="number" className={SI} value={ni.precioVenta} onChange={e => setNi(p => ({ ...p, precioVenta: e.target.value }))} min="0" step="0.01"/></Field></div>
+        <div className="flex-1 min-w-[90px]"><Field label="Cantidad"><Input type="number" value={ni.cantidad} onChange={e => setNi(p => ({ ...p, cantidad: e.target.value }))} min="0.01" step="0.01"/></Field></div>
+        <div className="flex-1 min-w-[100px]"><Field label="Precio Venta"><Input type="number" value={ni.precioVenta} onChange={e => setNi(p => ({ ...p, precioVenta: e.target.value }))} min="0" step="0.01"/></Field></div>
         <Btn variant="secondary" onClick={addItem}>+ Agregar</Btn>
       </div>
 
@@ -538,7 +523,7 @@ export function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, a
       </div>
 
       <Field label="Observaciones">
-        <textarea className={SI + ' resize-y min-h-[56px]'} value={form.observaciones} onChange={e => f('observaciones', e.target.value)} placeholder="Instrucciones especiales de entrega..."/>
+        <Textarea className="min-h-14" value={form.observaciones} onChange={e => f('observaciones', e.target.value)} placeholder="Instrucciones especiales de entrega..."/>
       </Field>
     </Modal>
   )
@@ -650,7 +635,6 @@ function ModalEvidencia({ des, onClose, onConfirm }) {
   const [preview, setPreview] = useState(null)
   const [receptor,setReceptor]= useState('')
   const [notas,   setNotas]   = useState('')
-  const SI2 = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
 
   function handleFoto(e) {
     const file = e.target.files?.[0]
@@ -685,11 +669,11 @@ function ModalEvidencia({ des, onClose, onConfirm }) {
       <div className="flex flex-col gap-3.5">
         <div>
           <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Nombre del receptor *</label>
-          <input className={SI2} value={receptor} onChange={e => setReceptor(e.target.value)} placeholder="Nombre completo de quien recibe"/>
+          <Input value={receptor} onChange={e => setReceptor(e.target.value)} placeholder="Nombre completo de quien recibe"/>
         </div>
         <div>
           <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Observaciones de entrega</label>
-          <textarea className={SI2 + ' resize-y min-h-[56px]'} value={notas} onChange={e => setNotas(e.target.value)} placeholder="Condiciones del producto al entregar, incidencias, etc."/>
+          <Textarea className="min-h-14" value={notas} onChange={e => setNotas(e.target.value)} placeholder="Condiciones del producto al entregar, incidencias, etc."/>
         </div>
       </div>
 
@@ -704,7 +688,6 @@ function ModalEvidencia({ des, onClose, onConfirm }) {
 /** Asigna guiaNumero a despachos que salieron sin ella (p. ej. despachados vía Ruta, ver Transportes.jsx). */
 export function ModalAsignarGuia({ des, onClose, onSave, saving }) {
   const [guiaNumero, setGuiaNumero] = useState(des.guiaNumero || generarNumDoc('GR'))
-  const SI2 = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
 
   return (
     <Modal open title={`Asignar Guía de Remisión — ${des.numero}`} onClose={onClose} size="sm"
@@ -712,8 +695,99 @@ export function ModalAsignarGuia({ des, onClose, onSave, saving }) {
       <Alert variant="info">Este despacho salió sin número de guía (habitual en despachos vía Ruta). Asígnale uno para poder emitir la GRE en Sunat.</Alert>
       <div>
         <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Número de guía *</label>
-        <input className={SI2} value={guiaNumero} onChange={e => setGuiaNumero(e.target.value)} placeholder="GR-00001"/>
+        <Input value={guiaNumero} onChange={e => setGuiaNumero(e.target.value)} placeholder="GR-00001"/>
       </div>
+    </Modal>
+  )
+}
+
+// ── Modal Picking — ejecución de la lista de preparación ──
+export function ModalPicking({ despacho, onClose, onListo }) {
+  const { toast } = useApp()
+  const { data: lista, isLoading } = usePickingByDespacho(despacho.id)
+  const confirmarLinea = useConfirmarLineaPicking()
+  const marcarListo    = useMarcarListo()
+  const [cantidades, setCantidades] = useState({})
+
+  const completa = lista?.estado === 'COMPLETADA'
+
+  async function confirmar(linea) {
+    const cantidad = cantidades[linea.id] ?? Number(linea.cantidadRequerida)
+    const res = await confirmarLinea.mutateAsync({ despachoId: despacho.id, lineaId: linea.id, cantidad })
+    if (res.error) { toast(res.error, 'error'); return }
+  }
+
+  async function handleMarcarListo() {
+    const res = await marcarListo.mutateAsync(despacho.id)
+    if (res.error) { toast(res.error, 'error'); return }
+    onListo()
+  }
+
+  return (
+    <Modal open title={`Picking — ${despacho.numero}`} onClose={onClose} size="lg"
+      footer={<>
+        <Btn variant="secondary" onClick={onClose}>Cerrar</Btn>
+        <Btn variant="primary" disabled={!completa || marcarListo.isPending} onClick={handleMarcarListo}>
+          <Package size={13}/> {marcarListo.isPending ? 'Guardando...' : 'Marcar Listo'}
+        </Btn>
+      </>}>
+
+      <Alert variant={completa ? 'success' : 'info'}>
+        {completa
+          ? 'Todas las líneas fueron pickeadas. Ya puedes marcar el pedido como Listo para despachar.'
+          : 'Confirma la cantidad realmente pickeada de cada producto. Debes completar el 100% de las líneas antes de poder marcar Listo — no se permite picking parcial.'}
+      </Alert>
+
+      {isLoading && <div className="text-center text-[#5f6f80] py-6 text-[12px]">Cargando lista de picking...</div>}
+
+      {lista && (
+        <div className="overflow-x-auto rounded-xl border border-white/8">
+          <table className="w-full border-collapse text-[13px]">
+            <thead><tr>
+              {['Producto','Ubicación sugerida','Cant. Requerida','Cant. Pickeada','Estado',''].map(h => (
+                <th key={h} className="bg-[#1a2230] px-3 py-2 text-left text-[11px] font-semibold text-[#5f6f80] uppercase border-b border-white/8">{h}</th>
+              ))}
+            </tr></thead>
+            <tbody>{lista.lineas.map(linea => {
+              const lineaCompleta = linea.estado === 'COMPLETA'
+              return (
+                <tr key={linea.id} className="border-b border-white/6 last:border-0">
+                  <td className="px-3 py-2">
+                    <div className="font-medium">{linea.producto?.nombre}</div>
+                    <div className="text-[11px] text-[#5f6f80]">{linea.producto?.sku}</div>
+                  </td>
+                  <td className="px-3 py-2 text-[12px]">
+                    {linea.ubicacion
+                      ? <span className="inline-flex items-center gap-1 text-[#9ba8b6]"><MapPin size={11}/> {linea.ubicacion.codigo} <span className="text-[10px] text-[#5f6f80]">({linea.ubicacion.zona})</span></span>
+                      : <span className="text-[#5f6f80]">Sin ubicar (stock general)</span>}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-[12px]">{Number(linea.cantidadRequerida)} {linea.producto?.unidadMedida}</td>
+                  <td className="px-3 py-2">
+                    <input type="number" min="0" max={Number(linea.cantidadRequerida)} step="0.01"
+                      disabled={lineaCompleta}
+                      aria-label={`Cantidad pickeada de ${linea.producto?.nombre || 'producto'}`}
+                      className="w-24 px-2 py-1 bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] disabled:opacity-50 font-mono"
+                      value={cantidades[linea.id] ?? Number(linea.cantidadRequerida)}
+                      onChange={e => setCantidades(p => ({ ...p, [linea.id]: e.target.value === '' ? '' : +e.target.value }))}/>
+                  </td>
+                  <td className="px-3 py-2">
+                    <Badge variant={lineaCompleta ? 'success' : linea.estado === 'PARCIAL' ? 'warning' : 'neutral'}>
+                      {lineaCompleta && <CheckCircle size={9}/>} {linea.estado}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-2">
+                    {!lineaCompleta && (
+                      <Btn variant="secondary" size="sm" disabled={confirmarLinea.isPending} onClick={() => confirmar(linea)}>
+                        Confirmar
+                      </Btn>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}</tbody>
+          </table>
+        </div>
+      )}
     </Modal>
   )
 }

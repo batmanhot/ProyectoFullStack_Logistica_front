@@ -18,6 +18,27 @@ export const AUDITORIA = {
   MAX_LOGS: 500,
 }
 
+// Compartido por Auditoria.jsx e Incidencias.jsx: los slugs vienen del
+// primer segmento de ruta real del backend (ver AuditoriaInterceptor /
+// HttpExceptionFilter), no de nombres de localStorage.
+export const MODULOS_LABEL = {
+  auth: 'Acceso', inventario: 'Inventario', entradas: 'Entradas', salidas: 'Salidas',
+  ajustes: 'Ajustes', devoluciones: 'Devoluciones', transferencias: 'Transferencias',
+  ordenes: 'Órdenes', cotizaciones: 'Cotizaciones', proveedores: 'Proveedores',
+  clientes: 'Clientes', despachos: 'Despachos', transportes: 'Transportes',
+  kardex: 'Kardex', vencimientos: 'Vencimientos', reorden: 'Punto Reorden',
+  prevision: 'Previsión', reportes: 'Reportes', usuarios: 'Usuarios',
+  maestros: 'Maestros', configuracion: 'Configuración', 'inv-fisico': 'Inv. Físico',
+  productos: 'Productos', almacenes: 'Almacenes', categorias: 'Categorías',
+  ubicaciones: 'Ubicaciones', lotes: 'Lotes', 'areas-internas': 'Áreas Internas',
+  'ordenes-compra': 'Órdenes de Compra', 'cuentas-por-cobrar': 'Cuentas por Cobrar',
+  proformas: 'Proformas', rutas: 'Rutas', flota: 'Flota', empaques: 'Empaques',
+  'pedidos-internos': 'Pedidos Internos', 'pedidos-portal': 'Pedidos del Portal',
+  'inventario-fisico': 'Inventario Físico', 'listas-precios': 'Listas de Precios',
+  'facturas-b2b': 'Facturas B2B', transportistas: 'Transportistas', sunat: 'Guía de Remisión',
+  datos: 'Datos / Reset', incidencias: 'Incidencias', picking: 'Picking',
+}
+
 // ── Paginación ────────────────────────────────────────────
 export const PAGINACION = {
   ITEMS_POR_PAGINA: 20,

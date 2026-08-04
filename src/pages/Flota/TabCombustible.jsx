@@ -1,15 +1,18 @@
 import { useState, useMemo } from 'react'
-import { Fuel } from 'lucide-react'
+import { Fuel, Download, FileText } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { formatDate, fechaHoyISO } from '../../utils/helpers'
+import { Btn, Input, Select, DataTable } from '../../components/ui/index'
 import { useFlotaCombustible, useRegistrarCombustible } from '../../queries/flota.queries'
-import { SI, SEL, toDateStr } from './constants'
+import { exportarCombustibleXLSX } from '../../utils/exportXLSX'
+import { exportarCombustiblePDF } from '../../utils/exportPDF'
+import { toDateStr } from './constants'
 
 // ════════════════════════════════════════════════════════
 // TAB COMBUSTIBLE & KM
 // ════════════════════════════════════════════════════════
 export default function TabCombustible({ flota }) {
-  const { toast } = useApp()
+  const { toast, sesion } = useApp()
   const [modalOpen,  setModalOpen]  = useState(false)
   const [filtUnidad, setFiltUnidad] = useState('')
   const initForm = {
@@ -80,12 +83,18 @@ export default function TabCombustible({ flota }) {
             <span className="ml-2 text-[#3d4f60] normal-case font-normal">({registros.length})</span>
           </span>
           <div className="flex gap-2">
-            <select className={SEL} style={{ width: 200 }} value={filtUnidad} onChange={e => setFiltUnidad(e.target.value)}>
+            <Select className="w-auto" value={filtUnidad} onChange={e => setFiltUnidad(e.target.value)}>
               <option value="">Todas las unidades</option>
               {flota.map(u => (
                 <option key={u.id} value={u.id}>{u.placa} — {u.nombre}</option>
               ))}
-            </select>
+            </Select>
+            <Btn variant="ghost" size="sm" onClick={() => exportarCombustibleXLSX(registros)}>
+              <Download size={13}/> Excel
+            </Btn>
+            <Btn variant="ghost" size="sm" onClick={() => exportarCombustiblePDF(registros, sesion?.nombre)}>
+              <FileText size={13}/> PDF
+            </Btn>
             <button
               onClick={() => setModalOpen(true)}
               className="flex items-center gap-1.5 px-3 py-2 bg-[#00c896]/12 border border-[#00c896]/25 text-[#00c896] rounded-lg text-[12px] font-medium hover:bg-[#00c896]/20 transition-colors whitespace-nowrap">
@@ -94,47 +103,36 @@ export default function TabCombustible({ flota }) {
           </div>
         </div>
 
-        {registros.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-12 text-center">
-            <Fuel size={36} className="text-[#3d4f60]"/>
-            <div className="text-[13px] font-medium text-[#5f6f80]">Sin registros de combustible</div>
-            <div className="text-[11px] text-[#3d4f60]">Usa el botón "Cargar combustible" para registrar el primer consumo.</div>
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-white/8">
-            <table className="w-full border-collapse text-[12px]">
-              <thead>
-                <tr>
-                  {['Fecha','Unidad','Litros','Costo','KM antes','KM después','KM recorridos','S/ / km','Tipo combustible'].map(h => (
-                    <th key={h} className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[10px] font-semibold text-[#5f6f80] uppercase border-b border-white/8 whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {registros.map(r => {
-                  const km  = Number(r.kmRecorridos) || 0
-                  const cpk = km > 0 && Number(r.costo) > 0 ? (Number(r.costo) / km).toFixed(2) : '—'
-                  return (
-                    <tr key={r.id} className="border-b border-white/5 last:border-0 hover:bg-white/2">
-                      <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#9ba8b6]">{formatDate(toDateStr(r.fecha))}</td>
-                      <td className="px-3.5 py-2.5">
-                        <div className="font-mono text-[11px] text-[#00c896] font-bold">{r.vehiculo?.placa || '—'}</div>
-                        <div className="text-[10px] text-[#5f6f80]">{r.vehiculo?.nombre || ''}</div>
-                      </td>
-                      <td className="px-3.5 py-2.5 font-mono text-[#e8edf2]">{r.litros} L</td>
-                      <td className="px-3.5 py-2.5 font-mono text-red-400 font-semibold">S/ {Number(r.costo).toFixed(2)}</td>
-                      <td className="px-3.5 py-2.5 font-mono text-[#9ba8b6]">{r.kmAntes ? Number(r.kmAntes).toLocaleString() : '—'}</td>
-                      <td className="px-3.5 py-2.5 font-mono text-[#9ba8b6]">{r.kmDespues ? Number(r.kmDespues).toLocaleString() : '—'}</td>
-                      <td className="px-3.5 py-2.5 font-mono font-semibold text-[#00c896]">{km > 0 ? km.toLocaleString() + ' km' : '—'}</td>
-                      <td className="px-3.5 py-2.5 font-mono text-amber-400">{cpk !== '—' ? 'S/ ' + cpk : '—'}</td>
-                      <td className="px-3.5 py-2.5 text-[#9ba8b6]">{r.tipoCombustible || '—'}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          rows={registros}
+          rowKey={r => r.id}
+          emptyIcon={Fuel}
+          emptyTitle="Sin registros de combustible"
+          emptyDescription='Usa el botón "Cargar combustible" para registrar el primer consumo.'
+          columns={[
+            { key: 'fecha', header: 'Fecha', render: r => <span className="font-mono text-[11px] text-[#9ba8b6]">{formatDate(toDateStr(r.fecha))}</span> },
+            { key: 'unidad', header: 'Unidad', render: r => (
+                <div>
+                  <div className="font-mono text-[11px] text-[#00c896] font-bold">{r.vehiculo?.placa || '—'}</div>
+                  <div className="text-[10px] text-[#5f6f80]">{r.vehiculo?.nombre || ''}</div>
+                </div>
+              ) },
+            { key: 'litros', header: 'Litros', render: r => <span className="font-mono text-[#e8edf2]">{r.litros} L</span> },
+            { key: 'costo', header: 'Costo', render: r => <span className="font-mono text-red-400 font-semibold">S/ {Number(r.costo).toFixed(2)}</span> },
+            { key: 'kmAntes', header: 'KM antes', render: r => <span className="font-mono text-[#9ba8b6]">{r.kmAntes ? Number(r.kmAntes).toLocaleString() : '—'}</span> },
+            { key: 'kmDespues', header: 'KM después', render: r => <span className="font-mono text-[#9ba8b6]">{r.kmDespues ? Number(r.kmDespues).toLocaleString() : '—'}</span> },
+            { key: 'kmRecorridos', header: 'KM recorridos', render: r => {
+                const km = Number(r.kmRecorridos) || 0
+                return <span className="font-mono font-semibold text-[#00c896]">{km > 0 ? km.toLocaleString() + ' km' : '—'}</span>
+              } },
+            { key: 'cpk', header: 'S/ / km', render: r => {
+                const km  = Number(r.kmRecorridos) || 0
+                const cpk = km > 0 && Number(r.costo) > 0 ? (Number(r.costo) / km).toFixed(2) : '—'
+                return <span className="font-mono text-amber-400">{cpk !== '—' ? 'S/ ' + cpk : '—'}</span>
+              } },
+            { key: 'tipoCombustible', header: 'Tipo combustible', render: r => <span className="text-[#9ba8b6]">{r.tipoCombustible || '—'}</span> },
+          ]}
+        />
       </div>
 
       {/* Modal cargar combustible */}
@@ -151,50 +149,50 @@ export default function TabCombustible({ flota }) {
               <div className="grid grid-cols-2 gap-3.5">
                 <div className="col-span-2">
                   <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Unidad *</label>
-                  <select className={SEL} value={form.vehiculoId} onChange={e=>f('vehiculoId',e.target.value)}>
+                  <Select value={form.vehiculoId} onChange={e=>f('vehiculoId',e.target.value)}>
                     <option value="">Seleccionar unidad...</option>
                     {flota.filter(u => u.activo !== false).map(u => (
                       <option key={u.id} value={u.id}>{u.placa} — {u.nombre} ({u.tipo})</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Fecha</label>
-                  <input type="date" className={SI} value={form.fecha} onChange={e=>f('fecha',e.target.value)}/>
+                  <Input type="date" value={form.fecha} onChange={e=>f('fecha',e.target.value)}/>
                 </div>
                 <div>
                   <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Tipo combustible</label>
-                  <select className={SEL} value={form.tipoCombustible} onChange={e=>f('tipoCombustible',e.target.value)}>
+                  <Select value={form.tipoCombustible} onChange={e=>f('tipoCombustible',e.target.value)}>
                     {['Diesel','Gasolina 90','Gasolina 95','Gas natural','GLP'].map(t => <option key={t}>{t}</option>)}
-                  </select>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Litros cargados *</label>
-                  <input type="number" className={SI} value={form.litros} onChange={e=>f('litros',e.target.value)} min="0" step="0.1" placeholder="0.0"/>
+                  <Input type="number" value={form.litros} onChange={e=>f('litros',e.target.value)} min="0" step="0.1" placeholder="0.0"/>
                 </div>
                 <div>
                   <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Costo total (S/) *</label>
-                  <input type="number" className={SI} value={form.costo} onChange={e=>f('costo',e.target.value)} min="0" step="0.01" placeholder="0.00"/>
+                  <Input type="number" value={form.costo} onChange={e=>f('costo',e.target.value)} min="0" step="0.01" placeholder="0.00"/>
                 </div>
 
                 <div>
                   <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Odómetro al cargar (km)</label>
-                  <input type="number" className={SI} value={form.kmAntes} onChange={e=>f('kmAntes',e.target.value)} min="0" placeholder="km antes del viaje"/>
+                  <Input type="number" value={form.kmAntes} onChange={e=>f('kmAntes',e.target.value)} min="0" placeholder="km antes del viaje"/>
                 </div>
                 <div>
                   <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Odómetro al retornar (km)</label>
-                  <input type="number" className={SI} value={form.kmDespues} onChange={e=>f('kmDespues',e.target.value)} min="0" placeholder="km al terminar"/>
+                  <Input type="number" value={form.kmDespues} onChange={e=>f('kmDespues',e.target.value)} min="0" placeholder="km al terminar"/>
                 </div>
 
                 <div>
                   <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Grifo / Proveedor</label>
-                  <input className={SI} value={form.proveedor} onChange={e=>f('proveedor',e.target.value)} placeholder="Nombre del grifo"/>
+                  <Input value={form.proveedor} onChange={e=>f('proveedor',e.target.value)} placeholder="Nombre del grifo"/>
                 </div>
                 <div>
                   <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Notas</label>
-                  <input className={SI} value={form.notas} onChange={e=>f('notas',e.target.value)} placeholder="Observaciones opcionales"/>
+                  <Input value={form.notas} onChange={e=>f('notas',e.target.value)} placeholder="Observaciones opcionales"/>
                 </div>
               </div>
 

@@ -18,6 +18,7 @@ import { Badge, Btn, Alert } from '../components/ui/index'
 import { useProductosList } from '../queries/productos.queries'
 import { useDespachosList } from '../queries/despachos.queries'
 import { useAprobarDespacho, useCancelarDespacho } from '../queries/despachos.queries'
+import { ModalPicking } from './Despachos'
 
 const simboloMoneda = 'S/'
 
@@ -85,6 +86,7 @@ export default function PWAMovil() {
   const [colaOffline,   setColaOffline]   = useState(leerCola)
   const [vistaActiva,   setVistaActiva]   = useState('dashboard')
   const [sincronizando, setSincronizando] = useState(false)
+  const [pickingDes,    setPickingDes]    = useState(null)
 
   // ── Detectar conectividad ──────────────────────────
   useEffect(() => {
@@ -379,16 +381,21 @@ export default function PWAMovil() {
           {despachosActivos.filter(d=>d.estado!=='PEDIDO').length > 0 && (
             <div className="flex flex-col gap-2 mt-2">
               <div className="text-[11px] text-[#5f6f80] uppercase tracking-wide">En proceso</div>
-              {despachosActivos.filter(d=>d.estado!=='PEDIDO').map(des => (
-                <div key={des.id} className="bg-[#1a2230] rounded-xl px-4 py-3 border border-white/8 flex items-center gap-3">
-                  <Truck size={14} className="text-[#5f6f80] shrink-0"/>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-mono text-[11px] text-[#00c896]">{des.numero}</div>
-                    <div className="text-[12px] text-[#9ba8b6] truncate">{des.estado}</div>
+              {despachosActivos.filter(d=>d.estado!=='PEDIDO').map(des => {
+                const esPicking = des.estado === 'PICKING'
+                return (
+                  <div key={des.id}
+                    onClick={() => esPicking && setPickingDes(des)}
+                    className={`bg-[#1a2230] rounded-xl px-4 py-3 border border-white/8 flex items-center gap-3 ${esPicking ? 'cursor-pointer active:bg-white/5' : ''}`}>
+                    {esPicking ? <Layers size={14} className="text-[#f59e0b] shrink-0"/> : <Truck size={14} className="text-[#5f6f80] shrink-0"/>}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-mono text-[11px] text-[#00c896]">{des.numero}</div>
+                      <div className="text-[12px] text-[#9ba8b6] truncate">{esPicking ? 'Toca para preparar el pedido' : des.estado}</div>
+                    </div>
+                    <Badge variant={{APROBADO:'info',PICKING:'warning',LISTO:'teal',DESPACHADO:'info'}[des.estado]||'neutral'}>{des.estado}</Badge>
                   </div>
-                  <Badge variant={{APROBADO:'info',PICKING:'warning',LISTO:'teal',DESPACHADO:'info'}[des.estado]||'neutral'}>{des.estado}</Badge>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -429,6 +436,11 @@ export default function PWAMovil() {
             <Alert variant="warning">Sin conexión — las acciones se sincronizarán automáticamente al reconectar.</Alert>
           )}
         </div>
+      )}
+
+      {pickingDes && (
+        <ModalPicking despacho={pickingDes} onClose={() => setPickingDes(null)}
+          onListo={() => { toast(`${pickingDes.numero} listo para despachar`, 'success'); setPickingDes(null) }}/>
       )}
     </div>
   )

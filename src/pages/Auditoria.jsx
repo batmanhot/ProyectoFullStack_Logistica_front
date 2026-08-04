@@ -1,19 +1,16 @@
-﻿import { useState, useMemo } from 'react'
+﻿import { useState } from 'react'
 import {
   Shield, Search, Download, Trash2, Filter,
   LogIn, LogOut, Plus, Edit2, Trash, FileText,
   Printer, Upload, AlertTriangle, RefreshCw, Eye
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { formatDate, fechaHoyISO } from '../utils/helpers'
-import { EmptyState, Badge, Btn, Field, Modal } from '../components/ui/index'
+import { Badge, Btn, Field, Modal, Input, Select, DataTable, Pager } from '../components/ui/index'
 import { useUsuariosList } from '../queries/usuarios.queries'
-import { useAuditoriaList, useLimpiarAuditoria } from '../queries/auditoria.queries'
+import { useAuditoriaList, useLimpiarAuditoria, fetchAuditoriaCompleta } from '../queries/auditoria.queries'
 import { exportarAuditoriaXLSX } from '../utils/exportXLSX'
 import { exportarAuditoriaPDF } from '../utils/exportPDF'
-
-const SI = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] font-[inherit] placeholder-[#5f6f80]'
-const SEL = SI + ' pr-8'
+import { MODULOS_LABEL } from '../config/constants'
 
 // Metadatos por tipo de acción
 const ACCIONES = {
@@ -29,28 +26,6 @@ const ACCIONES = {
   VIEW: { label: 'Consulta', color: '#5f6f80', icon: Eye, badge: 'neutral' },
 }
 
-// Los slugs vienen del primer segmento de ruta real del backend (ver
-// AuditoriaInterceptor), no de los nombres viejos de localStorage — por eso
-// coexisten ambos: los de abajo son los que realmente puede emitir el backend.
-const MODULOS_LABEL = {
-  auth: 'Acceso', inventario: 'Inventario', entradas: 'Entradas', salidas: 'Salidas',
-  ajustes: 'Ajustes', devoluciones: 'Devoluciones', transferencias: 'Transferencias',
-  ordenes: 'Órdenes', cotizaciones: 'Cotizaciones', proveedores: 'Proveedores',
-  clientes: 'Clientes', despachos: 'Despachos', transportes: 'Transportes',
-  kardex: 'Kardex', vencimientos: 'Vencimientos', reorden: 'Punto Reorden',
-  prevision: 'Previsión', reportes: 'Reportes', usuarios: 'Usuarios',
-  maestros: 'Maestros', configuracion: 'Configuración', 'inv-fisico': 'Inv. Físico',
-  // Slugs reales de rutas del backend (@Controller):
-  productos: 'Productos', almacenes: 'Almacenes', categorias: 'Categorías',
-  ubicaciones: 'Ubicaciones', lotes: 'Lotes', 'areas-internas': 'Áreas Internas',
-  'ordenes-compra': 'Órdenes de Compra', 'cuentas-por-cobrar': 'Cuentas por Cobrar',
-  proformas: 'Proformas', rutas: 'Rutas', flota: 'Flota', empaques: 'Empaques',
-  'pedidos-internos': 'Pedidos Internos', 'pedidos-portal': 'Pedidos del Portal',
-  'inventario-fisico': 'Inventario Físico', 'listas-precios': 'Listas de Precios',
-  'facturas-b2b': 'Facturas B2B', transportistas: 'Transportistas', sunat: 'Guía de Remisión',
-  datos: 'Datos / Reset',
-}
-
 export default function Auditoria() {
   const { sesion, toast } = useApp()
   const { data: usuarios = [] } = useUsuariosList()
@@ -63,29 +38,30 @@ export default function Auditoria() {
   const [filtHasta, setFiltHasta] = useState('')
   const [verLog, setVerLog] = useState(null)
   const [confirmLimpiar, setConfirmLimpiar] = useState(false)
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 25
 
-  const { data: apiLogs = [], refetch } = useAuditoriaList({
-    busqueda, accion: filtAccion, modulo: filtModulo,
-    usuarioId: filtUser, desde: filtDesde, hasta: filtHasta,
-  })
+  const filtros = { busqueda, accion: filtAccion, modulo: filtModulo, usuarioId: filtUser, desde: filtDesde, hasta: filtHasta }
+
+  // Si cambian los filtros, volvemos a la página 1 — si no, se puede quedar
+  // pidiendo una página que ya no existe para el nuevo filtro. Ajustar el
+  // estado durante el render (en vez de un useEffect) evita un commit extra.
+  const filtrosKey = JSON.stringify(filtros)
+  const [prevFiltrosKey, setPrevFiltrosKey] = useState(filtrosKey)
+  if (filtrosKey !== prevFiltrosKey) {
+    setPrevFiltrosKey(filtrosKey)
+    setPage(1)
+  }
+
+  const { data: resp = {} } = useAuditoriaList(filtros, { page, pageSize: PAGE_SIZE })
+  const apiLogs = resp.data ?? []
+  const total   = resp.total ?? 0
+  const kpis    = resp.kpis ?? { total: 0, hoy: 0, errores: 0, usuarios: 0 }
   const limpiarMutation = useLimpiarAuditoria()
 
-  // El API aplica todos los filtros — usamos apiLogs directamente
-  const logsFiltered = apiLogs
-
-  // KPIs
-  const kpis = useMemo(() => {
-    const hoy = fechaHoyISO()
-    return {
-      total:    apiLogs.length,
-      hoy:      apiLogs.filter(l => (l.timestamp||'').slice(0,10) === hoy).length,
-      errores:  apiLogs.filter(l => l.accion === 'LOGIN_FAILED' || l.accion === 'DELETE').length,
-      usuarios: [...new Set(apiLogs.map(l => l.usuarioId))].length,
-    }
-  }, [apiLogs])
-
-  function logsParaExportar() {
-    return logsFiltered.map(l => {
+  async function logsParaExportar() {
+    const completos = await fetchAuditoriaCompleta(filtros)
+    return completos.map(l => {
       const ts = l.timestamp ? new Date(l.timestamp) : null
       return {
         ...l,
@@ -94,8 +70,8 @@ export default function Auditoria() {
       }
     })
   }
-  async function exportExcel() { await exportarAuditoriaXLSX(logsParaExportar()) }
-  async function exportPDF()   { await exportarAuditoriaPDF(logsParaExportar(), sesion?.nombre) }
+  async function exportExcel() { await exportarAuditoriaXLSX(await logsParaExportar()) }
+  async function exportPDF()   { await exportarAuditoriaPDF(await logsParaExportar(), sesion?.nombre) }
 
   async function limpiar() {
     const res = await limpiarMutation.mutateAsync()
@@ -157,22 +133,22 @@ export default function Auditoria() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
           <div className="relative col-span-2 md:col-span-1">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none" />
-            <input className={SI + ' pl-8'} placeholder="Buscar..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+            <Input className="pl-8" placeholder="Buscar..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
           </div>
-          <select className={SEL} value={filtAccion} onChange={e => setFiltAccion(e.target.value)}>
+          <Select value={filtAccion} onChange={e => setFiltAccion(e.target.value)}>
             <option value="">Todas las acciones</option>
             {Object.entries(ACCIONES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select>
-          <select className={SEL} value={filtModulo} onChange={e => setFiltModulo(e.target.value)}>
+          </Select>
+          <Select value={filtModulo} onChange={e => setFiltModulo(e.target.value)}>
             <option value="">Todos los módulos</option>
             {Object.entries(MODULOS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-          <select className={SEL} value={filtUser} onChange={e => setFiltUser(e.target.value)}>
+          </Select>
+          <Select value={filtUser} onChange={e => setFiltUser(e.target.value)}>
             <option value="">Todos los usuarios</option>
             {usuarios.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
-          </select>
-          <input type="date" className={SI} value={filtDesde} onChange={e => setFiltDesde(e.target.value)} title="Desde" />
-          <input type="date" className={SI} value={filtHasta} onChange={e => setFiltHasta(e.target.value)} title="Hasta" />
+          </Select>
+          <Input type="date" value={filtDesde} onChange={e => setFiltDesde(e.target.value)} title="Desde" />
+          <Input type="date" value={filtHasta} onChange={e => setFiltHasta(e.target.value)} title="Hasta" />
         </div>
       </div>
 
@@ -183,64 +159,75 @@ export default function Auditoria() {
             Registro de Auditoría
           </span>
           <span className="text-[12px] text-[#5f6f80]">
-            {logsFiltered.length} de {apiLogs.length} eventos
+            {total} evento{total === 1 ? '' : 's'}
           </span>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[13px]">
-            <thead><tr>
-              {['Fecha', 'Hora', 'Usuario', 'Acción', 'Módulo', 'Detalle', ''].map(h => (
-                <th key={h} className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/8 whitespace-nowrap">{h}</th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {logsFiltered.length === 0 && (
-                <tr><td colSpan={7}>
-                  <EmptyState icon={Shield} title="Sin registros de auditoría"
-                    description={tieneHayFiltros ? "No hay eventos que coincidan con los filtros." : "Las operaciones del sistema quedarán registradas aquí."} />
-                </td></tr>
-              )}
-              {logsFiltered.map(log => {
+        <DataTable
+          rows={apiLogs}
+          paginate={false}
+          rowKey={log => log.id}
+          emptyIcon={Shield}
+          emptyTitle="Sin registros de auditoría"
+          emptyDescription={tieneHayFiltros ? "No hay eventos que coincidan con los filtros." : "Las operaciones del sistema quedarán registradas aquí."}
+          columns={[
+            { key: 'fecha', header: 'Fecha', render: log => <span className="font-mono text-[12px] text-[#9ba8b6] whitespace-nowrap">{(log.timestamp||'').slice(0,10)}</span> },
+            { key: 'hora', header: 'Hora', render: log => <span className="font-mono text-[12px] text-[#5f6f80] whitespace-nowrap">{log.timestamp ? new Date(log.timestamp).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}) : ''}</span> },
+            { key: 'usuario', header: 'Usuario', render: log => (
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-[#00c896]/15 text-[#00c896] text-[10px] font-bold flex items-center justify-center shrink-0">
+                    {log.usuarioNombre?.charAt(0)?.toUpperCase() || '?'}
+                  </div>
+                  <span className="text-[12px] text-[#e8edf2] truncate max-w-27.5">{log.usuarioNombre}</span>
+                </div>
+              ) },
+            { key: 'accion', header: 'Acción', render: log => {
                 const meta = ACCIONES[log.accion] || ACCIONES.VIEW
                 const Icon = meta.icon
-                return (
-                  <tr key={log.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6] whitespace-nowrap">{(log.timestamp||'').slice(0,10)}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#5f6f80] whitespace-nowrap">{log.timestamp ? new Date(log.timestamp).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}) : ''}</td>
-                    <td className="px-3.5 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-[#00c896]/15 text-[#00c896] text-[10px] font-bold flex items-center justify-center shrink-0">
-                          {log.usuarioNombre?.charAt(0)?.toUpperCase() || '?'}
-                        </div>
-                        <span className="text-[12px] text-[#e8edf2] truncate max-w-27.5">{log.usuarioNombre}</span>
-                      </div>
-                    </td>
-                    <td className="px-3.5 py-2.5">
-                      <Badge variant={meta.badge}>
-                        <Icon size={9} /> {meta.label}
-                      </Badge>
-                    </td>
-                    <td className="px-3.5 py-2.5">
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/5 text-[#9ba8b6]">
-                        {MODULOS_LABEL[log.modulo] || log.modulo}
-                      </span>
-                    </td>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6] max-w-70 truncate" title={log.detalle}>
-                      {log.detalle}
-                    </td>
-                    <td className="px-3.5 py-2.5">
-                      {log.datos && (
-                        <Btn variant="ghost" size="icon" title="Ver datos" onClick={() => setVerLog(log)}>
-                          <Eye size={12} />
-                        </Btn>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                return <Badge variant={meta.badge}><Icon size={9} /> {meta.label}</Badge>
+              } },
+            { key: 'modulo', header: 'Módulo', render: log => (
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/5 text-[#9ba8b6]">
+                  {MODULOS_LABEL[log.modulo] || log.modulo}
+                </span>
+              ) },
+            { key: 'detalle', header: 'Detalle', render: log => (
+                <span className="text-[12px] text-[#9ba8b6] max-w-70 truncate block" title={log.detalle}>{log.detalle}</span>
+              ) },
+            { key: 'ver', header: '', stopPropagation: true, render: log => log.datos && (
+                <Btn variant="ghost" size="icon" title="Ver datos" onClick={() => setVerLog(log)}>
+                  <Eye size={12} />
+                </Btn>
+              ) },
+          ]}
+        />
+
+        <Pager
+          page={page}
+          totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+          onChange={setPage}
+          rangeStart={total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}
+          rangeEnd={Math.min(page * PAGE_SIZE, total)}
+          total={total}
+        />
+      </div>
+
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Auditoría?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+          {[
+            ['1. Registro automático', 'Cada ingreso, creación, edición, eliminación, exportación o impresión relevante queda registrada aquí sin acción manual.'],
+            ['2. Filtrar', 'Combina búsqueda, tipo de acción, módulo, usuario y rango de fechas para acotar el log a lo que necesitas revisar.'],
+            ['3. Ver datos adicionales', 'Cuando un evento tiene información extra (ej. valores antes/después de una edición), aparece el ícono de ojo para verla en detalle.'],
+            ['4. Exportar o limpiar', 'Excel/PDF exportan el log filtrado; "Limpiar log" (solo Admin) borra permanentemente todos los eventos — se recomienda exportar antes.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -279,7 +266,7 @@ export default function Auditoria() {
             <Btn variant="danger" onClick={limpiar}><Trash2 size={13} /> Confirmar limpieza</Btn>
           </>}>
           <p className="text-[13px] text-[#9ba8b6] leading-relaxed">
-            Se eliminarán <strong className="text-[#e8edf2]">{apiLogs.length} eventos</strong> del log de auditoría. Esta acción no se puede deshacer. Se recomienda exportar el CSV primero.
+            Se eliminarán <strong className="text-[#e8edf2]">{total} eventos</strong> del log de auditoría. Esta acción no se puede deshacer. Se recomienda exportar el CSV primero.
           </p>
         </Modal>
       )}

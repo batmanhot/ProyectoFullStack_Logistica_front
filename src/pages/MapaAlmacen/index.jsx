@@ -17,7 +17,7 @@
  * calculados por props — nunca los recalculan.
  */
 import { useState, useMemo } from 'react'
-import { Grid3x3, List, Search, Plus, Loader2, Info, MapPin, Warehouse } from 'lucide-react'
+import { Grid3x3, List, Search, Plus, Loader2, MapPin, Warehouse } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { ConfirmDialog } from '../../components/ui/index'
 import { useProductosList }   from '../../queries/productos.queries'
@@ -127,19 +127,6 @@ export default function MapaAlmacen() {
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
-
-      {/* Intro — qué es esto y dónde empieza el flujo */}
-      <div className="flex items-start gap-3 bg-[#00c896]/6 border border-[#00c896]/15 rounded-xl px-4 py-3">
-        <Info size={16} className="text-[#00c896] shrink-0 mt-0.5"/>
-        <div className="text-[12px] text-[#9ba8b6] leading-relaxed">
-          <strong className="text-[#e8edf2]">Ubica físicamente tu stock dentro de cada almacén.</strong>{' '}
-          Aquí defines los racks/estanterías ("ubicaciones") y mueves stock hacia ellas para saber exactamente
-          dónde está cada producto — no solo cuánto stock hay. El flujo empieza en{' '}
-          <strong className="text-[#e8edf2]">1. elegir el almacén</strong> arriba,{' '}
-          <strong className="text-[#e8edf2]">2. crear sus ubicaciones</strong> con "Nueva ubicación" y{' '}
-          <strong className="text-[#e8edf2]">3. asignarles stock</strong> desde la pestaña "Sin ubicar" o haciendo clic en una celda del mapa.
-        </div>
-      </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">

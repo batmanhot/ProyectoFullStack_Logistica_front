@@ -2,16 +2,16 @@ import { useState, useMemo } from 'react'
 import {
   ClipboardList, Plus, Search,
   Eye, CheckCircle,
-  Bell, Check, X, Info,
+  Bell, Check, X, Download, FileText,
 } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { fechaHoyISO } from '../../utils/helpers'
-import { Btn } from '../../components/ui'
+import { Btn, Input, Select, DataTable } from '../../components/ui'
 import { useAreasInternasList } from '../../queries/areas-internas.queries'
-import { useProductosList } from '../../queries/productos.queries'
 import { useAlmacenesList } from '../../queries/almacenes.queries'
 import {
   usePedidosInternosList,
+  usePedidosInternosProductos,
   useCrearPedidoInterno,
   useActualizarPedidoInterno,
   useEnviarPedidoInterno,
@@ -21,7 +21,9 @@ import {
   useEntregarPI,
   useConfirmarReciboPI,
 } from '../../queries/pedidos-internos.queries'
-import { ESTADOS, ESTADOS_LISTA, DS } from './constants'
+import { exportarPedidosInternosXLSX } from '../../utils/exportXLSX'
+import { exportarPedidosInternosPDF } from '../../utils/exportPDF'
+import { ESTADOS, ESTADOS_LISTA } from './constants'
 import { Badge } from './Badge'
 import { Stat } from './Stat'
 import { ModalPedido } from './ModalPedido'
@@ -40,11 +42,10 @@ export default function PedidosInternos() {
 
   const { data: pedidosInternos = [], isLoading } = usePedidosInternosList()
   const { data: areasRaw        = [] }            = useAreasInternasList({ incluirInactivas: true })
-  const { data: productosRaw    = [] }            = useProductosList()
+  const { data: productos       = [] }            = usePedidosInternosProductos()
   const { data: almacenes       = [] }            = useAlmacenesList()
 
-  const areas    = useMemo(() => areasRaw.map(a => ({ ...a, activo: a.activo !== false })), [areasRaw])
-  const productos= useMemo(() => productosRaw.map(p => ({ ...p, activo: p.estado === 'Activo' || p.activo !== false })), [productosRaw])
+  const areas = useMemo(() => areasRaw.map(a => ({ ...a, activo: a.activo !== false })), [areasRaw])
 
   const crearPI    = useCrearPedidoInterno()
   const actualizarPI = useActualizarPedidoInterno()
@@ -155,32 +156,6 @@ export default function PedidosInternos() {
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
-      {/* ── Banner explicativo ── */}
-      <div className="flex items-start gap-4 px-5 py-4 rounded-xl"
-        style={{background:'rgba(0,200,150,0.08)',border:'1px solid rgba(0,200,150,0.20)'}}>
-        <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-          style={{background:'rgba(0,200,150,0.15)'}}>
-          <ClipboardList size={24} className="text-[#00c896]"/>
-        </div>
-        <div className="flex-1 flex flex-col gap-3">
-          <div>
-            <div className="text-[14px] font-bold text-[#e8edf2] mb-1">Pedidos Internos</div>
-            <div className="text-[12px] text-[#9ba8b6] leading-relaxed">
-              <strong className="text-[#e8edf2]">¿Para qué sirve?</strong> Es el canal formal para que cualquier
-              área de la empresa (Operaciones, Sistemas, Administración, etc.) solicite materiales o insumos al
-              almacén sin recurrir a pedidos verbales o por chat: cada solicitud queda registrada, pasa por
-              aprobación y descuenta stock real solo cuando efectivamente se despacha — con trazabilidad completa
-              de quién pidió qué, quién aprobó y cuándo se entregó.
-            </div>
-          </div>
-          <div className="flex items-start gap-1.5 text-[11px] text-[#5f6f80]">
-            <Info size={12} className="shrink-0 mt-0.5"/>
-            <span>Un usuario con rol "Solicitante" solo ve y crea pedidos de su propia área (asignada en
-            Usuarios); Admin y Supervisor ven y gestionan los pedidos de todas las áreas.</span>
-          </div>
-        </div>
-      </div>
-
       {pedidosListos.length > 0 && (
         <div className="bg-[#00c896]/10 border border-[#00c896]/30 rounded-xl px-5 py-4 flex flex-col gap-3">
           <div className="flex items-center gap-3">
@@ -211,21 +186,6 @@ export default function PedidosInternos() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-[22px] font-bold text-white">Pedidos Internos</h1>
-          <p className="text-[13px] text-white/40 mt-0.5">
-            {esSolicitante
-              ? `Mis solicitudes — ${areas.find(a => a.id === areaDelUsuario)?.nombre || 'Mi área'}`
-              : 'Requisiciones de materiales por área'}
-          </p>
-        </div>
-        <button onClick={() => setModalNuevo(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#00c896] hover:bg-[#009e76] text-[#082e1e] text-[13px] font-semibold rounded-xl transition-colors">
-          <Plus size={16}/> Nuevo pedido
-        </button>
-      </div>
-
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Stat label="Total pedidos"    value={stats.total}     color="#00c896"/>
         <Stat label="En proceso"       value={stats.pendientes} color="#3b82f6"/>
@@ -233,111 +193,98 @@ export default function PedidosInternos() {
         <Stat label="Críticos activos" value={stats.criticos}   color="#ef4444"/>
       </div>
 
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-50">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30"/>
-          <input className="w-full pl-8 pr-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] placeholder-[#5f6f80] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20"
-            placeholder="Buscar por número o área..."
-            value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
+      <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] whitespace-nowrap">Pedidos Internos</span>
+          <div className="flex items-center gap-2">
+            <Btn variant="ghost" size="sm" onClick={() => exportarPedidosInternosXLSX(lista, areas, almacenes)}>
+              <Download size={13}/> Excel
+            </Btn>
+            <Btn variant="ghost" size="sm" onClick={() => exportarPedidosInternosPDF(lista, areas, almacenes, sesion?.nombre)}>
+              <FileText size={13}/> PDF
+            </Btn>
+            <Btn variant="primary" size="sm" onClick={() => setModalNuevo(true)}>
+              <Plus size={13}/> Nuevo pedido
+            </Btn>
+          </div>
         </div>
-        <select style={DS}
-          className="px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] font-[inherit]"
-          value={filtEstado} onChange={e => setFiltEstado(e.target.value)}>
-          <option value="">Todos los estados</option>
-          {ESTADOS_LISTA.map(s => <option key={s} value={s}>{ESTADOS[s]?.label || s}</option>)}
-        </select>
-        {!esSolicitante && (
-          <select style={DS}
-            className="px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] font-[inherit]"
-            value={filtArea} onChange={e => setFiltArea(e.target.value)}>
-            <option value="">Todas las áreas</option>
-            {areas.filter(a => a.activo !== false).map(a => (
-              <option key={a.id} value={a.id}>{a.nombre}</option>
-            ))}
-          </select>
-        )}
-        {(filtEstado || filtArea || busqueda) && (
-          <button onClick={() => { setFiltEstado(''); setFiltArea(''); setBusqueda('') }}
-            className="text-[12px] text-white/30 hover:text-white/60 transition-colors flex items-center gap-1">
-            <X size={12}/> Limpiar
-          </button>
-        )}
-      </div>
 
-      <div className="bg-[#161d28] border border-white/8 rounded-xl overflow-hidden">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-16 text-[#5f6f80] text-[13px]">Cargando pedidos...</div>
-        ) : lista.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <ClipboardList size={36} className="text-white/15"/>
-            <div className="text-[13px] text-white/30">
-              {busqueda || filtEstado || filtArea ? 'Sin resultados para los filtros aplicados' : 'No hay pedidos internos aún'}
-            </div>
-            {!busqueda && !filtEstado && !filtArea && (
-              <button onClick={() => setModalNuevo(true)}
-                className="flex items-center gap-1.5 text-[12px] text-[#00c896] hover:text-[#009e76] transition-colors">
-                <Plus size={13}/> Crear primer pedido
-              </button>
-            )}
+        <div className="flex flex-wrap gap-3 items-center mb-3">
+          <div className="relative flex-1 min-w-50">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30"/>
+            <Input className="pl-8"
+              placeholder="Buscar por número o área..."
+              value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
-              <thead>
-                <tr className="border-b border-white/8">
-                  {['Nro. Pedido','Área','Almacén','Fecha','Requerido','Estado','Prioridad','Acciones'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold text-white/35 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {lista.map(pi => {
-                  const area    = areas.find(a => a.id === pi.areaId)
-                  const almacen = almacenes.find(a => a.id === pi.almacenId)
-                  const esCritico = pi.prioridad === 'CRITICO'
-                  return (
-                    <tr key={pi.id}
-                      className={`border-b border-white/5 hover:bg-white/2 transition-colors ${esCritico && !['ENTREGADO','RECHAZADO'].includes(pi.estado) ? 'bg-red-500/3' : ''}`}>
-                      <td className="px-4 py-3 font-mono text-[12px] text-white/70 whitespace-nowrap">{pi.numero}</td>
-                      <td className="px-4 py-3 text-white/80 whitespace-nowrap">
-                        <div>{area?.nombre || pi.areaId}</div>
-                        <div className="text-[10px] text-white/30 font-mono">{area?.codigo}</div>
-                      </td>
-                      <td className="px-4 py-3 text-white/50 whitespace-nowrap text-[12px]">{almacen?.nombre || pi.almacenId}</td>
-                      <td className="px-4 py-3 text-white/50 whitespace-nowrap">{(pi.fecha || pi.createdAt || '').split('T')[0]}</td>
-                      <td className="px-4 py-3 text-white/50 whitespace-nowrap">{pi.fechaRequerida || '—'}</td>
-                      <td className="px-4 py-3 whitespace-nowrap"><Badge estado={pi.estado}/></td>
-                      <td className="px-4 py-3 whitespace-nowrap"><Badge prioridad={pi.prioridad}/></td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setModalDet(pi)}>
-                            <Eye size={13}/>
-                          </Btn>
-                          {pi.estado === 'BORRADOR' && (
-                            <Btn variant="ghost" size="icon" title="Editar" onClick={() => setModalEditar(pi)}>
-                              <ClipboardList size={13}/>
-                            </Btn>
-                          )}
-                          {pi.estado === 'ENVIADO' && esAdmin && (
-                            <Btn variant="ghost" size="icon" title="Aprobar / Rechazar" onClick={() => setModalAprob(pi)}>
-                              <CheckCircle size={13}/>
-                            </Btn>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+          <Select className="w-auto" value={filtEstado} onChange={e => setFiltEstado(e.target.value)}>
+            <option value="">Todos los estados</option>
+            {ESTADOS_LISTA.map(s => <option key={s} value={s}>{ESTADOS[s]?.label || s}</option>)}
+          </Select>
+          {!esSolicitante && (
+            <Select className="w-auto" value={filtArea} onChange={e => setFiltArea(e.target.value)}>
+              <option value="">Todas las áreas</option>
+              {areas.filter(a => a.activo !== false).map(a => (
+                <option key={a.id} value={a.id}>{a.nombre}</option>
+              ))}
+            </Select>
+          )}
+          {(filtEstado || filtArea || busqueda) && (
+            <button onClick={() => { setFiltEstado(''); setFiltArea(''); setBusqueda('') }}
+              className="text-[12px] text-white/30 hover:text-white/60 transition-colors flex items-center gap-1">
+              <X size={12}/> Limpiar
+            </button>
+          )}
+        </div>
+
+        <DataTable
+          loading={isLoading}
+          rows={lista}
+          rowKey={pi => pi.id}
+          onRowClick={pi => setModalDet(pi)}
+          rowClassName={pi => (pi.prioridad === 'CRITICO' && !['ENTREGADO','RECHAZADO'].includes(pi.estado)) ? 'bg-red-500/3' : ''}
+          emptyIcon={ClipboardList}
+          emptyTitle={busqueda || filtEstado || filtArea ? 'Sin resultados para los filtros aplicados' : 'No hay pedidos internos aún'}
+          columns={[
+          { key: 'numero',    header: 'Nro. Pedido', render: pi => <span className="font-mono text-[12px] text-white/70 whitespace-nowrap">{pi.numero}</span> },
+          { key: 'area',      header: 'Área', render: pi => {
+              const area = areas.find(a => a.id === pi.areaId)
+              return (
+                <div className="whitespace-nowrap">
+                  <div className="text-white/80">{area?.nombre || pi.areaId}</div>
+                  <div className="text-[10px] text-white/30 font-mono">{area?.codigo}</div>
+                </div>
+              )
+            } },
+          { key: 'almacen',   header: 'Almacén', render: pi => <span className="text-white/50 whitespace-nowrap text-[12px]">{almacenes.find(a => a.id === pi.almacenId)?.nombre || pi.almacenId}</span> },
+          { key: 'fecha',     header: 'Fecha', render: pi => <span className="text-white/50 whitespace-nowrap">{(pi.fecha || pi.createdAt || '').split('T')[0]}</span> },
+          { key: 'requerido', header: 'Requerido', render: pi => <span className="text-white/50 whitespace-nowrap">{pi.fechaRequerida?.split('T')[0] || '—'}</span> },
+          { key: 'estado',    header: 'Estado', render: pi => <Badge estado={pi.estado}/> },
+          { key: 'prioridad', header: 'Prioridad', render: pi => <Badge prioridad={pi.prioridad}/> },
+          { key: 'acciones',  header: 'Acciones', stopPropagation: true, render: pi => (
+              <div className="flex items-center gap-1.5">
+                <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setModalDet(pi)}>
+                  <Eye size={13}/>
+                </Btn>
+                {pi.estado === 'BORRADOR' && (
+                  <Btn variant="ghost" size="icon" title="Editar" onClick={() => setModalEditar(pi)}>
+                    <ClipboardList size={13}/>
+                  </Btn>
+                )}
+                {pi.estado === 'ENVIADO' && esAdmin && (
+                  <Btn variant="ghost" size="icon" title="Aprobar / Rechazar" onClick={() => setModalAprob(pi)}>
+                    <CheckCircle size={13}/>
+                  </Btn>
+                )}
+              </div>
+            ) },
+        ]}
+        />
       </div>
 
       {/* Guía de uso */}
       <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
-          ¿Cómo funciona el flujo completo de Pedidos Internos?
+          ¿Cómo funciona el módulo de Pedidos Internos?
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
           {[

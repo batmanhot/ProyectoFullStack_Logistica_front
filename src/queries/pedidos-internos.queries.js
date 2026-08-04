@@ -22,6 +22,22 @@ export function usePedidosInternosList({ areaId, estado } = {}) {
   })
 }
 
+/**
+ * Catálogo mínimo de productos (sin costos ni stock) para el modal "Nuevo
+ * pedido" — a diferencia de useProductosList(), no exige el permiso
+ * 'inventario', así que el rol 'solicitante' también puede usarlo.
+ */
+export function usePedidosInternosProductos() {
+  return useQuery({
+    queryKey: [...KEYS.all(), 'productos-disponibles'],
+    queryFn: async () => {
+      const r = await api.get('/pedidos-internos/productos-disponibles')
+      if (r.error) throw new Error(r.error)
+      return r.data ?? []
+    },
+  })
+}
+
 export function usePedidoInterno(id) {
   return useQuery({
     queryKey: KEYS.one(id),

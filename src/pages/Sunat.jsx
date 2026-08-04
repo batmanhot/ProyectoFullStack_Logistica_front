@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { FileText, Send, CheckCircle, Download, Copy, Eye, ExternalLink } from 'lucide-react'
 import { formatDate } from '../utils/helpers'
 import { useApp } from '../store/AppContext'
-import { Modal, Badge, Btn, Alert } from '../components/ui/index'
+import { Modal, Badge, Btn, Alert, Textarea, DataTable } from '../components/ui/index'
 import { useClientesList } from '../queries/clientes.queries'
 import { useProductosList } from '../queries/productos.queries'
 import {
@@ -10,8 +10,8 @@ import {
   useGenerarDocumentoSunat, useMarcarEnviadoSunat,
   useMarcarAceptadoSunat, useMarcarRechazadoSunat,
 } from '../queries/sunat.queries'
-
-const TH = ({c}) => <th className="bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 text-left">{c}</th>
+import { exportarSunatDocumentosXLSX, exportarSunatGenerarXLSX } from '../utils/exportXLSX'
+import { exportarSunatDocumentosPDF, exportarSunatGenerarPDF } from '../utils/exportPDF'
 
 const ESTADO_META = {
   PENDIENTE: { label:'Pendiente', color:'warning' },
@@ -76,7 +76,7 @@ function generarJSONGRE({ des, cliente, productos, config }) {
 }
 
 export default function Sunat() {
-  const { toast } = useApp()
+  const { toast, sesion } = useApp()
 
   const { data: docs        = [] } = useSunatDocumentos()
   const { data: despConGuia = [] } = useSunatDespachosConGuia()
@@ -172,8 +172,6 @@ export default function Sunat() {
     rechazado: docs.filter(d=>d.estado==='RECHAZADO').length,
   }), [docs])
 
-  const SI = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
-
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
@@ -212,60 +210,69 @@ export default function Sunat() {
       {/* ── TAB DOCUMENTOS ──────────────────────────────── */}
       {tab === 'documentos' && (
         <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
-          <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">
-            Guías de Remisión Electrónica generadas ({docs.length})
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">
+              Guías de Remisión Electrónica generadas ({docs.length})
+            </div>
+            {docs.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Btn variant="ghost" size="sm" onClick={() => exportarSunatDocumentosXLSX(docs, clientes)}>
+                  <Download size={13}/> Excel
+                </Btn>
+                <Btn variant="ghost" size="sm" onClick={() => exportarSunatDocumentosPDF(docs, clientes, sesion?.nombre)}>
+                  <FileText size={13}/> PDF
+                </Btn>
+              </div>
+            )}
           </div>
           {docs.length === 0 ? (
             <div className="text-center py-10 text-[#5f6f80] text-[12px]">
               Ve a la pestaña "Generar desde despachos" para crear los documentos electrónicos.
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-white/8">
-              <table className="w-full border-collapse text-[12px]">
-                <thead><tr><TH c="N° Guía"/><TH c="Cliente"/><TH c="Fecha"/><TH c="Estado SUNAT"/><TH c="Acciones"/></tr></thead>
-                <tbody>
-                  {docs.map(doc => {
-                    const meta   = ESTADO_META[doc.estado] || ESTADO_META.PENDIENTE
+            <DataTable
+              rows={docs}
+              rowKey={doc => doc.id}
+              onRowClick={doc => abrirPreview(doc)}
+              columns={[
+                { key: 'guia', header: 'N° Guía', render: doc => <span className="font-mono text-[11px] text-[#00c896] font-bold">{doc.guiaNumero}</span> },
+                { key: 'cliente', header: 'Cliente', render: doc => {
                     const cli    = clientes.find(c => c.id === (doc.despacho?.clienteId || doc.clienteId))
                     const nombre = cli?.razonSocial || doc.despacho?.cliente?.razonSocial || '—'
-                    const fecha  = doc.despacho?.fechaDespacho || doc.createdAt
-                    return (
-                      <tr key={doc.id} className="border-b border-white/5 last:border-0 hover:bg-white/2">
-                        <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#00c896] font-bold">{doc.guiaNumero}</td>
-                        <td className="px-3.5 py-2.5 text-[#e8edf2]">{nombre}</td>
-                        <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#9ba8b6]">{formatDate(fecha)}</td>
-                        <td className="px-3.5 py-2.5"><Badge variant={meta.color}>{meta.label}</Badge></td>
-                        <td className="px-3.5 py-2.5">
-                          <div className="flex gap-1.5 flex-wrap">
-                            <Btn variant="ghost" size="sm" onClick={() => abrirPreview(doc)}>
-                              <Eye size={11}/> Ver JSON
-                            </Btn>
-                            <Btn variant="ghost" size="sm" onClick={() => descargarDocJSON(doc)}>
-                              <Download size={11}/> Descargar
-                            </Btn>
-                            {doc.estado === 'PENDIENTE' && (
-                              <Btn variant="primary" size="sm" onClick={() => handleMarcarEnviado(doc)}>
-                                <Send size={11}/> Marcar enviado
-                              </Btn>
-                            )}
-                            {doc.estado === 'ENVIADO' && (
-                              <>
-                                <Btn variant="ghost" size="sm" className="text-green-400"
-                                  onClick={() => handleMarcarAceptado(doc)}>✓ Aceptado</Btn>
-                                <Btn variant="ghost" size="sm" className="text-red-400"
-                                  onClick={() => { setRechazandoId(doc.despachoId); setMotivoRechazado('') }}>
-                                  ✕ Rechazado
-                                </Btn>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    return <span className="text-[#e8edf2]">{nombre}</span>
+                  } },
+                { key: 'fecha', header: 'Fecha', render: doc => <span className="font-mono text-[11px] text-[#9ba8b6]">{formatDate(doc.despacho?.fechaDespacho || doc.createdAt)}</span> },
+                { key: 'estado', header: 'Estado SUNAT', render: doc => {
+                    const meta = ESTADO_META[doc.estado] || ESTADO_META.PENDIENTE
+                    return <Badge variant={meta.color}>{meta.label}</Badge>
+                  } },
+                { key: 'acciones', header: 'Acciones', stopPropagation: true, render: doc => (
+                    <div className="flex gap-1.5 flex-wrap">
+                      <Btn variant="ghost" size="sm" onClick={() => abrirPreview(doc)}>
+                        <Eye size={11}/> Ver JSON
+                      </Btn>
+                      <Btn variant="ghost" size="sm" onClick={() => descargarDocJSON(doc)}>
+                        <Download size={11}/> Descargar
+                      </Btn>
+                      {doc.estado === 'PENDIENTE' && (
+                        <Btn variant="primary" size="sm" onClick={() => handleMarcarEnviado(doc)}>
+                          <Send size={11}/> Marcar enviado
+                        </Btn>
+                      )}
+                      {doc.estado === 'ENVIADO' && (
+                        <>
+                          <Btn variant="ghost" size="sm" className="text-green-400"
+                            onClick={() => handleMarcarAceptado(doc)}>✓ Aceptado</Btn>
+                          <Btn variant="ghost" size="sm" className="text-red-400"
+                            onClick={() => { setRechazandoId(doc.despachoId); setMotivoRechazado('') }}>
+                            ✕ Rechazado
+                          </Btn>
+                        </>
+                      )}
+                    </div>
+                  ) },
+              ]}
+            />
           )}
         </div>
       )}
@@ -273,50 +280,56 @@ export default function Sunat() {
       {/* ── TAB GENERAR ─────────────────────────────────── */}
       {tab === 'generar' && (
         <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
-          <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">
-            Despachos con guía de remisión — generar JSON electrónico
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">
+              Despachos con guía de remisión — generar JSON electrónico
+            </div>
+            {despConGuia.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Btn variant="ghost" size="sm" onClick={() => exportarSunatGenerarXLSX(despConGuia, clientes)}>
+                  <Download size={13}/> Excel
+                </Btn>
+                <Btn variant="ghost" size="sm" onClick={() => exportarSunatGenerarPDF(despConGuia, clientes, sesion?.nombre)}>
+                  <FileText size={13}/> PDF
+                </Btn>
+              </div>
+            )}
           </div>
           {despConGuia.length === 0 ? (
             <div className="text-center py-8 text-[12px] text-[#5f6f80]">
               No hay despachos despachados aún. Los despachos con guía de remisión aparecen aquí.
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-white/8">
-              <table className="w-full border-collapse text-[12px]">
-                <thead><tr><TH c="N° Guía"/><TH c="Despacho"/><TH c="Cliente"/><TH c="Fecha despacho"/><TH c="Estado despacho"/><TH c="JSON GRE"/></tr></thead>
-                <tbody>
-                  {despConGuia.map(des => {
-                    const cli    = clientes.find(c=>c.id===des.clienteId)
+            <DataTable
+              rows={despConGuia}
+              rowKey={des => des.id}
+              columns={[
+                { key: 'guia', header: 'N° Guía', render: des => <span className="font-mono text-[11px] text-[#00c896] font-bold">{des.guiaNumero}</span> },
+                { key: 'despacho', header: 'Despacho', render: des => <span className="font-mono text-[11px] text-[#9ba8b6]">{des.numero}</span> },
+                { key: 'cliente', header: 'Cliente', render: des => <span className="text-[#e8edf2]">{clientes.find(c=>c.id===des.clienteId)?.razonSocial?.slice(0,25)||'—'}</span> },
+                { key: 'fecha', header: 'Fecha despacho', render: des => <span className="font-mono text-[11px] text-[#9ba8b6]">{formatDate(des.fechaDespacho||des.fecha)}</span> },
+                { key: 'estado', header: 'Estado despacho', render: des => (
+                    <Badge variant={{ENTREGADO:'success',DESPACHADO:'info',CANCELADO:'danger'}[des.estado]||'neutral'}>{des.estado}</Badge>
+                  ) },
+                { key: 'json', header: 'JSON GRE', render: des => {
                     const docGen = docs.find(d=>d.despachoId===des.id)
                     return (
-                      <tr key={des.id} className="border-b border-white/5 last:border-0 hover:bg-white/2">
-                        <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#00c896] font-bold">{des.guiaNumero}</td>
-                        <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#9ba8b6]">{des.numero}</td>
-                        <td className="px-3.5 py-2.5 text-[#e8edf2]">{cli?.razonSocial?.slice(0,25)||'—'}</td>
-                        <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#9ba8b6]">{formatDate(des.fechaDespacho||des.fecha)}</td>
-                        <td className="px-3.5 py-2.5">
-                          <Badge variant={{ENTREGADO:'success',DESPACHADO:'info',CANCELADO:'danger'}[des.estado]||'neutral'}>{des.estado}</Badge>
-                        </td>
-                        <td className="px-3.5 py-2.5">
-                          <div className="flex gap-1.5 items-center">
-                            <Btn variant="primary" size="sm"
-                              disabled={generarDocumento.isPending}
-                              onClick={() => generarDoc(des)}>
-                              <FileText size={11}/> {docGen ? 'Regenerar' : 'Generar JSON'}
-                            </Btn>
-                            {docGen && (
-                              <Badge variant={ESTADO_META[docGen.estado]?.color||'neutral'}>
-                                {ESTADO_META[docGen.estado]?.label}
-                              </Badge>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
+                      <div className="flex gap-1.5 items-center">
+                        <Btn variant="primary" size="sm"
+                          disabled={generarDocumento.isPending}
+                          onClick={() => generarDoc(des)}>
+                          <FileText size={11}/> {docGen ? 'Regenerar' : 'Generar JSON'}
+                        </Btn>
+                        {docGen && (
+                          <Badge variant={ESTADO_META[docGen.estado]?.color||'neutral'}>
+                            {ESTADO_META[docGen.estado]?.label}
+                          </Badge>
+                        )}
+                      </div>
                     )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  } },
+              ]}
+            />
           )}
         </div>
       )}
@@ -431,7 +444,7 @@ if (result.aceptada) {
               <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">
                 Motivo del rechazo (opcional)
               </label>
-              <textarea className={SI + ' resize-none'} rows={2}
+              <Textarea rows={2}
                 value={motivoRechazado}
                 onChange={e => setMotivoRechazado(e.target.value)}
                 placeholder="Ej: Código de producto inválido, error en RUC destinatario..."/>

@@ -155,6 +155,25 @@ export default function Usuarios() {
         />
       )}
 
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Usuarios y Roles?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+          {[
+            ['1. Crear usuario', 'Asigna nombre, email, contraseña y un rol. Si el rol es "Solicitante", además debes elegir su área interna.'],
+            ['2. Elegir rol', 'Cada rol define qué módulos puede ver y usar el usuario — revisa los módulos incluidos antes de guardar, en el panel que aparece al elegir el rol.'],
+            ['3. Crear roles personalizados', 'En la pestaña "Roles y Permisos" puedes crear roles a medida marcando módulo por módulo; los roles base del sistema no se pueden eliminar.'],
+            ['4. Desactivar sin eliminar', 'Un usuario inactivo pierde acceso pero conserva su historial; no puedes eliminar tu propio usuario ni el rol que estás usando.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Modales */}
       <ModalUsuario
         open={modal}

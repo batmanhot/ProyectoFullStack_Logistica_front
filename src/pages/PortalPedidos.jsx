@@ -1,17 +1,15 @@
 import { useState, useMemo } from 'react'
 import { Globe, Copy, Check, Eye, CheckCircle, X, Plus,
-         Package, ExternalLink, Info } from 'lucide-react'
+         Package, Info, Download } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate } from '../utils/helpers'
-import { Modal, Badge, Btn, Field, EmptyState } from '../components/ui/index'
+import { imprimirPedidoPortal } from '../utils/pdfTemplates'
+import { Modal, Badge, Btn, Field, DataTable, Input, Select } from '../components/ui/index'
 import { useClientesList, useGenerarPortalLinkCliente } from '../queries/clientes.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
 import { useConfiguracion } from '../queries/configuracion.queries'
 import { usePedidosPortalList, useAprobarPedidoPortal, useRechazarPedidoPortal } from '../queries/pedidos-portal.queries'
-
-const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
-const TH  = ({c}) => <th className="bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 text-left">{c}</th>
 
 const ESTADO_META = {
   NUEVO:      { label:'Nuevo',        color:'info'    },
@@ -102,42 +100,6 @@ export default function PortalPedidos() {
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
-      {/* Banner */}
-      <div className="flex items-start gap-4 px-5 py-4 rounded-xl"
-        style={{background:'rgba(0,200,150,0.08)',border:'1px solid rgba(0,200,150,0.20)'}}>
-        <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-          style={{background:'rgba(0,200,150,0.15)'}}>
-          <Globe size={24} className="text-[#00c896]"/>
-        </div>
-        <div className="flex-1 flex flex-col gap-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="text-[14px] font-bold text-[#e8edf2]">Portal de Pedidos para Clientes</div>
-            <Btn variant="primary" size="sm" className="shrink-0" onClick={async () => {
-              const primerCli = clientes.find(c=>c.activo)
-              if (!primerCli) { toast('No hay clientes activos', 'error'); return }
-              const link = await obtenerLink(primerCli.id)
-              if (link) window.open(link, '_blank')
-            }}>
-              <ExternalLink size={13}/> Ver portal del cliente
-            </Btn>
-          </div>
-
-          <div className="text-[12px] text-[#9ba8b6] leading-relaxed">
-            <strong className="text-[#e8edf2]">¿Para qué sirve?</strong> Le da a cada cliente un canal de
-            autoservicio para hacer pedidos online, ver en qué va su despacho y revisar su historial —sin llamadas
-            ni correos idas y vueltas—, mientras tú mantienes el control: nada se despacha ni descuenta stock hasta
-            que tú lo apruebes.
-          </div>
-
-          <div className="flex items-start gap-1.5 text-[11px] text-[#5f6f80]">
-            <Info size={12} className="shrink-0 mt-0.5"/>
-            <span>El link es un JWT firmado de larga duración (365 días) — no requiere contraseña, y cada cliente
-            solo ve sus propios pedidos y despachos. La pestaña "Vista previa (demo)" solo simula cómo se ve el
-            portal del cliente: no crea pedidos reales ni descuenta stock.</span>
-          </div>
-        </div>
-      </div>
-
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
@@ -174,58 +136,52 @@ export default function PortalPedidos() {
           <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">
             Pedidos recibidos vía portal ({pedidos.length})
           </div>
-          {pedidos.length === 0 ? (
-            <EmptyState icon={Package} title="Sin pedidos aún"
-              description="Cuando un cliente haga un pedido desde su portal, aparecerá aquí para que lo apruebes y conviertas en despacho."/>
-          ) : (
-            <div className="overflow-x-auto rounded-xl border border-white/8">
-              <table className="w-full border-collapse text-[12px]">
-                <thead><tr><TH c="N° Pedido"/><TH c="Cliente"/><TH c="Fecha"/><TH c="Ítems"/><TH c="Total"/><TH c="Estado"/><TH c="Acciones"/></tr></thead>
-                <tbody>
-                  {pedidos.map(p => {
-                    const cli  = clientes.find(c=>c.id===p.clienteId)
-                    const meta = ESTADO_META[p.estado] || ESTADO_META.NUEVO
-                    const despNumero = p.despachoNumero || p.despacho?.numero
-                    return (
-                      <tr key={p.id} className="border-b border-white/5 last:border-0 hover:bg-white/2">
-                        <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#00c896] font-bold">{p.numero}</td>
-                        <td className="px-3.5 py-2.5 font-medium text-[#e8edf2]">
-                          {cli?.razonSocial?.slice(0,22) || p.clienteNombre || '—'}
-                        </td>
-                        <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#9ba8b6]">
-                          {formatDate(p.createdAt?.split('T')[0] || p.fecha || '')}
-                        </td>
-                        <td className="px-3.5 py-2.5 text-[#9ba8b6]">{p.items?.length || 0}</td>
-                        <td className="px-3.5 py-2.5 font-mono font-semibold text-[#e8edf2]">{formatCurrency(p.total||0, simboloMoneda)}</td>
-                        <td className="px-3.5 py-2.5"><Badge variant={meta.color}>{meta.label}</Badge></td>
-                        <td className="px-3.5 py-2.5">
-                          <div className="flex gap-1 items-center">
-                            <Btn variant="ghost" size="icon" onClick={() => { setDetalleModo('ver'); setDetalle(p) }}><Eye size={12}/></Btn>
-                            {p.estado === 'NUEVO' && (
-                              <>
-                                <Btn variant="primary" size="sm"
-                                  disabled={aprobarPedido.isPending}
-                                  onClick={() => iniciarAprobacion(p)}>
-                                  <CheckCircle size={11}/> Aprobar
-                                </Btn>
-                                <Btn variant="ghost" size="sm" className="text-red-400"
-                                  onClick={() => { setDetalleModo('rechazar'); setDetalle(p) }}>
-                                  <X size={11}/> Rechazar
-                                </Btn>
-                              </>
-                            )}
-                            {despNumero && (
-                              <span className="text-[10px] text-[#00c896] font-mono px-2 py-1 bg-[#00c896]/10 rounded-lg">{despNumero}</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <DataTable
+            rows={pedidos}
+            rowKey={p => p.id}
+            onRowClick={p => { setDetalleModo('ver'); setDetalle(p) }}
+            emptyIcon={Package}
+            emptyTitle="Sin pedidos aún"
+            emptyDescription="Cuando un cliente haga un pedido desde su portal, aparecerá aquí para que lo apruebes y conviertas en despacho."
+            columns={[
+              { key: 'numero', header: 'N° Pedido', render: p => <span className="font-mono text-[11px] text-[#00c896] font-bold">{p.numero}</span> },
+              { key: 'cliente', header: 'Cliente', render: p => {
+                  const cli = clientes.find(c=>c.id===p.clienteId)
+                  return <span className="font-medium text-[#e8edf2]">{cli?.razonSocial?.slice(0,22) || p.clienteNombre || '—'}</span>
+                } },
+              { key: 'fecha', header: 'Fecha', render: p => <span className="font-mono text-[11px] text-[#9ba8b6]">{formatDate(p.createdAt?.split('T')[0] || p.fecha || '')}</span> },
+              { key: 'items', header: 'Ítems', render: p => <span className="text-[#9ba8b6]">{p.items?.length || 0}</span> },
+              { key: 'total', header: 'Total', render: p => <span className="font-mono font-semibold text-[#e8edf2]">{formatCurrency(p.total||0, simboloMoneda)}</span> },
+              { key: 'estado', header: 'Estado', render: p => {
+                  const meta = ESTADO_META[p.estado] || ESTADO_META.NUEVO
+                  return <Badge variant={meta.color}>{meta.label}</Badge>
+                } },
+              { key: 'acciones', header: 'Acciones', stopPropagation: true, render: p => {
+                  const despNumero = p.despachoNumero || p.despacho?.numero
+                  return (
+                    <div className="flex gap-1 items-center">
+                      <Btn variant="ghost" size="icon" onClick={() => { setDetalleModo('ver'); setDetalle(p) }}><Eye size={12}/></Btn>
+                      {p.estado === 'NUEVO' && (
+                        <>
+                          <Btn variant="primary" size="sm"
+                            disabled={aprobarPedido.isPending}
+                            onClick={() => iniciarAprobacion(p)}>
+                            <CheckCircle size={11}/> Aprobar
+                          </Btn>
+                          <Btn variant="ghost" size="sm" className="text-red-400"
+                            onClick={() => { setDetalleModo('rechazar'); setDetalle(p) }}>
+                            <X size={11}/> Rechazar
+                          </Btn>
+                        </>
+                      )}
+                      {despNumero && (
+                        <span className="text-[10px] text-[#00c896] font-mono px-2 py-1 bg-[#00c896]/10 rounded-lg">{despNumero}</span>
+                      )}
+                    </div>
+                  )
+                } },
+            ]}
+          />
         </div>
       )}
 
@@ -243,7 +199,7 @@ export default function PortalPedidos() {
               const link    = links[c.id]
               const pedsCli = pedidos.filter(p=>p.clienteId===c.id).length
               return (
-                <div key={c.id} className="flex items-center gap-4 px-4 py-3.5 bg-[#1a2230] rounded-xl border border-white/7">
+                <div key={c.id} className="flex items-start gap-4 px-4 py-3.5 bg-[#1a2230] rounded-xl border border-white/7">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white text-[14px] shrink-0"
                     style={{ background: '#00c896' }}>
                     {c.razonSocial.charAt(0)}
@@ -252,10 +208,10 @@ export default function PortalPedidos() {
                     <div className="text-[13px] font-medium text-[#e8edf2]">{c.razonSocial}</div>
                     {link
                       ? <a href={link} target="_blank" rel="noopener noreferrer"
-                          className="text-[11px] text-[#00c896]/70 font-mono truncate hover:text-[#00c896] hover:underline">{link}</a>
+                          className="block break-all text-[11px] text-[#00c896]/70 font-mono hover:text-[#00c896] hover:underline">{link}</a>
                       : <span className="text-[11px] text-[#5f6f80]">Genera el link para compartirlo</span>}
                   </div>
-                  <div className="text-[11px] text-[#5f6f80] shrink-0">{pedsCli} pedido{pedsCli!==1?'s':''}</div>
+                  <div className="text-[11px] text-[#5f6f80] shrink-0 pt-1">{pedsCli} pedido{pedsCli!==1?'s':''}</div>
                   <div className="flex gap-2 shrink-0">
                     {link ? (
                       <>
@@ -298,7 +254,7 @@ export default function PortalPedidos() {
       {/* Guía de uso */}
       <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
-          ¿Cómo funciona el flujo completo del Portal de Pedidos?
+          ¿Cómo funciona el módulo de Portal de Pedidos?
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
           {[
@@ -324,6 +280,7 @@ export default function PortalPedidos() {
           almacenes={almacenesActivos}
           modoInicial={detalleModo}
           simboloMoneda={simboloMoneda}
+          config={config}
           aprobando={aprobarPedido.isPending}
           onClose={() => { setDetalle(null); setDetalleModo('ver') }}
           onAprobar={(almacenId) => handleAprobar(detalle, almacenId)}
@@ -413,14 +370,14 @@ function SimuladorPortal({ clientes, productos, simboloMoneda, nombreEmpresa, on
                       const p = productos.find(x=>x.id===item.prodId)
                       return (
                         <div key={i} className="flex gap-2 mb-2 items-end">
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             {i===0&&<div className="text-[10px] text-[#5f6f80] mb-1">Producto</div>}
                             <select className={SI2} value={item.prodId} onChange={e=>setItem(i,'prodId',e.target.value)}>
                               <option value="">Seleccionar...</option>
                               {productos.filter(p=>p.activo!==false).map(p=><option key={p.id} value={p.id}>{p.nombre} — {formatCurrency(p.precioVenta||0,simboloMoneda)}</option>)}
                             </select>
                           </div>
-                          <div style={{width:80}}>
+                          <div className="shrink-0" style={{width:80}}>
                             {i===0&&<div className="text-[10px] text-[#5f6f80] mb-1">Cant.</div>}
                             <input type="number" className={SI2} value={item.qty} onChange={e=>setItem(i,'qty',e.target.value)} min="1"/>
                           </div>
@@ -469,18 +426,25 @@ function SimuladorPortal({ clientes, productos, simboloMoneda, nombreEmpresa, on
 // ════════════════════════════════════════════════════════
 // MODAL DETALLE PEDIDO
 // ════════════════════════════════════════════════════════
-function ModalDetallePedido({ pedido, clientes, productos, almacenes, modoInicial, aprobando, simboloMoneda, onClose, onAprobar, onRechazar }) {
+function ModalDetallePedido({ pedido, clientes, productos, almacenes, modoInicial, aprobando, simboloMoneda, config, onClose, onAprobar, onRechazar }) {
   const cli  = clientes.find(c=>c.id===pedido.clienteId)
   const meta = ESTADO_META[pedido.estado] || ESTADO_META.NUEVO
   const [motivoRechazo, setMotivoRechazo] = useState('')
   const [rechazando,    setRechazando]    = useState(modoInicial === 'rechazar')
   const [almacenId,     setAlmacenId]     = useState(almacenes[0]?.id || '')
-  const SI2 = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] font-[inherit] placeholder-[#5f6f80]'
+
+  function descargarPDF() {
+    imprimirPedidoPortal({
+      pedido, productos, cliente: cli,
+      config: { empresa: config?.nombre, ruc: config?.ruc, direccion: config?.direccion, telefono: config?.telefono, email: config?.email, simboloMoneda },
+    })
+  }
 
   return (
     <Modal open title={`Pedido portal — ${pedido.numero}`} onClose={onClose} size="lg"
       footer={<>
         <Btn variant="secondary" onClick={onClose}>Cerrar</Btn>
+        <Btn variant="ghost" onClick={descargarPDF}><Download size={13}/> Descargar PDF</Btn>
         {pedido.estado==='NUEVO' && !rechazando && (
           <>
             <Btn variant="ghost" className="text-red-400" onClick={()=>setRechazando(true)}>
@@ -493,7 +457,7 @@ function ModalDetallePedido({ pedido, clientes, productos, almacenes, modoInicia
         )}
         {rechazando && (
           <>
-            <input className={SI2} style={{flex:1}} placeholder="Motivo del rechazo..."
+            <Input style={{flex:1}} placeholder="Motivo del rechazo..."
               value={motivoRechazo} onChange={e=>setMotivoRechazo(e.target.value)} autoFocus/>
             <Btn variant="ghost" onClick={()=>setRechazando(false)}>Cancelar</Btn>
             <Btn variant="ghost" className="text-red-400" onClick={()=>onRechazar(motivoRechazo||'Sin especificar')}>
@@ -506,10 +470,10 @@ function ModalDetallePedido({ pedido, clientes, productos, almacenes, modoInicia
       {pedido.estado==='NUEVO' && !rechazando && (
         <Field label="Almacén desde el que se despacha *"
           hint={almacenes.length>1 ? 'Este pedido se convertirá en un Despacho reservando stock en el almacén elegido.' : undefined}>
-          <select className={SI2} value={almacenId} onChange={e=>setAlmacenId(e.target.value)}>
+          <Select value={almacenId} onChange={e=>setAlmacenId(e.target.value)}>
             {almacenes.length===0 && <option value="">Sin almacenes disponibles</option>}
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
+          </Select>
         </Field>
       )}
 

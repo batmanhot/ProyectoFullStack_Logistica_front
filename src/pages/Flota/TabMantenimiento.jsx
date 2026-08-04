@@ -1,14 +1,16 @@
-import { Wrench, Edit2, Trash2 } from 'lucide-react'
+import { Wrench, Edit2, Trash2, Download, FileText } from 'lucide-react'
 import { formatDate } from '../../utils/helpers'
-import { EmptyState, Btn } from '../../components/ui/index'
+import { Btn, DataTable } from '../../components/ui/index'
 import FechaRango from '../../components/ui/FechaRango'
+import { exportarMantenimientosXLSX } from '../../utils/exportXLSX'
+import { exportarMantenimientosPDF } from '../../utils/exportPDF'
 import { toDateStr } from './constants'
 
 // ════════════════════════════════════════════════════════
 // TAB MANTENIMIENTO
 // ════════════════════════════════════════════════════════
 export default function TabMantenimiento({
-  mantenimientos, filtDesde, filtHasta, setFiltDesde, setFiltHasta, setEditandoMant, setConfirmDelMant,
+  mantenimientos, filtDesde, filtHasta, setFiltDesde, setFiltHasta, setEditandoMant, setConfirmDelMant, empresa,
 }) {
   return (
     <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
@@ -19,51 +21,41 @@ export default function TabMantenimiento({
             ({mantenimientos.length} registro{mantenimientos.length !== 1 ? 's' : ''})
           </span>
         </span>
-        <FechaRango desde={filtDesde} hasta={filtHasta} onDesde={setFiltDesde} onHasta={setFiltHasta}/>
+        <div className="flex items-center gap-2">
+          <Btn variant="ghost" size="sm" onClick={() => exportarMantenimientosXLSX(mantenimientos)}>
+            <Download size={13}/> Excel
+          </Btn>
+          <Btn variant="ghost" size="sm" onClick={() => exportarMantenimientosPDF(mantenimientos, empresa)}>
+            <FileText size={13}/> PDF
+          </Btn>
+          <FechaRango desde={filtDesde} hasta={filtHasta} onDesde={setFiltDesde} onHasta={setFiltHasta}/>
+        </div>
       </div>
 
-      {mantenimientos.length === 0 ? (
-        <EmptyState icon={Wrench} title="Sin mantenimientos registrados"
-          description="Ve a la pestaña Unidades → botón Registrar en cada unidad para agregar mantenimientos."/>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[12px]">
-            <thead>
-              <tr>
-                {['Fecha','Unidad','Placa','Tipo de mantenimiento','Km','Costo (S/)','Taller','Observaciones','Acciones'].map(h => (
-                  <th key={h} className="bg-[#1a2230] px-3.5 py-2.5 text-left text-[10px] font-semibold text-[#5f6f80] uppercase border-b border-white/8 whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {mantenimientos.map(m => (
-                <tr key={m.id} className="border-b border-white/5 last:border-0 hover:bg-white/2">
-                  <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#9ba8b6]">{formatDate(toDateStr(m.fecha))}</td>
-                  <td className="px-3.5 py-2.5 font-medium text-[#e8edf2]">{m.vehiculo?.nombre || '—'}</td>
-                  <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#00c896] font-bold">{m.vehiculo?.placa || '—'}</td>
-                  <td className="px-3.5 py-2.5">
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400">{m.tipo}</span>
-                  </td>
-                  <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#9ba8b6]">
-                    {m.kmActual ? Number(m.kmActual).toLocaleString() + ' km' : '—'}
-                  </td>
-                  <td className="px-3.5 py-2.5 font-mono text-[12px] font-semibold text-[#00c896]">
-                    {m.costo ? `S/ ${Number(m.costo).toFixed(2)}` : '—'}
-                  </td>
-                  <td className="px-3.5 py-2.5 text-[#9ba8b6]">{m.taller || '—'}</td>
-                  <td className="px-3.5 py-2.5 text-[11px] text-[#5f6f80] max-w-50 truncate">{m.observaciones || '—'}</td>
-                  <td className="px-3.5 py-2.5">
-                    <div className="flex gap-1">
-                      <Btn variant="ghost" size="icon" title="Editar" onClick={() => setEditandoMant(m)}><Edit2 size={12}/></Btn>
-                      <Btn variant="ghost" size="icon" className="text-red-400" title="Eliminar" onClick={() => setConfirmDelMant(m.id)}><Trash2 size={12}/></Btn>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        rows={mantenimientos}
+        rowKey={m => m.id}
+        onRowClick={m => setEditandoMant(m)}
+        emptyIcon={Wrench}
+        emptyTitle="Sin mantenimientos registrados"
+        emptyDescription="Ve a la pestaña Unidades → botón Registrar en cada unidad para agregar mantenimientos."
+        columns={[
+          { key: 'fecha', header: 'Fecha', render: m => <span className="font-mono text-[11px] text-[#9ba8b6]">{formatDate(toDateStr(m.fecha))}</span> },
+          { key: 'unidad', header: 'Unidad', render: m => <span className="font-medium text-[#e8edf2]">{m.vehiculo?.nombre || '—'}</span> },
+          { key: 'placa', header: 'Placa', render: m => <span className="font-mono text-[12px] text-[#00c896] font-bold">{m.vehiculo?.placa || '—'}</span> },
+          { key: 'tipo', header: 'Tipo de mantenimiento', render: m => <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400">{m.tipo}</span> },
+          { key: 'km', header: 'Km', render: m => <span className="font-mono text-[11px] text-[#9ba8b6]">{m.kmActual ? Number(m.kmActual).toLocaleString() + ' km' : '—'}</span> },
+          { key: 'costo', header: 'Costo (S/)', render: m => <span className="font-mono text-[12px] font-semibold text-[#00c896]">{m.costo ? `S/ ${Number(m.costo).toFixed(2)}` : '—'}</span> },
+          { key: 'taller', header: 'Taller', render: m => <span className="text-[#9ba8b6]">{m.taller || '—'}</span> },
+          { key: 'observaciones', header: 'Observaciones', render: m => <span className="text-[11px] text-[#5f6f80] max-w-50 truncate block">{m.observaciones || '—'}</span> },
+          { key: 'acciones', header: 'Acciones', stopPropagation: true, render: m => (
+              <div className="flex gap-1">
+                <Btn variant="ghost" size="icon" title="Editar" onClick={() => setEditandoMant(m)}><Edit2 size={12}/></Btn>
+                <Btn variant="ghost" size="icon" className="text-red-400" title="Eliminar" onClick={() => setConfirmDelMant(m.id)}><Trash2 size={12}/></Btn>
+              </div>
+            ) },
+        ]}
+      />
     </div>
   )
 }

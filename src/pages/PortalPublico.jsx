@@ -13,14 +13,86 @@
  *   GET  /portal/pedidos    → historial de pedidos del portal
  *   POST /portal/pedidos    → crear nuevo pedido
  */
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Globe, Package, Plus, X, CheckCircle, Clock,
+import { Globe, Package, Plus, X, CheckCircle, Clock, Search, Download,
          Truck, ChevronDown, ChevronUp, ShoppingCart } from 'lucide-react'
 import { formatCurrency, decodeJwtPayload } from '../utils/helpers'
+import { imprimirPedidoPortal } from '../utils/pdfTemplates'
 import { api, tokenManager } from '../services/api'
 
 const IGV = 0.18
+
+/**
+ * Dropdown propio en vez de <select> nativo — el popup de opciones de un
+ * <select> lo dibuja el navegador (color-scheme del SO), no nuestro CSS, y
+ * esta página no puede forzar tema oscuro sobre ese popup (a diferencia de
+ * [data-landing], ver index.css). En Chrome/Windows salía ilegible.
+ */
+function ProductoSelect({ productos, value, onChange, inputClass }) {
+  const [open,  setOpen]  = useState(false)
+  const [query, setQuery] = useState('')
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onClickOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    function onEscape(e) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    document.addEventListener('keydown', onEscape)
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside)
+      document.removeEventListener('keydown', onEscape)
+    }
+  }, [open])
+
+  const seleccionado = productos.find(p => p.id === value)
+  const filtrados = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return productos
+    return productos.filter(p => p.nombre?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q))
+  }, [productos, query])
+
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(o => !o)}
+        className={`${inputClass} flex items-center justify-between gap-2 text-left ${seleccionado ? '' : 'text-white/30'}`}>
+        <span className="truncate">
+          {seleccionado ? `${seleccionado.nombre} — ${formatCurrency(seleccionado.precioVenta || 0, 'S/')}` : 'Seleccionar producto...'}
+        </span>
+        <ChevronDown size={14} className="text-white/30 shrink-0"/>
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1.5 w-full bg-[#1a2230] border border-white/10 rounded-xl shadow-xl overflow-hidden">
+          <div className="p-2 border-b border-white/8 relative">
+            <Search size={12} className="absolute left-4.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none"/>
+            <input autoFocus value={query} onChange={e => setQuery(e.target.value)}
+              placeholder="Buscar producto..." aria-label="Buscar producto"
+              className="w-full pl-7 pr-2.5 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[12px] text-white outline-none focus:border-[#00c896] placeholder-white/30"/>
+          </div>
+          <div role="listbox" aria-label="Productos" className="max-h-48 overflow-y-auto py-1">
+            {filtrados.length === 0 && (
+              <div className="px-3 py-2.5 text-[12px] text-white/30">Sin resultados</div>
+            )}
+            {filtrados.map(p => (
+              <button key={p.id} type="button" role="option" aria-selected={p.id === value}
+                onClick={() => { onChange(p.id); setOpen(false); setQuery('') }}
+                className={`w-full text-left px-3 py-2 text-[12px] hover:bg-white/8 transition-colors flex items-center justify-between gap-2 ${
+                  p.id === value ? 'text-[#00c896] bg-[#00c896]/10' : 'text-white/80'}`}>
+                <span className="truncate">{p.nombre}</span>
+                <span className="font-mono text-white/40 shrink-0">{formatCurrency(p.precioVenta || 0, 'S/')}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 const ESTADO_DES = {
   PEDIDO:    { label:'Pedido recibido',   color:'#3b82f6', icon:'📋' },
@@ -80,6 +152,7 @@ export default function PortalPublico() {
   const [enviando,   setEnviando]  = useState(false)
   const [enviado,    setEnviado]   = useState(false)
   const [numeroPed,  setNumeroPed] = useState('')
+  const [pedidoEnviado, setPedidoEnviado] = useState(null)
   const [errorMsg,   setErrorMsg]  = useState('')
   const [expandedId, setExpandedId]= useState(null)
 
@@ -129,6 +202,15 @@ export default function PortalPublico() {
   const igvMonto = +(subtotal * IGV).toFixed(2)
   const total    = +(subtotal + igvMonto).toFixed(2)
 
+  function descargarPedidoPDF(pedido) {
+    imprimirPedidoPortal({
+      pedido,
+      productos,
+      cliente: { razonSocial: cliente?.nombre },
+      config:  { empresa: cliente?.empresaNombre, simboloMoneda: 'S/' },
+    })
+  }
+
   function addItem()      { setItems(p=>[...p, { prodId:'', qty:1 }]) }
   function setItem(i,k,v) { setItems(p=>p.map((x,j)=>j===i ? { ...x, [k]:v } : x)) }
   function removeItem(i)  { setItems(p=>p.filter((_,j)=>j!==i)) }
@@ -150,6 +232,7 @@ export default function PortalPublico() {
       return
     }
     setNumeroPed(res.data?.numero || '—')
+    setPedidoEnviado(res.data || null)
     setItems([])
     setObs('')
     setFechaDes('')
@@ -236,10 +319,18 @@ export default function PortalPublico() {
                     Tu pedido fue recibido. Nuestro equipo lo revisará y te confirmará en breve.
                     Puedes seguir el estado en la pestaña <strong className="text-white/60">"Mis Despachos"</strong>.
                   </div>
-                  <button onClick={()=>{ setEnviado(false); setTab('historial') }}
-                    className="mt-2 px-4 py-2 rounded-xl bg-[#00c896]/15 text-[#00c896] text-[13px] font-medium hover:bg-[#00c896]/25 transition-all">
-                    Ver historial de pedidos
-                  </button>
+                  <div className="flex items-center gap-2 mt-2">
+                    {pedidoEnviado && (
+                      <button onClick={()=>descargarPedidoPDF(pedidoEnviado)}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/70 text-[13px] font-medium hover:bg-white/10 hover:text-white transition-all">
+                        <Download size={14}/> Descargar PDF
+                      </button>
+                    )}
+                    <button onClick={()=>{ setEnviado(false); setTab('historial') }}
+                      className="px-4 py-2 rounded-xl bg-[#00c896]/15 text-[#00c896] text-[13px] font-medium hover:bg-[#00c896]/25 transition-all">
+                      Ver historial de pedidos
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col gap-5">
@@ -271,15 +362,11 @@ export default function PortalPublico() {
                         const p = productos.find(x => x.id === item.prodId)
                         return (
                           <div key={i} className="flex gap-2 items-center bg-white/3 rounded-xl p-3 border border-white/6">
-                            <div className="flex-1">
-                              <select className={SI_PUB} value={item.prodId} onChange={e=>setItem(i,'prodId',e.target.value)}>
-                                <option value="">Seleccionar producto...</option>
-                                {productos.map(x=>(
-                                  <option key={x.id} value={x.id}>{x.nombre} — {formatCurrency(x.precioVenta||0,'S/')}</option>
-                                ))}
-                              </select>
+                            <div className="flex-1 min-w-0">
+                              <ProductoSelect productos={productos} value={item.prodId} inputClass={SI_PUB}
+                                onChange={v=>setItem(i,'prodId',v)}/>
                             </div>
-                            <div style={{width:70}}>
+                            <div className="shrink-0" style={{width:70}}>
                               <input type="number" className={SI_PUB+' text-center'} value={item.qty}
                                 onChange={e=>setItem(i,'qty',e.target.value)} min="1" step="1" placeholder="1"/>
                             </div>
@@ -429,6 +516,10 @@ export default function PortalPublico() {
                     <div className="text-[12px] font-mono text-white/60">{formatCurrency(ped.total||0,'S/')}</div>
                     <div className="text-[11px] font-semibold mt-0.5" style={{color:meta.c}}>{meta.label}</div>
                   </div>
+                  <button onClick={()=>descargarPedidoPDF(ped)} title="Descargar PDF"
+                    className="shrink-0 p-2 rounded-lg text-white/30 hover:text-[#00c896] hover:bg-white/5 transition-all">
+                    <Download size={14}/>
+                  </button>
                 </div>
               )
             })}

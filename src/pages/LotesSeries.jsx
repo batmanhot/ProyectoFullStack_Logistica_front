@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react'
-import { Search, Layers, Hash, Package, Calendar, TrendingDown } from 'lucide-react'
-import { useApp } from '../store/AppContext'
+import { Search, Layers, Hash, Package } from 'lucide-react'
 import { formatCurrency, formatDate, diasParaVencer } from '../utils/helpers'
-import { Badge, EmptyState } from '../components/ui/index'
+import { Badge, EmptyState, Input, DataTable } from '../components/ui/index'
 import { useProductosList } from '../queries/productos.queries'
 import { useLotesList } from '../queries/lotes.queries'
 import { useInventarioList } from '../queries/inventario.queries'
@@ -10,15 +9,9 @@ import { useCategoriasList } from '../queries/categorias.queries'
 
 const simboloMoneda = 'S/'
 
-const TH = ({ c, r }) => (
-  <th className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 ${r ? 'text-right' : 'text-left'}`}>{c}</th>
-)
-
 const ESTADO_BADGE = { Vigente: 'success', 'Por Vencer': 'warning', Vencido: 'danger' }
 
 export default function LotesSeries() {
-  const { toast } = useApp()
-
   const { data: productos  = [] } = useProductosList()
   const { data: categorias = [] } = useCategoriasList()
   const { data: inventario = [] } = useInventarioList()
@@ -66,8 +59,8 @@ export default function LotesSeries() {
         <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">Seleccionar Producto</div>
         <div className="relative flex-1">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-          <input
-            className="pl-8 w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] font-[inherit] placeholder-[#5f6f80]"
+          <Input
+            className="pl-8"
             placeholder="Buscar SKU o nombre..."
             value={busqueda}
             onChange={e => setBusqueda(e.target.value)}
@@ -144,81 +137,73 @@ export default function LotesSeries() {
               Lotes registrados {lotes.length > 0 && `— ${lotes.length} lote${lotes.length > 1 ? 's' : ''}`}
             </div>
 
-            {loadingLotes && (
-              <div className="text-center text-[12px] text-[#5f6f80] py-6">Cargando lotes...</div>
-            )}
-
-            {!loadingLotes && lotes.length === 0 && (
-              <EmptyState icon={Package} title="Sin lotes registrados"
-                description="Este producto no tiene lotes registrados en el sistema."/>
-            )}
-
-            {lotes.length > 0 && (
-              <div className="overflow-x-auto rounded-xl border border-white/8">
-                <table className="w-full border-collapse text-[12px]">
-                  <thead><tr>
-                    <TH c="N° Lote"/>
-                    <TH c="F. Vencimiento"/>
-                    <TH c="Cantidad original" r/>
-                    <TH c="Cantidad actual" r/>
-                    <TH c="Consumido" r/>
-                    <TH c="Estado"/>
-                  </tr></thead>
-                  <tbody>
-                    {lotes.map(l => {
-                      const orig = Number(l.cantidadOriginal || 0)
-                      const act  = Number(l.cantidadActual  || 0)
-                      const cons = orig - act
-                      const pct  = orig > 0 ? Math.round((cons / orig) * 100) : 0
-                      return (
-                        <tr key={l.id} className="border-b border-white/5 last:border-0 hover:bg-white/2">
-                          <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#00c896] font-semibold">{l.numero}</td>
-                          <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#9ba8b6]">
-                            {l.fechaVencimiento ? (
-                              <span style={{ color: diasParaVencer(l.fechaVencimiento) < 0 ? '#ef4444' : diasParaVencer(l.fechaVencimiento) <= 30 ? '#f59e0b' : '#9ba8b6' }}>
-                                {formatDate(l.fechaVencimiento)}
-                              </span>
-                            ) : '—'}
-                          </td>
-                          <td className="px-3.5 py-2.5 text-right font-mono font-semibold text-[#e8edf2]">
-                            {orig} <span className="text-[#5f6f80] text-[10px]">{prod.unidadMedida}</span>
-                          </td>
-                          <td className="px-3.5 py-2.5 text-right font-mono font-bold text-[#00c896]">
-                            {act} <span className="text-[#5f6f80] text-[10px]">{prod.unidadMedida}</span>
-                          </td>
-                          <td className="px-3.5 py-2.5 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-12 h-1.5 bg-[#0e1117] rounded-full overflow-hidden">
-                                <div className="h-full bg-[#ef4444] rounded-full" style={{ width: `${pct}%` }}/>
-                              </div>
-                              <span className="font-mono text-[11px] text-[#5f6f80]">{pct}%</span>
-                            </div>
-                          </td>
-                          <td className="px-3.5 py-2.5">
-                            <Badge variant={ESTADO_BADGE[l.estado] || 'neutral'} size="sm">{l.estado || 'Vigente'}</Badge>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t border-white/8">
-                      <td colSpan={2} className="px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase">Total</td>
-                      <td className="px-3.5 py-2.5 text-right font-mono font-bold text-[#e8edf2]">
-                        {lotes.reduce((s, l) => s + Number(l.cantidadOriginal || 0), 0)} <span className="text-[#5f6f80] text-[10px]">{prod.unidadMedida}</span>
-                      </td>
-                      <td className="px-3.5 py-2.5 text-right font-mono font-bold text-[#00c896]">
-                        {lotes.reduce((s, l) => s + Number(l.cantidadActual || 0), 0)} <span className="text-[#5f6f80] text-[10px]">{prod.unidadMedida}</span>
-                      </td>
-                      <td colSpan={2}/>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )}
+            <DataTable
+              loading={loadingLotes}
+              rows={lotes}
+              rowKey={l => l.id}
+              emptyIcon={Package}
+              emptyTitle="Sin lotes registrados"
+              emptyDescription="Este producto no tiene lotes registrados en el sistema."
+              columns={[
+                { key: 'numero', header: 'N° Lote', render: l => <span className="font-mono text-[11px] text-[#00c896] font-semibold">{l.numero}</span> },
+                { key: 'venc', header: 'F. Vencimiento', render: l => (
+                    l.fechaVencimiento ? (
+                      <span className="font-mono text-[11px]" style={{ color: diasParaVencer(l.fechaVencimiento) < 0 ? '#ef4444' : diasParaVencer(l.fechaVencimiento) <= 30 ? '#f59e0b' : '#9ba8b6' }}>
+                        {formatDate(l.fechaVencimiento)}
+                      </span>
+                    ) : <span className="text-[#5f6f80]">—</span>
+                  ) },
+                { key: 'orig', header: 'Cantidad original', align: 'right', render: l => (
+                    <span className="font-mono font-semibold text-[#e8edf2]">{Number(l.cantidadOriginal || 0)} <span className="text-[#5f6f80] text-[10px]">{prod.unidadMedida}</span></span>
+                  ) },
+                { key: 'act', header: 'Cantidad actual', align: 'right', render: l => (
+                    <span className="font-mono font-bold text-[#00c896]">{Number(l.cantidadActual || 0)} <span className="text-[#5f6f80] text-[10px]">{prod.unidadMedida}</span></span>
+                  ) },
+                { key: 'consumido', header: 'Consumido', align: 'right', render: l => {
+                    const orig = Number(l.cantidadOriginal || 0)
+                    const act  = Number(l.cantidadActual  || 0)
+                    const pct  = orig > 0 ? Math.round(((orig - act) / orig) * 100) : 0
+                    return (
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="w-12 h-1.5 bg-[#0e1117] rounded-full overflow-hidden">
+                          <div className="h-full bg-[#ef4444] rounded-full" style={{ width: `${pct}%` }}/>
+                        </div>
+                        <span className="font-mono text-[11px] text-[#5f6f80]">{pct}%</span>
+                      </div>
+                    )
+                  } },
+                { key: 'estado', header: 'Estado', render: l => <Badge variant={ESTADO_BADGE[l.estado] || 'neutral'} size="sm">{l.estado || 'Vigente'}</Badge> },
+              ]}
+              footerRow={[
+                <span key="t" className="text-[11px] font-semibold text-[#5f6f80] uppercase">Total</span>,
+                '',
+                <span key="o" className="font-mono font-bold text-[#e8edf2]">{lotes.reduce((s, l) => s + Number(l.cantidadOriginal || 0), 0)} <span className="text-[#5f6f80] text-[10px]">{prod.unidadMedida}</span></span>,
+                <span key="a" className="font-mono font-bold text-[#00c896]">{lotes.reduce((s, l) => s + Number(l.cantidadActual || 0), 0)} <span className="text-[#5f6f80] text-[10px]">{prod.unidadMedida}</span></span>,
+                '',
+                '',
+              ]}
+            />
           </div>
         </>
       )}
+
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Lotes y Series?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          {[
+            ['1. Buscar producto', 'Escribe el SKU o nombre para elegir el producto cuya trazabilidad por lote quieres revisar.'],
+            ['2. Ver lotes', 'Cada lote muestra su cantidad original, la cantidad actual disponible y el % ya consumido de ese lote específico.'],
+            ['3. Controlar vencimientos', 'La fecha de vencimiento se resalta en ámbar o rojo según qué tan cerca esté, para priorizar la salida de esos lotes primero (FEFO).'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

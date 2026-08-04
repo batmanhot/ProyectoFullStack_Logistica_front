@@ -1,19 +1,18 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, ArrowDownToLine, Eye, XCircle, Package, DollarSign, Calendar, TrendingUp, X } from 'lucide-react'
+import { Plus, Search, ArrowDownToLine, Eye, XCircle, Package, DollarSign, Calendar, TrendingUp, X, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
-import { Modal, ConfirmDialog, EmptyState, Btn, Field } from '../components/ui/index'
+import { Modal, ConfirmDialog, Btn, Field, Input, Select, DataTable } from '../components/ui/index'
 import { useMovimientosList, useCrearMovimiento } from '../queries/movimientos.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
 import { useProveedoresList } from '../queries/proveedores.queries'
 import { MOTIVOS_ENTRADA } from '../config/constants'
-
-const SI  = 'px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 w-full font-[inherit] placeholder-[#5f6f80]'
-const SEL = SI + ' pr-8'
+import { exportarEntradasXLSX } from '../utils/exportXLSX'
+import { exportarEntradasPDF } from '../utils/exportPDF'
 
 export default function Entradas() {
-  const { toast } = useApp()
+  const { toast, sesion } = useApp()
   const simboloMoneda = 'S/'
 
   const { data: movimientos = [], isLoading }    = useMovimientosList({ tipo: 'ENTRADA' })
@@ -117,64 +116,88 @@ export default function Entradas() {
       <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="flex items-center justify-between gap-3 mb-3">
           <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] whitespace-nowrap">Registro de Entradas</span>
-          <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nueva Entrada</Btn>
+          <div className="flex items-center gap-2">
+            <Btn variant="ghost" size="sm" onClick={() => exportarEntradasXLSX(entradas, productos, almacenes, proveedores, simboloMoneda)}>
+              <Download size={13}/> Excel
+            </Btn>
+            <Btn variant="ghost" size="sm" onClick={() => exportarEntradasPDF(entradas, productos, almacenes, proveedores, simboloMoneda, sesion?.nombre)}>
+              <FileText size={13}/> PDF
+            </Btn>
+            <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nueva Entrada</Btn>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <div className="relative flex-1 min-w-[180px]">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar producto o documento..."
+            <Input className="pl-8 !py-[5px] text-[12px]" placeholder="Buscar producto o documento..."
               value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select className={SEL} style={{width:148,padding:'5px 8px',fontSize:12}} value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
+          <Select style={{width:148,padding:'5px 8px',fontSize:12}} value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
             <option value="">Todos los almacenes</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
-          <select className={SEL} style={{width:165,padding:'5px 8px',fontSize:12}} value={filtProv} onChange={e => setFiltProv(e.target.value)}>
+          </Select>
+          <Select style={{width:165,padding:'5px 8px',fontSize:12}} value={filtProv} onChange={e => setFiltProv(e.target.value)}>
             <option value="">Todos los proveedores</option>
             {proveedores.filter(p => p.estado !== 'Inactivo').map(p => <option key={p.id} value={p.id}>{p.razonSocial}</option>)}
-          </select>
-          <select className={SEL} style={{width:148,padding:'5px 8px',fontSize:12}} value={filtMotivo} onChange={e => setFiltMotivo(e.target.value)}>
+          </Select>
+          <Select style={{width:148,padding:'5px 8px',fontSize:12}} value={filtMotivo} onChange={e => setFiltMotivo(e.target.value)}>
             <option value="">Todos los motivos</option>
             {MOTIVOS_ENTRADA.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
+          </Select>
           <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">{entradas.length} resultado{entradas.length !== 1 ? 's' : ''}</span>
           {hayFiltros && <Btn variant="ghost" size="sm" onClick={limpiarFiltros}><X size={12}/> Limpiar</Btn>}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[13px]">
-            <thead><tr>
-              {['Fecha','Documento','Producto','Cantidad','Costo Unit.','Total','Motivo','Acciones'].map((h, i) => (
-                <th key={h} className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 ${[3,4,5].includes(i) ? 'text-right' : 'text-left'}`}>{h}</th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {isLoading && <tr><td colSpan={8} className="text-center text-[#5f6f80] py-8 text-[12px]">Cargando entradas...</td></tr>}
-              {!isLoading && entradas.length === 0 && <tr><td colSpan={8}><EmptyState icon={ArrowDownToLine} title="Sin entradas" description="Registra tu primera entrada de stock."/></td></tr>}
-              {entradas.map(m => {
-                const p = productMap.get(m.productoId)
-                const fechaStr = m.fecha || m.createdAt || ''
-                return (
-                  <tr key={m.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{formatDate(fechaStr)}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#00c896]">{m.documento || '—'}</td>
-                    <td className="px-3.5 py-2.5"><div className="font-medium text-[#e8edf2]">{p?.nombre || '—'}</div><div className="text-[11px] text-[#5f6f80]">{p?.sku}</div></td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-right text-green-400 font-semibold">+{m.cantidad} <span className="text-[#5f6f80] font-normal text-[11px]">{p?.unidadMedida}</span></td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-right">{formatCurrency(Number(m.costoUnitario || 0), simboloMoneda)}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-right font-semibold">{formatCurrency(Number(m.costoTotal || 0), simboloMoneda)}</td>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6] max-w-[140px] truncate">{m.motivo}</td>
-                    <td className="px-3.5 py-2.5">
-                      <div className="flex gap-1">
-                        <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setVerMov(m)}><Eye size={13}/></Btn>
-                        <Btn variant="ghost" size="icon" title="Anular" className="text-red-400 hover:text-red-300" onClick={() => setAnular(m)}><XCircle size={13}/></Btn>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+        <DataTable
+          loading={isLoading}
+          rows={entradas}
+          rowKey={m => m.id}
+          onRowClick={m => setVerMov(m)}
+          emptyIcon={ArrowDownToLine}
+          emptyTitle="Sin entradas"
+          emptyDescription="Registra tu primera entrada de stock."
+          columns={[
+            { key:'fecha', header:'Fecha', render: m => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatDate(m.fecha || m.createdAt || '')}</span> },
+            { key:'documento', header:'Documento', render: m => <span className="font-mono text-[12px] text-[#00c896]">{m.documento || '—'}</span> },
+            { key:'producto', header:'Producto', render: m => {
+              const p = productMap.get(m.productoId)
+              return <><div className="font-medium text-[#e8edf2]">{p?.nombre || '—'}</div><div className="text-[11px] text-[#5f6f80]">{p?.sku}</div></>
+            } },
+            { key:'cantidad', header:'Cantidad', align:'right', render: m => {
+              const p = productMap.get(m.productoId)
+              return <span className="font-mono text-[12px] text-green-400 font-semibold">+{m.cantidad} <span className="text-[#5f6f80] font-normal text-[11px]">{p?.unidadMedida}</span></span>
+            } },
+            { key:'costoUnit', header:'Costo Unit.', align:'right', render: m => <span className="font-mono text-[12px]">{formatCurrency(Number(m.costoUnitario || 0), simboloMoneda)}</span> },
+            { key:'total', header:'Total', align:'right', render: m => <span className="font-mono text-[12px] font-semibold">{formatCurrency(Number(m.costoTotal || 0), simboloMoneda)}</span> },
+            { key:'motivo', header:'Motivo', render: m => <span className="text-[12px] text-[#9ba8b6] max-w-[140px] truncate block">{m.motivo}</span> },
+            { key:'acciones', header:'Acciones', stopPropagation: true, render: m => (
+              <div className="flex gap-1">
+                <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setVerMov(m)}><Eye size={13}/></Btn>
+                <Btn variant="ghost" size="icon" title="Anular" className="text-red-400 hover:text-red-300" onClick={() => setAnular(m)}><XCircle size={13}/></Btn>
+              </div>
+            ) },
+          ]}
+        />
+      </div>
+
+      {/* Guía de uso */}
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Entradas?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+          {[
+            ['1. Elegir motivo',      'Compra, Devolución, Ajuste o Inicial — selecciona el que mejor describe el origen del stock que ingresa.'],
+            ['2. Producto y almacén', 'Selecciona el producto y el almacén destino donde ingresa el stock. El proveedor es opcional.'],
+            ['3. Costo unitario',     'Determina el costo con el que se valoriza el stock (PMP) — afecta el Kardex y los reportes de valorización.'],
+            ['4. Corrección',         'Si te equivocaste, usa "Anular" en la fila: genera un ajuste negativo equivalente que reduce el stock.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -264,43 +287,45 @@ function ModalEntrada({ open, onClose, onSave, productos, almacenes, proveedores
       footer={<><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Registrar Entrada'}</Btn></>}>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Documento" span={2}><input className={SI} value={form.documento} onChange={e => f('documento', e.target.value)} placeholder="ENT-001"/></Field>
-        <Field label="Fecha"><input type="date" className={SI} value={form.fecha} onChange={e => f('fecha', e.target.value)}/></Field>
+        <div className="col-span-2">
+          <Field label="Documento"><Input value={form.documento} onChange={e => f('documento', e.target.value)} placeholder="ENT-001"/></Field>
+        </div>
+        <Field label="Fecha"><Input type="date" value={form.fecha} onChange={e => f('fecha', e.target.value)}/></Field>
         <Field label="Motivo">
-          <select className={SEL} value={form.motivo} onChange={e => f('motivo', e.target.value)}>
+          <Select value={form.motivo} onChange={e => f('motivo', e.target.value)}>
             {(MOTIVOS_ENTRADA || ['Compra','Devolución','Ajuste','Inicial']).map(m => <option key={m}>{m}</option>)}
-          </select>
+          </Select>
         </Field>
       </div>
 
       <Field label="Producto *" error={err.productoId}>
-        <select className={SEL} value={form.productoId} onChange={e => f('productoId', e.target.value)}>
+        <Select value={form.productoId} onChange={e => f('productoId', e.target.value)}>
           <option value="">Seleccionar producto...</option>
           {productosActivos.map(p => <option key={p.id} value={p.id}>{p.sku} — {p.nombre}</option>)}
-        </select>
+        </Select>
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Almacén destino *" error={err.almacenId}>
-          <select className={SEL} value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
+          <Select value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
             <option value="">Seleccionar...</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Proveedor">
-          <select className={SEL} value={form.proveedorId} onChange={e => f('proveedorId', e.target.value)}>
+          <Select value={form.proveedorId} onChange={e => f('proveedorId', e.target.value)}>
             <option value="">Sin proveedor</option>
             {proveedores.map(p => <option key={p.id} value={p.id}>{p.razonSocial}</option>)}
-          </select>
+          </Select>
         </Field>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Cantidad *" error={err.cantidad}>
-          <input type="number" className={SI} value={form.cantidad} onChange={e => f('cantidad', e.target.value)} min="0.001" step="any" placeholder="0"/>
+          <Input type="number" value={form.cantidad} onChange={e => f('cantidad', e.target.value)} min="0.001" step="any" placeholder="0"/>
         </Field>
         <Field label={`Costo unitario (${simboloMoneda})`}>
-          <input type="number" className={SI} value={form.costoUnitario} onChange={e => f('costoUnitario', e.target.value)} min="0" step="0.01" placeholder="0.00"/>
+          <Input type="number" value={form.costoUnitario} onChange={e => f('costoUnitario', e.target.value)} min="0" step="0.01" placeholder="0.00"/>
         </Field>
       </div>
 

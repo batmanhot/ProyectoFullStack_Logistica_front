@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { MapPin, AlertTriangle, Loader2 } from 'lucide-react'
+import { Input, Select } from '../../components/ui/index'
 import { parseCodigo } from './constants'
 
 // ── Modal: Crear o Editar Ubicación ───────────────────────────────────────────
@@ -65,21 +66,18 @@ export default function ModalUbicacion({ ubicacion, almacenId, ubicacionesExiste
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Zona</label>
-              <input value={zona} onChange={e => setZona(e.target.value.toUpperCase().slice(0,2))}
-                placeholder="A" maxLength={2}
-                className="w-full px-3 py-2.5 bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] uppercase"/>
+              <Input value={zona} onChange={e => setZona(e.target.value.toUpperCase().slice(0,2))}
+                placeholder="A" maxLength={2} className="uppercase"/>
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Fila</label>
-              <input type="number" min={1} value={fila} onChange={e => setFila(e.target.value)}
-                placeholder="1"
-                className="w-full px-3 py-2.5 bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896]"/>
+              <Input type="number" min={1} value={fila} onChange={e => setFila(e.target.value)}
+                placeholder="1"/>
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Columna</label>
-              <input type="number" min={1} value={columna} onChange={e => setColumna(e.target.value)}
-                placeholder="1"
-                className="w-full px-3 py-2.5 bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896]"/>
+              <Input type="number" min={1} value={columna} onChange={e => setColumna(e.target.value)}
+                placeholder="1"/>
             </div>
           </div>
 
@@ -91,27 +89,24 @@ export default function ModalUbicacion({ ubicacion, almacenId, ubicacionesExiste
 
           <div>
             <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Tipo</label>
-            <select value={tipo} onChange={e => setTipo(e.target.value)}
-              className="w-full px-3 py-2.5 bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896]">
+            <Select value={tipo} onChange={e => setTipo(e.target.value)}>
               {['Rack','Estantería','Piso'].map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
+            </Select>
           </div>
 
           <div>
             <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">
               Capacidad máxima <span className="text-[#3d4f60] font-normal normal-case">(SKUs distintos que caben)</span>
             </label>
-            <input type="number" min={1} value={capacidadMax} onChange={e => setCapacidadMax(e.target.value)}
-              className="w-full px-3 py-2.5 bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896]"/>
+            <Input type="number" min={1} value={capacidadMax} onChange={e => setCapacidadMax(e.target.value)}/>
           </div>
 
           <div>
             <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">
               Observaciones <span className="text-[#3d4f60] font-normal normal-case">(opcional)</span>
             </label>
-            <input value={observaciones} onChange={e => setObservaciones(e.target.value)}
-              placeholder="Ej. solo productos perecibles"
-              className="w-full px-3 py-2.5 bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896]"/>
+            <Input value={observaciones} onChange={e => setObservaciones(e.target.value)}
+              placeholder="Ej. solo productos perecibles"/>
           </div>
 
           {error && (

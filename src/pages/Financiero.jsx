@@ -1,13 +1,17 @@
 import { useMemo, useState } from 'react'
 import { DollarSign, TrendingUp, TrendingDown, BarChart2,
-         ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
+         ArrowUpRight, ArrowDownRight, FileSpreadsheet, FileText } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
          LineChart, Line, CartesianGrid, ComposedChart, Area } from 'recharts'
-import { formatCurrency, fechaHoy } from '../utils/helpers'
+import { formatCurrency } from '../utils/helpers'
+import { Btn, DataTable } from '../components/ui/index'
+import { useApp } from '../store/AppContext'
 import { useProductosList } from '../queries/productos.queries'
 import { useMovimientosList } from '../queries/movimientos.queries'
 import { useDespachosList } from '../queries/despachos.queries'
 import { useOrdenesCompraList } from '../queries/ordenes-compra.queries'
+import { exportarFinancieroXLSX } from '../utils/exportXLSX'
+import { exportarFinancieroPDF } from '../utils/exportPDF'
 
 const simboloMoneda = 'S/'
 const TT = { background:'#1a2230', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, fontSize:12, color:'#e8edf2' }
@@ -32,6 +36,7 @@ function KPI({ label, val, sub, color, icon:Icon, trend }) {
 }
 
 export default function Financiero() {
+  const { sesion } = useApp()
   const { data: productos    = [] } = useProductosList()
   const { data: movimientos  = [] } = useMovimientosList({})
   const { data: despachos    = [] } = useDespachosList()
@@ -130,11 +135,7 @@ export default function Financiero() {
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* Selector período */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-[16px] font-semibold text-[#e8edf2]">Dashboard Financiero — P&L</h2>
-          <p className="text-[12px] text-[#5f6f80] mt-0.5">Ingresos, costos y margen bruto calculados con los datos del sistema</p>
-        </div>
+      <div className="flex items-center justify-end">
         <div className="flex gap-1">
           {['3','6','12'].map(p => (
             <button key={p} onClick={() => setPeriodo(p)}
@@ -207,42 +208,38 @@ export default function Financiero() {
 
         {/* Tabla mensual */}
         <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
-          <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">Estado de Resultados Mensual</div>
-          <div className="overflow-x-auto rounded-xl border border-white/8">
-            <table className="w-full border-collapse text-[12px]">
-              <thead><tr>
-                {['Mes','Ingresos','Costo','Devoluc.','Margen','%'].map(h => (
-                  <th key={h} className="bg-[#1a2230] px-3 py-2 text-[10px] font-semibold text-[#5f6f80] uppercase border-b border-white/8 text-right first:text-left whitespace-nowrap">{h}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {plMensual.map(m => (
-                  <tr key={m.clave} className={`border-b border-white/5 last:border-0 hover:bg-white/2 ${m.esMesActual ? 'bg-[#00c896]/5' : ''}`}>
-                    <td className={`px-3 py-2 font-medium ${m.esMesActual ? 'text-[#00c896]' : 'text-[#e8edf2]'}`}>{m.mes}</td>
-                    <td className="px-3 py-2 text-right font-mono text-[#3b82f6]">{formatCurrency(m.ingresos, simboloMoneda)}</td>
-                    <td className="px-3 py-2 text-right font-mono text-[#ef4444]">{formatCurrency(m.costoVentas, simboloMoneda)}</td>
-                    <td className="px-3 py-2 text-right font-mono text-[#9ba8b6]">{m.devMes > 0 ? formatCurrency(m.devMes, simboloMoneda) : '—'}</td>
-                    <td className="px-3 py-2 text-right font-mono font-semibold" style={{ color: m.margenBruto >= 0 ? '#22c55e' : '#ef4444' }}>
-                      {formatCurrency(m.margenBruto, simboloMoneda)}
-                    </td>
-                    <td className="px-3 py-2 text-right font-semibold" style={{ color: m.margenPct >= 20 ? '#22c55e' : m.margenPct >= 0 ? '#f59e0b' : '#ef4444' }}>
-                      {m.margenPct.toFixed(1)}%
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-[#1a2230] border-t border-white/10">
-                  <td className="px-3 py-2 text-[10px] font-bold text-[#5f6f80] uppercase">TOTAL</td>
-                  <td className="px-3 py-2 text-right font-mono font-bold text-[#3b82f6]">{formatCurrency(kpis.totalIngresos, simboloMoneda)}</td>
-                  <td className="px-3 py-2 text-right font-mono font-bold text-[#ef4444]">{formatCurrency(kpis.totalCosto, simboloMoneda)}</td>
-                  <td className="px-3 py-2 text-right font-mono font-bold text-[#9ba8b6]">{formatCurrency(kpis.totalDev, simboloMoneda)}</td>
-                  <td className="px-3 py-2 text-right font-mono font-bold" style={{ color: kpis.margenBruto >= 0 ? '#22c55e' : '#ef4444' }}>{formatCurrency(kpis.margenBruto, simboloMoneda)}</td>
-                  <td className="px-3 py-2 text-right font-bold" style={{ color: kpis.margenPct >= 20 ? '#22c55e' : '#f59e0b' }}>{kpis.margenPct.toFixed(1)}%</td>
-                </tr>
-              </tfoot>
-            </table>
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Estado de Resultados Mensual</div>
+            <div className="flex items-center gap-2">
+              <Btn variant="secondary" size="sm" onClick={async()=>{ await exportarFinancieroXLSX(plMensual, kpis, simboloMoneda) }}>
+                <FileSpreadsheet size={13}/> Excel
+              </Btn>
+              <Btn variant="secondary" size="sm" onClick={async()=>{ await exportarFinancieroPDF(plMensual, kpis, simboloMoneda, sesion?.nombre) }}>
+                <FileText size={13}/> PDF
+              </Btn>
+            </div>
           </div>
+          <DataTable
+            rows={plMensual}
+            rowKey={m => m.clave}
+            rowClassName={m => m.esMesActual ? 'bg-[#00c896]/5' : ''}
+            columns={[
+              { key: 'mes', header: 'Mes', render: m => <span className={`font-medium ${m.esMesActual ? 'text-[#00c896]' : 'text-[#e8edf2]'}`}>{m.mes}</span> },
+              { key: 'ingresos', header: 'Ingresos', align: 'right', render: m => <span className="font-mono text-[#3b82f6]">{formatCurrency(m.ingresos, simboloMoneda)}</span> },
+              { key: 'costoVentas', header: 'Costo', align: 'right', render: m => <span className="font-mono text-[#ef4444]">{formatCurrency(m.costoVentas, simboloMoneda)}</span> },
+              { key: 'devMes', header: 'Devoluc.', align: 'right', render: m => <span className="font-mono text-[#9ba8b6]">{m.devMes > 0 ? formatCurrency(m.devMes, simboloMoneda) : '—'}</span> },
+              { key: 'margenBruto', header: 'Margen', align: 'right', render: m => <span className="font-mono font-semibold" style={{ color: m.margenBruto >= 0 ? '#22c55e' : '#ef4444' }}>{formatCurrency(m.margenBruto, simboloMoneda)}</span> },
+              { key: 'margenPct', header: '%', align: 'right', render: m => <span className="font-semibold" style={{ color: m.margenPct >= 20 ? '#22c55e' : m.margenPct >= 0 ? '#f59e0b' : '#ef4444' }}>{m.margenPct.toFixed(1)}%</span> },
+            ]}
+            footerRow={plMensual.length>0 ? [
+              <span className="text-[10px] font-bold text-[#5f6f80] uppercase">TOTAL</span>,
+              <span className="font-mono text-[#3b82f6]">{formatCurrency(kpis.totalIngresos, simboloMoneda)}</span>,
+              <span className="font-mono text-[#ef4444]">{formatCurrency(kpis.totalCosto, simboloMoneda)}</span>,
+              <span className="font-mono text-[#9ba8b6]">{formatCurrency(kpis.totalDev, simboloMoneda)}</span>,
+              <span className="font-mono" style={{ color: kpis.margenBruto >= 0 ? '#22c55e' : '#ef4444' }}>{formatCurrency(kpis.margenBruto, simboloMoneda)}</span>,
+              <span style={{ color: kpis.margenPct >= 20 ? '#22c55e' : '#f59e0b' }}>{kpis.margenPct.toFixed(1)}%</span>,
+            ] : undefined}
+          />
         </div>
 
         {/* Top 5 productos más rentables */}
@@ -277,8 +274,28 @@ export default function Financiero() {
             </div>
           )}
           <div className="mt-4 pt-3 border-t border-white/6 text-[11px] text-[#5f6f80]">
-            💡 El margen se calcula: (Precio Venta − Costo Compra) / Precio Venta × 100
+            El margen se calcula: (Precio Venta − Costo Compra) / Precio Venta × 100
           </div>
+        </div>
+      </div>
+
+      {/* Guía de uso */}
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Financiero?
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { t:'Ingresos', d:'Salidas de stock del período × precio de venta del producto — refleja lo facturado a clientes.' },
+            { t:'Costo de ventas', d:'Costo unitario × cantidad de cada salida — el costo real de lo vendido, no el precio de lista.' },
+            { t:'Margen bruto', d:'Ingresos − Costo de ventas − Devoluciones. El % es el margen sobre el ingreso total del mes.' },
+            { t:'Valor de inventario', d:'Stock actual valorizado a costo de compra (PMP) — no incluye margen, es el capital inmovilizado.' },
+          ].map(({t,d}) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[12px] font-semibold text-[#e8edf2] mb-1">{t}</div>
+              <div className="text-[11px] text-[#9ba8b6] leading-relaxed">{d}</div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

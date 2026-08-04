@@ -1,6 +1,3 @@
-export const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
-export const SEL = SI + ' pr-8'
-
 export const MODULOS_GRUPOS = [
   {
     grupo: 'General', color: '#00c896',
@@ -41,6 +38,8 @@ export const MODULOS_GRUPOS = [
       { id:'clientes',        label:'Clientes',               desc:'Gestión de clientes'               },
       { id:'despachos',       label:'Despachos',              desc:'Pedidos y guías de remisión'       },
       { id:'pedidos-internos',label:'Pedidos Internos',       desc:'Solicitudes internas al almacén'   },
+      { id:'portal-pedidos',  label:'Portal de Pedidos',      desc:'Portal web para clientes'          },
+      { id:'picking',         label:'Picking',                desc:'Preparación de pedidos en almacén' },
       { id:'empaque',         label:'Empaque / Packing',      desc:'Control de empaque y embalaje'     },
       { id:'transportes',     label:'Transportes',            desc:'Rutas, transportistas y tracking'  },
       { id:'flota',           label:'Flota',                  desc:'Vehículos y mantenimiento'         },
@@ -64,7 +63,6 @@ export const MODULOS_GRUPOS = [
     items: [
       { id:'proformas',       label:'Proformas',              desc:'Cotizaciones comerciales'          },
       { id:'cxc',             label:'Cuentas por Cobrar',     desc:'Seguimiento de cobranzas'          },
-      { id:'portal-pedidos',  label:'Portal de Pedidos',      desc:'Portal web para clientes'          },
     ]
   },
   {
@@ -83,6 +81,7 @@ export const MODULOS_GRUPOS = [
       { id:'cola-sync',       label:'Cola de Sincronización', desc:'Monitoreo de operaciones pendientes' },
       { id:'configuracion',   label:'Configuración',          desc:'Parámetros del sistema'            },
       { id:'panel-auditoria', label:'Panel de Auditoría',     desc:'Vista de solo lectura: bitácora, discrepancias, trazabilidad y conciliación' },
+      { id:'incidencias',     label:'Incidencias',            desc:'Registro de errores del sistema, con severidad y estado de resolución' },
     ]
   },
 ]

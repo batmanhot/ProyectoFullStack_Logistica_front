@@ -2,16 +2,14 @@ import { useState, useMemo, useEffect } from 'react'
 import { Plus, Search, DollarSign, AlertTriangle, CheckCircle, Clock, Edit2, FileText, Download, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate } from '../utils/helpers'
-import { Modal, EmptyState, Badge, Btn, Field, Alert } from '../components/ui/index'
+import { Modal, Badge, Btn, Field, Alert, Input, Select, Textarea, DataTable } from '../components/ui/index'
 import { exportarCxCXLSX } from '../utils/exportXLSX'
 import { exportarCxCPDF } from '../utils/exportPDF'
 import { useCxCList, useCrearCxC, useActualizarCxC, useRegistrarPago } from '../queries/cuentas-por-cobrar.queries'
 import { useClientesList } from '../queries/clientes.queries'
+import { useDespachosList } from '../queries/despachos.queries'
 
 const simboloMoneda = 'S/'
-const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
-const SEL = SI + ' pr-8'
-const TH  = ({ c, r }) => <th className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 ${r ? 'text-right' : 'text-left'}`}>{c}</th>
 
 const ESTADO_META = {
   PENDIENTE: { label: 'Pendiente', color: 'warning' },
@@ -84,6 +82,7 @@ export default function CuentasPorCobrar() {
           diasCredito:      data.diasCredito ? Number(data.diasCredito) : undefined,
           fechaVencimiento: data.fechaVencimiento || undefined,
           notas:            data.notas || undefined,
+          despachoId:       data.despachoId || undefined,
         }
     const res = isEdit
       ? await actualizarCxC.mutateAsync({ id: data.id, ...dto })
@@ -151,20 +150,20 @@ export default function CuentasPorCobrar() {
         <div className="flex flex-wrap gap-2 mb-4">
           <div className="relative flex-1 min-w-50">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-8'} placeholder="Buscar número o cliente..."
+            <Input className="pl-8" placeholder="Buscar número o cliente..."
               value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select className={SEL} style={{ width: 155, padding: '5px 8px', fontSize: 12 }} value={filtro} onChange={e => setFiltro(e.target.value)}>
+          <Select className="w-auto" value={filtro} onChange={e => setFiltro(e.target.value)}>
             <option value="">Todos los estados</option>
             {Object.entries(ESTADO_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select>
+          </Select>
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-[#5f6f80] whitespace-nowrap font-semibold uppercase tracking-wide">Venc. desde</span>
-            <input type="date" className={SI + ' py-1.25! text-[12px]'} style={{ width: 138 }} value={filtDesde} onChange={e => setFiltDesde(e.target.value)}/>
+            <Input type="date" style={{ width: 138 }} value={filtDesde} onChange={e => setFiltDesde(e.target.value)}/>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-[#5f6f80] whitespace-nowrap font-semibold uppercase tracking-wide">hasta</span>
-            <input type="date" className={SI + ' py-1.25! text-[12px]'} style={{ width: 138 }} value={filtHasta} onChange={e => setFiltHasta(e.target.value)}/>
+            <Input type="date" style={{ width: 138 }} value={filtHasta} onChange={e => setFiltHasta(e.target.value)}/>
           </div>
           {(busqueda || filtro || filtDesde || filtHasta) && (
             <Btn variant="ghost" size="sm" onClick={() => { setBusqueda(''); setFiltro(''); setFiltDesde(''); setFiltHasta('') }}>
@@ -173,54 +172,66 @@ export default function CuentasPorCobrar() {
           )}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[12px]">
-            <thead><tr>
-              <TH c="N° Doc."/><TH c="Cliente"/><TH c="Emisión"/><TH c="Vencimiento"/>
-              <TH c="Días mora" r/><TH c="Monto" r/><TH c="Saldo" r/><TH c="Estado"/><TH c="Acciones"/>
-            </tr></thead>
-            <tbody>
-              {isLoading && <tr><td colSpan={9} className="text-center text-[#5f6f80] py-8 text-[12px]">Cargando...</td></tr>}
-              {!isLoading && filtered.length === 0 && (
-                <tr><td colSpan={9}><EmptyState icon={DollarSign} title="Sin documentos" description="Registra la primera factura pendiente."/></td></tr>
-              )}
-              {filtered.map(doc => {
-                const meta = ESTADO_META[doc.estado] || ESTADO_META.PENDIENTE
+        <DataTable
+          loading={isLoading}
+          rows={filtered}
+          rowKey={doc => doc.id}
+          onRowClick={doc => { setEditando(doc); setModal(true) }}
+          emptyIcon={DollarSign}
+          emptyTitle="Sin documentos"
+          emptyDescription="Registra la primera factura pendiente."
+          columns={[
+            { key: 'numero', header: 'N° Doc.', render: doc => <span className="font-mono text-[11px] text-[#00c896] font-semibold">{doc.numero}</span> },
+            { key: 'cliente', header: 'Cliente', render: doc => <span className="font-medium text-[#e8edf2]">{cliNombre(doc.clienteId)}</span> },
+            { key: 'emision', header: 'Emisión', render: doc => <span className="font-mono text-[11px] text-[#9ba8b6]">{formatDate(doc.fecha || doc.createdAt)}</span> },
+            { key: 'vencimiento', header: 'Vencimiento', render: doc => {
                 const mora = doc.estado === 'VENCIDA' ? diasMora(doc.fechaVencimiento) : 0
-                return (
-                  <tr key={doc.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
-                    <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#00c896] font-semibold">{doc.numero}</td>
-                    <td className="px-3.5 py-2.5 font-medium text-[#e8edf2]">{cliNombre(doc.clienteId)}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#9ba8b6]">{formatDate(doc.fecha || doc.createdAt)}</td>
-                    <td className={`px-3.5 py-2.5 font-mono text-[11px] ${mora > 0 ? 'text-red-400' : 'text-[#9ba8b6]'}`}>
-                      {formatDate(doc.fechaVencimiento)}
-                    </td>
-                    <td className="px-3.5 py-2.5 text-right">
-                      {mora > 0
-                        ? <span className="font-mono font-bold text-red-400">{mora}d</span>
-                        : <span className="text-[#5f6f80]">—</span>
-                      }
-                    </td>
-                    <td className="px-3.5 py-2.5 text-right font-mono text-[#9ba8b6]">{formatCurrency(doc.monto, simboloMoneda)}</td>
-                    <td className={`px-3.5 py-2.5 text-right font-mono font-bold ${doc.saldo > 0 ? 'text-[#e8edf2]' : 'text-green-600'}`}>
-                      {formatCurrency(doc.saldo, simboloMoneda)}
-                    </td>
-                    <td className="px-3.5 py-2.5"><Badge variant={meta.color}>{meta.label}</Badge></td>
-                    <td className="px-3.5 py-2.5">
-                      <div className="flex gap-1">
-                        {doc.estado !== 'COBRADA' && (
-                          <Btn variant="primary" size="sm" disabled={registrarPago.isPending} onClick={() => setPagoDoc(doc)}>
-                            <CheckCircle size={11}/> Cobrar
-                          </Btn>
-                        )}
-                        <Btn variant="ghost" size="icon" onClick={() => { setEditando(doc); setModal(true) }}><Edit2 size={12}/></Btn>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                return <span className={`font-mono text-[11px] ${mora > 0 ? 'text-red-400' : 'text-[#9ba8b6]'}`}>{formatDate(doc.fechaVencimiento)}</span>
+              } },
+            { key: 'mora', header: 'Días mora', align: 'right', render: doc => {
+                const mora = doc.estado === 'VENCIDA' ? diasMora(doc.fechaVencimiento) : 0
+                return mora > 0
+                  ? <span className="font-mono font-bold text-red-400">{mora}d</span>
+                  : <span className="text-[#5f6f80]">—</span>
+              } },
+            { key: 'monto', header: 'Monto', align: 'right', render: doc => <span className="font-mono text-[#9ba8b6]">{formatCurrency(doc.monto, simboloMoneda)}</span> },
+            { key: 'saldo', header: 'Saldo', align: 'right', render: doc => (
+                <span className={`font-mono font-bold ${doc.saldo > 0 ? 'text-[#e8edf2]' : 'text-green-600'}`}>{formatCurrency(doc.saldo, simboloMoneda)}</span>
+              ) },
+            { key: 'estado', header: 'Estado', render: doc => {
+                const meta = ESTADO_META[doc.estado] || ESTADO_META.PENDIENTE
+                return <Badge variant={meta.color}>{meta.label}</Badge>
+              } },
+            { key: 'acciones', header: 'Acciones', stopPropagation: true, render: doc => (
+                <div className="flex gap-1">
+                  {doc.estado !== 'COBRADA' && (
+                    <Btn variant="primary" size="sm" disabled={registrarPago.isPending} onClick={() => setPagoDoc(doc)}>
+                      <CheckCircle size={11}/> Cobrar
+                    </Btn>
+                  )}
+                  <Btn variant="ghost" size="icon" onClick={() => { setEditando(doc); setModal(true) }}><Edit2 size={12}/></Btn>
+                </div>
+              ) },
+          ]}
+        />
+      </div>
+
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Cuentas por Cobrar?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+          {[
+            ['1. Registrar documento', 'Elige cliente, monto y días de crédito — el vencimiento se calcula automáticamente o se fija a mano.'],
+            ['2. Monitorear vencimientos', 'Un documento pasa a "Vencida" automáticamente cuando se cumple la fecha de vencimiento sin cobro registrado.'],
+            ['3. Cobrar', 'Usa "Cobrar" para registrar un pago total o parcial — si es parcial, el documento queda en estado "Parcial" con el saldo restante.'],
+            ['4. Exportar', 'Excel/PDF exportan la cartera filtrada, útil para el reporte de cobranza.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -269,7 +280,7 @@ export function ModalPago({ doc, simboloMoneda, saving, onClose, onConfirm }) {
             Saldo pendiente: <span className="font-mono font-semibold text-[#e8edf2]">{formatCurrency(doc.saldo, simboloMoneda)}</span>
           </div>
           <Field label="Monto a pagar *" hint="Se acepta un pago parcial — el saldo restante queda como PARCIAL">
-            <input type="number" className={SI} value={monto} onChange={e => setMonto(e.target.value)}
+            <Input type="number" value={monto} onChange={e => setMonto(e.target.value)}
               min="0.01" max={Number(doc.saldo)} step="0.01" autoFocus/>
           </Field>
           {!valido && monto !== '' && (
@@ -282,7 +293,7 @@ export function ModalPago({ doc, simboloMoneda, saving, onClose, onConfirm }) {
 }
 
 function ModalCxC({ open, onClose, editando, clientes, simboloMoneda, saving, onSave }) {
-  const init = { clienteId: '', monto: 0, diasCredito: 30, fechaVencimiento: '', estado: 'PENDIENTE', notas: '' }
+  const init = { clienteId: '', despachoId: '', monto: 0, diasCredito: 30, fechaVencimiento: '', estado: 'PENDIENTE', notas: '' }
   const [form, setForm] = useState(init)
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
   const isEdit = !!editando
@@ -290,10 +301,20 @@ function ModalCxC({ open, onClose, editando, clientes, simboloMoneda, saving, on
   useEffect(() => {
     if (!open) return
     setForm(editando
-      ? { clienteId: editando.clienteId, monto: editando.monto, diasCredito: editando.diasCredito || 30, fechaVencimiento: editando.fechaVencimiento || '', estado: editando.estado || 'PENDIENTE', notas: editando.notas || '' }
+      ? { clienteId: editando.clienteId, despachoId: editando.despachoId || '', monto: editando.monto, diasCredito: editando.diasCredito || 30, fechaVencimiento: editando.fechaVencimiento || '', estado: editando.estado || 'PENDIENTE', notas: editando.notas || '' }
       : init
     )
   }, [open, editando])
+
+  // Solo se listan despachos del cliente elegido — la CxC nace de una entrega ya
+  // facturable, no tiene sentido ofrecer despachos de otros clientes.
+  const { data: despachosCliente = [] } = useDespachosList({ clienteId: form.clienteId, enabled: open && !!form.clienteId })
+  const despachosFacturables = despachosCliente.filter(d => d.estado !== 'CANCELADO')
+
+  function elegirDespacho(despachoId) {
+    const desp = despachosFacturables.find(d => d.id === despachoId)
+    setForm(p => ({ ...p, despachoId, monto: desp ? Number(desp.total) : p.monto }))
+  }
 
   function calcVenc() {
     if (!form.diasCredito) return
@@ -319,40 +340,50 @@ function ModalCxC({ open, onClose, editando, clientes, simboloMoneda, saving, on
       <div className="grid grid-cols-2 gap-3.5">
         <Field label="Cliente *">
           {isEdit
-            ? <div className={SI + ' opacity-50 cursor-not-allowed'}>{clientes.find(c => c.id === form.clienteId)?.razonSocial || '—'}</div>
-            : <select className={SEL} value={form.clienteId} onChange={e => f('clienteId', e.target.value)}>
+            ? <Input disabled readOnly className="opacity-50 cursor-not-allowed" value={clientes.find(c => c.id === form.clienteId)?.razonSocial || '—'}/>
+            : <Select value={form.clienteId} onChange={e => f('clienteId', e.target.value)}>
                 <option value="">Seleccionar...</option>
                 {clientes.filter(c => c.activo !== false).map(c => <option key={c.id} value={c.id}>{c.razonSocial}</option>)}
-              </select>
+              </Select>
+          }
+        </Field>
+        <Field label="Despacho relacionado" hint="Opcional — al elegirlo, precarga el monto con el total del despacho">
+          {isEdit
+            ? <Input disabled readOnly className="opacity-50 cursor-not-allowed"
+                value={form.despachoId ? (despachosCliente.find(d => d.id === form.despachoId)?.numero || form.despachoId) : 'Sin despacho vinculado'}/>
+            : <Select value={form.despachoId} onChange={e => elegirDespacho(e.target.value)} disabled={!form.clienteId}>
+                <option value="">Sin vincular</option>
+                {despachosFacturables.map(d => <option key={d.id} value={d.id}>{d.numero} — {formatCurrency(d.total, simboloMoneda)}</option>)}
+              </Select>
           }
         </Field>
         <Field label="Monto total *">
           {isEdit
-            ? <div className={SI + ' opacity-50 cursor-not-allowed'}>{formatCurrency(form.monto, simboloMoneda)}</div>
-            : <input type="number" className={SI} value={form.monto} onChange={e => f('monto', +e.target.value)} min="0" step="0.01"/>
+            ? <Input disabled readOnly className="opacity-50 cursor-not-allowed" value={formatCurrency(form.monto, simboloMoneda)}/>
+            : <Input type="number" value={form.monto} onChange={e => f('monto', +e.target.value)} min="0" step="0.01"/>
           }
         </Field>
         {!isEdit && (
           <div>
             <Field label="Días de crédito">
               <div className="flex gap-2">
-                <input type="number" className={SI} value={form.diasCredito} onChange={e => f('diasCredito', +e.target.value)} min="0" style={{ flex: 1 }}/>
+                <Input type="number" value={form.diasCredito} onChange={e => f('diasCredito', +e.target.value)} min="0" style={{ flex: 1 }}/>
                 <Btn variant="ghost" size="sm" onClick={calcVenc}>Calcular</Btn>
               </div>
             </Field>
           </div>
         )}
         <Field label="Vencimiento">
-          <input type="date" className={SI} value={form.fechaVencimiento} onChange={e => f('fechaVencimiento', e.target.value)}/>
+          <Input type="date" value={form.fechaVencimiento} onChange={e => f('fechaVencimiento', e.target.value)}/>
         </Field>
         {isEdit && (
           <Field label="Estado">
-            <div className={SI + ' opacity-50 cursor-not-allowed'}>{ESTADO_META[form.estado]?.label || form.estado}</div>
+            <Input disabled readOnly className="opacity-50 cursor-not-allowed" value={ESTADO_META[form.estado]?.label || form.estado}/>
           </Field>
         )}
       </div>
       <Field label="Notas">
-        <textarea className={SI + ' resize-y min-h-13'} value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Observaciones..."/>
+        <Textarea className="resize-y min-h-13" value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Observaciones..."/>
       </Field>
     </Modal>
   )

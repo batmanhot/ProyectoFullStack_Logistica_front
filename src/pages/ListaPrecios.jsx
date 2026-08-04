@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Search, Edit2, Trash2, Tag, DollarSign, Percent, Copy, Download, FileText } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, Tag, Copy, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency } from '../utils/helpers'
-import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field, Alert } from '../components/ui/index'
+import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field, Alert, Input, Select, DataTable } from '../components/ui/index'
 import { exportarListaPreciosXLSX } from '../utils/exportXLSX'
 import { exportarListaPreciosPDF } from '../utils/exportPDF'
 import { useProductosList } from '../queries/productos.queries'
@@ -17,10 +17,6 @@ import {
 } from '../queries/listas-precios.queries'
 
 const simboloMoneda = 'S/'
-
-const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
-const SEL = SI + ' pr-8'
-const TH  = ({ c, r }) => <th className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 ${r ? 'text-right' : 'text-left'}`}>{c}</th>
 
 export default function ListaPrecios() {
   const { sesion, toast } = useApp()
@@ -168,88 +164,100 @@ export default function ListaPrecios() {
             <div className="flex flex-wrap gap-2 mb-4">
               <div className="relative flex-1 min-w-50">
                 <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-                <input className={SI + ' pl-7'} placeholder="Buscar SKU o producto..." value={busq} onChange={e => setBusq(e.target.value)}/>
+                <Input className="pl-7" placeholder="Buscar SKU o producto..." value={busq} onChange={e => setBusq(e.target.value)}/>
               </div>
-              <select className={SEL} style={{ width: 180 }} value={filtCat} onChange={e => setFiltCat(e.target.value)}>
+              <Select className="w-auto" value={filtCat} onChange={e => setFiltCat(e.target.value)}>
                 <option value="">Todas las categorías</option>
                 {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-              </select>
+              </Select>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-white/8">
-              <table className="w-full border-collapse text-[12px]">
-                <thead><tr>
-                  <TH c="SKU"/><TH c="Producto"/><TH c="Categoría"/>
-                  <TH c="Costo unit." r/><TH c="P. Base catálogo" r/>
-                  <TH c={`Precio — ${lista?.nombre || 'Lista'}`} r/>
-                  <TH c="Margen" r/><TH c="Ajuste"/>
-                </tr></thead>
-                <tbody>
-                  {prodsFiltrados.length === 0 && (
-                    <tr><td colSpan={8}><EmptyState icon={Tag} title="Sin productos" description="No hay productos con estos filtros."/></td></tr>
-                  )}
-                  {prodsFiltrados.map(prod => {
-                    const pmp    = Number(prod.precioCompra || 0)
+            <DataTable
+              rows={prodsFiltrados}
+              rowKey={prod => prod.id}
+              emptyIcon={Tag}
+              emptyTitle="Sin productos"
+              emptyDescription="No hay productos con estos filtros."
+              columns={[
+                { key: 'sku', header: 'SKU', render: prod => <span className="font-mono text-[11px] text-[#00c896]">{prod.sku}</span> },
+                { key: 'nombre', header: 'Producto', render: prod => <span className="font-medium text-[#e8edf2]">{prod.nombre?.slice(0, 35)}</span> },
+                { key: 'categoria', header: 'Categoría', render: prod => <span className="text-[#9ba8b6]">{categorias.find(c => c.id === prod.categoriaId)?.nombre || '—'}</span> },
+                { key: 'costo', header: 'Costo unit.', align: 'right', render: prod => <span className="font-mono text-[#9ba8b6]">{formatCurrency(Number(prod.precioCompra || 0), simboloMoneda)}</span> },
+                { key: 'base', header: 'P. Base catálogo', align: 'right', render: prod => <span className="font-mono text-[#9ba8b6]">{formatCurrency(Number(prod.precioVenta || 0), simboloMoneda)}</span> },
+                { key: 'precio', header: `Precio — ${lista?.nombre || 'Lista'}`, align: 'right', render: prod => {
+                    const precio = lista ? getPrecio(prod, lista) : Number(prod.precioVenta || 0)
+                    const tieneEspecial = lista?.precios?.[prod.id] !== undefined
+                    return editPrecio?.productoId === prod.id && editPrecio?.listaId === lista?.id ? (
+                      <div className="flex items-center gap-1.5 justify-end">
+                        <input type="number"
+                          className="w-24 px-2 py-1 bg-[#1e2835] border border-[#00c896]/40 rounded-lg text-[12px] text-[#e8edf2] outline-none font-mono text-right"
+                          defaultValue={precio} autoFocus
+                          onKeyDown={e => {
+                            if (e.key === 'Enter')  setPrecioEspecial(lista.id, prod.id, e.target.value)
+                            if (e.key === 'Escape') setEditPrecio(null)
+                          }}/>
+                        <button className="text-[10px] text-[#5f6f80] hover:text-red-400" onClick={() => setEditPrecio(null)}>✕</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 justify-end">
+                        <span className={`font-mono font-bold ${tieneEspecial ? 'text-amber-400' : 'text-[#e8edf2]'}`}>
+                          {formatCurrency(precio, simboloMoneda)}
+                        </span>
+                        {tieneEspecial && <span className="text-[9px] bg-amber-500/15 text-amber-400 px-1.5 py-0.5 rounded">especial</span>}
+                        <button onClick={() => setEditPrecio({ productoId: prod.id, listaId: lista?.id })}
+                          className="text-[#5f6f80] hover:text-[#00c896] transition-colors p-0.5 rounded">
+                          <Edit2 size={11}/>
+                        </button>
+                      </div>
+                    )
+                  }, stopPropagation: true },
+                { key: 'margen', header: 'Margen', align: 'right', render: prod => {
                     const precio = lista ? getPrecio(prod, lista) : Number(prod.precioVenta || 0)
                     const margen = getMargen(prod, precio)
-                    const tieneEspecial = lista?.precios?.[prod.id] !== undefined
                     return (
-                      <tr key={prod.id} className="border-b border-white/5 last:border-0 hover:bg-white/2">
-                        <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#00c896]">{prod.sku}</td>
-                        <td className="px-3.5 py-2.5 font-medium text-[#e8edf2]">{prod.nombre?.slice(0, 35)}</td>
-                        <td className="px-3.5 py-2.5 text-[#9ba8b6]">{categorias.find(c => c.id === prod.categoriaId)?.nombre || '—'}</td>
-                        <td className="px-3.5 py-2.5 text-right font-mono text-[#9ba8b6]">{formatCurrency(pmp, simboloMoneda)}</td>
-                        <td className="px-3.5 py-2.5 text-right font-mono text-[#9ba8b6]">{formatCurrency(Number(prod.precioVenta || 0), simboloMoneda)}</td>
-                        <td className="px-3.5 py-2.5 text-right">
-                          {editPrecio?.productoId === prod.id && editPrecio?.listaId === lista?.id ? (
-                            <div className="flex items-center gap-1.5 justify-end">
-                              <input type="number"
-                                className="w-24 px-2 py-1 bg-[#1e2835] border border-[#00c896]/40 rounded-lg text-[12px] text-[#e8edf2] outline-none font-mono text-right"
-                                defaultValue={precio} autoFocus
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter')  setPrecioEspecial(lista.id, prod.id, e.target.value)
-                                  if (e.key === 'Escape') setEditPrecio(null)
-                                }}/>
-                              <button className="text-[10px] text-[#5f6f80] hover:text-red-400" onClick={() => setEditPrecio(null)}>✕</button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 justify-end">
-                              <span className={`font-mono font-bold ${tieneEspecial ? 'text-amber-400' : 'text-[#e8edf2]'}`}>
-                                {formatCurrency(precio, simboloMoneda)}
-                              </span>
-                              {tieneEspecial && <span className="text-[9px] bg-amber-500/15 text-amber-400 px-1.5 py-0.5 rounded">especial</span>}
-                              <button onClick={() => setEditPrecio({ productoId: prod.id, listaId: lista?.id })}
-                                className="text-[#5f6f80] hover:text-[#00c896] transition-colors p-0.5 rounded">
-                                <Edit2 size={11}/>
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-3.5 py-2.5 text-right font-mono font-semibold"
-                          style={{ color: margen === null ? '#5f6f80' : margen >= 40 ? '#22c55e' : margen >= 20 ? '#f59e0b' : '#ef4444' }}>
-                          {margen !== null ? `${margen}%` : '—'}
-                        </td>
-                        <td className="px-3.5 py-2.5">
-                          {tieneEspecial && (
-                            <button className="text-[10px] text-[#5f6f80] hover:text-red-400 transition-colors"
-                              onClick={() => resetPrecioEspecial(prod.id)}
-                              title="Restaurar precio de lista">
-                              ✕ Reset
-                            </button>
-                          )}
-                        </td>
-                      </tr>
+                      <span className="font-mono font-semibold"
+                        style={{ color: margen === null ? '#5f6f80' : margen >= 40 ? '#22c55e' : margen >= 20 ? '#f59e0b' : '#ef4444' }}>
+                        {margen !== null ? `${margen}%` : '—'}
+                      </span>
                     )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  } },
+                { key: 'ajuste', header: 'Ajuste', stopPropagation: true, render: prod => {
+                    const tieneEspecial = lista?.precios?.[prod.id] !== undefined
+                    return tieneEspecial && (
+                      <button className="text-[10px] text-[#5f6f80] hover:text-red-400 transition-colors"
+                        onClick={() => resetPrecioEspecial(prod.id)}
+                        title="Restaurar precio de lista">
+                        ✕ Reset
+                      </button>
+                    )
+                  } },
+              ]}
+            />
             <div className="mt-3 text-[11px] text-[#5f6f80]">
               Haz clic en el ícono de edición para ajustar el precio de un producto en esta lista. Enter para guardar, Esc para cancelar.
             </div>
           </div>
         </>
       )}
+
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Lista de Precios?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+          {[
+            ['1. Crear lista', 'Define un descuento % sobre el precio base, o un markup % sobre el costo — o ninguno, para usar los precios base del catálogo.'],
+            ['2. Elegir lista', 'Cambia entre listas (General, Mayorista, VIP...) con las pestañas de arriba para ver y editar sus precios.'],
+            ['3. Ajustar por producto', 'Haz clic en el ícono de edición junto a un precio para fijar un valor especial solo para ese producto, sin afectar el resto de la lista.'],
+            ['4. Duplicar o exportar', '"Duplicar" crea una copia editable de la lista actual; Excel/PDF exportan la tabla completa con los precios vigentes.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <ModalLista open={modal} onClose={() => setModal(false)} editando={editando} onSave={saveLista}/>
       <ConfirmDialog open={!!confirmDel} onClose={() => setConfirmDel(null)} onConfirm={() => deleteLista(confirmDel)}
@@ -262,7 +270,14 @@ function ModalLista({ open, onClose, editando, onSave }) {
   const init = { nombre: '', tipo: 'general', descuento: 0, markup: 0, activa: true }
   const [form, setForm] = useState(init)
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
-  useEffect(() => { setForm(editando ? { ...init, ...editando } : init) }, [editando, open]) // eslint-disable-line
+  useEffect(() => {
+    setForm(editando ? {
+      ...init, ...editando,
+      descuento: editando.descuento ?? 0,
+      markup:    editando.markup    ?? 0,
+      activa:    editando.activa !== false,
+    } : init)
+  }, [editando, open]) // eslint-disable-line
 
   return (
     <Modal open={open} onClose={onClose} title={editando ? 'Editar lista' : 'Nueva lista de precios'} size="sm"
@@ -271,21 +286,21 @@ function ModalLista({ open, onClose, editando, onSave }) {
           <Btn variant="primary" disabled={!form.nombre.trim()} onClick={() => onSave(form)}>Guardar</Btn></>
       }>
       <Field label="Nombre *">
-        <input className={SI} value={form.nombre} onChange={e => f('nombre', e.target.value)} placeholder="Ej: Mayorista, Distribuidor, VIP..."/>
+        <Input value={form.nombre} onChange={e => f('nombre', e.target.value)} placeholder="Ej: Mayorista, Distribuidor, VIP..."/>
       </Field>
       <Field label="Tipo">
-        <select className={SEL} value={form.tipo} onChange={e => f('tipo', e.target.value)}>
+        <Select value={form.tipo} onChange={e => f('tipo', e.target.value)}>
           {['general', 'mayorista', 'minorista', 'especial', 'distribuidor'].map(t => (
             <option key={t} value={t} className="capitalize">{t}</option>
           ))}
-        </select>
+        </Select>
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Descuento % (sobre precio base)">
-          <input type="number" className={SI} value={form.descuento} onChange={e => f('descuento', +e.target.value)} min="0" max="100" step="0.5"/>
+          <Input type="number" value={form.descuento} onChange={e => f('descuento', +e.target.value)} min="0" max="100" step="0.5"/>
         </Field>
         <Field label="Markup % (sobre costo)">
-          <input type="number" className={SI} value={form.markup} onChange={e => f('markup', +e.target.value)} min="0" step="0.5"/>
+          <Input type="number" value={form.markup} onChange={e => f('markup', +e.target.value)} min="0" step="0.5"/>
         </Field>
       </div>
       <Alert variant="info">El descuento aplica sobre el precio base del catálogo. El markup aplica sobre el costo unitario. Puedes además editar precios específicos por producto en la tabla.</Alert>

@@ -8,17 +8,13 @@ import {
 import { useApp } from '../store/AppContext'
 import { usePlanLimits } from '../hooks/usePlanLimits'
 import { formatCurrency, formatDate } from '../utils/helpers'
-import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field, Alert } from '../components/ui/index'
+import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, Textarea, Alert, DataTable } from '../components/ui/index'
 import DireccionInput from '../components/ui/DireccionInput'
 import { useNavigate } from 'react-router-dom'
 import { useClientesList, useCrearCliente, useActualizarCliente, useEliminarCliente } from '../queries/clientes.queries'
 import { useDespachosList } from '../queries/despachos.queries'
 import { exportarClientesXLSX } from '../utils/exportXLSX'
 import { exportarClientesPDF } from '../utils/exportPDF'
-
-const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
-const SEL = SI + ' pr-8'
-const TH  = ({ c, r }) => <th className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 ${r ? 'text-right' : 'text-left'}`}>{c}</th>
 
 function calcularKPI(clienteId, despachos) {
   const des        = despachos.filter(d => d.clienteId === clienteId)
@@ -195,22 +191,22 @@ export default function Clientes() {
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <div className="relative flex-1 min-w-[180px]">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Razón social, RUC, contacto..."
+            <Input className="pl-8 !py-[5px] text-[12px]" placeholder="Razón social, RUC, contacto..."
               value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select className={SEL} style={{ width:165, padding:'5px 8px', fontSize:12 }} value={filtro} onChange={e => setFiltro(e.target.value)}>
+          <Select style={{ width:165, padding:'5px 8px', fontSize:12 }} value={filtro} onChange={e => setFiltro(e.target.value)}>
             <option value="todos">Todos</option>
             <option value="activos">Solo activos</option>
             <option value="premium">Premium (S/20k+)</option>
             <option value="riesgo">Bajo rendimiento</option>
-          </select>
-          <select className={SEL} style={{ width:148, padding:'5px 8px', fontSize:12 }} value={filtClasif} onChange={e => setFiltClasif(e.target.value)}>
+          </Select>
+          <Select style={{ width:148, padding:'5px 8px', fontSize:12 }} value={filtClasif} onChange={e => setFiltClasif(e.target.value)}>
             <option value="">Clasificación: todas</option>
             <option value="Premium">Premium</option>
             <option value="Activo">Activo</option>
             <option value="Regular">Regular</option>
             <option value="Nuevo">Nuevo</option>
-          </select>
+          </Select>
           <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
           {(busqueda || filtro !== 'todos' || filtClasif) && (
             <Btn variant="ghost" size="sm" onClick={() => { setBusqueda(''); setFiltro('todos'); setFiltClasif('') }}>
@@ -219,95 +215,93 @@ export default function Clientes() {
           )}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[13px]">
-            <thead><tr>
-              <TH c="Razón Social"/>
-              <TH c="Contacto"/>
-              <TH c="Clasificación"/>
-              <TH c="Despachos" r/>
-              <TH c="En proceso" r/>
-              <TH c="Valor total" r/>
-              <TH c="Tasa entrega" r/>
-              <TH c="Último pedido"/>
-              <TH c="Estado"/>
-              <TH c="Acciones"/>
-            </tr></thead>
-            <tbody>
-              {isLoading && <tr><td colSpan={10} className="text-center text-[#5f6f80] py-8 text-[12px]">Cargando clientes...</td></tr>}
-              {!isLoading && filtered.length === 0 && (
-                <tr><td colSpan={10}><EmptyState icon={Users} title="Sin clientes" description="Agrega el primer cliente."/></td></tr>
-              )}
-              {filtered.map(cli => {
-                const tasa = cli.kpi.tasaEntrega !== null ? parseFloat(cli.kpi.tasaEntrega) : null
-                const tasaColor = tasa === null ? '#5f6f80' : tasa >= 90 ? '#22c55e' : tasa >= 70 ? '#f59e0b' : '#ef4444'
-                return (
-                  <tr key={cli.id}
-                    className="border-b border-white/6 last:border-0 hover:bg-white/2 cursor-pointer"
-                    onClick={() => setPerfilId(cli.id)}>
-                    <td className="px-3.5 py-2.5">
-                      <div className="font-medium text-[#e8edf2]">{cli.razonSocial}</div>
-                      <div className="text-[11px] text-[#5f6f80] font-mono">{cli.ruc || '—'}</div>
-                    </td>
-                    <td className="px-3.5 py-2.5">
-                      <div className="text-[12px] text-[#9ba8b6]">{cli.contacto || '—'}</div>
-                      <div className="text-[11px] text-[#5f6f80]">{cli.telefono || '—'}</div>
-                    </td>
-                    <td className="px-3.5 py-2.5"><Badge variant={cli.clase.badge}>{cli.clase.label}</Badge></td>
-                    <td className="px-3.5 py-2.5 text-right font-mono text-[#e8edf2]">{cli.kpi.total}</td>
-                    <td className="px-3.5 py-2.5 text-right">
-                      {cli.kpi.enProceso > 0
-                        ? <span className="font-mono font-semibold text-amber-400">{cli.kpi.enProceso}</span>
-                        : <span className="text-[#5f6f80]">—</span>}
-                    </td>
-                    <td className="px-3.5 py-2.5 text-right font-mono text-[12px] font-semibold text-[#00c896]">
-                      {formatCurrency(cli.kpi.valorTotal, simboloMoneda)}
-                    </td>
-                    <td className="px-3.5 py-2.5 text-right">
-                      {tasa !== null
-                        ? <span className="font-mono font-semibold" style={{ color: tasaColor }}>{tasa}%</span>
-                        : <span className="text-[#5f6f80]">—</span>}
-                    </td>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6]">
-                      {cli.kpi.ultimoDes ? formatDate(cli.kpi.ultimoDes.fecha || cli.kpi.ultimoDes.createdAt?.slice(0,10)) : '—'}
-                    </td>
-                    <td className="px-3.5 py-2.5">
-                      <Badge variant={cli.activo ? 'success' : 'neutral'}>{cli.activo ? 'Activo' : 'Inactivo'}</Badge>
-                    </td>
-                    <td className="px-3.5 py-2.5" onClick={e => e.stopPropagation()}>
-                      <div className="flex gap-1">
-                        <Btn variant="ghost" size="icon" title="Ver perfil" onClick={() => setPerfilId(cli.id)}><Eye size={13}/></Btn>
-                        <Btn variant="ghost" size="icon" title="Editar" onClick={() => { setEditando(cli); setModal(true) }}><Edit2 size={13}/></Btn>
-                        <Btn variant="ghost" size="icon" title="Eliminar" className="text-red-400 hover:text-red-300" onClick={() => setConfirmDel(cli.id)}><Trash2 size={13}/></Btn>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          loading={isLoading}
+          rows={filtered}
+          rowKey={cli => cli.id}
+          onRowClick={cli => setPerfilId(cli.id)}
+          emptyIcon={Users}
+          emptyTitle="Sin clientes"
+          emptyDescription="Agrega el primer cliente."
+          columns={[
+            { key:'razonSocial', header:'Razón Social', render: cli => (
+              <>
+                <div className="font-medium text-[#e8edf2]">{cli.razonSocial}</div>
+                <div className="text-[11px] text-[#5f6f80] font-mono">{cli.ruc || '—'}</div>
+              </>
+            ) },
+            { key:'contacto', header:'Contacto', render: cli => (
+              <>
+                <div className="text-[12px] text-[#9ba8b6]">{cli.contacto || '—'}</div>
+                <div className="text-[11px] text-[#5f6f80]">{cli.telefono || '—'}</div>
+              </>
+            ) },
+            { key:'clase', header:'Clasificación', render: cli => <Badge variant={cli.clase.badge}>{cli.clase.label}</Badge> },
+            { key:'despachos', header:'Despachos', align:'right', render: cli => <span className="font-mono text-[#e8edf2]">{cli.kpi.total}</span> },
+            { key:'enProceso', header:'En proceso', align:'right', render: cli => (
+              cli.kpi.enProceso > 0
+                ? <span className="font-mono font-semibold text-amber-400">{cli.kpi.enProceso}</span>
+                : <span className="text-[#5f6f80]">—</span>
+            ) },
+            { key:'valorTotal', header:'Valor total', align:'right', render: cli => <span className="font-mono text-[12px] font-semibold text-[#00c896]">{formatCurrency(cli.kpi.valorTotal, simboloMoneda)}</span> },
+            { key:'tasaEntrega', header:'Tasa entrega', align:'right', render: cli => {
+              const tasa = cli.kpi.tasaEntrega !== null ? parseFloat(cli.kpi.tasaEntrega) : null
+              const tasaColor = tasa === null ? '#5f6f80' : tasa >= 90 ? '#22c55e' : tasa >= 70 ? '#f59e0b' : '#ef4444'
+              return tasa !== null
+                ? <span className="font-mono font-semibold" style={{ color: tasaColor }}>{tasa}%</span>
+                : <span className="text-[#5f6f80]">—</span>
+            } },
+            { key:'ultimoPedido', header:'Último pedido', render: cli => (
+              <span className="text-[12px] text-[#9ba8b6]">{cli.kpi.ultimoDes ? formatDate(cli.kpi.ultimoDes.fecha || cli.kpi.ultimoDes.createdAt?.slice(0,10)) : '—'}</span>
+            ) },
+            { key:'estado', header:'Estado', render: cli => <Badge variant={cli.activo ? 'success' : 'neutral'}>{cli.activo ? 'Activo' : 'Inactivo'}</Badge> },
+            { key:'acciones', header:'Acciones', stopPropagation:true, render: cli => (
+              <div className="flex gap-1">
+                <Btn variant="ghost" size="icon" title="Ver perfil" onClick={() => setPerfilId(cli.id)}><Eye size={13}/></Btn>
+                <Btn variant="ghost" size="icon" title="Editar" onClick={() => { setEditando(cli); setModal(true) }}><Edit2 size={13}/></Btn>
+                <Btn variant="ghost" size="icon" title="Eliminar" className="text-red-400 hover:text-red-300" onClick={() => setConfirmDel(cli.id)}><Trash2 size={13}/></Btn>
+              </div>
+            ) },
+          ]}
+        />
 
-        <div className="flex items-start gap-4 px-5 py-4 mt-5 bg-[#1a2230] border border-[#00c896]/15 rounded-xl text-[12px]">
-          <div className="w-9 h-9 rounded-lg bg-[#00c896]/10 flex items-center justify-center shrink-0 mt-0.5">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00c896" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-4 py-2.5 mt-5 bg-[#1a2230] border border-[#00c896]/15 rounded-xl text-[12px]">
+          <div className="flex items-center gap-1.5 text-[#9ba8b6] font-medium shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00c896" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            Clasificación automática:
           </div>
-          <div className="flex-1">
-            <div className="text-[12px] font-semibold text-[#e8edf2] mb-1.5">Guía: Clasificación Automática de Clientes</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
-              {[
-                { nivel:'Premium', color:'#f59e0b', desc:'S/ 50,000+ Facturados.' },
-                { nivel:'Activo',  color:'#22c55e', desc:'S/ 20,000+ Facturados.' },
-                { nivel:'Regular', color:'#3b82f6', desc:'S/ 5,000+ Facturados.'  },
-                { nivel:'Nuevo',   color:'#5f6f80', desc:'Sin historial aún.'      },
-              ].map(({ nivel, color, desc }) => (
-                <div key={nivel} className="bg-[#161d28] rounded-xl px-4 py-3 border-l-4" style={{ borderColor: color }}>
-                  <div className="text-[13px] font-bold mb-1" style={{ color }}>{nivel}</div>
-                  <div className="text-[11px] text-[#5f6f80]">{desc}</div>
-                </div>
-              ))}
+          {[
+            { nivel:'Premium', color:'#f59e0b', desc:'S/ 50,000+' },
+            { nivel:'Activo',  color:'#22c55e', desc:'S/ 20,000+' },
+            { nivel:'Regular', color:'#3b82f6', desc:'S/ 5,000+'  },
+            { nivel:'Nuevo',   color:'#5f6f80', desc:'Sin historial' },
+          ].map(({ nivel, color, desc }) => (
+            <div key={nivel} className="flex items-center gap-1.5 text-[11px] shrink-0">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }}/>
+              <span className="font-semibold" style={{ color }}>{nivel}</span>
+              <span className="text-[#5f6f80]">{desc}</span>
             </div>
-          </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Guía de uso */}
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Clientes?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+          {[
+            ['1. Registrar cliente', 'Solo la Razón Social es obligatoria. RUC, contacto, condición de pago y límite de crédito son opcionales pero recomendados para Despachos.'],
+            ['2. Clasificación automática', 'El sistema clasifica a cada cliente (Premium/Activo/Regular/Nuevo) según el valor total facturado — ver la leyenda arriba.'],
+            ['3. Ver perfil', 'Haz clic en la fila para abrir el perfil completo: volumen mensual, tasa de entrega e historial de despachos.'],
+            ['4. Editar o desactivar', 'Un cliente inactivo queda oculto de los selectores de Despachos pero conserva todo su historial.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -527,26 +521,36 @@ function ModalCliente({ open, onClose, editando, onSave, saving }) {
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
   useEffect(() => {
     if (!open) return
-    setForm(editando ? { ...init, ...editando, limiteCredito: editando.limiteCredito ?? '', activo: editando.activo === true } : init)
+    setForm(editando ? {
+      ...init, ...editando,
+      ruc:           editando.ruc           || '',
+      contacto:      editando.contacto      || '',
+      telefono:      editando.telefono      || '',
+      email:         editando.email         || '',
+      direccion:     editando.direccion     || '',
+      notas:         editando.notas         || '',
+      limiteCredito: editando.limiteCredito ?? '',
+      activo:        editando.activo === true,
+    } : init)
   }, [editando, open]) // eslint-disable-line
   return (
     <Modal open={open} onClose={onClose} title={editando ? 'Editar Cliente' : 'Nuevo Cliente'} size="lg"
       footer={<><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn variant="primary" disabled={!form.razonSocial.trim() || saving} onClick={() => onSave(form)}>{saving ? 'Guardando...' : 'Guardar'}</Btn></>}>
       <div className="grid grid-cols-2 gap-3.5">
-        <div className="col-span-2"><Field label="Razón Social *"><input className={SI} value={form.razonSocial} onChange={e => f('razonSocial', e.target.value)} placeholder="Empresa XYZ S.A.C."/></Field></div>
-        <Field label="RUC / DNI"><input className={SI} value={form.ruc} onChange={e => f('ruc', e.target.value)} placeholder="20123456789" maxLength={11}/></Field>
-        <Field label="Persona de Contacto"><input className={SI} value={form.contacto} onChange={e => f('contacto', e.target.value)} placeholder="Nombre del contacto"/></Field>
-        <Field label="Teléfono"><input className={SI} value={form.telefono} onChange={e => f('telefono', e.target.value)} placeholder="01-2345678"/></Field>
-        <Field label="Email"><input type="email" className={SI} value={form.email} onChange={e => f('email', e.target.value)} placeholder="contacto@empresa.pe"/></Field>
+        <div className="col-span-2"><Field label="Razón Social *"><Input value={form.razonSocial} onChange={e => f('razonSocial', e.target.value)} placeholder="Empresa XYZ S.A.C."/></Field></div>
+        <Field label="RUC / DNI"><Input value={form.ruc} onChange={e => f('ruc', e.target.value)} placeholder="20123456789" maxLength={11}/></Field>
+        <Field label="Persona de Contacto"><Input value={form.contacto} onChange={e => f('contacto', e.target.value)} placeholder="Nombre del contacto"/></Field>
+        <Field label="Teléfono"><Input value={form.telefono} onChange={e => f('telefono', e.target.value)} placeholder="01-2345678"/></Field>
+        <Field label="Email"><Input type="email" value={form.email} onChange={e => f('email', e.target.value)} placeholder="contacto@empresa.pe"/></Field>
         <Field label="Condición de Pago">
-          <select className={SEL} value={form.condicionPago} onChange={e => f('condicionPago', e.target.value)}>
+          <Select value={form.condicionPago} onChange={e => f('condicionPago', e.target.value)}>
             {[['0','Contado'],['15','15 días'],['30','30 días'],['45','45 días'],['60','60 días'],['90','90 días']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </Select>
         </Field>
-        <Field label="Límite de Crédito (S/)"><input type="number" className={SI} value={form.limiteCredito} onChange={e => f('limiteCredito', e.target.value)} placeholder="Sin límite" min="0"/></Field>
+        <Field label="Límite de Crédito (S/)"><Input type="number" value={form.limiteCredito} onChange={e => f('limiteCredito', e.target.value)} placeholder="Sin límite" min="0"/></Field>
       </div>
       <DireccionInput label="Dirección de entrega principal" value={form.direccion} onChange={v => f('direccion', v)} placeholder="Av. Principal 123, Distrito, Lima"/>
-      <Field label="Notas internas"><textarea className={SI + ' resize-y min-h-[56px]'} value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Instrucciones especiales, condiciones, observaciones..."/></Field>
+      <Field label="Notas internas"><Textarea className="min-h-14" value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Instrucciones especiales, condiciones, observaciones..."/></Field>
       <label className="flex items-center gap-2 cursor-pointer text-[13px] text-[#9ba8b6] mt-4 mb-2">
         <input type="checkbox" checked={!!form.activo} onChange={e => f('activo', e.target.checked)} className="accent-[#00c896]"/>
         Cliente activo

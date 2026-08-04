@@ -3,7 +3,7 @@ import { Plus, Search, Edit2, Trash2, Eye, Package, AlertTriangle, DollarSign, T
 import { useApp } from '../store/AppContext'
 import { usePlanLimits } from '../hooks/usePlanLimits'
 import { formatCurrency, estadoStock, formatDate } from '../utils/helpers'
-import { Modal, ConfirmDialog, EmptyState, StockBadge, Badge, Btn, Field } from '../components/ui/index'
+import { Modal, ConfirmDialog, StockBadge, Btn, Field, Input, Select, DataTable } from '../components/ui/index'
 import { useProductosList, useCrearProducto, useActualizarProducto, useEliminarProducto } from '../queries/productos.queries'
 import { useInventarioList } from '../queries/inventario.queries'
 import { useCategoriasList, useCrearCategoria } from '../queries/categorias.queries'
@@ -11,11 +11,6 @@ import { useAlmacenesList, useCrearAlmacen } from '../queries/almacenes.queries'
 import { useProveedoresList, useCrearProveedor } from '../queries/proveedores.queries'
 import { exportarProductosXLSX } from '../utils/exportXLSX'
 import { exportarProductosPDF } from '../utils/exportPDF'
-
-const SI  = 'px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 w-full font-[inherit] placeholder-[#5f6f80]'
-const SEL = SI + ' pr-8'
-const TH  = ({ children, right }) => <th className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 sticky top-0 z-10 ${right ? 'text-right' : 'text-left'}`}>{children}</th>
-const TD  = ({ children, mono, muted, right, className = '' }) => <td className={`px-3.5 py-2.5 align-middle ${mono ? 'font-mono text-[12px]' : ''} ${muted ? 'text-[#9ba8b6]' : 'text-[#e8edf2]'} ${right ? 'text-right' : ''} ${className}`}>{children}</td>
 
 const UMs = ['UND','KG','LT','MT','CJA','PAQ','RESMA','DOC','JGO','SET','SACO','ROLLO','BALDE','CAJA']
 
@@ -215,20 +210,20 @@ export default function Inventario() {
         <div className="flex flex-wrap gap-2 mb-3">
           <div className="relative flex-1 min-w-[200px]">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-8'} placeholder="Buscar SKU, nombre..." value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
+            <Input className="pl-8" placeholder="Buscar SKU, nombre..." value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select className={SEL} style={{ width:160 }} value={filtCat} onChange={e => setFiltCat(e.target.value)}>
+          <Select style={{ width:160 }} value={filtCat} onChange={e => setFiltCat(e.target.value)}>
             <option value="">Todas las categorías</option>
             {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-          </select>
-          <select className={SEL} style={{ width:160 }} value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
+          </Select>
+          <Select style={{ width:160 }} value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
             <option value="">Todos los almacenes</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
-          <select className={SEL} style={{ width:150 }} value={filtStock} onChange={e => setFiltStock(e.target.value)}>
+          </Select>
+          <Select style={{ width:150 }} value={filtStock} onChange={e => setFiltStock(e.target.value)}>
             <option value="">Estado: todos</option>
             <option value="critico">Crítico / Agotado</option>
-          </select>
+          </Select>
           {(busqueda || filtCat || filtAlm || filtStock) && (
             <Btn variant="ghost" size="sm" onClick={() => { setBusqueda(''); setFiltCat(''); setFiltAlm(''); setFiltStock('') }}>
               Limpiar
@@ -240,63 +235,64 @@ export default function Inventario() {
           {filtered.length} de {kpis.total} productos · Valorización: <span className="text-[#00c896] font-semibold">Precio Compra</span>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[13px]">
-            <thead>
-              <tr>
-                <TH>SKU</TH>
-                <TH>Producto</TH>
-                <TH>Categoría</TH>
-                <TH right>Stock</TH>
-                <TH right>Disponible</TH>
-                <TH right>Costo Unit.</TH>
-                <TH right>Valor Stock</TH>
-                <TH>Estado</TH>
-                <TH>Acciones</TH>
-              </tr>
-            </thead>
-            <tbody>
-              {loadingProd && (
-                <tr><td colSpan={9} className="text-center text-[#5f6f80] py-8 text-[12px]">Cargando productos...</td></tr>
-              )}
-              {!loadingProd && filtered.length === 0 && (
-                <tr><td colSpan={9}><EmptyState icon={Package} title="Sin resultados" description="Prueba con otros filtros o agrega un producto."/></td></tr>
-              )}
-              {filtered.map(p => {
-                const val      = Number(p.precioCompra || 0) * p.stockActual
-                const reservado  = stockReservado[p.id] || 0
-                const disponible = Math.max(0, p.stockActual - reservado)
-                const dispColor  = disponible <= 0 ? 'text-red-400 font-bold'
-                                 : disponible <= p.stockMinimo ? 'text-amber-400 font-semibold'
-                                 : 'text-[#00c896] font-semibold'
-                return (
-                  <tr key={p.id}
-                    className="border-b border-white/6 last:border-0 hover:bg-white/2 cursor-pointer transition-colors"
-                    onClick={() => setModalDet(p)}>
-                    <TD mono><span className="text-[#00c896]">{p.sku}</span></TD>
-                    <TD>
-                      <div className="font-medium text-[#e8edf2]">{p.nombre}</div>
-                      {p.barcode && <div className="text-[11px] text-[#5f6f80] mt-0.5">{p.barcode}</div>}
-                    </TD>
-                    <TD muted>{catMap.get(p.categoriaId) || '—'}</TD>
-                    <TD mono right>{p.stockActual} <span className="text-[#5f6f80] text-[11px]">{p.unidadMedida}</span></TD>
-                    <TD mono right><span className={dispColor}>{disponible}</span></TD>
-                    <TD mono right>{formatCurrency(Number(p.precioCompra || 0), 'S/')}</TD>
-                    <TD mono right><span className="text-[#00c896] font-semibold">{formatCurrency(val, 'S/')}</span></TD>
-                    <TD><StockBadge stockActual={p.stockActual} stockMinimo={p.stockMinimo}/></TD>
-                    <td className="px-3.5 py-2.5" onClick={e => e.stopPropagation()}>
-                      <div className="flex gap-1">
-                        <Btn variant="ghost" size="icon" title="Ver detalle"  onClick={e => { e.stopPropagation(); setModalDet(p) }}><Eye   size={13}/></Btn>
-                        <Btn variant="ghost" size="icon" title="Editar"       onClick={e => { e.stopPropagation(); setEditando(p); setModalForm(true) }}><Edit2 size={13}/></Btn>
-                        <Btn variant="ghost" size="icon" title="Eliminar" className="text-red-400 hover:text-red-300"
-                          onClick={e => { e.stopPropagation(); setConfirmDel(p.id) }}><Trash2 size={13}/></Btn>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+        <DataTable
+          loading={loadingProd}
+          rows={filtered}
+          rowKey={p => p.id}
+          onRowClick={p => setModalDet(p)}
+          emptyIcon={Package}
+          emptyTitle="Sin resultados"
+          emptyDescription="Prueba con otros filtros o agrega un producto."
+          columns={[
+            { key:'sku', header:'SKU', render: p => <span className="font-mono text-[12px] text-[#00c896]">{p.sku}</span> },
+            { key:'producto', header:'Producto', render: p => (
+              <>
+                <div className="font-medium text-[#e8edf2]">{p.nombre}</div>
+                {p.barcode && <div className="text-[11px] text-[#5f6f80] mt-0.5">{p.barcode}</div>}
+              </>
+            ) },
+            { key:'categoria', header:'Categoría', render: p => <span className="text-[#9ba8b6]">{catMap.get(p.categoriaId) || '—'}</span> },
+            { key:'stock', header:'Stock', align:'right', render: p => <span className="font-mono text-[12px]">{p.stockActual} <span className="text-[#5f6f80] text-[11px]">{p.unidadMedida}</span></span> },
+            { key:'disponible', header:'Disponible', align:'right', render: p => {
+              const reservado  = stockReservado[p.id] || 0
+              const disponible = Math.max(0, p.stockActual - reservado)
+              const dispColor  = disponible <= 0 ? 'text-red-400 font-bold'
+                               : disponible <= p.stockMinimo ? 'text-amber-400 font-semibold'
+                               : 'text-[#00c896] font-semibold'
+              return <span className={`font-mono text-[12px] ${dispColor}`}>{disponible}</span>
+            } },
+            { key:'costoUnit', header:'Costo Unit.', align:'right', render: p => <span className="font-mono text-[12px]">{formatCurrency(Number(p.precioCompra || 0), 'S/')}</span> },
+            { key:'valorStock', header:'Valor Stock', align:'right', render: p => <span className="font-mono text-[12px] text-[#00c896] font-semibold">{formatCurrency(Number(p.precioCompra || 0) * p.stockActual, 'S/')}</span> },
+            { key:'estado', header:'Estado', render: p => <StockBadge stockActual={p.stockActual} stockMinimo={p.stockMinimo}/> },
+            { key:'acciones', header:'Acciones', stopPropagation: true, render: p => (
+              <div className="flex gap-1">
+                <Btn variant="ghost" size="icon" title="Ver detalle"  onClick={() => setModalDet(p)}><Eye   size={13}/></Btn>
+                <Btn variant="ghost" size="icon" title="Editar"       onClick={() => { setEditando(p); setModalForm(true) }}><Edit2 size={13}/></Btn>
+                <Btn variant="ghost" size="icon" title="Eliminar" className="text-red-400 hover:text-red-300"
+                  onClick={() => setConfirmDel(p.id)}><Trash2 size={13}/></Btn>
+              </div>
+            ) },
+          ]}
+        />
+      </div>
+
+      {/* Guía de uso */}
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Inventario?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+          {[
+            ['1. Alta de producto',    'SKU, nombre y categoría son obligatorios. El stock inicial se asigna después, con la primera Entrada de stock.'],
+            ['2. Stock mín. / máx.',   'El stock mínimo dispara el estado "Crítico"/"Agotado" — visible en Alertas y Punto de Reorden.'],
+            ['3. Precio compra/venta', 'El precio de compra valoriza el inventario (Kardex, Reportes). El margen se calcula automáticamente con el precio de venta.'],
+            ['4. Desactivar, no eliminar', '"Eliminar" en realidad desactiva el producto — se conserva todo su historial de movimientos.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -409,30 +405,30 @@ export function ModalProducto({ open, onClose, editando, categorias, almacenes, 
 
       <div className="grid grid-cols-2 gap-3.5">
         <Field label="SKU *" error={err.sku}>
-          <input className={SI} value={form.sku || ''} onChange={e => f('sku', e.target.value)} placeholder="ELEC-001"/>
+          <Input value={form.sku || ''} onChange={e => f('sku', e.target.value)} placeholder="ELEC-001"/>
         </Field>
         <Field label="Unidad de Medida">
-          <select className={SEL} value={form.unidadMedida || 'UND'} onChange={e => f('unidadMedida', e.target.value)}>
+          <Select value={form.unidadMedida || 'UND'} onChange={e => f('unidadMedida', e.target.value)}>
             {UMs.map(u => <option key={u}>{u}</option>)}
-          </select>
+          </Select>
         </Field>
       </div>
 
       <Field label="Nombre del Producto *" error={err.nombre}>
-        <input className={SI} value={form.nombre || ''} onChange={e => f('nombre', e.target.value)} placeholder="Nombre descriptivo"/>
+        <Input value={form.nombre || ''} onChange={e => f('nombre', e.target.value)} placeholder="Nombre descriptivo"/>
       </Field>
 
       <Field label="Código de Barras">
-        <input className={SI} value={form.barcode || ''} onChange={e => f('barcode', e.target.value)} placeholder="EAN13, UPC..."/>
+        <Input value={form.barcode || ''} onChange={e => f('barcode', e.target.value)} placeholder="EAN13, UPC..."/>
       </Field>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         <Field label="Categoría *" error={err.categoriaId}>
           <div className="flex gap-1.5">
-            <select className={SEL + ' flex-1'} value={form.categoriaId || ''} onChange={e => f('categoriaId', e.target.value)}>
+            <Select className="flex-1" value={form.categoriaId || ''} onChange={e => f('categoriaId', e.target.value)}>
               <option value="">Seleccionar...</option>
               {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-            </select>
+            </Select>
             <button type="button" title="Nueva categoría"
               className="shrink-0 w-8.5 flex items-center justify-center bg-[#00c896]/10 hover:bg-[#00c896]/20 border border-[#00c896]/30 rounded-lg text-[#00c896] transition-colors"
               onClick={() => onAddCategoria?.(id => f('categoriaId', id))}>
@@ -442,10 +438,10 @@ export function ModalProducto({ open, onClose, editando, categorias, almacenes, 
         </Field>
         <Field label="Proveedor">
           <div className="flex gap-1.5">
-            <select className={SEL + ' flex-1'} value={form.proveedorId || ''} onChange={e => f('proveedorId', e.target.value)}>
+            <Select className="flex-1" value={form.proveedorId || ''} onChange={e => f('proveedorId', e.target.value)}>
               <option value="">Sin proveedor</option>
               {proveedores.map(p => <option key={p.id} value={p.id}>{p.razonSocial}</option>)}
-            </select>
+            </Select>
             <button type="button"
               title={!planLimits.proveedores.permitido ? planLimits.proveedores.mensaje : 'Nuevo proveedor'}
               disabled={!planLimits.proveedores.permitido}
@@ -457,9 +453,9 @@ export function ModalProducto({ open, onClose, editando, categorias, almacenes, 
         </Field>
         <Field label="Almacén inicial">
           <div className="flex gap-1.5">
-            <select className={SEL + ' flex-1'} disabled value="">
+            <Select className="flex-1" disabled value="">
               <option value="">Se asigna en 1ª Entrada</option>
-            </select>
+            </Select>
             <button type="button"
               title={!planLimits.almacenes.permitido ? planLimits.almacenes.mensaje : 'Nuevo almacén'}
               disabled={!planLimits.almacenes.permitido}
@@ -473,16 +469,16 @@ export function ModalProducto({ open, onClose, editando, categorias, almacenes, 
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         <Field label="Stock Mínimo">
-          <input type="number" className={SI} value={form.stockMinimo ?? 0} onChange={e => f('stockMinimo', e.target.value)} min="0"/>
+          <Input type="number" value={form.stockMinimo ?? 0} onChange={e => f('stockMinimo', e.target.value)} min="0"/>
         </Field>
         <Field label="Stock Máximo">
-          <input type="number" className={SI} value={form.stockMaximo ?? 0} onChange={e => f('stockMaximo', e.target.value)} min="0"/>
+          <Input type="number" value={form.stockMaximo ?? 0} onChange={e => f('stockMaximo', e.target.value)} min="0"/>
         </Field>
         <Field label="Precio Compra (S/)">
-          <input type="number" className={SI} value={form.precioCompra ?? 0} onChange={e => f('precioCompra', e.target.value)} min="0" step="0.01"/>
+          <Input type="number" value={form.precioCompra ?? 0} onChange={e => f('precioCompra', e.target.value)} min="0" step="0.01"/>
         </Field>
         <Field label="Precio Venta (S/)">
-          <input type="number" className={SI} value={form.precioVenta ?? 0} onChange={e => f('precioVenta', e.target.value)} min="0" step="0.01"/>
+          <Input type="number" value={form.precioVenta ?? 0} onChange={e => f('precioVenta', e.target.value)} min="0" step="0.01"/>
         </Field>
       </div>
 
@@ -509,7 +505,7 @@ function ModalQuickCategoria({ open, onClose, onSave }) {
   return (
     <Modal open={open} onClose={onClose} title="Nueva Categoría" size="sm" zIndex={60}
       footer={<><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn variant="primary" onClick={() => nombre.trim() && onSave(nombre)} disabled={!nombre.trim()}>Crear</Btn></>}>
-      <Field label="Nombre *"><input className={SI} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Electrónica, Herramientas..." autoFocus/></Field>
+      <Field label="Nombre *"><Input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Electrónica, Herramientas..." autoFocus/></Field>
     </Modal>
   )
 }
@@ -520,7 +516,7 @@ function ModalQuickAlmacen({ open, onClose, onSave }) {
   return (
     <Modal open={open} onClose={onClose} title="Nuevo Almacén" size="sm" zIndex={60}
       footer={<><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn variant="primary" onClick={() => nombre.trim() && onSave(nombre)} disabled={!nombre.trim()}>Crear</Btn></>}>
-      <Field label="Nombre *"><input className={SI} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Almacén Principal..." autoFocus/></Field>
+      <Field label="Nombre *"><Input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Almacén Principal..." autoFocus/></Field>
     </Modal>
   )
 }
@@ -533,10 +529,10 @@ function ModalQuickProveedor({ open, onClose, onSave }) {
   return (
     <Modal open={open} onClose={onClose} title="Nuevo Proveedor" size="sm" zIndex={60}
       footer={<><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn variant="primary" onClick={() => form.razonSocial.trim() && onSave(form)} disabled={!form.razonSocial.trim()}>Crear</Btn></>}>
-      <Field label="Razón Social *"><input className={SI} value={form.razonSocial} onChange={e => f('razonSocial', e.target.value)} placeholder="Importaciones XYZ S.A.C." autoFocus/></Field>
+      <Field label="Razón Social *"><Input value={form.razonSocial} onChange={e => f('razonSocial', e.target.value)} placeholder="Importaciones XYZ S.A.C." autoFocus/></Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="RUC"><input className={SI} value={form.ruc} onChange={e => f('ruc', e.target.value)} placeholder="20123456789" maxLength={11}/></Field>
-        <Field label="Teléfono"><input className={SI} value={form.telefono} onChange={e => f('telefono', e.target.value)} placeholder="987654321"/></Field>
+        <Field label="RUC"><Input value={form.ruc} onChange={e => f('ruc', e.target.value)} placeholder="20123456789" maxLength={11}/></Field>
+        <Field label="Teléfono"><Input value={form.telefono} onChange={e => f('telefono', e.target.value)} placeholder="987654321"/></Field>
       </div>
     </Modal>
   )

@@ -2,7 +2,7 @@
 import { TrendingUp, TrendingDown, Activity, AlertTriangle, Info } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts'
 import { formatCurrency } from '../utils/helpers'
-import { Badge, Btn } from '../components/ui/index'
+import { Badge, Btn, Select, Input } from '../components/ui/index'
 import { useProductosList } from '../queries/productos.queries'
 import { useMovimientosList } from '../queries/movimientos.queries'
 import { useCategoriasList } from '../queries/categorias.queries'
@@ -91,7 +91,6 @@ export default function Prevision() {
     }
   }, [prod, movimientos, horizonte])
 
-  const SEL = 'px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] pr-8'
   const catNombre = id => categorias.find(c => c.id === id)?.nombre || '—'
 
   function diasColor(dias) {
@@ -110,13 +109,12 @@ export default function Prevision() {
         <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">Seleccionar Producto</div>
         <div className="flex flex-wrap gap-3">
           <div className="relative flex-1 min-w-50">
-            <input className="w-full pl-3 pr-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] placeholder-[#5f6f80] outline-none focus:border-[#00c896]"
-              placeholder="Buscar producto..." value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
+            <Input placeholder="Buscar producto..." value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select className={SEL} style={{ minWidth: 260 }} value={productoId} onChange={e => setProductoId(e.target.value)}>
+          <Select style={{ minWidth: 260 }} className="w-auto!" value={productoId} onChange={e => setProductoId(e.target.value)}>
             <option value="">— Seleccionar producto —</option>
             {productosFiltrados.map(p => <option key={p.id} value={p.id}>{p.sku} — {p.nombre}</option>)}
-          </select>
+          </Select>
           <div className="flex items-center gap-2">
             <span className="text-[12px] text-[#5f6f80]">Horizonte:</span>
             {[7, 15, 30, 60].map(d => (
@@ -236,38 +234,33 @@ export default function Prevision() {
           </div>
         </>
       )}
-      {/* Panel explicativo siempre visible */}
-      <div className="bg-[#161d28] border border-blue-500/20 rounded-xl p-5">
-        <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
-            <span className="text-blue-400 text-[14px] font-bold">?</span>
-          </div>
-          <div>
-            <div className="text-[13px] font-semibold text-[#e8edf2] mb-2">¿Para qué sirve la Previsión de Demanda?</div>
-            <p className="text-[12px] text-[#9ba8b6] leading-relaxed mb-3">
-              La <strong className="text-[#e8edf2]">Previsión de Demanda</strong> analiza el historial de salidas de los
-              últimos meses para <em>proyectar cuándo se agotará tu stock</em> y cuánto debes pedir.
-              Te ayuda a comprar con anticipación, evitando tanto el quiebre de stock como el sobrestock.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
-              {[
-                ['📈 Tendencia', 'Si el consumo sube o baja en las últimas semanas. Te alerta si un producto está creciendo en demanda.'],
-                ['🛡️ Stock de Seguridad', 'Buffer extra calculado con estadística (95% de nivel de servicio) para absorber variaciones inesperadas en la demanda.'],
-                ['📅 Fecha de Agotamiento', 'Estimado de cuándo llegará tu stock a cero si no repones. Te da tiempo para emitir la OC antes de quedarte sin stock.'],
-                ['📊 Variabilidad (CV)', 'Si el consumo es predecible o errático. CV < 15% = estable. CV > 30% = alta variabilidad, necesitas más stock de seguridad.'],
-              ].map(([titulo, desc]) => (
-                <div key={titulo} className="bg-[#1a2230] rounded-lg p-3">
-                  <div className="text-[12px] font-semibold text-[#e8edf2] mb-1">{titulo}</div>
-                  <div className="text-[11px] text-[#9ba8b6] leading-relaxed">{desc}</div>
-                </div>
-              ))}
-            </div>
-            <p className="text-[11px] text-[#5f6f80] leading-relaxed">
-              <strong className="text-[#9ba8b6]">Requisito:</strong> El producto debe tener al menos 30 días de historial de salidas registradas.
-              Selecciona el <em>horizonte de proyección</em> (7, 15, 30 o 60 días) según la frecuencia con que haces tus pedidos.
-            </p>
-          </div>
+      {/* Guía de uso — siempre visible */}
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Previsión de Demanda?
         </div>
+        <p className="text-[12px] text-[#9ba8b6] leading-relaxed mb-3">
+          La <strong className="text-[#e8edf2]">Previsión de Demanda</strong> analiza el historial de salidas de los
+          últimos meses para <em>proyectar cuándo se agotará tu stock</em> y cuánto debes pedir.
+          Te ayuda a comprar con anticipación, evitando tanto el quiebre de stock como el sobrestock.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+          {[
+            ['Tendencia', 'Si el consumo sube o baja en las últimas semanas. Te alerta si un producto está creciendo en demanda.'],
+            ['Stock de Seguridad', 'Buffer extra calculado con estadística (95% de nivel de servicio) para absorber variaciones inesperadas en la demanda.'],
+            ['Fecha de Agotamiento', 'Estimado de cuándo llegará tu stock a cero si no repones. Te da tiempo para emitir la OC antes de quedarte sin stock.'],
+            ['Variabilidad (CV)', 'Si el consumo es predecible o errático. CV < 15% = estable. CV > 30% = alta variabilidad, necesitas más stock de seguridad.'],
+          ].map(([titulo, desc]) => (
+            <div key={titulo} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[12px] font-semibold text-[#e8edf2] mb-1">{titulo}</div>
+              <div className="text-[11px] text-[#9ba8b6] leading-relaxed">{desc}</div>
+            </div>
+          ))}
+        </div>
+        <p className="text-[11px] text-[#5f6f80] leading-relaxed">
+          <strong className="text-[#9ba8b6]">Requisito:</strong> El producto debe tener al menos 30 días de historial de salidas registradas.
+          Selecciona el <em>horizonte de proyección</em> (7, 15, 30 o 60 días) según la frecuencia con que haces tus pedidos.
+        </p>
       </div>
     </div>
   )

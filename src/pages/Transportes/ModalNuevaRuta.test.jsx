@@ -40,6 +40,17 @@ describe('ModalNuevaRuta', () => {
     expect(screen.queryByText(/DESP-2/)).not.toBeInTheDocument()
   })
 
+  it('si no hay despachos LISTO pero sí empacados en Picking, avisa con el número del despacho a marcar Listo', () => {
+    setup({
+      despachos: [
+        { id: 'd2', numero: 'DESP-2', clienteId: 'c1', estado: 'PICKING', empaque: { estado: 'CONFIRMADO' }, items: [] },
+      ],
+    })
+    expect(screen.getByText(/empaque ya confirmado/)).toBeInTheDocument()
+    expect(screen.getByText(/DESP-2/)).toBeInTheDocument()
+    expect(screen.getByText(/Marcar Listo/)).toBeInTheDocument()
+  })
+
   it('seleccionar transportista + despacho habilita Guardar y onSave recibe el shape esperado', async () => {
     const user = userEvent.setup()
     const { onSave } = setup()

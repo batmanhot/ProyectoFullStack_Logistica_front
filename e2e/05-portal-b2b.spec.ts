@@ -28,7 +28,8 @@ test('Portal B2B — pedido de cliente, aprobación y conversión atómica a Des
   await checkA11y(clientPage, 'Portal público del cliente — Nuevo Pedido')
 
   await clientPage.getByRole('button', { name: 'Agregar producto' }).click()
-  await clientPage.locator('select').first().selectOption({ index: 1 })
+  await clientPage.getByRole('button', { name: 'Seleccionar producto...' }).click()
+  await clientPage.getByRole('option').first().click()
   await clientPage.getByRole('button', { name: 'Enviar pedido' }).click()
 
   await expect(clientPage.getByText('¡Pedido enviado!')).toBeVisible({ timeout: 10_000 })

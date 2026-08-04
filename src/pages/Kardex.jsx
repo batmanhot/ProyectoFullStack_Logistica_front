@@ -1,12 +1,14 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { Search, Download, BookOpen, ArrowDownToLine, ArrowUpFromLine,
+import { Search, Download, FileText, BookOpen, ArrowDownToLine, ArrowUpFromLine,
          SlidersHorizontal, RotateCcw, ArrowRightLeft, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate } from '../utils/helpers'
-import { Badge, Btn, EmptyState } from '../components/ui/index'
+import { Badge, Btn, EmptyState, Input, DataTable } from '../components/ui/index'
 import { useKardex } from '../queries/movimientos.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useCategoriasList } from '../queries/categorias.queries'
+import { exportarKardexXLSX } from '../utils/exportXLSX'
+import { exportarKardexPDF } from '../utils/exportPDF'
 
 const TIPO_META = {
   'ENTRADA':       { label:'Entrada',       color:'success', Icon:ArrowDownToLine   },
@@ -115,25 +117,10 @@ export default function Kardex() {
     return { totalEntradas, totalSalidas, stockActual, valorAct, pmp: costoUnit }
   }, [prod, lineasKardex])
 
-  function exportarCSV() {
-    if (!prod || !lineasKardex.length) return
-    const rows = [['N°','Fecha','Tipo','Documento','Motivo','Entrada','Salida','Saldo',`Costo Unit.`,`Valoriz. ${formulaValorizacion}`]]
-    lineasKardex.forEach((l, i) => rows.push([
-      i + 1, formatDate(l.fecha), l.tipo, l.documento, l.motivo,
-      l.entrada || 0, l.salida || 0, l.saldo,
-      Number(l.costoUnit || 0).toFixed(2), (l.valorAcum || 0).toFixed(2),
-    ]))
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob([rows.map(r => r.join(',')).join('\n')], { type:'text/csv' }))
-    a.download = `kardex_${prod.sku}_${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-  }
-
-  const SI       = 'px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
   const catNombre = id => categorias.find(c => c.id === id)?.nombre || '—'
 
   // Mostrar más reciente primero
-  const lineasMostrar = [...lineasKardex].reverse()
+  const lineasMostrar = [...lineasKardex].reverse().map((l, i) => ({ ...l, _idx: i, nroLinea: lineasKardex.length - i }))
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
@@ -144,7 +131,7 @@ export default function Kardex() {
         <div ref={searchRef} className="relative">
           <div className="relative">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-9 w-full pr-10'} placeholder="Escribe nombre o SKU para buscar..."
+            <Input className="pl-9 pr-10" placeholder="Escribe nombre o SKU para buscar..."
               value={busqueda}
               onChange={e => { setBusqueda(e.target.value); setDropOpen(true); if (!e.target.value) setProductoId('') }}
               onFocus={() => { if (busqueda) setDropOpen(true) }}/>
@@ -177,8 +164,9 @@ export default function Kardex() {
               <div className="text-[12px] text-[#5f6f80]">{prod.sku} · {catNombre(prod.categoriaId)}</div>
             </div>
             <div className="flex items-center gap-2">
-              <Badge color={prod.estado === 'Activo' ? 'success' : 'neutral'}>{prod.estado || 'Activo'}</Badge>
-              <Btn variant="ghost" size="sm" onClick={exportarCSV} disabled={!lineasKardex.length}><Download size={13}/> CSV</Btn>
+              <Badge variant={prod.estado === 'Activo' ? 'success' : 'neutral'}>{prod.estado || 'Activo'}</Badge>
+              <Btn variant="ghost" size="sm" onClick={() => exportarKardexXLSX(lineasKardex, prod, simboloMoneda)} disabled={!lineasKardex.length}><Download size={13}/> Excel</Btn>
+              <Btn variant="ghost" size="sm" onClick={() => exportarKardexPDF(lineasKardex, prod, simboloMoneda, sesion?.nombre)} disabled={!lineasKardex.length}><FileText size={13}/> PDF</Btn>
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -206,50 +194,36 @@ export default function Kardex() {
             </span>
             <div className="flex gap-2 items-center">
               <span className="text-[11px] text-[#5f6f80]">Desde</span>
-              <input type="date" className={SI + ' !w-auto !py-[4px] text-[12px]'} value={filtDesde} onChange={e => setFiltDesde(e.target.value)}/>
+              <Input type="date" className="!w-auto !py-[4px] text-[12px]" value={filtDesde} onChange={e => setFiltDesde(e.target.value)}/>
               <span className="text-[11px] text-[#5f6f80]">Hasta</span>
-              <input type="date" className={SI + ' !w-auto !py-[4px] text-[12px]'} value={filtHasta} onChange={e => setFiltHasta(e.target.value)}/>
+              <Input type="date" className="!w-auto !py-[4px] text-[12px]" value={filtHasta} onChange={e => setFiltHasta(e.target.value)}/>
               {(filtDesde || filtHasta) && <Btn variant="ghost" size="sm" onClick={() => { setFiltDesde(''); setFiltHasta('') }}><X size={12}/></Btn>}
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-white/8">
-            <table className="w-full border-collapse text-[12px]">
-              <thead><tr>
-                {['N°','Fecha','Tipo','Documento','Motivo','Entrada','Salida','Saldo','Costo Unit.','Valor Acum.'].map((h, i) => (
-                  <th key={h} className={`bg-[#1a2230] px-3 py-2.5 text-[10px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 ${[5,6,7,8,9].includes(i) ? 'text-right' : 'text-left'}`}>{h}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {loadingKardex && <tr><td colSpan={10} className="text-center text-[#5f6f80] py-6 text-[12px]">Cargando kardex...</td></tr>}
-                {!loadingKardex && lineasMostrar.length === 0 && (
-                  <tr><td colSpan={10}><EmptyState icon={BookOpen} title="Sin movimientos" description="No hay movimientos en el período seleccionado."/></td></tr>
-                )}
-                {lineasMostrar.map((l, i) => {
-                  const meta   = TIPO_META[l.tipo] || { label: l.tipo, color:'neutral', Icon: SlidersHorizontal }
-                  const esEnt  = (l.entrada || 0) > 0
-                  const esSal  = (l.salida  || 0) > 0
-                  const nroLinea = lineasMostrar.length - i
-                  return (
-                    <tr key={i} className="border-b border-white/6 last:border-0 hover:bg-white/2">
-                      <td className="px-3 py-2 text-[#5f6f80]">{nroLinea}</td>
-                      <td className="px-3 py-2 font-mono text-[#9ba8b6]">{formatDate(l.fecha)}</td>
-                      <td className="px-3 py-2">
-                        <Badge color={meta.color} size="xs">{meta.label}</Badge>
-                      </td>
-                      <td className="px-3 py-2 font-mono text-[#00c896]">{l.documento || '—'}</td>
-                      <td className="px-3 py-2 text-[#9ba8b6] max-w-[160px] truncate">{l.motivo || '—'}</td>
-                      <td className="px-3 py-2 font-mono text-right font-semibold text-green-400">{esEnt ? `+${l.entrada}` : '—'}</td>
-                      <td className="px-3 py-2 font-mono text-right font-semibold text-red-400">{esSal ? `-${l.salida}` : '—'}</td>
-                      <td className="px-3 py-2 font-mono text-right font-bold text-[#e8edf2]">{l.saldo}</td>
-                      <td className="px-3 py-2 font-mono text-right text-[#9ba8b6]">{formatCurrency(Number(l.costoUnit || 0), simboloMoneda)}</td>
-                      <td className="px-3 py-2 font-mono text-right text-[#00c896] font-semibold">{formatCurrency(l.valorAcum || 0, simboloMoneda)}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            loading={loadingKardex}
+            rows={lineasMostrar}
+            rowKey={l => l._idx}
+            emptyIcon={BookOpen}
+            emptyTitle="Sin movimientos"
+            emptyDescription="No hay movimientos en el período seleccionado."
+            columns={[
+              { key:'nro', header:'N°', render: l => <span className="text-[#5f6f80]">{l.nroLinea}</span> },
+              { key:'fecha', header:'Fecha', render: l => <span className="font-mono text-[#9ba8b6]">{formatDate(l.fecha)}</span> },
+              { key:'tipo', header:'Tipo', render: l => {
+                const meta = TIPO_META[l.tipo] || { label: l.tipo, color:'neutral' }
+                return <Badge variant={meta.color}>{meta.label}</Badge>
+              } },
+              { key:'documento', header:'Documento', render: l => <span className="font-mono text-[#00c896]">{l.documento || '—'}</span> },
+              { key:'motivo', header:'Motivo', render: l => <span className="text-[#9ba8b6] max-w-[160px] truncate block">{l.motivo || '—'}</span> },
+              { key:'entrada', header:'Entrada', align:'right', render: l => <span className="font-mono font-semibold text-green-400">{(l.entrada || 0) > 0 ? `+${l.entrada}` : '—'}</span> },
+              { key:'salida', header:'Salida', align:'right', render: l => <span className="font-mono font-semibold text-red-400">{(l.salida || 0) > 0 ? `-${l.salida}` : '—'}</span> },
+              { key:'saldo', header:'Saldo', align:'right', render: l => <span className="font-mono font-bold text-[#e8edf2]">{l.saldo}</span> },
+              { key:'costoUnit', header:'Costo Unit.', align:'right', render: l => <span className="font-mono text-[#9ba8b6]">{formatCurrency(Number(l.costoUnit || 0), simboloMoneda)}</span> },
+              { key:'valorAcum', header:'Valor Acum.', align:'right', render: l => <span className="font-mono text-[#00c896] font-semibold">{formatCurrency(l.valorAcum || 0, simboloMoneda)}</span> },
+            ]}
+          />
         </div>
       )}
 
@@ -259,6 +233,26 @@ export default function Kardex() {
           <EmptyState icon={BookOpen} title="Selecciona un producto" description="Busca un producto por SKU o nombre para ver su kardex completo."/>
         </div>
       )}
+
+      {/* Guía de uso */}
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Kardex?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+          {[
+            ['1. Selecciona un producto', 'Busca por SKU o nombre para ver su historial completo de movimientos.'],
+            ['2. Lee el saldo acumulado', 'Cada línea muestra el saldo de stock después de ese movimiento, en orden cronológico.'],
+            ['3. Filtra por fecha',       'Usa "Desde"/"Hasta" para acotar el período — útil para auditorías o cierres.'],
+            ['4. Solo lectura',           'Cada Entrada, Salida, Ajuste, Transferencia o Devolución que afectó a este producto aparece aquí; el Kardex no se edita.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

@@ -9,19 +9,15 @@
  *  5. Resumen mensual     — comparativo ingresos vs egresos por mes con IGV separado
  */
 import { useState, useMemo } from 'react'
-import { Download, FileText, BookOpen, TrendingUp, TrendingDown,
-         DollarSign, Calendar, Search, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { Download, FileText, TrendingUp, TrendingDown,
+         DollarSign, Search, X } from 'lucide-react'
 import { formatCurrency, formatDate } from '../utils/helpers'
-import { Btn, Badge } from '../components/ui/index'
+import { Btn, Badge, Select, Input, DataTable } from '../components/ui/index'
 import { useOrdenesCompraList } from '../queries/ordenes-compra.queries'
 import { useDespachosList } from '../queries/despachos.queries'
 import { useProveedoresList } from '../queries/proveedores.queries'
 import { useClientesList } from '../queries/clientes.queries'
 import { useConfiguracion } from '../queries/configuracion.queries'
-
-const TH = ({c,r})=><th className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 sticky top-0 ${r?'text-right':'text-left'}`}>{c}</th>
-const TD = ({c,mono,green,red,bold,r})=><td className={`px-3.5 py-2.5 ${r?'text-right':''} ${mono?'font-mono':''} text-[12px] ${green?'text-green-400':red?'text-red-400':bold?'text-[#e8edf2] font-semibold':'text-[#9ba8b6]'}`}>{c}</td>
-const SEL = 'px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] font-[inherit]'
 
 const simboloMoneda = 'S/'
 const IGV_RATE = 0.18
@@ -257,41 +253,35 @@ export default function ContabilidadReportes() {
   }
 
   const TABS_DEF = [
-    { id:'compras',      label:'📦 Reporte de Compras' },
-    { id:'ventas',       label:'💰 Reporte de Ventas'  },
-    { id:'libroCompras', label:'📒 Libro de Compras'   },
-    { id:'libroVentas',  label:'📗 Libro de Ventas'    },
-    { id:'resumen',      label:'📊 Resumen Mensual'    },
+    { id:'compras',      label:'Reporte de Compras' },
+    { id:'ventas',       label:'Reporte de Ventas'  },
+    { id:'libroCompras', label:'Libro de Compras'   },
+    { id:'libroVentas',  label:'Libro de Ventas'    },
+    { id:'resumen',      label:'Resumen Mensual'    },
   ]
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-[16px] font-bold text-[#e8edf2] flex items-center gap-2">
-            <BookOpen size={18} className="text-[#00c896]"/> Reportes Contables
-          </h2>
-          <p className="text-[12px] text-[#5f6f80] mt-0.5">
-            {empresa} · RUC: {rucEmpresa} · IGV: 18%
-          </p>
+      {/* Meta + filtros de período */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="text-[12px] text-[#5f6f80]">
+          {empresa} · RUC: {rucEmpresa} · IGV: 18%
         </div>
-        {/* Filtros de período */}
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          <select className={SEL} value={periodo} onChange={e=>{setPeriodo(e.target.value);setMesFiltro('');setAnioFiltro('')}}>
+          <Select className="w-auto!" value={periodo} onChange={e=>{setPeriodo(e.target.value);setMesFiltro('');setAnioFiltro('')}}>
             <option value="all">Todo el período</option>
             <option value="mes">Por mes</option>
             <option value="anio">Por año</option>
-          </select>
+          </Select>
           {periodo === 'mes' && (
-            <input type="month" className={SEL} value={mesFiltro} onChange={e=>setMesFiltro(e.target.value)}/>
+            <Input type="month" className="w-auto!" value={mesFiltro} onChange={e=>setMesFiltro(e.target.value)}/>
           )}
           {periodo === 'anio' && (
-            <select className={SEL} value={anioFiltro} onChange={e=>setAnioFiltro(e.target.value)}>
+            <Select className="w-auto!" value={anioFiltro} onChange={e=>setAnioFiltro(e.target.value)}>
               <option value="">Seleccionar año</option>
               {aniosDisp.map(a=><option key={a} value={a}>{a}</option>)}
-            </select>
+            </Select>
           )}
           {(periodo !== 'all' || busqueda) && (
             <button onClick={()=>{setPeriodo('all');setMesFiltro('');setAnioFiltro('');setBusqueda('')}}
@@ -351,45 +341,30 @@ export default function ContabilidadReportes() {
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-white/8">
-            <table className="w-full border-collapse text-[12px]">
-              <thead><tr>
-                <TH c="N° OC"/><TH c="Fecha"/><TH c="Proveedor"/><TH c="RUC"/><TH c="Items" r/>
-                <TH c="Base Imponible" r/><TH c="IGV 18%" r/><TH c="Total" r/><TH c="Estado"/>
-              </tr></thead>
-              <tbody>
-                {compras.length===0 && (
-                  <tr><td colSpan={9} className="text-center py-8 text-[#5f6f80] text-[12px]">
-                    Sin compras en el período seleccionado
-                  </td></tr>
-                )}
-                {compras.map(c=>(
-                  <tr key={c.id} className="border-b border-white/5 last:border-0 hover:bg-white/2">
-                    <TD c={c.numero} mono green/>
-                    <TD c={formatDate(c.fecha)}/>
-                    <TD c={c.provNombre} bold/>
-                    <TD c={c.provRUC} mono/>
-                    <TD c={c.items?.length||0} r/>
-                    <TD c={formatCurrency(c.base,simboloMoneda)} mono r/>
-                    <TD c={formatCurrency(c.igv,simboloMoneda)} mono r/>
-                    <TD c={formatCurrency(c.total,simboloMoneda)} mono bold r/>
-                    <td className="px-3.5 py-2.5">
-                      <Badge variant={c.estado==='RECIBIDA'?'success':'warning'}>{c.estado}</Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              {compras.length>0 && (
-                <tfoot><tr className="bg-[#1a2230]">
-                  <td colSpan={5} className="px-3.5 py-2.5 text-[11px] font-bold text-[#5f6f80] uppercase">TOTALES — {compras.length} OC</td>
-                  <TD c={formatCurrency(totCompras.base, simboloMoneda)} mono bold r/>
-                  <TD c={formatCurrency(totCompras.igv,  simboloMoneda)} mono bold r/>
-                  <td className="px-3.5 py-2.5 text-right font-mono font-bold text-[14px] text-[#00c896]">{formatCurrency(totCompras.total,simboloMoneda)}</td>
-                  <td/>
-                </tr></tfoot>
-              )}
-            </table>
-          </div>
+          <DataTable
+            rows={compras}
+            rowKey={c => c.id}
+            emptyTitle="Sin compras en el período seleccionado"
+            columns={[
+              { key: 'numero', header: 'N° OC', render: c => <span className="font-mono text-[12px] text-green-400">{c.numero}</span> },
+              { key: 'fecha', header: 'Fecha', render: c => <span className="text-[12px] text-[#9ba8b6]">{formatDate(c.fecha)}</span> },
+              { key: 'proveedor', header: 'Proveedor', render: c => <span className="text-[12px] text-[#e8edf2] font-semibold">{c.provNombre}</span> },
+              { key: 'ruc', header: 'RUC', render: c => <span className="font-mono text-[12px] text-[#9ba8b6]">{c.provRUC}</span> },
+              { key: 'items', header: 'Items', align: 'right', render: c => <span className="text-[12px] text-[#9ba8b6]">{c.items?.length||0}</span> },
+              { key: 'base', header: 'Base Imponible', align: 'right', render: c => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatCurrency(c.base,simboloMoneda)}</span> },
+              { key: 'igv', header: 'IGV 18%', align: 'right', render: c => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatCurrency(c.igv,simboloMoneda)}</span> },
+              { key: 'total', header: 'Total', align: 'right', render: c => <span className="font-mono text-[12px] text-[#e8edf2] font-semibold">{formatCurrency(c.total,simboloMoneda)}</span> },
+              { key: 'estado', header: 'Estado', render: c => <Badge variant={c.estado==='RECIBIDA'?'success':'warning'}>{c.estado}</Badge> },
+            ]}
+            footerRow={compras.length>0 ? [
+              <span className="text-[11px] font-bold text-[#5f6f80] uppercase">TOTALES — {compras.length} OC</span>,
+              null, null, null, null,
+              <span className="font-mono">{formatCurrency(totCompras.base, simboloMoneda)}</span>,
+              <span className="font-mono">{formatCurrency(totCompras.igv, simboloMoneda)}</span>,
+              <span className="font-mono text-[14px] text-[#00c896]">{formatCurrency(totCompras.total,simboloMoneda)}</span>,
+              null,
+            ] : undefined}
+          />
         </div>
       )}
 
@@ -411,58 +386,40 @@ export default function ContabilidadReportes() {
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-white/8">
-            <table className="w-full border-collapse text-[12px]">
-              <thead><tr>
-                <TH c="N° Despacho"/><TH c="Guía"/><TH c="Fecha"/><TH c="Cliente"/><TH c="Ítems" r/>
-                <TH c="Base Imponible" r/><TH c="IGV 18%" r/><TH c="Total" r/>
-                <TH c="Costo" r/><TH c="Margen" r/><TH c="Estado"/>
-              </tr></thead>
-              <tbody>
-                {ventas.length===0 && (
-                  <tr><td colSpan={11} className="text-center py-8 text-[#5f6f80] text-[12px]">
-                    Sin ventas despachadas en el período seleccionado
-                  </td></tr>
-                )}
-                {ventas.map((v,i)=>(
-                  <tr key={i} className="border-b border-white/5 last:border-0 hover:bg-white/2">
-                    <TD c={v.documento} mono green/>
-                    <TD c={v.guia} mono/>
-                    <TD c={formatDate(v.fecha)}/>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#e8edf2] font-medium max-w-40 truncate">{v.cliente}</td>
-                    <TD c={v.items?.length||0} r/>
-                    <TD c={formatCurrency(v.base,simboloMoneda)} mono r/>
-                    <TD c={formatCurrency(v.igv,simboloMoneda)} mono r/>
-                    <TD c={formatCurrency(v.total,simboloMoneda)} mono bold r/>
-                    <TD c={formatCurrency(v.costoTotal,simboloMoneda)} mono r/>
-                    <td className="px-3.5 py-2.5 text-right font-mono text-[12px]">
-                      <span className={v.margen>=20?'text-green-400':v.margen>=0?'text-amber-400':'text-red-400'}>
-                        {v.margen.toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="px-3.5 py-2.5">
-                      <Badge variant={v.estado==='ENTREGADO'?'success':'info'}>{v.estado}</Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              {ventas.length>0 && (
-                <tfoot><tr className="bg-[#1a2230]">
-                  <td colSpan={5} className="px-3.5 py-2.5 text-[11px] font-bold text-[#5f6f80] uppercase">TOTALES — {ventas.length} despachos</td>
-                  <TD c={formatCurrency(totVentas.base, simboloMoneda)} mono bold r/>
-                  <TD c={formatCurrency(totVentas.igv,  simboloMoneda)} mono bold r/>
-                  <td className="px-3.5 py-2.5 text-right font-mono font-bold text-[14px] text-[#00c896]">{formatCurrency(totVentas.total,simboloMoneda)}</td>
-                  <TD c={formatCurrency(totVentas.costo,simboloMoneda)} mono bold r/>
-                  <td className="px-3.5 py-2.5 text-right font-mono text-[12px]">
-                    <span className={totVentas.total>0?(((totVentas.total-totVentas.costo)/totVentas.total*100)>=20?'text-green-400':'text-amber-400'):'text-[#5f6f80]'}>
-                      {totVentas.total>0?((totVentas.total-totVentas.costo)/totVentas.total*100).toFixed(1):0}%
-                    </span>
-                  </td>
-                  <td/>
-                </tr></tfoot>
-              )}
-            </table>
-          </div>
+          <DataTable
+            rows={ventas}
+            rowKey={v => `${v.documento}-${v.guia}-${v.fecha}`}
+            emptyTitle="Sin ventas despachadas en el período seleccionado"
+            columns={[
+              { key: 'documento', header: 'N° Despacho', render: v => <span className="font-mono text-[12px] text-green-400">{v.documento}</span> },
+              { key: 'guia', header: 'Guía', render: v => <span className="font-mono text-[12px] text-[#9ba8b6]">{v.guia}</span> },
+              { key: 'fecha', header: 'Fecha', render: v => <span className="text-[12px] text-[#9ba8b6]">{formatDate(v.fecha)}</span> },
+              { key: 'cliente', header: 'Cliente', render: v => <span className="text-[12px] text-[#e8edf2] font-medium max-w-40 truncate block">{v.cliente}</span> },
+              { key: 'items', header: 'Ítems', align: 'right', render: v => <span className="text-[12px] text-[#9ba8b6]">{v.items?.length||0}</span> },
+              { key: 'base', header: 'Base Imponible', align: 'right', render: v => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatCurrency(v.base,simboloMoneda)}</span> },
+              { key: 'igv', header: 'IGV 18%', align: 'right', render: v => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatCurrency(v.igv,simboloMoneda)}</span> },
+              { key: 'total', header: 'Total', align: 'right', render: v => <span className="font-mono text-[12px] text-[#e8edf2] font-semibold">{formatCurrency(v.total,simboloMoneda)}</span> },
+              { key: 'costo', header: 'Costo', align: 'right', render: v => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatCurrency(v.costoTotal,simboloMoneda)}</span> },
+              { key: 'margen', header: 'Margen', align: 'right', render: v => (
+                  <span className={`font-mono text-[12px] ${v.margen>=20?'text-green-400':v.margen>=0?'text-amber-400':'text-red-400'}`}>
+                    {v.margen.toFixed(1)}%
+                  </span>
+                ) },
+              { key: 'estado', header: 'Estado', render: v => <Badge variant={v.estado==='ENTREGADO'?'success':'info'}>{v.estado}</Badge> },
+            ]}
+            footerRow={ventas.length>0 ? [
+              <span className="text-[11px] font-bold text-[#5f6f80] uppercase">TOTALES — {ventas.length} despachos</span>,
+              null, null, null, null,
+              <span className="font-mono">{formatCurrency(totVentas.base, simboloMoneda)}</span>,
+              <span className="font-mono">{formatCurrency(totVentas.igv, simboloMoneda)}</span>,
+              <span className="font-mono text-[14px] text-[#00c896]">{formatCurrency(totVentas.total,simboloMoneda)}</span>,
+              <span className="font-mono">{formatCurrency(totVentas.costo,simboloMoneda)}</span>,
+              <span className={totVentas.total>0?(((totVentas.total-totVentas.costo)/totVentas.total*100)>=20?'text-green-400':'text-amber-400'):'text-[#5f6f80]'}>
+                {totVentas.total>0?((totVentas.total-totVentas.costo)/totVentas.total*100).toFixed(1):0}%
+              </span>,
+              null,
+            ] : undefined}
+          />
         </div>
       )}
 
@@ -476,44 +433,32 @@ export default function ContabilidadReportes() {
             </div>
             <Btn variant="primary" size="sm" onClick={exportarLibroComprasCSV}><Download size={12}/> Exportar CSV</Btn>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-white/8">
-            <table className="w-full border-collapse text-[12px]">
-              <thead><tr>
-                <TH c="Correl."/><TH c="Fecha"/><TH c="Tipo"/><TH c="Serie"/><TH c="N° Doc"/>
-                <TH c="RUC Proveedor"/><TH c="Proveedor"/>
-                <TH c="Base Grav." r/><TH c="IGV" r/><TH c="Total" r/>
-              </tr></thead>
-              <tbody>
-                {libroCompras.map((l,i)=>(
-                  <tr key={i} className="border-b border-white/5 last:border-0 hover:bg-white/2">
-                    <TD c={l.correlativo} mono/>
-                    <TD c={formatDate(l.fecha)}/>
-                    <TD c={l.tipoDoc} mono/>
-                    <TD c={l.serie} mono/>
-                    <TD c={l.numero} mono green/>
-                    <TD c={l.rucProveedor} mono/>
-                    <TD c={l.proveedor} bold/>
-                    <TD c={formatCurrency(l.baseGravada,simboloMoneda)} mono r/>
-                    <TD c={formatCurrency(l.igv,simboloMoneda)} mono r/>
-                    <TD c={formatCurrency(l.total,simboloMoneda)} mono bold r/>
-                  </tr>
-                ))}
-                {libroCompras.length===0 && (
-                  <tr><td colSpan={10} className="text-center py-8 text-[#5f6f80] text-[12px]">Sin registros para el período</td></tr>
-                )}
-              </tbody>
-              {libroCompras.length>0 && (
-                <tfoot><tr className="bg-[#1a2230]">
-                  <td colSpan={7} className="px-3.5 py-2.5 text-[11px] font-bold text-[#5f6f80] uppercase">TOTALES</td>
-                  <TD c={formatCurrency(totCompras.base, simboloMoneda)} mono bold r/>
-                  <TD c={formatCurrency(totCompras.igv,  simboloMoneda)} mono bold r/>
-                  <td className="px-3.5 py-2.5 text-right font-mono font-bold text-[#00c896]">{formatCurrency(totCompras.total,simboloMoneda)}</td>
-                </tr></tfoot>
-              )}
-            </table>
-          </div>
+          <DataTable
+            rows={libroCompras}
+            rowKey={l => l.correlativo}
+            emptyTitle="Sin registros para el período"
+            columns={[
+              { key: 'correlativo', header: 'Correl.', render: l => <span className="font-mono text-[12px] text-[#9ba8b6]">{l.correlativo}</span> },
+              { key: 'fecha', header: 'Fecha', render: l => <span className="text-[12px] text-[#9ba8b6]">{formatDate(l.fecha)}</span> },
+              { key: 'tipoDoc', header: 'Tipo', render: l => <span className="font-mono text-[12px] text-[#9ba8b6]">{l.tipoDoc}</span> },
+              { key: 'serie', header: 'Serie', render: l => <span className="font-mono text-[12px] text-[#9ba8b6]">{l.serie}</span> },
+              { key: 'numero', header: 'N° Doc', render: l => <span className="font-mono text-[12px] text-green-400">{l.numero}</span> },
+              { key: 'rucProveedor', header: 'RUC Proveedor', render: l => <span className="font-mono text-[12px] text-[#9ba8b6]">{l.rucProveedor}</span> },
+              { key: 'proveedor', header: 'Proveedor', render: l => <span className="text-[12px] text-[#e8edf2] font-semibold">{l.proveedor}</span> },
+              { key: 'base', header: 'Base Grav.', align: 'right', render: l => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatCurrency(l.baseGravada,simboloMoneda)}</span> },
+              { key: 'igv', header: 'IGV', align: 'right', render: l => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatCurrency(l.igv,simboloMoneda)}</span> },
+              { key: 'total', header: 'Total', align: 'right', render: l => <span className="font-mono text-[12px] text-[#e8edf2] font-semibold">{formatCurrency(l.total,simboloMoneda)}</span> },
+            ]}
+            footerRow={libroCompras.length>0 ? [
+              <span className="text-[11px] font-bold text-[#5f6f80] uppercase">TOTALES</span>,
+              null, null, null, null, null, null,
+              <span className="font-mono">{formatCurrency(totCompras.base, simboloMoneda)}</span>,
+              <span className="font-mono">{formatCurrency(totCompras.igv, simboloMoneda)}</span>,
+              <span className="font-mono text-[#00c896]">{formatCurrency(totCompras.total,simboloMoneda)}</span>,
+            ] : undefined}
+          />
           <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg text-[11px] text-[#9ba8b6]" style={{background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.20)'}}>
-            💡 <span>Exporta a CSV y abre en Excel para generar el PDT 621 o importar al sistema contable. El Tipo Doc <strong className="text-[#e8edf2]">01 = Factura</strong>. Verifica el RUC del proveedor antes de declarar.</span>
+            <span>Exporta a CSV y abre en Excel para generar el PDT 621 o importar al sistema contable. El Tipo Doc <strong className="text-[#e8edf2]">01 = Factura</strong>. Verifica el RUC del proveedor antes de declarar.</span>
           </div>
         </div>
       )}
@@ -528,42 +473,30 @@ export default function ContabilidadReportes() {
             </div>
             <Btn variant="primary" size="sm" onClick={exportarLibroVentasCSV}><Download size={12}/> Exportar CSV</Btn>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-white/8">
-            <table className="w-full border-collapse text-[12px]">
-              <thead><tr>
-                <TH c="Correl."/><TH c="Fecha"/><TH c="Tipo"/><TH c="N° Doc"/>
-                <TH c="RUC Cliente"/><TH c="Cliente"/><TH c="Guía Remisión"/>
-                <TH c="Base Grav." r/><TH c="IGV" r/><TH c="Total" r/>
-              </tr></thead>
-              <tbody>
-                {libroVentas.map((l,i)=>(
-                  <tr key={i} className="border-b border-white/5 last:border-0 hover:bg-white/2">
-                    <TD c={l.correlativo} mono/>
-                    <TD c={formatDate(l.fecha)}/>
-                    <TD c={l.tipoDoc} mono/>
-                    <TD c={l.numero} mono green/>
-                    <TD c={l.rucCliente} mono/>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#e8edf2] font-medium max-w-36 truncate">{l.cliente}</td>
-                    <TD c={l.guia||'—'} mono/>
-                    <TD c={formatCurrency(l.baseGravada,simboloMoneda)} mono r/>
-                    <TD c={formatCurrency(l.igv,simboloMoneda)} mono r/>
-                    <TD c={formatCurrency(l.total,simboloMoneda)} mono bold r/>
-                  </tr>
-                ))}
-                {libroVentas.length===0 && (
-                  <tr><td colSpan={9} className="text-center py-8 text-[#5f6f80] text-[12px]">Sin registros para el período</td></tr>
-                )}
-              </tbody>
-              {libroVentas.length>0 && (
-                <tfoot><tr className="bg-[#1a2230]">
-                  <td colSpan={7} className="px-3.5 py-2.5 text-[11px] font-bold text-[#5f6f80] uppercase">TOTALES</td>
-                  <TD c={formatCurrency(totVentas.base,simboloMoneda)} mono bold r/>
-                  <TD c={formatCurrency(totVentas.igv, simboloMoneda)} mono bold r/>
-                  <td className="px-3.5 py-2.5 text-right font-mono font-bold text-[#00c896]">{formatCurrency(totVentas.total,simboloMoneda)}</td>
-                </tr></tfoot>
-              )}
-            </table>
-          </div>
+          <DataTable
+            rows={libroVentas}
+            rowKey={l => l.correlativo}
+            emptyTitle="Sin registros para el período"
+            columns={[
+              { key: 'correlativo', header: 'Correl.', render: l => <span className="font-mono text-[12px] text-[#9ba8b6]">{l.correlativo}</span> },
+              { key: 'fecha', header: 'Fecha', render: l => <span className="text-[12px] text-[#9ba8b6]">{formatDate(l.fecha)}</span> },
+              { key: 'tipoDoc', header: 'Tipo', render: l => <span className="font-mono text-[12px] text-[#9ba8b6]">{l.tipoDoc}</span> },
+              { key: 'numero', header: 'N° Doc', render: l => <span className="font-mono text-[12px] text-green-400">{l.numero}</span> },
+              { key: 'rucCliente', header: 'RUC Cliente', render: l => <span className="font-mono text-[12px] text-[#9ba8b6]">{l.rucCliente}</span> },
+              { key: 'cliente', header: 'Cliente', render: l => <span className="text-[12px] text-[#e8edf2] font-medium max-w-36 truncate block">{l.cliente}</span> },
+              { key: 'guia', header: 'Guía Remisión', render: l => <span className="font-mono text-[12px] text-[#9ba8b6]">{l.guia||'—'}</span> },
+              { key: 'base', header: 'Base Grav.', align: 'right', render: l => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatCurrency(l.baseGravada,simboloMoneda)}</span> },
+              { key: 'igv', header: 'IGV', align: 'right', render: l => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatCurrency(l.igv,simboloMoneda)}</span> },
+              { key: 'total', header: 'Total', align: 'right', render: l => <span className="font-mono text-[12px] text-[#e8edf2] font-semibold">{formatCurrency(l.total,simboloMoneda)}</span> },
+            ]}
+            footerRow={libroVentas.length>0 ? [
+              <span className="text-[11px] font-bold text-[#5f6f80] uppercase">TOTALES</span>,
+              null, null, null, null, null, null,
+              <span className="font-mono">{formatCurrency(totVentas.base, simboloMoneda)}</span>,
+              <span className="font-mono">{formatCurrency(totVentas.igv, simboloMoneda)}</span>,
+              <span className="font-mono text-[#00c896]">{formatCurrency(totVentas.total,simboloMoneda)}</span>,
+            ] : undefined}
+          />
         </div>
       )}
 
@@ -581,37 +514,25 @@ export default function ContabilidadReportes() {
               exportCSV(rows,'resumen_mensual')
             }}><Download size={12}/> CSV</Btn>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-white/8">
-            <table className="w-full border-collapse text-[12px]">
-              <thead><tr>
-                <TH c="Mes"/>
-                <TH c="Base Compras" r/><TH c="IGV Compras" r/><TH c="Total Compras" r/>
-                <TH c="Base Ventas" r/><TH c="IGV Ventas" r/><TH c="Total Ventas" r/>
-                <TH c="Saldo" r/>
-              </tr></thead>
-              <tbody>
-                {resumenMensual.map((r,i)=>(
-                  <tr key={i} className="border-b border-white/5 last:border-0 hover:bg-white/2">
-                    <td className="px-3.5 py-2.5 text-[12px] font-semibold text-[#e8edf2]">{r.mesLabel}</td>
-                    <TD c={formatCurrency(r.compras,simboloMoneda)} mono r/>
-                    <TD c={formatCurrency(r.igvCompras,simboloMoneda)} mono r/>
-                    <TD c={formatCurrency(r.totalCompras,simboloMoneda)} mono bold r/>
-                    <TD c={formatCurrency(r.ventas,simboloMoneda)} mono r/>
-                    <TD c={formatCurrency(r.igvVentas,simboloMoneda)} mono r/>
-                    <TD c={formatCurrency(r.totalVentas,simboloMoneda)} mono bold r/>
-                    <td className="px-3.5 py-2.5 text-right font-mono text-[12px] font-bold">
-                      <span className={r.saldo>=0?'text-green-400':'text-red-400'}>
-                        {r.saldo>=0?'+':''}{formatCurrency(r.saldo,simboloMoneda)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-                {resumenMensual.length===0 && (
-                  <tr><td colSpan={8} className="text-center py-8 text-[#5f6f80] text-[12px]">Sin datos disponibles</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            rows={resumenMensual}
+            rowKey={r => r.mes}
+            emptyTitle="Sin datos disponibles"
+            columns={[
+              { key: 'mes', header: 'Mes', render: r => <span className="text-[12px] font-semibold text-[#e8edf2]">{r.mesLabel}</span> },
+              { key: 'compras', header: 'Base Compras', align: 'right', render: r => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatCurrency(r.compras,simboloMoneda)}</span> },
+              { key: 'igvCompras', header: 'IGV Compras', align: 'right', render: r => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatCurrency(r.igvCompras,simboloMoneda)}</span> },
+              { key: 'totalCompras', header: 'Total Compras', align: 'right', render: r => <span className="font-mono text-[12px] text-[#e8edf2] font-semibold">{formatCurrency(r.totalCompras,simboloMoneda)}</span> },
+              { key: 'ventas', header: 'Base Ventas', align: 'right', render: r => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatCurrency(r.ventas,simboloMoneda)}</span> },
+              { key: 'igvVentas', header: 'IGV Ventas', align: 'right', render: r => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatCurrency(r.igvVentas,simboloMoneda)}</span> },
+              { key: 'totalVentas', header: 'Total Ventas', align: 'right', render: r => <span className="font-mono text-[12px] text-[#e8edf2] font-semibold">{formatCurrency(r.totalVentas,simboloMoneda)}</span> },
+              { key: 'saldo', header: 'Saldo', align: 'right', render: r => (
+                  <span className={`font-mono text-[12px] font-bold ${r.saldo>=0?'text-green-400':'text-red-400'}`}>
+                    {r.saldo>=0?'+':''}{formatCurrency(r.saldo,simboloMoneda)}
+                  </span>
+                ) },
+            ]}
+          />
           <div className="grid grid-cols-3 gap-3">
             {[
               { label:'Total acum. compras', val:formatCurrency(resumenMensual.reduce((s,r)=>s+r.totalCompras,0),simboloMoneda), color:'#3b82f6' },
@@ -626,6 +547,27 @@ export default function ContabilidadReportes() {
           </div>
         </div>
       )}
+
+      {/* Guía de uso */}
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Reportes Contables?
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[
+            { t:'Reporte de Compras / Ventas', d:'Lista las OC recibidas y los despachos entregados con su base imponible, IGV (18%) y total — la fuente de datos de todo el módulo.' },
+            { t:'Libro de Compras / Ventas', d:'Formato listo para declaración SUNAT (PDT 621): correlativo, tipo de documento, RUC y montos desglosados por operación.' },
+            { t:'Resumen Mensual', d:'Compara compras vs. ventas mes a mes, con el saldo (ventas − compras) y el IGV neto a pagar o a favor.' },
+            { t:'Filtro de período', d:'Filtra por mes o año específico para declarar un período tributario puntual, o deja "Todo el período" para ver el histórico completo.' },
+            { t:'Exportar a CSV', d:'Cada pestaña exporta su tabla a CSV, lista para abrir en Excel o importar al sistema contable / PDT 621.' },
+          ].map(({t,d}) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[12px] font-semibold text-[#e8edf2] mb-1">{t}</div>
+              <div className="text-[11px] text-[#9ba8b6] leading-relaxed">{d}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

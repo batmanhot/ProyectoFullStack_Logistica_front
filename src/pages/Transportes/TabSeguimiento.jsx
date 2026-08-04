@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Truck, Clock, Navigation as NavIcon } from 'lucide-react'
 import { formatDate, formatTime, fechaHoy } from '../../utils/helpers'
-import { Badge, Btn } from '../../components/ui/index'
+import { Badge, Btn, DataTable } from '../../components/ui/index'
 import DateInput from '../../components/ui/DateInput'
 import { useRutasList } from '../../queries/rutas.queries'
 import { useTransportistasList } from '../../queries/transportistas.queries'
@@ -120,7 +120,7 @@ export default function TabSeguimiento() {
                               </td>
                               <td className="px-3 py-2.5 text-[#5f6f80] truncate max-w-[180px] hidden md:table-cell">{des?.direccionEntrega || '—'}</td>
                               <td className="px-3 py-2.5 font-mono text-[11px] text-[#9ba8b6]">
-                                {p.horaLlegada ? <span className="text-green-400">{p.horaLlegada}</span> : p.estado === 'EN_CAMINO' ? <span className="text-blue-400 animate-pulse">En camino...</span> : '—'}
+                                {p.horaLlegada ? <span className="text-green-400">{formatTime(p.horaLlegada) || p.horaLlegada}</span> : p.estado === 'EN_CAMINO' ? <span className="text-blue-400 animate-pulse">En camino...</span> : '—'}
                               </td>
                               <td className="px-3 py-2.5">
                                 <span className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ background:`${dotCol}22`, color:dotCol }}>
@@ -196,56 +196,64 @@ export default function TabSeguimiento() {
           </div>
         </div>
 
-        {rutasHistorial.length === 0 ? (
-          <div className="px-5 py-10 flex flex-col items-center gap-3 text-[#5f6f80]">
-            <NavIcon size={28} className="opacity-30"/>
-            <div className="text-center">
-              <p className="text-[13px] font-medium text-[#9ba8b6]">Sin rutas en este período</p>
-              <p className="text-[11px] mt-0.5">Ajusta el rango de fechas</p>
+        <DataTable
+          rows={rutasHistorial}
+          rowKey={ruta => ruta.id}
+          emptyIcon={NavIcon}
+          emptyTitle="Sin rutas en este período"
+          emptyDescription="Ajusta el rango de fechas"
+          columns={[
+            { key: 'numero', header: 'N° Ruta', render: ruta => <span className="font-mono text-[12px] font-semibold text-[#00c896]">{ruta.numero}</span> },
+            { key: 'fechaSalida', header: 'Fecha Salida', render: ruta => <span className="text-[#9ba8b6]">{formatDate(ruta.fechaSalida)} <span className="text-[#5f6f80] text-[11px]">{formatTime(ruta.fechaSalida) || ''}</span></span> },
+            { key: 'transportista', header: 'Transportista', render: ruta => {
+                const tra = transportistas.find(t => t.id === ruta.transportistaId)
+                return (
+                  <div>
+                    <div className="text-[#e8edf2] font-medium">{tra?.nombre || '—'}</div>
+                    {tra?.placa && <div className="text-[11px] text-[#5f6f80] font-mono">{tra.placa}</div>}
+                  </div>
+                )
+              } },
+            { key: 'paradas', header: 'Paradas', render: ruta => <span className="text-[#9ba8b6]">{(ruta.paradas||[]).length}</span> },
+            { key: 'entregas', header: 'Entregas', render: ruta => {
+                const paradas    = ruta.paradas || []
+                const entregadas = paradas.filter(p => p.estado === 'ENTREGADO').length
+                const total      = paradas.length
+                return (
+                  <div className="flex items-center gap-2">
+                    <div className="w-12 h-1.5 bg-[#0e1117] rounded-full overflow-hidden">
+                      <div className="h-full bg-green-500 rounded-full" style={{ width: total ? `${(entregadas/total)*100}%` : '0%' }}/>
+                    </div>
+                    <span className="text-[11px] text-[#9ba8b6]">{entregadas}/{total}</span>
+                  </div>
+                )
+              } },
+            { key: 'retorno', header: 'Retorno', render: ruta => <span className="font-mono text-[11px] text-[#9ba8b6]">{formatTime(ruta.fechaRetorno) || <span className="text-[#374151]">—</span>}</span> },
+            { key: 'estado', header: 'Estado', render: ruta => {
+                const meta = ESTADO_RUTA[ruta.estado] || ESTADO_RUTA.COMPLETADA
+                const Icon = meta?.icon || Truck
+                return <Badge variant={meta?.color || 'neutral'}><Icon size={9}/> {meta?.label || ruta.estado}</Badge>
+              } },
+          ]}
+        />
+      </div>
+
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Seguimiento?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          {[
+            ['1. En ruta ahora', 'Muestra en vivo cada ruta actualmente en tránsito, con el % de avance y el estado de cada parada (entregada, en camino o no entregada).'],
+            ['2. Próximas salidas', 'Lista las rutas ya programadas que todavía no inician, para anticipar la carga de trabajo del día.'],
+            ['3. Historial de rutas', 'Registro completo de rutas pasadas — filtra por rango de fechas para revisar entregas, retornos y resultado final de cada viaje.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
             </div>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-[13px]">
-              <thead><tr className="bg-[#1a2230]">
-                {['N° Ruta','Fecha Salida','Transportista','Paradas','Entregas','Retorno','Estado'].map(h => (
-                  <th key={h} className="px-4 py-2.5 text-left text-[10px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] border-b border-white/6 whitespace-nowrap">{h}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {rutasHistorial.map(ruta => {
-                  const tra        = transportistas.find(t => t.id === ruta.transportistaId)
-                  const meta       = ESTADO_RUTA[ruta.estado] || ESTADO_RUTA.COMPLETADA
-                  const Icon       = meta?.icon || Truck
-                  const paradas    = ruta.paradas || []
-                  const entregadas = paradas.filter(p => p.estado === 'ENTREGADO').length
-                  const total      = paradas.length
-                  return (
-                    <tr key={ruta.id} className="border-b border-white/4 last:border-0 hover:bg-white/2">
-                      <td className="px-4 py-3 font-mono text-[12px] font-semibold text-[#00c896]">{ruta.numero}</td>
-                      <td className="px-4 py-3 text-[#9ba8b6]">{formatDate(ruta.fechaSalida)} <span className="text-[#5f6f80] text-[11px]">{formatTime(ruta.fechaSalida) || ''}</span></td>
-                      <td className="px-4 py-3">
-                        <div className="text-[#e8edf2] font-medium">{tra?.nombre || '—'}</div>
-                        {tra?.placa && <div className="text-[11px] text-[#5f6f80] font-mono">{tra.placa}</div>}
-                      </td>
-                      <td className="px-4 py-3 text-center text-[#9ba8b6]">{total}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-12 h-1.5 bg-[#0e1117] rounded-full overflow-hidden">
-                            <div className="h-full bg-green-500 rounded-full" style={{ width: total ? `${(entregadas/total)*100}%` : '0%' }}/>
-                          </div>
-                          <span className="text-[11px] text-[#9ba8b6]">{entregadas}/{total}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-[11px] text-[#9ba8b6]">{formatTime(ruta.fechaRetorno) || <span className="text-[#374151]">—</span>}</td>
-                      <td className="px-4 py-3"><Badge variant={meta?.color || 'neutral'}><Icon size={9}/> {meta?.label || ruta.estado}</Badge></td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+          ))}
+        </div>
       </div>
     </div>
   )

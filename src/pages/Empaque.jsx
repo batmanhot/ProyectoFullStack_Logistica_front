@@ -3,13 +3,10 @@ import { Package, Printer, CheckCircle, Search, Box, Filter } from 'lucide-react
 import JsBarcode from 'jsbarcode'
 import { formatDate } from '../utils/helpers'
 import { useApp } from '../store/AppContext'
-import { EmptyState, Badge, Btn, Modal, Field, Alert } from '../components/ui/index'
+import { EmptyState, Badge, Btn, Modal, Field, Input, Select, Alert } from '../components/ui/index'
 import { useClientesList } from '../queries/clientes.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useEmpaquesList, useUpsertEmpaque } from '../queries/empaques.queries'
-
-const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
-const SEL = SI + ' pr-8'
 
 const TIPOS_CAJA = [
   { id:'c1', label:'Caja XS',   dim:'20×15×10 cm',   pesoMax:2   },
@@ -184,19 +181,19 @@ export default function Empaque() {
         <div className="flex flex-wrap gap-2 mb-4">
           <div className="relative flex-1 min-w-[200px]">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI+' pl-7'} placeholder="Buscar número o cliente..."
+            <Input className="pl-7" placeholder="Buscar número o cliente..."
               value={busq} onChange={e=>setBusq(e.target.value)}/>
           </div>
-          <select className={SEL} style={{width:160}} value={filtEst} onChange={e=>setFiltEst(e.target.value)}>
+          <Select style={{width:160}} value={filtEst} onChange={e=>setFiltEst(e.target.value)}>
             <option value="">Estado despacho</option>
             {ESTADOS_ACTIVOS.map(e=><option key={e} value={e}>{e}</option>)}
-          </select>
-          <select className={SEL} style={{width:160}} value={filtEmp} onChange={e=>setFiltEmp(e.target.value)}>
+          </Select>
+          <Select style={{width:160}} value={filtEmp} onChange={e=>setFiltEmp(e.target.value)}>
             <option value="">Estado empaque</option>
             <option value="sin">Sin empaque</option>
             <option value="pendiente">Pendiente</option>
             <option value="confirmado">Confirmado</option>
-          </select>
+          </Select>
           {(busq||filtEst||filtEmp) && (
             <Btn variant="ghost" size="sm" onClick={()=>{setBusq('');setFiltEst('');setFiltEmp('')}}>Limpiar</Btn>
           )}
@@ -287,7 +284,7 @@ export default function Empaque() {
           {[
             ['1. Despacho activo',   'Este módulo muestra todos los despachos que están en curso: PEDIDO, APROBADO, PICKING, LISTO o DESPACHADO.'],
             ['2. Registrar empaque', 'Haz clic en "Registrar empaque" en cualquier despacho. Elige el tipo de caja, número de bultos y peso total.'],
-            ['3. Confirmar packing', 'Usa "Confirmar empaque" para marcar el packing como finalizado. Eso actualiza el badge a "Empaque OK".'],
+            ['3. Confirmar packing', 'Usa "Confirmar empaque" para marcar el packing como finalizado. Eso actualiza el badge a "Empaque OK" — y si el picking ya estaba 100% completo, el despacho pasa a "Listo" automáticamente (disponible de inmediato en Transportes).'],
             ['4. Imprimir etiqueta', 'Una vez confirmado, el botón "Etiqueta" genera e imprime la etiqueta de envío con todos los datos del destinatario.'],
           ].map(([t, d]) => (
             <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
@@ -354,11 +351,11 @@ function ModalEmpaque({ despacho, productos, empaque, tiposCaja, onClose, onSave
       </div>
 
       <Field label="Tipo de caja / empaque">
-        <select className={SEL} value={form.tipoCajaId} onChange={e=>f('tipoCajaId',e.target.value)}>
+        <Select value={form.tipoCajaId} onChange={e=>f('tipoCajaId',e.target.value)}>
           {tiposCaja.map(c=>(
             <option key={c.id} value={c.id}>{c.label} — {c.dim} (máx {c.pesoMax} kg)</option>
           ))}
-        </select>
+        </Select>
       </Field>
       {cajaSelected && (
         <div className="flex gap-4 text-[11px] text-[#5f6f80] -mt-2">
@@ -369,17 +366,17 @@ function ModalEmpaque({ despacho, productos, empaque, tiposCaja, onClose, onSave
 
       <div className="grid grid-cols-2 gap-3.5">
         <Field label="N° de bultos">
-          <input type="number" className={SI} value={form.bultos}
+          <Input type="number" value={form.bultos}
             onChange={e=>f('bultos',Math.max(1,+e.target.value))} min="1"/>
         </Field>
         <Field label="Peso total (kg)">
-          <input type="number" className={SI} value={form.pesoTotal}
+          <Input type="number" value={form.pesoTotal}
             onChange={e=>f('pesoTotal', e.target.value ? +e.target.value : '')} min="0" step="0.1" placeholder="0.0"/>
         </Field>
       </div>
 
       <Field label="Instrucciones especiales">
-        <input className={SI} value={form.instrucciones}
+        <Input value={form.instrucciones}
           onChange={e=>f('instrucciones',e.target.value)}
           placeholder="Ej: No apilar, mantener frío, frágil arriba..."/>
       </Field>

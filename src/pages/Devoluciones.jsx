@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, RotateCcw, ArrowDownToLine, ArrowUpFromLine, Eye, X, Download, FileText } from 'lucide-react'
+import { Plus, Search, RotateCcw, ArrowDownToLine, ArrowUpFromLine, Eye, XCircle, X, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
-import { Modal, EmptyState, Btn, Field } from '../components/ui/index'
+import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, DataTable } from '../components/ui/index'
 import { useMovimientosList, useCrearMovimiento } from '../queries/movimientos.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
@@ -11,8 +11,6 @@ import { useClientesList } from '../queries/clientes.queries'
 import { exportarDevolucionesXLSX } from '../utils/exportXLSX'
 import { exportarDevolucionesPDF } from '../utils/exportPDF'
 
-const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
-const SEL = SI + ' pr-8'
 const MOTIVOS_CLI  = ['Error en pedido','Producto defectuoso','No solicitado','Exceso de cantidad','Cambio de producto','Otro']
 const MOTIVOS_PROV = ['Producto en mal estado','Cantidad incorrecta','Producto vencido','No coincide con OC','Acuerdo comercial','Otro']
 const ESTADOS_ITEM = ['BUENO','DAÑADO','VENCIDO','PARA REVISIÓN']
@@ -31,6 +29,7 @@ export default function Devoluciones() {
 
   const [modal,    setModal]    = useState(false)
   const [verDev,   setVerDev]   = useState(null)
+  const [anular,   setAnular]   = useState(null)
   const [busqueda, setBusqueda] = useState('')
   const [filtTipo, setFiltTipo] = useState('')
   const [filtAlm,  setFiltAlm]  = useState('')
@@ -77,6 +76,22 @@ export default function Devoluciones() {
     setModal(false)
   }
 
+  async function handleAnular(mov) {
+    const res = await crearMovimiento.mutateAsync({
+      tipo:          'AJUSTE',
+      direccion:     mov.tipo === 'ENTRADA' ? 'decremento' : 'incremento',
+      productoId:    mov.productoId,
+      almacenId:     mov.almacenId,
+      cantidad:      Number(mov.cantidad),
+      costoUnitario: Number(mov.costoUnitario || 0),
+      motivo:        `Anulación de devolución ${mov.documento || String(mov.id).slice(0, 8)}`,
+      documento:     `ANUL-${mov.documento || String(mov.id).slice(0, 8)}`,
+    })
+    if (res.error) { toast(res.error, 'error'); setAnular(null); return }
+    toast('Devolución anulada', 'success')
+    setAnular(null)
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
@@ -115,60 +130,59 @@ export default function Devoluciones() {
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <div className="relative flex-1 min-w-[180px]">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar producto o documento..."
+            <Input className="pl-8 !py-[5px] text-[12px]" placeholder="Buscar producto o documento..."
               value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select className={SEL} style={{width:165,padding:'5px 8px',fontSize:12}} value={filtTipo} onChange={e => setFiltTipo(e.target.value)}>
+          <Select style={{width:165,padding:'5px 8px',fontSize:12}} value={filtTipo} onChange={e => setFiltTipo(e.target.value)}>
             <option value="">Todos los tipos</option>
             <option value="ENTRADA">De cliente (entrada)</option>
             <option value="SALIDA">A proveedor (salida)</option>
-          </select>
-          <select className={SEL} style={{width:148,padding:'5px 8px',fontSize:12}} value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
+          </Select>
+          <Select style={{width:148,padding:'5px 8px',fontSize:12}} value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
             <option value="">Todos los almacenes</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
+          </Select>
           <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
           {hayFiltros && <Btn variant="ghost" size="sm" onClick={limpiarFiltros}><X size={12}/> Limpiar</Btn>}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[13px]">
-            <thead><tr>
-              {['Fecha','Documento','Tipo','Producto','Almacén','Cantidad','Total','Motivo','Acciones'].map((h, i) => (
-                <th key={h} className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 ${[5,6].includes(i) ? 'text-right' : 'text-left'}`}>{h}</th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {isLoading && <tr><td colSpan={9} className="text-center text-[#5f6f80] py-8 text-[12px]">Cargando devoluciones...</td></tr>}
-              {!isLoading && filtered.length === 0 && <tr><td colSpan={9}><EmptyState icon={RotateCcw} title="Sin devoluciones" description="Registra la primera devolución de cliente o proveedor."/></td></tr>}
-              {filtered.map(m => {
-                const p   = productMap.get(m.productoId)
-                const alm = almacenMap.get(m.almacenId)
-                const esCli = m.tipo === 'ENTRADA'
-                return (
-                  <tr key={m.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{formatDate(m.fecha || m.createdAt)}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#00c896]">{m.documento || '—'}</td>
-                    <td className="px-3.5 py-2.5">
-                      <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${esCli ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
-                        {esCli ? <ArrowDownToLine size={9}/> : <ArrowUpFromLine size={9}/>}
-                        {esCli ? 'Cliente' : 'Proveedor'}
-                      </span>
-                    </td>
-                    <td className="px-3.5 py-2.5"><div className="font-medium text-[#e8edf2]">{p?.nombre || '—'}</div><div className="text-[11px] text-[#5f6f80]">{p?.sku}</div></td>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6]">{alm?.nombre || '—'}</td>
-                    <td className={`px-3.5 py-2.5 font-mono text-[12px] text-right font-semibold ${esCli ? 'text-green-400' : 'text-red-400'}`}>{esCli ? '+' : '-'}{m.cantidad}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-right">{formatCurrency(Number(m.costoTotal || 0), simboloMoneda)}</td>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6] max-w-[130px] truncate">{m.motivo}</td>
-                    <td className="px-3.5 py-2.5">
-                      <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setVerDev(m)}><Eye size={13}/></Btn>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          loading={isLoading}
+          rows={filtered}
+          rowKey={m => m.id}
+          onRowClick={m => setVerDev(m)}
+          emptyIcon={RotateCcw}
+          emptyTitle="Sin devoluciones"
+          emptyDescription="Registra la primera devolución de cliente o proveedor."
+          columns={[
+            { key:'fecha', header:'Fecha', render: m => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatDate(m.fecha || m.createdAt)}</span> },
+            { key:'documento', header:'Documento', render: m => <span className="font-mono text-[12px] text-[#00c896]">{m.documento || '—'}</span> },
+            { key:'tipo', header:'Tipo', render: m => {
+              // Las devoluciones reales (ENTRADA/SALIDA) guardan cantidad sin signo;
+              // las anulaciones (AJUSTE) la guardan firmada — de ahí la rama por tipo.
+              const esCli = m.tipo === 'AJUSTE' ? Number(m.cantidad) >= 0 : m.tipo === 'ENTRADA'
+              return <Badge variant={esCli ? 'success' : 'danger'}>{esCli ? <ArrowDownToLine size={9}/> : <ArrowUpFromLine size={9}/>} {esCli ? 'Cliente' : 'Proveedor'}</Badge>
+            } },
+            { key:'producto', header:'Producto', render: m => {
+              const p = productMap.get(m.productoId)
+              return <><div className="font-medium text-[#e8edf2]">{p?.nombre || '—'}</div><div className="text-[11px] text-[#5f6f80]">{p?.sku}</div></>
+            } },
+            { key:'almacen', header:'Almacén', render: m => <span className="text-[12px] text-[#9ba8b6]">{almacenMap.get(m.almacenId)?.nombre || '—'}</span> },
+            { key:'cantidad', header:'Cantidad', align:'right', render: m => {
+              const esCli  = m.tipo === 'AJUSTE' ? Number(m.cantidad) >= 0 : m.tipo === 'ENTRADA'
+              const cantAbs = Math.abs(Number(m.cantidad))
+              return <span className={`font-mono text-[12px] font-semibold ${esCli ? 'text-green-400' : 'text-red-400'}`}>{esCli ? '+' : '-'}{cantAbs}</span>
+            } },
+            { key:'total', header:'Total', align:'right', render: m => <span className="font-mono text-[12px]">{formatCurrency(Number(m.costoTotal || 0), simboloMoneda)}</span> },
+            { key:'motivo', header:'Motivo', render: m => <span className="text-[12px] text-[#9ba8b6] max-w-[130px] truncate block">{m.motivo}</span> },
+            { key:'acciones', header:'Acciones', stopPropagation: true, render: m => (
+              <div className="flex gap-1">
+                <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setVerDev(m)}><Eye size={13}/></Btn>
+                <Btn variant="ghost" size="icon" title="Anular" className="text-red-400 hover:text-red-300" onClick={() => setAnular(m)}><XCircle size={13}/></Btn>
+              </div>
+            ) },
+          ]}
+        />
       </div>
 
       {/* Guía de uso */}
@@ -197,14 +211,19 @@ export default function Devoluciones() {
 
       {verDev && <ModalDetalle mov={verDev} productMap={productMap} almacenMap={almacenMap}
         proveedores={proveedores} clientes={clientes} simboloMoneda={simboloMoneda} onClose={() => setVerDev(null)}/>}
+
+      <ConfirmDialog open={!!anular} onClose={() => setAnular(null)} onConfirm={() => handleAnular(anular)}
+        danger title="Anular devolución"
+        message={`¿Anular ${anular?.documento}? Se creará un ajuste en sentido contrario que revertirá el efecto en el stock.`}/>
     </div>
   )
 }
 
 function ModalDetalle({ mov, productMap, almacenMap, proveedores, clientes, simboloMoneda, onClose }) {
-  const p   = productMap.get(mov.productoId)
-  const alm = almacenMap.get(mov.almacenId)
-  const esCli = mov.tipo === 'ENTRADA'
+  const p    = productMap.get(mov.productoId)
+  const alm  = almacenMap.get(mov.almacenId)
+  const esCli  = mov.tipo === 'AJUSTE' ? Number(mov.cantidad) >= 0 : mov.tipo === 'ENTRADA'
+  const cantAbs = Math.abs(Number(mov.cantidad))
   const contraparte = esCli
     ? clientes.find(c => c.id === mov.clienteId)?.nombre || '—'
     : proveedores.find(pr => pr.id === mov.proveedorId)?.razonSocial || '—'
@@ -219,7 +238,7 @@ function ModalDetalle({ mov, productMap, almacenMap, proveedores, clientes, simb
           [esCli ? 'Cliente' : 'Proveedor', contraparte],
           ['Producto',   p ? `${p.sku} — ${p.nombre}` : '—'],
           ['Almacén',    alm?.nombre || '—'],
-          ['Cantidad',   `${esCli ? '+' : '-'}${mov.cantidad} ${p?.unidadMedida || ''}`],
+          ['Cantidad',   `${esCli ? '+' : '-'}${cantAbs} ${p?.unidadMedida || ''}`],
           ['Costo Unit.',formatCurrency(Number(mov.costoUnitario || 0), simboloMoneda)],
           ['Total',      formatCurrency(Number(mov.costoTotal || 0), simboloMoneda)],
           ['Motivo',     mov.motivo || '—'],
@@ -291,53 +310,53 @@ function ModalDevolucion({ open, onClose, onSave, productos, almacenes, proveedo
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Documento"><input className={SI} value={form.documento} onChange={e => f('documento', e.target.value)} placeholder="DEV-001"/></Field>
-        <Field label="Fecha"><input type="date" className={SI} value={form.fecha} onChange={e => f('fecha', e.target.value)}/></Field>
+        <Field label="Documento"><Input value={form.documento} onChange={e => f('documento', e.target.value)} placeholder="DEV-001"/></Field>
+        <Field label="Fecha"><Input type="date" value={form.fecha} onChange={e => f('fecha', e.target.value)}/></Field>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={esCli ? 'Cliente (opcional)' : 'Proveedor (opcional)'}>
-          <select className={SEL} value={form.referenciaId} onChange={e => f('referenciaId', e.target.value)}>
+          <Select value={form.referenciaId} onChange={e => f('referenciaId', e.target.value)}>
             <option value="">Seleccionar...</option>
             {(esCli ? clientes : proveedores).map(c => (
               <option key={c.id} value={c.id}>{esCli ? (c.nombre || c.razonSocial) : c.razonSocial}</option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label="Estado del ítem">
-          <select className={SEL} value={form.estadoItem} onChange={e => f('estadoItem', e.target.value)}>
+          <Select value={form.estadoItem} onChange={e => f('estadoItem', e.target.value)}>
             {ESTADOS_ITEM.map(s => <option key={s}>{s}</option>)}
-          </select>
+          </Select>
         </Field>
       </div>
 
       <Field label="Producto *" error={err.productoId}>
-        <select className={SEL} value={form.productoId} onChange={e => f('productoId', e.target.value)}>
+        <Select value={form.productoId} onChange={e => f('productoId', e.target.value)}>
           <option value="">Seleccionar producto...</option>
           {productosActivos.map(p => <option key={p.id} value={p.id}>{p.sku} — {p.nombre}</option>)}
-        </select>
+        </Select>
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Almacén *" error={err.almacenId}>
-          <select className={SEL} value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
+          <Select value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
             <option value="">Seleccionar...</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Motivo">
-          <select className={SEL} value={form.motivo} onChange={e => f('motivo', e.target.value)}>
+          <Select value={form.motivo} onChange={e => f('motivo', e.target.value)}>
             {motivos.map(m => <option key={m}>{m}</option>)}
-          </select>
+          </Select>
         </Field>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Cantidad *" error={err.cantidad}>
-          <input type="number" className={SI} value={form.cantidad} onChange={e => f('cantidad', e.target.value)} min="0.001" step="any" placeholder="0"/>
+          <Input type="number" value={form.cantidad} onChange={e => f('cantidad', e.target.value)} min="0.001" step="any" placeholder="0"/>
         </Field>
         <Field label="Costo unitario (S/)">
-          <input type="number" className={SI} value={form.costoUnitario} onChange={e => f('costoUnitario', e.target.value)} min="0" step="0.01" placeholder="0.00"/>
+          <Input type="number" value={form.costoUnitario} onChange={e => f('costoUnitario', e.target.value)} min="0" step="0.01" placeholder="0.00"/>
         </Field>
       </div>
 

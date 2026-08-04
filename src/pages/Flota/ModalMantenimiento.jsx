@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Wrench } from 'lucide-react'
-import { Modal, Btn, Field } from '../../components/ui/index'
-import { SI, SEL, TIPO_MANT } from './constants'
+import { Modal, Btn, Field, Input, Select, Textarea } from '../../components/ui/index'
+import { TIPO_MANT } from './constants'
 
 // ════════════════════════════════════════════════════════
 // MODAL REGISTRAR MANTENIMIENTO
@@ -50,30 +50,30 @@ export default function ModalMantenimiento({ open, onClose, unidad, editando, on
         </Btn>
       </>}>
       <Field label="Tipo de mantenimiento *">
-        <select className={SEL} value={form.tipo} onChange={e=>f('tipo',e.target.value)}>
+        <Select value={form.tipo} onChange={e=>f('tipo',e.target.value)}>
           {TIPO_MANT.map(t => <option key={t}>{t}</option>)}
-        </select>
+        </Select>
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Km al momento">
-          <input type="number" className={SI} value={form.kmActual}
+          <Input type="number" value={form.kmActual}
             onChange={e=>f('kmActual',e.target.value)}
             placeholder={unidad?.kmActual ? String(Number(unidad.kmActual)) : '0'}/>
         </Field>
         <Field label="Costo (S/)">
-          <input type="number" className={SI} value={form.costo}
+          <Input type="number" value={form.costo}
             onChange={e=>f('costo',e.target.value)}
             placeholder="0.00" min="0" step="0.01"/>
         </Field>
       </div>
       <Field label="Taller / Proveedor">
-        <input className={SI} value={form.taller} onChange={e=>f('taller',e.target.value)} placeholder="Nombre del taller"/>
+        <Input value={form.taller} onChange={e=>f('taller',e.target.value)} placeholder="Nombre del taller"/>
       </Field>
       <Field label="Próximo mantenimiento" hint="Opcional — si se completa, cierra la alerta actual de esta unidad">
-        <input type="date" className={SI} value={form.proximoMantenimiento} onChange={e=>f('proximoMantenimiento',e.target.value)}/>
+        <Input type="date" value={form.proximoMantenimiento} onChange={e=>f('proximoMantenimiento',e.target.value)}/>
       </Field>
       <Field label="Observaciones">
-        <textarea className={SI + ' resize-none'} rows={2}
+        <Textarea className="resize-none" rows={2}
           value={form.observaciones} onChange={e=>f('observaciones',e.target.value)}
           placeholder="Detalles del mantenimiento..."/>
       </Field>

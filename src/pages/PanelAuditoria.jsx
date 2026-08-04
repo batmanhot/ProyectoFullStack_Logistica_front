@@ -1,14 +1,11 @@
 import { useState } from 'react'
-import { ShieldCheck, Info, ScrollText, GitCompareArrows, Boxes, DollarSign } from 'lucide-react'
-import { EmptyState, Badge } from '../components/ui/index'
+import { ScrollText, GitCompareArrows, Boxes, DollarSign } from 'lucide-react'
+import { Badge, DataTable } from '../components/ui/index'
 import { formatDate, formatDateTime, formatCurrency } from '../utils/helpers'
 import {
   useBitacoraAuditoria, useDiscrepanciasAuditoria,
   useMovimientosAuditoria, useCxcAuditoria,
 } from '../queries/panel-auditoria.queries'
-
-const TH = ({ c, r }) => <th className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 ${r ? 'text-right' : 'text-left'}`}>{c}</th>
-const TD = ({ children, r, className = '' }) => <td className={`px-3.5 py-2.5 text-[13px] text-[#e8edf2] border-b border-white/6 ${r ? 'text-right' : ''} ${className}`}>{children}</td>
 
 const TABS = [
   { id: 'bitacora',      label: 'Bitácora',      icon: ScrollText },
@@ -22,19 +19,6 @@ export default function PanelAuditoria() {
 
   return (
     <div className="p-6 flex flex-col gap-5">
-      <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: 'rgba(0,200,150,0.08)', border: '1px solid rgba(0,200,150,0.20)' }}>
-        <ShieldCheck size={20} className="text-[#00c896] shrink-0 mt-0.5" />
-        <div className="flex flex-col gap-1.5">
-          <p className="text-[13px] text-[#e8edf2] leading-relaxed">
-            <b>¿Para qué sirve?</b> Vista de solo lectura para revisar la operación sin poder modificarla — bitácora de actividad, discrepancias de inventario, trazabilidad de movimientos y conciliación de cuentas por cobrar.
-          </p>
-          <p className="text-[12px] text-[#9ba8b6] flex items-start gap-1.5">
-            <Info size={13} className="shrink-0 mt-0.5" />
-            Este panel no tiene ningún botón de crear, editar ni eliminar — el rol Auditor no tiene acceso a ningún otro módulo del sistema.
-          </p>
-        </div>
-      </div>
-
       <div className="flex gap-2 border-b border-white/8">
         {TABS.map(t => {
           const Icon = t.icon
@@ -51,105 +35,116 @@ export default function PanelAuditoria() {
       {tab === 'discrepancias' && <TabDiscrepancias />}
       {tab === 'movimientos'   && <TabMovimientos />}
       {tab === 'cxc'           && <TabCxc />}
+
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Panel de Auditoría?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+          {[
+            ['1. Bitácora', 'Actividad reciente del sistema: quién hizo qué, en qué módulo y cuándo.'],
+            ['2. Discrepancias', 'Diferencias entre el stock del sistema y el conteo físico registradas en Inventario Físico, y si ya fueron ajustadas.'],
+            ['3. Trazabilidad', 'Historial de movimientos de inventario (entradas, salidas, ajustes) por producto y almacén.'],
+            ['4. Conciliación', 'Estado de las cuentas por cobrar — vencidas, pagadas o pendientes — para cruzar con contabilidad.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 pt-3 border-t border-white/6 text-[11px] text-[#5f6f80] leading-relaxed">
+          Este panel es de <strong className="text-[#9ba8b6]">solo lectura</strong> — no tiene botones de crear, editar ni eliminar. El rol Auditor no tiene acceso a ningún otro módulo del sistema.
+        </div>
+      </div>
     </div>
   )
 }
 
 function TabBitacora() {
   const { data = [], isLoading } = useBitacoraAuditoria()
-  if (!isLoading && data.length === 0) return <EmptyState icon={ScrollText} title="Sin actividad registrada" />
   return (
-    <div className="overflow-x-auto rounded-lg border border-white/8">
-      <table className="w-full border-collapse">
-        <thead><tr><TH c="Fecha" /><TH c="Usuario" /><TH c="Acción" /><TH c="Módulo" /><TH c="Detalle" /></tr></thead>
-        <tbody>
-          {data.map(a => (
-            <tr key={a.id} className="hover:bg-white/2">
-              <TD>{formatDateTime(a.timestamp)}</TD>
-              <TD>{a.usuarioNombre}</TD>
-              <TD><Badge variant="neutral">{a.accion}</Badge></TD>
-              <TD>{a.modulo}</TD>
-              <TD className="text-[#9ba8b6]">{a.detalle}</TD>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      loading={isLoading}
+      rows={data}
+      rowKey={a => a.id}
+      emptyIcon={ScrollText}
+      emptyTitle="Sin actividad registrada"
+      columns={[
+        { key: 'fecha', header: 'Fecha', render: a => formatDateTime(a.timestamp) },
+        { key: 'usuario', header: 'Usuario', render: a => a.usuarioNombre },
+        { key: 'accion', header: 'Acción', render: a => <Badge variant="neutral">{a.accion}</Badge> },
+        { key: 'modulo', header: 'Módulo', render: a => a.modulo },
+        { key: 'detalle', header: 'Detalle', render: a => <span className="text-[#9ba8b6]">{a.detalle}</span> },
+      ]}
+    />
   )
 }
 
 function TabDiscrepancias() {
   const { data = [], isLoading } = useDiscrepanciasAuditoria()
-  if (!isLoading && data.length === 0) return <EmptyState icon={GitCompareArrows} title="Sin discrepancias registradas" description="Los conteos de Inventario Físico coinciden con el sistema" />
   return (
-    <div className="overflow-x-auto rounded-lg border border-white/8">
-      <table className="w-full border-collapse">
-        <thead><tr><TH c="Conteo" /><TH c="Fecha" /><TH c="Almacén" /><TH c="Producto" /><TH c="Sistema" r /><TH c="Físico" r /><TH c="Diferencia" r /><TH c="Ajustado" /></tr></thead>
-        <tbody>
-          {data.map(l => {
+    <DataTable
+      loading={isLoading}
+      rows={data}
+      rowKey={l => l.id}
+      emptyIcon={GitCompareArrows}
+      emptyTitle="Sin discrepancias registradas"
+      emptyDescription="Los conteos de Inventario Físico coinciden con el sistema"
+      columns={[
+        { key: 'conteo', header: 'Conteo', render: l => l.inventario?.numero },
+        { key: 'fecha', header: 'Fecha', render: l => formatDate(l.inventario?.fecha) },
+        { key: 'almacen', header: 'Almacén', render: l => l.inventario?.almacen?.nombre },
+        { key: 'producto', header: 'Producto', render: l => `${l.producto?.sku} — ${l.producto?.nombre}` },
+        { key: 'sistema', header: 'Sistema', align: 'right', render: l => Number(l.stockSistema) },
+        { key: 'fisico', header: 'Físico', align: 'right', render: l => l.stockFisico != null ? Number(l.stockFisico) : '—' },
+        { key: 'diferencia', header: 'Diferencia', align: 'right', render: l => {
             const dif = Number(l.diferencia || 0)
-            return (
-              <tr key={l.id} className="hover:bg-white/2">
-                <TD>{l.inventario?.numero}</TD>
-                <TD>{formatDate(l.inventario?.fecha)}</TD>
-                <TD>{l.inventario?.almacen?.nombre}</TD>
-                <TD>{l.producto?.sku} — {l.producto?.nombre}</TD>
-                <TD r>{Number(l.stockSistema)}</TD>
-                <TD r>{l.stockFisico != null ? Number(l.stockFisico) : '—'}</TD>
-                <TD r className={dif < 0 ? 'text-red-400' : 'text-emerald-400'}>{dif > 0 ? '+' : ''}{dif}</TD>
-                <TD><Badge variant={l.ajustado ? 'success' : 'warning'}>{l.ajustado ? 'Sí' : 'Pendiente'}</Badge></TD>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+            return <span className={dif < 0 ? 'text-red-400' : 'text-emerald-400'}>{dif > 0 ? '+' : ''}{dif}</span>
+          } },
+        { key: 'ajustado', header: 'Ajustado', render: l => <Badge variant={l.ajustado ? 'success' : 'warning'}>{l.ajustado ? 'Sí' : 'Pendiente'}</Badge> },
+      ]}
+    />
   )
 }
 
 function TabMovimientos() {
   const { data = [], isLoading } = useMovimientosAuditoria()
-  if (!isLoading && data.length === 0) return <EmptyState icon={Boxes} title="Sin movimientos registrados" />
   return (
-    <div className="overflow-x-auto rounded-lg border border-white/8">
-      <table className="w-full border-collapse">
-        <thead><tr><TH c="Fecha" /><TH c="Tipo" /><TH c="Producto" /><TH c="Almacén" /><TH c="Cantidad" r /></tr></thead>
-        <tbody>
-          {data.map(m => (
-            <tr key={m.id} className="hover:bg-white/2">
-              <TD>{formatDateTime(m.fecha)}</TD>
-              <TD><Badge variant="neutral">{m.tipo}</Badge></TD>
-              <TD>{m.producto?.sku} — {m.producto?.nombre}</TD>
-              <TD>{m.almacen?.nombre}</TD>
-              <TD r>{Number(m.cantidad)}</TD>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      loading={isLoading}
+      rows={data}
+      rowKey={m => m.id}
+      emptyIcon={Boxes}
+      emptyTitle="Sin movimientos registrados"
+      columns={[
+        { key: 'fecha', header: 'Fecha', render: m => formatDateTime(m.fecha) },
+        { key: 'tipo', header: 'Tipo', render: m => <Badge variant="neutral">{m.tipo}</Badge> },
+        { key: 'producto', header: 'Producto', render: m => `${m.producto?.sku} — ${m.producto?.nombre}` },
+        { key: 'almacen', header: 'Almacén', render: m => m.almacen?.nombre },
+        { key: 'cantidad', header: 'Cantidad', align: 'right', render: m => Number(m.cantidad) },
+      ]}
+    />
   )
 }
 
 function TabCxc() {
   const { data = [], isLoading } = useCxcAuditoria()
-  if (!isLoading && data.length === 0) return <EmptyState icon={DollarSign} title="Sin cuentas por cobrar" />
   return (
-    <div className="overflow-x-auto rounded-lg border border-white/8">
-      <table className="w-full border-collapse">
-        <thead><tr><TH c="Número" /><TH c="Cliente" /><TH c="Vencimiento" /><TH c="Monto" r /><TH c="Saldo" r /><TH c="Estado" /></tr></thead>
-        <tbody>
-          {data.map(c => (
-            <tr key={c.id} className="hover:bg-white/2">
-              <TD>{c.numero}</TD>
-              <TD>{c.cliente?.razonSocial}</TD>
-              <TD>{formatDate(c.fechaVencimiento)}</TD>
-              <TD r>{formatCurrency(c.monto)}</TD>
-              <TD r>{formatCurrency(c.saldo)}</TD>
-              <TD><Badge variant={c.estado === 'VENCIDA' ? 'danger' : c.estado === 'PAGADA' ? 'success' : 'warning'}>{c.estado}</Badge></TD>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      loading={isLoading}
+      rows={data}
+      rowKey={c => c.id}
+      emptyIcon={DollarSign}
+      emptyTitle="Sin cuentas por cobrar"
+      columns={[
+        { key: 'numero', header: 'Número', render: c => c.numero },
+        { key: 'cliente', header: 'Cliente', render: c => c.cliente?.razonSocial },
+        { key: 'vencimiento', header: 'Vencimiento', render: c => formatDate(c.fechaVencimiento) },
+        { key: 'monto', header: 'Monto', align: 'right', render: c => formatCurrency(c.monto) },
+        { key: 'saldo', header: 'Saldo', align: 'right', render: c => formatCurrency(c.saldo) },
+        { key: 'estado', header: 'Estado', render: c => <Badge variant={c.estado === 'VENCIDA' ? 'danger' : c.estado === 'PAGADA' ? 'success' : 'warning'}>{c.estado}</Badge> },
+      ]}
+    />
   )
 }

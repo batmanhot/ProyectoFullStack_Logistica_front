@@ -15,6 +15,7 @@ import { TrendingUp, TrendingDown, Target, Zap, Clock, Package,
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
          LineChart, Line, CartesianGrid, RadialBarChart, RadialBar, Legend } from 'recharts'
 import { formatCurrency, formatDate } from '../utils/helpers'
+import { Select } from '../components/ui/index'
 import { useDespachosList } from '../queries/despachos.queries'
 import { useMovimientosList } from '../queries/movimientos.queries'
 import { useProductosList } from '../queries/productos.queries'
@@ -197,27 +198,18 @@ export default function KPIsOperativos() {
     }
   }, [despachos, movimientos, devoluciones, productos, categorias, clientes, ordenes, periodo, simboloMoneda, formulaValorizacion])
 
-  const SI_PERIODO = 'px-3 py-1.5 bg-[#1a2230] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] pr-7'
-
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-6">
 
-      {/* Header + selector período */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-[16px] font-bold text-[#e8edf2]">KPIs Operativos</h2>
-          <p className="text-[12px] text-[#5f6f80] mt-0.5">Métricas de gestión logística en tiempo real</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-[#5f6f80]">Período:</span>
-          <select className={SI_PERIODO} value={periodo} onChange={e=>setPeriodo(e.target.value)}
-            style={{backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235f6f80' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,backgroundRepeat:'no-repeat',backgroundPosition:'right 8px center',appearance:'none'}}>
-            <option value="7">Últimos 7 días</option>
-            <option value="30">Últimos 30 días</option>
-            <option value="60">Últimos 60 días</option>
-            <option value="90">Últimos 90 días</option>
-          </select>
-        </div>
+      {/* Selector período */}
+      <div className="flex items-center justify-end gap-2">
+        <span className="text-[11px] text-[#5f6f80]">Período:</span>
+        <Select className="w-auto!" value={periodo} onChange={e=>setPeriodo(e.target.value)}>
+          <option value="7">Últimos 7 días</option>
+          <option value="30">Últimos 30 días</option>
+          <option value="60">Últimos 60 días</option>
+          <option value="90">Últimos 90 días</option>
+        </Select>
       </div>
 
       {/* Gauges principales */}

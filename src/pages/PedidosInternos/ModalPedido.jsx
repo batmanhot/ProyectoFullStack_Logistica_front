@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, Package, Send, X } from 'lucide-react'
-import { SI, SEL, DS } from './constants'
+import { Input, Select, Textarea } from '../../components/ui'
 
 // ── Modal Nuevo / Editar Pedido ─────────────────────────────
 export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacenes, sesion, areaFija, saving }) {
@@ -8,7 +8,7 @@ export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacen
   const [form, setForm] = useState({
     areaId:         pedido?.areaId         || areaFija || '',
     almacenId:      pedido?.almacenId      || (almacenes[0]?.id || ''),
-    fechaRequerida: pedido?.fechaRequerida || '',
+    fechaRequerida: pedido?.fechaRequerida?.split('T')[0] || '',
     prioridad:      pedido?.prioridad      || 'NORMAL',
     notasSolicitud: pedido?.notasSolicitud || '',
     items:          pedido?.items?.map(it => ({
@@ -97,28 +97,24 @@ export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacen
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wide">Área solicitante *</label>
               {esSolicitante || esEdicion ? (
-                <div className={SEL + ' opacity-60 cursor-not-allowed'}>
-                  {areas.find(a => a.id === form.areaId)?.nombre || '—'}
-                </div>
+                <Input disabled className="opacity-60 cursor-not-allowed" value={areas.find(a => a.id === form.areaId)?.nombre || '—'} readOnly/>
               ) : (
-                <select className={SEL} style={DS} value={form.areaId} onChange={e => setForm(f => ({...f, areaId: e.target.value}))}>
+                <Select value={form.areaId} onChange={e => setForm(f => ({...f, areaId: e.target.value}))}>
                   <option value="">Selecciona área...</option>
                   {areas.filter(a => a.activo !== false).map(a => (
                     <option key={a.id} value={a.id}>{a.nombre} ({a.codigo})</option>
                   ))}
-                </select>
+                </Select>
               )}
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wide">Almacén de despacho *</label>
               {esEdicion ? (
-                <div className={SEL + ' opacity-60 cursor-not-allowed'}>
-                  {almacenes.find(a => a.id === form.almacenId)?.nombre || '—'}
-                </div>
+                <Input disabled className="opacity-60 cursor-not-allowed" value={almacenes.find(a => a.id === form.almacenId)?.nombre || '—'} readOnly/>
               ) : (
-                <select className={SEL} style={DS} value={form.almacenId} onChange={e => setForm(f => ({...f, almacenId: e.target.value}))}>
+                <Select value={form.almacenId} onChange={e => setForm(f => ({...f, almacenId: e.target.value}))}>
                   {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-                </select>
+                </Select>
               )}
             </div>
           </div>
@@ -126,16 +122,16 @@ export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacen
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wide">Fecha requerida</label>
-              <input type="date" className={SI} style={DS} value={form.fechaRequerida}
+              <Input type="date" value={form.fechaRequerida}
                 onChange={e => setForm(f => ({...f, fechaRequerida: e.target.value}))}/>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wide">Prioridad</label>
-              <select className={SEL} style={DS} value={form.prioridad} onChange={e => setForm(f => ({...f, prioridad: e.target.value}))}>
+              <Select value={form.prioridad} onChange={e => setForm(f => ({...f, prioridad: e.target.value}))}>
                 <option value="NORMAL">Normal</option>
                 <option value="URGENTE">Urgente</option>
                 <option value="CRITICO">Crítico</option>
-              </select>
+              </Select>
             </div>
           </div>
 
@@ -162,7 +158,7 @@ export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacen
                   return (
                     <div key={i} className="flex items-center gap-3 px-3 py-2.5 bg-white/3 rounded-lg">
                       <Package size={14} className="text-[#5f6f80] shrink-0"/>
-                      <div className="flex-1 text-[13px] text-white/70">{prod?.nombre || it.productoId}</div>
+                      <div className="flex-1 min-w-0 truncate text-[13px] text-white/70">{prod?.nombre || it.productoId}</div>
                       <div className="text-[12px] font-semibold text-white/60 shrink-0">
                         {it.cantidad} <span className="text-[11px] font-normal text-white/35">{it.unidadMedida || prod?.unidadMedida}</span>
                       </div>
@@ -173,15 +169,15 @@ export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacen
                 form.items.map((it, i) => {
                   const prod = productos.find(p => p.id === it.productoId)
                   return (
-                    <div key={i} className="grid grid-cols-[1fr_80px_60px_auto] gap-2 items-center">
-                      <select className={SEL} style={DS} value={it.productoId}
+                    <div key={i} className="grid grid-cols-[minmax(0,1fr)_80px_60px_auto] gap-2 items-center">
+                      <Select value={it.productoId}
                         onChange={e => updateItem(i, 'productoId', e.target.value)}>
                         <option value="">Producto...</option>
                         {productosActivos.map(p => (
                           <option key={p.id} value={p.id}>{p.nombre}</option>
                         ))}
-                      </select>
-                      <input type="number" min="0.01" step="0.01" className={SI} placeholder="Cant."
+                      </Select>
+                      <Input type="number" min="0.01" step="0.01" placeholder="Cant."
                         value={it.cantidad}
                         onChange={e => updateItem(i, 'cantidad', Number(e.target.value))}/>
                       <div className="text-[11px] text-white/40 text-center font-mono">
@@ -203,7 +199,7 @@ export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacen
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wide">Notas de solicitud</label>
-            <textarea className={SI + ' resize-none h-16'} placeholder="Observaciones opcionales..."
+            <Textarea className="resize-none h-16" placeholder="Observaciones opcionales..."
               value={form.notasSolicitud}
               onChange={e => setForm(f => ({...f, notasSolicitud: e.target.value}))}/>
           </div>

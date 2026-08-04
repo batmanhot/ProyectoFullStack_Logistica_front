@@ -1,16 +1,14 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, ArrowRightLeft, Eye, X, Download, FileText } from 'lucide-react'
+import { Plus, Search, ArrowRightLeft, Eye, XCircle, X, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
-import { Modal, EmptyState, Btn, Field } from '../components/ui/index'
+import { Modal, ConfirmDialog, Btn, Field, Input, Select, DataTable } from '../components/ui/index'
 import { useMovimientosList, useCrearMovimiento } from '../queries/movimientos.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
 import { exportarTransferenciasXLSX } from '../utils/exportXLSX'
 import { exportarTransferenciasPDF } from '../utils/exportPDF'
 
-const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
-const SEL = SI + ' pr-8'
 const MOTIVOS = ['Rebalanceo de stock','Consolidación de almacén','Pedido urgente','Reorganización','Otro']
 
 export default function Transferencias() {
@@ -24,6 +22,7 @@ export default function Transferencias() {
 
   const [modal,    setModal]    = useState(false)
   const [verTr,    setVerTr]    = useState(null)
+  const [anular,   setAnular]   = useState(null)
   const [busqueda, setBusqueda] = useState('')
   const [filtOrigen, setFiltOrigen]  = useState('')
   const [filtDestino, setFiltDestino] = useState('')
@@ -64,6 +63,22 @@ export default function Transferencias() {
     setModal(false)
   }
 
+  async function handleAnular(mov) {
+    const res = await crearMovimiento.mutateAsync({
+      tipo:             'TRANSFERENCIA',
+      productoId:       mov.productoId,
+      almacenId:        mov.almacenDestinoId,
+      almacenDestinoId: mov.almacenId,
+      cantidad:         Number(mov.cantidad),
+      costoUnitario:    Number(mov.costoUnitario || 0),
+      motivo:           `Anulación de ${mov.documento || 'transferencia'}`,
+      documento:        `ANUL-${mov.documento || String(mov.id).slice(0, 8)}`,
+    })
+    if (res.error) { toast(res.error, 'error'); setAnular(null); return }
+    toast('Transferencia anulada', 'success')
+    setAnular(null)
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
@@ -102,53 +117,51 @@ export default function Transferencias() {
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <div className="relative flex-1 min-w-[180px]">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar producto o documento..."
+            <Input className="pl-8 !py-[5px] text-[12px]" placeholder="Buscar producto o documento..."
               value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select className={SEL} style={{width:148,padding:'5px 8px',fontSize:12}} value={filtOrigen} onChange={e => setFiltOrigen(e.target.value)}>
+          <Select style={{width:148,padding:'5px 8px',fontSize:12}} value={filtOrigen} onChange={e => setFiltOrigen(e.target.value)}>
             <option value="">Origen: todos</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
-          <select className={SEL} style={{width:148,padding:'5px 8px',fontSize:12}} value={filtDestino} onChange={e => setFiltDestino(e.target.value)}>
+          </Select>
+          <Select style={{width:148,padding:'5px 8px',fontSize:12}} value={filtDestino} onChange={e => setFiltDestino(e.target.value)}>
             <option value="">Destino: todos</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
+          </Select>
           <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
           {hayFiltros && <Btn variant="ghost" size="sm" onClick={limpiarFiltros}><X size={12}/> Limpiar</Btn>}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[13px]">
-            <thead><tr>
-              {['Fecha','Documento','Producto','Origen','Destino','Cantidad','Motivo','Acciones'].map((h, i) => (
-                <th key={h} className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 ${i === 5 ? 'text-right' : 'text-left'}`}>{h}</th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {isLoading && <tr><td colSpan={8} className="text-center text-[#5f6f80] py-8 text-[12px]">Cargando transferencias...</td></tr>}
-              {!isLoading && filtered.length === 0 && <tr><td colSpan={8}><EmptyState icon={ArrowRightLeft} title="Sin transferencias" description="Registra la primera transferencia entre almacenes."/></td></tr>}
-              {filtered.map(m => {
-                const p    = productMap.get(m.productoId)
-                const orig = almacenMap.get(m.almacenId)
-                const dest = almacenMap.get(m.almacenDestinoId)
-                return (
-                  <tr key={m.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{formatDate(m.fecha || m.createdAt)}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#00c896]">{m.documento || '—'}</td>
-                    <td className="px-3.5 py-2.5"><div className="font-medium text-[#e8edf2]">{p?.nombre || '—'}</div><div className="text-[11px] text-[#5f6f80]">{p?.sku}</div></td>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6]">{orig?.nombre || '—'}</td>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#00c896]">{dest?.nombre || '—'}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[12px] text-right font-semibold">{m.cantidad} <span className="text-[#5f6f80] font-normal text-[11px]">{p?.unidadMedida}</span></td>
-                    <td className="px-3.5 py-2.5 text-[12px] text-[#9ba8b6] max-w-[130px] truncate">{m.motivo}</td>
-                    <td className="px-3.5 py-2.5">
-                      <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setVerTr(m)}><Eye size={13}/></Btn>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          loading={isLoading}
+          rows={filtered}
+          rowKey={m => m.id}
+          onRowClick={m => setVerTr(m)}
+          emptyIcon={ArrowRightLeft}
+          emptyTitle="Sin transferencias"
+          emptyDescription="Registra la primera transferencia entre almacenes."
+          columns={[
+            { key:'fecha', header:'Fecha', render: m => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatDate(m.fecha || m.createdAt)}</span> },
+            { key:'documento', header:'Documento', render: m => <span className="font-mono text-[12px] text-[#00c896]">{m.documento || '—'}</span> },
+            { key:'producto', header:'Producto', render: m => {
+              const p = productMap.get(m.productoId)
+              return <><div className="font-medium text-[#e8edf2]">{p?.nombre || '—'}</div><div className="text-[11px] text-[#5f6f80]">{p?.sku}</div></>
+            } },
+            { key:'origen', header:'Origen', render: m => <span className="text-[12px] text-[#9ba8b6]">{almacenMap.get(m.almacenId)?.nombre || '—'}</span> },
+            { key:'destino', header:'Destino', render: m => <span className="text-[12px] text-[#00c896]">{almacenMap.get(m.almacenDestinoId)?.nombre || '—'}</span> },
+            { key:'cantidad', header:'Cantidad', align:'right', render: m => {
+              const p = productMap.get(m.productoId)
+              return <span className="font-mono text-[12px] font-semibold">{m.cantidad} <span className="text-[#5f6f80] font-normal text-[11px]">{p?.unidadMedida}</span></span>
+            } },
+            { key:'motivo', header:'Motivo', render: m => <span className="text-[12px] text-[#9ba8b6] max-w-[130px] truncate block">{m.motivo}</span> },
+            { key:'acciones', header:'Acciones', stopPropagation: true, render: m => (
+              <div className="flex gap-1">
+                <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setVerTr(m)}><Eye size={13}/></Btn>
+                <Btn variant="ghost" size="icon" title="Anular" className="text-red-400 hover:text-red-300" onClick={() => setAnular(m)}><XCircle size={13}/></Btn>
+              </div>
+            ) },
+          ]}
+        />
       </div>
 
       {/* Guía de uso */}
@@ -176,6 +189,10 @@ export default function Transferencias() {
         saving={crearMovimiento.isPending}/>
 
       {verTr && <ModalDetalle tr={verTr} productMap={productMap} almacenMap={almacenMap} onClose={() => setVerTr(null)}/>}
+
+      <ConfirmDialog open={!!anular} onClose={() => setAnular(null)} onConfirm={() => handleAnular(anular)}
+        danger title="Anular transferencia"
+        message={`¿Anular ${anular?.documento}? Se creará una transferencia en sentido contrario, de vuelta al almacén de origen.`}/>
     </div>
   )
 }
@@ -248,40 +265,40 @@ function ModalTransferencia({ open, onClose, onSave, productos, almacenes, simbo
       footer={<><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Registrar Transferencia'}</Btn></>}>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Documento"><input className={SI} value={form.documento} onChange={e => f('documento', e.target.value)} placeholder="TRF-001"/></Field>
-        <Field label="Fecha"><input type="date" className={SI} value={form.fecha} onChange={e => f('fecha', e.target.value)}/></Field>
+        <Field label="Documento"><Input value={form.documento} onChange={e => f('documento', e.target.value)} placeholder="TRF-001"/></Field>
+        <Field label="Fecha"><Input type="date" value={form.fecha} onChange={e => f('fecha', e.target.value)}/></Field>
       </div>
 
       <Field label="Producto *" error={err.productoId}>
-        <select className={SEL} value={form.productoId} onChange={e => f('productoId', e.target.value)}>
+        <Select value={form.productoId} onChange={e => f('productoId', e.target.value)}>
           <option value="">Seleccionar producto...</option>
           {productosActivos.map(p => <option key={p.id} value={p.id}>{p.sku} — {p.nombre}</option>)}
-        </select>
+        </Select>
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Almacén origen *" error={err.almacenId}>
-          <select className={SEL} value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
+          <Select value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
             <option value="">Seleccionar...</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Almacén destino *" error={err.almacenDestinoId}>
-          <select className={SEL} value={form.almacenDestinoId} onChange={e => f('almacenDestinoId', e.target.value)}>
+          <Select value={form.almacenDestinoId} onChange={e => f('almacenDestinoId', e.target.value)}>
             <option value="">Seleccionar...</option>
             {almacenes.filter(a => a.id !== form.almacenId).map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
+          </Select>
         </Field>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Cantidad *" error={err.cantidad}>
-          <input type="number" className={SI} value={form.cantidad} onChange={e => f('cantidad', e.target.value)} min="0.001" step="any" placeholder="0"/>
+          <Input type="number" value={form.cantidad} onChange={e => f('cantidad', e.target.value)} min="0.001" step="any" placeholder="0"/>
         </Field>
         <Field label="Motivo">
-          <select className={SEL} value={form.motivo} onChange={e => f('motivo', e.target.value)}>
+          <Select value={form.motivo} onChange={e => f('motivo', e.target.value)}>
             {MOTIVOS.map(m => <option key={m}>{m}</option>)}
-          </select>
+          </Select>
         </Field>
       </div>
     </Modal>

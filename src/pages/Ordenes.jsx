@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, CheckCircle, X, Eye, ShoppingCart, FileText, MessageCircle, Mail, ChevronUp, ChevronDown, Download } from 'lucide-react'
+import { Plus, Search, CheckCircle, X, Eye, ShoppingCart, FileText, MessageCircle, Mail, Download } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { usePlanLimits } from '../hooks/usePlanLimits'
 import { formatCurrency, formatDate } from '../utils/helpers'
-import { Modal, EmptyState, EstadoOCBadge, Badge, Btn, Field } from '../components/ui/index'
+import { Modal, EstadoOCBadge, Btn, Field, Input, Select, Textarea, DataTable } from '../components/ui/index'
 import { ModalRecepcionParcial } from '../components/ui/ModalRecepcionParcial'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
 import { imprimirOC } from '../utils/pdfTemplates'
@@ -15,9 +15,6 @@ import { exportarOrdenesXLSX } from '../utils/exportXLSX'
 import { exportarOrdenesPDF } from '../utils/exportPDF'
 
 const IGV = 0.18
-const TH  = ({ c, r }) => <th className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 ${r ? 'text-right' : 'text-left'}`}>{c}</th>
-const SI  = 'px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 w-full font-[inherit] placeholder-[#5f6f80]'
-const SEL = SI + ' pr-8'
 
 export default function Ordenes() {
   const { toast, sesion } = useApp()
@@ -107,17 +104,6 @@ export default function Ordenes() {
     toast('Orden de compra creada', 'success')
   }
 
-  const COLS = [
-    { l:'N° OC',    k:'numero'      },
-    { l:'Proveedor',k:'proveedor'   },
-    { l:'Fecha',    k:'fecha'       },
-    { l:'Entrega',  k:'fechaEntrega'},
-    { l:'Ítems'                     },
-    { l:'Total',    k:'total', r:true},
-    { l:'Estado',   k:'estado'      },
-    { l:'Acciones'                  },
-  ]
-
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
@@ -165,17 +151,17 @@ export default function Ordenes() {
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <div className="relative flex-1 min-w-[180px]">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-8 !py-[5px] text-[12px]'} placeholder="Buscar número o proveedor..."
+            <Input className="pl-8 !py-[5px] text-[12px]" placeholder="Buscar número o proveedor..."
               value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select className={SEL} style={{ width:148, padding:'5px 8px', fontSize:12 }} value={filtEst} onChange={e => setFiltEst(e.target.value)}>
+          <Select style={{ width:148, padding:'5px 8px', fontSize:12 }} value={filtEst} onChange={e => setFiltEst(e.target.value)}>
             <option value="">Todos los estados</option>
             {['PENDIENTE','APROBADA','PARCIAL','RECIBIDA','CANCELADA'].map(e => <option key={e}>{e}</option>)}
-          </select>
-          <select className={SEL} style={{ width:185, padding:'5px 8px', fontSize:12 }} value={filtProv} onChange={e => setFiltProv(e.target.value)}>
+          </Select>
+          <Select style={{ width:185, padding:'5px 8px', fontSize:12 }} value={filtProv} onChange={e => setFiltProv(e.target.value)}>
             <option value="">Todos los proveedores</option>
             {proveedores.filter(p => p.estado !== 'Inactivo').map(p => <option key={p.id} value={p.id}>{p.razonSocial}</option>)}
-          </select>
+          </Select>
           <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
           {(busqueda || filtEst || filtProv) && (
             <Btn variant="ghost" size="sm" onClick={() => { setBusqueda(''); setFiltEst(''); setFiltProv('') }}>
@@ -184,59 +170,50 @@ export default function Ordenes() {
           )}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[13px]">
-            <thead><tr>
-              {COLS.map(h => (
-                <th key={h.l}
-                  className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 ${h.k ? 'cursor-pointer hover:bg-white/2' : ''} ${h.r ? 'text-right' : 'text-left'}`}
-                  onClick={() => h.k && handleSort(h.k)}>
-                  <div className={`flex items-center gap-1.5 ${h.r ? 'justify-end' : ''}`}>
-                    {h.l}
-                    {sortConfig.key === h.k && (sortConfig.direction === 'asc' ? <ChevronUp size={10}/> : <ChevronDown size={10}/>)}
-                  </div>
-                </th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {isLoading && <tr><td colSpan={8} className="text-center text-[#5f6f80] py-8 text-[12px]">Cargando órdenes...</td></tr>}
-              {!isLoading && filtered.length === 0 && <tr><td colSpan={8}><EmptyState icon={ShoppingCart} title="Sin órdenes" description="Crea tu primera orden de compra."/></td></tr>}
-              {filtered.map(oc => (
-                <tr key={oc.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
-                  <td className="px-3.5 py-2.5 font-mono text-[12px] font-semibold text-[#00c896]">{oc.numero}</td>
-                  <td className="px-3.5 py-2.5">
-                    <div className="font-medium">{provNombre(oc.proveedorId)}</div>
-                    {oc.notas && <div className="text-[11px] text-[#5f6f80] truncate max-w-[180px]">{oc.notas}</div>}
-                  </td>
-                  <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{formatDate(oc.fecha || oc.createdAt)}</td>
-                  <td className="px-3.5 py-2.5 font-mono text-[12px] text-[#9ba8b6]">{oc.fechaEntrega ? formatDate(oc.fechaEntrega) : '—'}</td>
-                  <td className="px-3.5 py-2.5 text-center text-[#9ba8b6]">{oc.items?.length || oc._count?.items || 0}</td>
-                  <td className="px-3.5 py-2.5 font-mono text-[12px] text-right font-semibold">{formatCurrency(Number(oc.total || 0), simboloMoneda)}</td>
-                  <td className="px-3.5 py-2.5"><EstadoOCBadge estado={oc.estado}/></td>
-                  <td className="px-3.5 py-2.5">
-                    <div className="flex gap-1">
-                      <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetalle(oc)}><Eye size={13}/></Btn>
-                      {oc.estado === 'APROBADA' && (
-                        <Btn variant="ghost" size="icon" title="PDF / Compartir" className="text-[#00c896]" onClick={() => setShareOC(oc)}>
-                          <FileText size={13}/>
-                        </Btn>
-                      )}
-                      {oc.estado === 'PENDIENTE' && (
-                        <Btn variant="ghost" size="icon" className="text-green-400" title="Aprobar" onClick={() => aprobar(oc)}><CheckCircle size={13}/></Btn>
-                      )}
-                      {(oc.estado === 'APROBADA' || oc.estado === 'PARCIAL') && (
-                        <Btn variant="primary" size="sm" onClick={() => abrirRecepcion(oc)}><CheckCircle size={12}/> Recibir</Btn>
-                      )}
-                      {(oc.estado === 'PENDIENTE' || oc.estado === 'APROBADA') && (
-                        <Btn variant="ghost" size="icon" className="text-red-400" title="Cancelar" onClick={() => cancelar(oc)}><X size={13}/></Btn>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          loading={isLoading}
+          rows={filtered}
+          rowKey={oc => oc.id}
+          onRowClick={oc => setDetalle(oc)}
+          emptyIcon={ShoppingCart}
+          emptyTitle="Sin órdenes"
+          emptyDescription="Crea tu primera orden de compra."
+          sortConfig={sortConfig}
+          onSort={handleSort}
+          columns={[
+            { key:'numero', header:'N° OC', sortable:true, render: oc => <span className="font-mono text-[12px] font-semibold text-[#00c896]">{oc.numero}</span> },
+            { key:'proveedor', header:'Proveedor', sortable:true, render: oc => (
+              <>
+                <div className="font-medium">{provNombre(oc.proveedorId)}</div>
+                {oc.notas && <div className="text-[11px] text-[#5f6f80] truncate max-w-[180px]">{oc.notas}</div>}
+              </>
+            ) },
+            { key:'fecha', header:'Fecha', sortable:true, render: oc => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatDate(oc.fecha || oc.createdAt)}</span> },
+            { key:'fechaEntrega', header:'Entrega', sortable:true, render: oc => <span className="font-mono text-[12px] text-[#9ba8b6]">{oc.fechaEntrega ? formatDate(oc.fechaEntrega) : '—'}</span> },
+            { key:'items', header:'Ítems', render: oc => <span className="text-[#9ba8b6]">{oc.items?.length || oc._count?.items || 0}</span> },
+            { key:'total', header:'Total', align:'right', sortable:true, render: oc => <span className="font-mono text-[12px] font-semibold">{formatCurrency(Number(oc.total || 0), simboloMoneda)}</span> },
+            { key:'estado', header:'Estado', sortable:true, render: oc => <EstadoOCBadge estado={oc.estado}/> },
+            { key:'acciones', header:'Acciones', stopPropagation:true, render: oc => (
+              <div className="flex gap-1">
+                <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetalle(oc)}><Eye size={13}/></Btn>
+                {oc.estado === 'APROBADA' && (
+                  <Btn variant="ghost" size="icon" title="PDF / Compartir" className="text-[#00c896]" onClick={() => setShareOC(oc)}>
+                    <FileText size={13}/>
+                  </Btn>
+                )}
+                {oc.estado === 'PENDIENTE' && (
+                  <Btn variant="ghost" size="icon" className="text-green-400" title="Aprobar" onClick={() => aprobar(oc)}><CheckCircle size={13}/></Btn>
+                )}
+                {(oc.estado === 'APROBADA' || oc.estado === 'PARCIAL') && (
+                  <Btn variant="primary" size="sm" onClick={() => abrirRecepcion(oc)}><CheckCircle size={12}/> Recibir</Btn>
+                )}
+                {(oc.estado === 'PENDIENTE' || oc.estado === 'APROBADA') && (
+                  <Btn variant="ghost" size="icon" className="text-red-400" title="Cancelar" onClick={() => cancelar(oc)}><X size={13}/></Btn>
+                )}
+              </div>
+            ) },
+          ]}
+        />
       </div>
 
       {/* Guía de uso */}
@@ -343,38 +320,38 @@ function ModalNuevaOC({ open, onClose, productos, proveedores, almacenes, onSave
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         <Field label="Proveedor *">
-          <select className={SEL} value={form.proveedorId} onChange={e => f('proveedorId', e.target.value)}>
+          <Select value={form.proveedorId} onChange={e => f('proveedorId', e.target.value)}>
             <option value="">Seleccionar...</option>
             {proveedores.map(p => <option key={p.id} value={p.id}>{p.razonSocial}</option>)}
-          </select>
+          </Select>
         </Field>
         <Field label="Almacén de destino *" hint="Donde entrará la mercadería al recibirla">
-          <select className={SEL} value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
+          <Select value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
             <option value="">Seleccionar...</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
+          </Select>
         </Field>
-        <Field label="Fecha de Entrega"><input type="date" className={SI} value={form.fechaEntrega} onChange={e => f('fechaEntrega', e.target.value)}/></Field>
+        <Field label="Fecha de Entrega"><Input type="date" value={form.fechaEntrega} onChange={e => f('fechaEntrega', e.target.value)}/></Field>
       </div>
 
       <div className="text-[13px] font-semibold text-[#e8edf2]">Agregar ítems</div>
       <div className="flex gap-2 flex-wrap items-end">
         <div className="flex-[2] min-w-[180px]">
           <Field label="Producto">
-            <select className={SEL} value={ni.productoId} onChange={e => setNi(p => ({ ...p, productoId: e.target.value }))}>
+            <Select value={ni.productoId} onChange={e => setNi(p => ({ ...p, productoId: e.target.value }))}>
               <option value="">Seleccionar...</option>
               {productosActivos.map(p => <option key={p.id} value={p.id}>{p.sku} — {p.nombre}</option>)}
-            </select>
+            </Select>
           </Field>
         </div>
         <div className="flex-1 min-w-[90px]">
           <Field label="Cantidad">
-            <input type="number" className={SI} value={ni.cantidad} onChange={e => setNi(p => ({ ...p, cantidad: e.target.value }))} min="0.01" step="0.01"/>
+            <Input type="number" value={ni.cantidad} onChange={e => setNi(p => ({ ...p, cantidad: e.target.value }))} min="0.01" step="0.01"/>
           </Field>
         </div>
         <div className="flex-1 min-w-[90px]">
           <Field label="Costo Unit.">
-            <input type="number" className={SI} value={ni.costoUnitario} onChange={e => setNi(p => ({ ...p, costoUnitario: e.target.value }))} min="0" step="0.01"/>
+            <Input type="number" value={ni.costoUnitario} onChange={e => setNi(p => ({ ...p, costoUnitario: e.target.value }))} min="0" step="0.01"/>
           </Field>
         </div>
         <Btn variant="secondary" onClick={addItem}>+ Agregar</Btn>
@@ -412,7 +389,7 @@ function ModalNuevaOC({ open, onClose, productos, proveedores, almacenes, onSave
       </div>
 
       <Field label="Notas">
-        <textarea className={SI + ' resize-y min-h-[56px]'} value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Condiciones, urgencia..."/>
+        <Textarea className="min-h-14" value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Condiciones, urgencia..."/>
       </Field>
     </Modal>
   )

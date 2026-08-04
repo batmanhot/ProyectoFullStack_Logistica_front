@@ -31,16 +31,42 @@ test('ciclo completo de Despacho — de Pedido a Entregado, con baja real de sto
   await expect(fila).toBeVisible()
   await checkA11y(page, 'Despachos — listado')
 
-  // PEDIDO -> APROBADO -> PICKING -> LISTO -> DESPACHADO
+  // PEDIDO -> APROBADO -> PICKING (transiciones directas)
   for (const [accion, estadoEsperado] of [
     ['Aprobar', 'Aprobado'],
     ['Iniciar Picking', 'Picking'],
-    ['Marcar Listo', 'Listo'],
-    ['Despachar', 'Despachado'],
   ] as const) {
     await fila.getByRole('button', { name: accion }).click()
     await expect(fila.getByText(estadoEsperado, { exact: true })).toBeVisible({ timeout: 10_000 })
   }
+
+  // PICKING -> LISTO ya no es directo: "Marcar Listo" abre la lista de picking
+  // generada por DespachosService.iniciarPicking() y exige confirmar el 100%
+  // de las líneas antes de habilitar el avance (módulo de Picking, Fase 1).
+  await fila.getByRole('button', { name: 'Marcar Listo' }).click()
+  const pickingDialog = page.getByRole('dialog', { name: /^Picking —/ })
+  await expect(pickingDialog).toBeVisible()
+  await checkA11y(page, 'Despachos — modal Picking')
+
+  const marcarListoModal = pickingDialog.getByRole('button', { name: 'Marcar Listo' })
+  await expect(marcarListoModal).toBeDisabled()
+
+  // Confirma cada línea con la cantidad sugerida por defecto (input ya viene con cantidadRequerida).
+  let pendientes = await pickingDialog.getByRole('button', { name: 'Confirmar' }).count()
+  expect(pendientes).toBeGreaterThan(0)
+  while (pendientes > 0) {
+    await pickingDialog.getByRole('button', { name: 'Confirmar' }).first().click()
+    await expect(pickingDialog.getByRole('button', { name: 'Confirmar' })).toHaveCount(pendientes - 1, { timeout: 10_000 })
+    pendientes = await pickingDialog.getByRole('button', { name: 'Confirmar' }).count()
+  }
+
+  await expect(marcarListoModal).toBeEnabled()
+  await marcarListoModal.click()
+  await expect(fila.getByText('Listo', { exact: true })).toBeVisible({ timeout: 10_000 })
+
+  // LISTO -> DESPACHADO
+  await fila.getByRole('button', { name: 'Despachar' }).click()
+  await expect(fila.getByText('Despachado', { exact: true })).toBeVisible({ timeout: 10_000 })
 
   // DESPACHADO -> ENTREGADO: abre ModalEvidencia, exige receptor
   await fila.getByRole('button', { name: 'Confirmar Entrega' }).click()

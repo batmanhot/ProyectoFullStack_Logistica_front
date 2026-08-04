@@ -1,6 +1,3 @@
-export const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
-export const SEL = SI + ' pr-8'
-
 // Extrae YYYY-MM-DD de ISO datetime o de YYYY-MM-DD directamente
 export function toDateStr(v) { return v ? String(v).slice(0, 10) : null }
 

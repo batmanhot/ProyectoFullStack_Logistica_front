@@ -311,17 +311,17 @@ export function TableWrap({ children }) {
   )
 }
 
-export function Th({ children, right }) {
+export function Th({ children, right, onClick }) {
   return (
-    <th className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 sticky top-0 z-10 ${right ? 'text-right' : 'text-left'}`}>
+    <th onClick={onClick} className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 sticky top-0 z-10 ${right ? 'text-right' : 'text-left'} ${onClick ? 'cursor-pointer hover:bg-white/2' : ''}`}>
       {children}
     </th>
   )
 }
 
-export function Td({ children, mono, muted, right, className = '' }) {
+export function Td({ children, mono, muted, right, className = '', onClick }) {
   return (
-    <td className={`px-3.5 py-2.5 text-[#e8edf2] align-middle ${mono ? "font-mono text-[12px]" : ''} ${muted ? 'text-[#9ba8b6]' : ''} ${right ? 'text-right' : ''} ${className}`}>
+    <td onClick={onClick} className={`px-3.5 py-2.5 text-[#e8edf2] align-middle ${mono ? "font-mono text-[12px]" : ''} ${muted ? 'text-[#9ba8b6]' : ''} ${right ? 'text-right' : ''} ${className}`}>
       {children}
     </td>
   )
@@ -359,6 +359,9 @@ export function KpiCard({ label, value, sub, accentColor, icon, mono, onClick })
     </div>
   )
 }
+
+export { DataTable, Pager } from './DataTable'
+export { LineaTiempo } from './LineaTiempo'
 
 export { default as DireccionInput } from './DireccionInput'
 

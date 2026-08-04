@@ -1,5 +1,8 @@
 import ExcelJS from 'exceljs'
 import { mostrarPreviewExport } from './exportPreview'
+import { ESTADOS, PRIORIDADES } from '../pages/PedidosInternos/constants'
+import { ESTADO_RUTA } from '../pages/Transportes/constants'
+import { toDateStr } from '../pages/Flota/constants'
 
 /**
  * exportXLSX.js — Exportación a Excel con formato (ExcelJS).
@@ -382,6 +385,97 @@ export async function exportarCxCXLSX(docs, clientes, simboloMoneda) {
   })
 }
 
+export async function exportarEntradasXLSX(entradas, productos, almacenes, proveedores, simboloMoneda) {
+  await exportarExcel({
+    titulo: 'Reporte de Entradas',
+    cabeceras: ['Fecha','Documento','Producto','SKU','Almacén','Proveedor','Cantidad','Costo Unit.','Costo Total','Motivo'],
+    filas: entradas.map(m => {
+      const p    = productos.find(x=>x.id===m.productoId)
+      const alm  = almacenes.find(a=>a.id===m.almacenId)
+      const prov = proveedores.find(x=>x.id===m.proveedorId)
+      const costoUnitario = Number(m.costoUnitario||0)
+      const costoTotal    = costoUnitario * Number(m.cantidad||0)
+      return [m.fecha, m.documento||'—', p?.nombre||'—', p?.sku||'—',
+              alm?.nombre||'—', prov?.razonSocial||'—', m.cantidad,
+              +costoUnitario.toFixed(2), +costoTotal.toFixed(2), m.motivo||'—']
+    }),
+    totales: ['TOTAL',`${entradas.length} registros`,'','','','','',
+              '', +entradas.reduce((s,m)=>s+Number(m.costoUnitario||0)*Number(m.cantidad||0),0).toFixed(2),''],
+    nombreArchivo: 'reporte_entradas',
+  })
+}
+
+export async function exportarSalidasXLSX(salidas, productos, almacenes, simboloMoneda) {
+  await exportarExcel({
+    titulo: 'Reporte de Salidas',
+    cabeceras: ['Fecha','Documento','Producto','SKU','Almacén','Cantidad','Costo Unit.','Costo Total','Motivo'],
+    filas: salidas.map(m => {
+      const p   = productos.find(x=>x.id===m.productoId)
+      const alm = almacenes.find(a=>a.id===m.almacenId)
+      const costoUnitario = Number(m.costoUnitario||0)
+      const costoTotal    = costoUnitario * Number(m.cantidad||0)
+      return [m.fecha, m.documento||'—', p?.nombre||'—', p?.sku||'—',
+              alm?.nombre||'—', m.cantidad,
+              +costoUnitario.toFixed(2), +costoTotal.toFixed(2), m.motivo||'—']
+    }),
+    totales: ['TOTAL',`${salidas.length} registros`,'','','','',
+              '', +salidas.reduce((s,m)=>s+Number(m.costoUnitario||0)*Number(m.cantidad||0),0).toFixed(2),''],
+    nombreArchivo: 'reporte_salidas',
+  })
+}
+
+export async function exportarAjustesXLSX(ajustes, productos, almacenes, simboloMoneda) {
+  await exportarExcel({
+    titulo: 'Reporte de Ajustes',
+    cabeceras: ['Fecha','Documento','Producto','SKU','Almacén','Tipo','Cantidad','Costo Unit.','Costo Total','Motivo'],
+    filas: ajustes.map(m => {
+      const p   = productos.find(x=>x.id===m.productoId)
+      const alm = almacenes.find(a=>a.id===m.almacenId)
+      const pos = Number(m.cantidad) >= 0
+      const costoUnitario = Number(m.costoUnitario||0)
+      const costoTotal    = costoUnitario * Number(m.cantidad||0)
+      return [m.fecha, m.documento||'—', p?.nombre||'—', p?.sku||'—', alm?.nombre||'—',
+              pos?'Positivo':'Negativo', m.cantidad,
+              +costoUnitario.toFixed(2), +costoTotal.toFixed(2), m.motivo||'—']
+    }),
+    totales: ['TOTAL',`${ajustes.length} registros`,'','','','','',
+              '', +ajustes.reduce((s,m)=>s+Number(m.costoUnitario||0)*Number(m.cantidad||0),0).toFixed(2),''],
+    nombreArchivo: 'reporte_ajustes',
+  })
+}
+
+export async function exportarKardexXLSX(lineasKardex, producto, simboloMoneda) {
+  await exportarExcel({
+    titulo: `Kardex — ${producto?.nombre || ''}`,
+    cabeceras: ['N°','Fecha','Tipo','Documento','Motivo','Entrada','Salida','Saldo','Costo Unit.','Valor Acum.'],
+    filas: lineasKardex.map((l, i) => [
+      i + 1, l.fecha, l.tipo, l.documento||'—', l.motivo||'—',
+      l.entrada || 0, l.salida || 0, l.saldo,
+      +Number(l.costoUnit||0).toFixed(2), +Number(l.valorAcum||0).toFixed(2),
+    ]),
+    totales: ['TOTAL',`${lineasKardex.length} movimientos`,'','','',
+              lineasKardex.reduce((s,l)=>s+(l.entrada||0),0),
+              lineasKardex.reduce((s,l)=>s+(l.salida||0),0),'','',''],
+    nombreArchivo: `kardex_${producto?.sku || 'producto'}`,
+  })
+}
+
+export async function exportarInventarioFisicoXLSX(lineas, inventario, simboloMoneda) {
+  await exportarExcel({
+    titulo: `Conteo Físico — ${inventario?.numero || ''}`,
+    cabeceras: ['SKU','Producto','U.M.','Sistema','Contado','Diferencia','Costo Unit.','Valor Dif.'],
+    filas: lineas.map(l => {
+      const dif    = l.diferencia !== null && l.diferencia !== undefined ? Number(l.diferencia) : ''
+      const valDif = dif !== '' && l.costoUnitario ? +(dif * Number(l.costoUnitario)).toFixed(2) : ''
+      return [l.producto?.sku||'—', l.producto?.nombre||'—', l.producto?.unidadMedida||'',
+              l.stockSistema, l.stockFisico ?? '—', dif,
+              +Number(l.costoUnitario||0).toFixed(2), valDif]
+    }),
+    totales: ['TOTAL',`${lineas.length} productos`,'','','','','',''],
+    nombreArchivo: `conteo_${inventario?.numero || 'inventario'}`,
+  })
+}
+
 export async function exportarListaPreciosXLSX(lista, productos, categorias, simboloMoneda, calcPMP) {
   const nombre = lista?.nombre||'Lista General'
   await exportarExcel({
@@ -401,5 +495,161 @@ export async function exportarListaPreciosXLSX(lista, productos, categorias, sim
               desc||'—', marg||'—']
     }),
     nombreArchivo: `lista_precios_${nombre.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')}`,
+  })
+}
+
+export async function exportarPedidosInternosXLSX(pedidos, areas, almacenes) {
+  await exportarExcel({
+    titulo: 'Pedidos Internos',
+    cabeceras: ['Nro. Pedido','Área','Almacén','Fecha','Fecha Requerida','Ítems','Estado','Prioridad'],
+    filas: pedidos.map(p => {
+      const area    = areas.find(a => a.id === p.areaId)
+      const almacen = almacenes.find(a => a.id === p.almacenId)
+      return [
+        p.numero, area?.nombre || p.areaId, almacen?.nombre || p.almacenId,
+        (p.fecha || p.createdAt || '').split('T')[0], p.fechaRequerida?.split('T')[0] || '—',
+        p.items?.length || 0, ESTADOS[p.estado]?.label || p.estado, PRIORIDADES[p.prioridad]?.label || p.prioridad,
+      ]
+    }),
+    totales: ['TOTAL', `${pedidos.length} pedidos`,'','','','','',''],
+    nombreArchivo: 'pedidos_internos',
+  })
+}
+
+export async function exportarRutasXLSX(rutas, transportistas) {
+  await exportarExcel({
+    titulo: 'Rutas de Entrega',
+    cabeceras: ['N° Ruta','Transportista','Placa','Fecha Salida','Paradas','Entregadas','Estado'],
+    filas: rutas.map(r => {
+      const tra = transportistas.find(t => t.id === r.transportistaId)
+      const entregadas = (r.paradas || []).filter(p => p.estado === 'ENTREGADO').length
+      return [
+        r.numero, tra?.nombre || '—', tra?.placa || '—',
+        (r.fechaSalida || '').split('T')[0], (r.paradas || []).length, entregadas,
+        ESTADO_RUTA[r.estado]?.label || r.estado,
+      ]
+    }),
+    totales: ['TOTAL', `${rutas.length} rutas`,'','','','',''],
+    nombreArchivo: 'rutas_entrega',
+  })
+}
+
+export async function exportarTransportistasXLSX(transportistas) {
+  await exportarExcel({
+    titulo: 'Directorio de Transportistas',
+    cabeceras: ['Nombre','Tipo','Placa','Vehículo','Teléfono','Licencia','Estado'],
+    filas: transportistas.map(t => [
+      t.nombre, t.tipo === 'PROPIO' ? 'Propio' : 'Tercero', t.placa || '—',
+      t.vehiculo || '—', t.telefono || '—', t.licencia || '—',
+      t.activo !== false ? 'Activo' : 'Inactivo',
+    ]),
+    totales: ['TOTAL', `${transportistas.length} transportistas`,'','','','',''],
+    nombreArchivo: 'directorio_transportistas',
+  })
+}
+
+export async function exportarMantenimientosXLSX(mantenimientos) {
+  await exportarExcel({
+    titulo: 'Historial de Mantenimientos',
+    cabeceras: ['Fecha','Unidad','Placa','Tipo','Km','Costo (S/)','Taller','Observaciones'],
+    filas: mantenimientos.map(m => [
+      toDateStr(m.fecha) || '—', m.vehiculo?.nombre || '—', m.vehiculo?.placa || '—',
+      m.tipo, m.kmActual ? Number(m.kmActual) : '—', m.costo ? +Number(m.costo).toFixed(2) : '—',
+      m.taller || '—', m.observaciones || '—',
+    ]),
+    totales: ['TOTAL', `${mantenimientos.length} registros`,'','','','','',''],
+    nombreArchivo: 'historial_mantenimientos',
+  })
+}
+
+export async function exportarCombustibleXLSX(registros) {
+  await exportarExcel({
+    titulo: 'Registros de Combustible',
+    cabeceras: ['Fecha','Unidad','Placa','Litros','Costo (S/)','KM antes','KM después','KM recorridos','Tipo'],
+    filas: registros.map(r => [
+      toDateStr(r.fecha) || '—', r.vehiculo?.nombre || '—', r.vehiculo?.placa || '—',
+      Number(r.litros), +Number(r.costo).toFixed(2),
+      r.kmAntes ? Number(r.kmAntes) : '—', r.kmDespues ? Number(r.kmDespues) : '—',
+      r.kmRecorridos ? Number(r.kmRecorridos) : '—', r.tipoCombustible || '—',
+    ]),
+    totales: ['TOTAL', `${registros.length} registros`,'','','','','','',''],
+    nombreArchivo: 'registros_combustible',
+  })
+}
+
+export async function exportarPuntoReordenXLSX(analisis, simboloMoneda) {
+  await exportarExcel({
+    titulo: 'Análisis de Punto de Reorden',
+    cabeceras: ['SKU','Producto','Categoría','Stock actual','Punto reorden','Consumo/día','Días de stock','Cant. sugerida','Costo estimado','Estado'],
+    filas: analisis.map(p => [
+      p.sku, p.nombre, p.catNombre,
+      p.stockActual, p.puntosReorden, p.consumoDiario,
+      p.diasStock === null ? '—' : p.diasStock,
+      p.cantSugerida, +p.costoSugerido.toFixed(2),
+      p.ocPendiente ? 'OC Pendiente' : p.stockActual <= 0 ? 'Agotado' : p.necesitaPedido ? 'Reponer' : 'OK',
+    ]),
+    totales: ['TOTAL', `${analisis.length} productos`,'','','','','','','',''],
+    nombreArchivo: 'punto_reorden',
+  })
+}
+
+export async function exportarSunatDocumentosXLSX(docs, clientes) {
+  await exportarExcel({
+    titulo: 'Guías de Remisión Electrónica — SUNAT',
+    cabeceras: ['N° Guía','Cliente','Fecha','Estado SUNAT'],
+    filas: docs.map(doc => {
+      const cli    = clientes.find(c => c.id === (doc.despacho?.clienteId || doc.clienteId))
+      const nombre = cli?.razonSocial || doc.despacho?.cliente?.razonSocial || '—'
+      const fecha  = doc.despacho?.fechaDespacho || doc.createdAt
+      return [doc.guiaNumero, nombre, (fecha || '').split('T')[0], doc.estado]
+    }),
+    totales: ['TOTAL', `${docs.length} documentos`,'',''],
+    nombreArchivo: 'sunat_documentos_gre',
+  })
+}
+
+export async function exportarSunatGenerarXLSX(despachos, clientes) {
+  await exportarExcel({
+    titulo: 'Despachos con Guía de Remisión',
+    cabeceras: ['N° Guía','Despacho','Cliente','Fecha despacho','Estado despacho'],
+    filas: despachos.map(des => {
+      const cli = clientes.find(c => c.id === des.clienteId)
+      return [des.guiaNumero, des.numero, cli?.razonSocial || '—', (des.fechaDespacho||des.fecha||'').split('T')[0], des.estado]
+    }),
+    totales: ['TOTAL', `${despachos.length} despachos`,'','',''],
+    nombreArchivo: 'sunat_despachos_con_guia',
+  })
+}
+
+export async function exportarReportesMovimientosXLSX(movMes, simboloMoneda) {
+  await exportarExcel({
+    titulo: 'Movimientos por Período',
+    cabeceras: ['Mes','Entradas','Salidas'],
+    filas: movMes.map(m => [m.mes, +m.entradas.toFixed(2), +m.salidas.toFixed(2)]),
+    totales: ['TOTAL', +movMes.reduce((s,m)=>s+m.entradas,0).toFixed(2), +movMes.reduce((s,m)=>s+m.salidas,0).toFixed(2)],
+    nombreArchivo: 'movimientos_por_periodo',
+  })
+}
+
+export async function exportarReportesABCXLSX(abc, valorTotal, simboloMoneda) {
+  await exportarExcel({
+    titulo: 'Análisis ABC de Inventario',
+    cabeceras: ['Clase','SKU','Producto','Stock','U.M.','Valor','% Acumulado'],
+    filas: abc.map((p, i) => {
+      const acum = abc.slice(0, i + 1).reduce((s, x) => s + x.valorStock, 0)
+      return [p.abc, p.sku, p.nombre, p.stockActual, p.unidadMedida, +p.valorStock.toFixed(2), valorTotal > 0 ? +((acum/valorTotal)*100).toFixed(1) : 0]
+    }),
+    totales: ['TOTAL','',`${abc.length} productos`,'','', +valorTotal.toFixed(2), ''],
+    nombreArchivo: 'analisis_abc',
+  })
+}
+
+export async function exportarFinancieroXLSX(plMensual, kpis, simboloMoneda) {
+  await exportarExcel({
+    titulo: 'Estado de Resultados Mensual (P&L)',
+    cabeceras: ['Mes','Ingresos','Costo Ventas','Devoluciones','Margen Bruto','Margen %'],
+    filas: plMensual.map(m => [m.mes, +m.ingresos.toFixed(2), +m.costoVentas.toFixed(2), +m.devMes.toFixed(2), +m.margenBruto.toFixed(2), +m.margenPct.toFixed(1)]),
+    totales: ['TOTAL', +kpis.totalIngresos.toFixed(2), +kpis.totalCosto.toFixed(2), +kpis.totalDev.toFixed(2), +kpis.margenBruto.toFixed(2), +kpis.margenPct.toFixed(1)],
+    nombreArchivo: 'estado_resultados_mensual',
   })
 }

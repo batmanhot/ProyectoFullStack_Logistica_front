@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Plus, Search, Eye, Edit2, Trash2, FileText, CheckCircle, Copy, Download, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { formatCurrency, formatDate, fechaHoy } from '../utils/helpers'
-import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field } from '../components/ui/index'
+import { formatCurrency, formatDate } from '../utils/helpers'
+import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, DataTable } from '../components/ui/index'
 import { imprimirProforma } from '../utils/pdfTemplates'
 import { exportarProformasXLSX } from '../utils/exportXLSX'
 import { exportarProformasPDF } from '../utils/exportPDF'
@@ -11,9 +11,6 @@ import { useClientesList } from '../queries/clientes.queries'
 import { useProductosList } from '../queries/productos.queries'
 
 const simboloMoneda = 'S/'
-const SI  = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit] placeholder-[#5f6f80]'
-const SEL = SI + ' pr-8'
-const TH  = ({ c, r }) => <th className={`bg-[#1a2230] px-3.5 py-2.5 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] whitespace-nowrap border-b border-white/8 ${r ? 'text-right' : 'text-left'}`}>{c}</th>
 
 const ESTADO_META = {
   BORRADOR:  { label: 'Borrador',  color: 'neutral'  },
@@ -165,19 +162,19 @@ export default function Proformas() {
         <div className="flex flex-wrap gap-2 mb-4">
           <div className="relative flex-1 min-w-50">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
-            <input className={SI + ' pl-8'} placeholder="Buscar número o cliente..." value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
+            <Input className="pl-8" placeholder="Buscar número o cliente..." value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <select className={SEL} style={{ width: 145, padding: '5px 8px', fontSize: 12 }} value={filtro} onChange={e => setFiltro(e.target.value)}>
+          <Select className="w-auto" value={filtro} onChange={e => setFiltro(e.target.value)}>
             <option value="">Todos los estados</option>
             {Object.entries(ESTADO_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select>
+          </Select>
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-[#5f6f80] whitespace-nowrap font-semibold uppercase tracking-wide">Desde</span>
-            <input type="date" className={SI + ' py-1.25! text-[12px]'} style={{ width: 138 }} value={filtDesde} onChange={e => setFiltDesde(e.target.value)}/>
+            <Input type="date" style={{ width: 138 }} value={filtDesde} onChange={e => setFiltDesde(e.target.value)}/>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-[#5f6f80] whitespace-nowrap font-semibold uppercase tracking-wide">Hasta</span>
-            <input type="date" className={SI + ' py-1.25! text-[12px]'} style={{ width: 138 }} value={filtHasta} onChange={e => setFiltHasta(e.target.value)}/>
+            <Input type="date" style={{ width: 138 }} value={filtHasta} onChange={e => setFiltHasta(e.target.value)}/>
           </div>
           {(busqueda || filtro || filtDesde || filtHasta) && (
             <Btn variant="ghost" size="sm" onClick={() => { setBusqueda(''); setFiltro(''); setFiltDesde(''); setFiltHasta('') }}>
@@ -186,52 +183,67 @@ export default function Proformas() {
           )}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/8">
-          <table className="w-full border-collapse text-[12px]">
-            <thead><tr>
-              <TH c="N° Proforma"/><TH c="Cliente"/><TH c="Fecha"/><TH c="Válida hasta"/>
-              <TH c="Ítems" r/><TH c="Total" r/><TH c="Estado"/><TH c="Acciones"/>
-            </tr></thead>
-            <tbody>
-              {isLoading && <tr><td colSpan={8} className="text-center text-[#5f6f80] py-8 text-[12px]">Cargando proformas...</td></tr>}
-              {!isLoading && filtered.length === 0 && (
-                <tr><td colSpan={8}><EmptyState icon={FileText} title="Sin proformas" description="Crea la primera cotización de venta."/></td></tr>
-              )}
-              {filtered.map(doc => {
+        <DataTable
+          loading={isLoading}
+          rows={filtered}
+          rowKey={doc => doc.id}
+          onRowClick={doc => setDetalle(doc)}
+          emptyIcon={FileText}
+          emptyTitle="Sin proformas"
+          emptyDescription="Crea la primera cotización de venta."
+          columns={[
+            { key: 'numero', header: 'N° Proforma', render: doc => <span className="font-mono text-[11px] text-[#00c896] font-semibold">{doc.numero}</span> },
+            { key: 'cliente', header: 'Cliente', render: doc => <span className="font-medium text-[#e8edf2]">{cliNombre(doc.clienteId)}</span> },
+            { key: 'fecha', header: 'Fecha', render: doc => <span className="font-mono text-[11px] text-[#9ba8b6]">{formatDate(doc.fecha)}</span> },
+            { key: 'venc', header: 'Válida hasta', render: doc => <span className="font-mono text-[11px] text-[#9ba8b6]">{formatDate(doc.fechaVencimiento)}</span> },
+            { key: 'items', header: 'Ítems', align: 'right', render: doc => <span className="text-[#9ba8b6]">{doc.items?.length || 0}</span> },
+            { key: 'total', header: 'Total', align: 'right', render: doc => <span className="font-mono font-semibold text-[#e8edf2]">{formatCurrency(doc.total, simboloMoneda)}</span> },
+            { key: 'estado', header: 'Estado', render: doc => {
+                const meta = ESTADO_META[doc.estado] || ESTADO_META.BORRADOR
+                return <Badge variant={meta.color}>{meta.label}</Badge>
+              } },
+            { key: 'acciones', header: 'Acciones', stopPropagation: true, render: doc => {
                 const meta = ESTADO_META[doc.estado] || ESTADO_META.BORRADOR
                 return (
-                  <tr key={doc.id} className="border-b border-white/6 last:border-0 hover:bg-white/2">
-                    <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#00c896] font-semibold">{doc.numero}</td>
-                    <td className="px-3.5 py-2.5 font-medium text-[#e8edf2]">{cliNombre(doc.clienteId)}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#9ba8b6]">{formatDate(doc.fecha)}</td>
-                    <td className="px-3.5 py-2.5 font-mono text-[11px] text-[#9ba8b6]">{formatDate(doc.fechaVencimiento)}</td>
-                    <td className="px-3.5 py-2.5 text-right text-[#9ba8b6]">{doc.items?.length || 0}</td>
-                    <td className="px-3.5 py-2.5 text-right font-mono font-semibold text-[#e8edf2]">{formatCurrency(doc.total, simboloMoneda)}</td>
-                    <td className="px-3.5 py-2.5"><Badge variant={meta.color}>{meta.label}</Badge></td>
-                    <td className="px-3.5 py-2.5">
-                      <div className="flex gap-1">
-                        <Btn variant="ghost" size="icon" title="Ver" onClick={() => setDetalle(doc)}><Eye size={12}/></Btn>
-                        <Btn variant="ghost" size="icon" disabled={NO_EDITABLE.includes(doc.estado)}
-                          title={NO_EDITABLE.includes(doc.estado) ? `No se puede editar una proforma ${meta.label.toLowerCase()}` : 'Editar'}
-                          onClick={() => { setEditando(doc); setModal(true) }}><Edit2 size={12}/></Btn>
-                        <Btn variant="ghost" size="icon" title="Imprimir" className="text-[#00c896]"
-                          onClick={() => imprimirProforma({ doc, cliente: clientes.find(c => c.id === doc.clienteId), productos, config: { simboloMoneda, empresa: sesion?.nombre } })}>
-                          <FileText size={12}/>
-                        </Btn>
-                        <Btn variant="ghost" size="icon" title="Duplicar" onClick={() => duplicar(doc)}><Copy size={12}/></Btn>
-                        {doc.estado === 'ENVIADA' && (
-                          <Btn variant="ghost" size="icon" title="Marcar aceptada" className="text-green-400" onClick={() => marcarAceptada(doc)}>
-                            <CheckCircle size={12}/>
-                          </Btn>
-                        )}
-                        <Btn variant="ghost" size="icon" className="text-red-400" onClick={() => setConfirmDel(doc.id)}><Trash2 size={12}/></Btn>
-                      </div>
-                    </td>
-                  </tr>
+                  <div className="flex gap-1">
+                    <Btn variant="ghost" size="icon" title="Ver" onClick={() => setDetalle(doc)}><Eye size={12}/></Btn>
+                    <Btn variant="ghost" size="icon" disabled={NO_EDITABLE.includes(doc.estado)}
+                      title={NO_EDITABLE.includes(doc.estado) ? `No se puede editar una proforma ${meta.label.toLowerCase()}` : 'Editar'}
+                      onClick={() => { setEditando(doc); setModal(true) }}><Edit2 size={12}/></Btn>
+                    <Btn variant="ghost" size="icon" title="Imprimir" className="text-[#00c896]"
+                      onClick={() => imprimirProforma({ doc, cliente: clientes.find(c => c.id === doc.clienteId), productos, config: { simboloMoneda, empresa: sesion?.nombre } })}>
+                      <FileText size={12}/>
+                    </Btn>
+                    <Btn variant="ghost" size="icon" title="Duplicar" onClick={() => duplicar(doc)}><Copy size={12}/></Btn>
+                    {doc.estado === 'ENVIADA' && (
+                      <Btn variant="ghost" size="icon" title="Marcar aceptada" className="text-green-400" onClick={() => marcarAceptada(doc)}>
+                        <CheckCircle size={12}/>
+                      </Btn>
+                    )}
+                    <Btn variant="ghost" size="icon" className="text-red-400" onClick={() => setConfirmDel(doc.id)}><Trash2 size={12}/></Btn>
+                  </div>
                 )
-              })}
-            </tbody>
-          </table>
+              } },
+          ]}
+        />
+      </div>
+
+      <div className="bg-[#161d28] border border-white/6 rounded-xl p-5">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
+          ¿Cómo funciona el módulo de Proformas / Cotizaciones?
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+          {[
+            ['1. Crear proforma', 'Elige cliente y agrega los ítems con su cantidad y precio unitario — el subtotal, IGV y total se calculan automáticamente.'],
+            ['2. Enviar y hacer seguimiento', 'Marca el estado (Enviada, Aceptada, Rechazada) según la respuesta del cliente. Una proforma Aceptada o Rechazada ya no se puede editar.'],
+            ['3. Duplicar', 'Usa "Duplicar" para crear una nueva proforma con los mismos ítems, útil para cotizaciones recurrentes.'],
+            ['4. Imprimir o exportar', 'Cada proforma se puede imprimir en PDF individual; Excel/PDF exportan la lista completa filtrada.'],
+          ].map(([t, d]) => (
+            <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
+              <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
+              <div className="text-[11px] text-[#5f6f80] leading-relaxed">{d}</div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -381,27 +393,27 @@ function ModalProforma({ open, onClose, editando, clientes, productos, simboloMo
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         <Field label="Cliente">
           {isEdit
-            ? <div className={SI + ' opacity-50 cursor-not-allowed'}>{clientes.find(c => c.id === form.clienteId)?.razonSocial || '—'}</div>
-            : <select className={SEL} value={form.clienteId} onChange={e => f('clienteId', e.target.value)}>
+            ? <Input disabled readOnly className="opacity-50 cursor-not-allowed" value={clientes.find(c => c.id === form.clienteId)?.razonSocial || '—'}/>
+            : <Select value={form.clienteId} onChange={e => f('clienteId', e.target.value)}>
                 <option value="">Seleccionar...</option>
                 {clientes.filter(c => c.activo !== false).map(c => <option key={c.id} value={c.id}>{c.razonSocial}</option>)}
-              </select>
+              </Select>
           }
         </Field>
         <Field label="Estado">
           {isEdit
-            ? <select className={SEL} value={form.estado} onChange={e => f('estado', e.target.value)}>
+            ? <Select value={form.estado} onChange={e => f('estado', e.target.value)}>
                 {ESTADOS_EDIT.map(k => <option key={k} value={k}>{ESTADO_META[k]?.label || k}</option>)}
-              </select>
-            : <div className={SI + ' opacity-50 cursor-not-allowed'}>{ESTADO_META.BORRADOR.label}</div>
+              </Select>
+            : <Input disabled readOnly className="opacity-50 cursor-not-allowed" value={ESTADO_META.BORRADOR.label}/>
           }
         </Field>
         <Field label="Válida hasta">
-          <input type="date" className={SI} value={form.fechaVencimiento} onChange={e => f('fechaVencimiento', e.target.value)}/>
+          <Input type="date" value={form.fechaVencimiento} onChange={e => f('fechaVencimiento', e.target.value)}/>
         </Field>
         <div className="col-span-full">
           <Field label="Notas">
-            <input className={SI} value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Condiciones, plazos, observaciones..."/>
+            <Input value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Condiciones, plazos, observaciones..."/>
           </Field>
         </div>
       </div>
@@ -445,22 +457,22 @@ function ModalProforma({ open, onClose, editando, clientes, productos, simboloMo
                 <div key={i} className="grid grid-cols-12 gap-2 mb-2 items-end">
                   <div className="col-span-4">
                     {i === 0 && <div className="text-[10px] text-[#5f6f80] mb-1">Producto</div>}
-                    <select className={SEL} value={item.productoId} onChange={e => setItem(i, 'productoId', e.target.value)}>
+                    <Select value={item.productoId} onChange={e => setItem(i, 'productoId', e.target.value)}>
                       <option value="">Seleccionar...</option>
                       {productos.filter(p => p.estado === 'Activo').map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                    </select>
+                    </Select>
                   </div>
                   <div className="col-span-3">
                     {i === 0 && <div className="text-[10px] text-[#5f6f80] mb-1">Descripción</div>}
-                    <input className={SI} value={item.descripcion} onChange={e => setItem(i, 'descripcion', e.target.value)} placeholder="Descripción"/>
+                    <Input value={item.descripcion} onChange={e => setItem(i, 'descripcion', e.target.value)} placeholder="Descripción"/>
                   </div>
                   <div className="col-span-1">
                     {i === 0 && <div className="text-[10px] text-[#5f6f80] mb-1">Cant.</div>}
-                    <input type="number" className={SI} value={item.cantidad} onChange={e => setItem(i, 'cantidad', +e.target.value)} min="0.01" step="0.01"/>
+                    <Input type="number" value={item.cantidad} onChange={e => setItem(i, 'cantidad', +e.target.value)} min="0.01" step="0.01"/>
                   </div>
                   <div className="col-span-2">
                     {i === 0 && <div className="text-[10px] text-[#5f6f80] mb-1">P. Unitario</div>}
-                    <input type="number" className={SI} value={item.precioUnitario} onChange={e => setItem(i, 'precioUnitario', +e.target.value)} min="0" step="0.01"/>
+                    <Input type="number" value={item.precioUnitario} onChange={e => setItem(i, 'precioUnitario', +e.target.value)} min="0" step="0.01"/>
                   </div>
                   <div className="col-span-1 text-right pt-1">
                     {i === 0 && <div className="text-[10px] text-[#5f6f80] mb-1">Subtotal</div>}
