@@ -88,6 +88,15 @@ Un `ErrorBoundary` envuelve cada árbol de rutas — un error en un módulo
 no tumba toda la app, muestra una pantalla de recuperación con botón
 "Recargar".
 
+**Agrupación del menú, sin fuente única**: `Sidebar.jsx` (`NAV`, los
+`divider`) agrupa las páginas por sección (Inventario, Despachos, Ventas…
+ver §5). La misma taxonomía de módulos (mismos `modulo`/`id`) está
+**duplicada a mano** en `pages/Usuarios/constants.js` (`MODULOS_GRUPOS`)
+para el editor de permisos por rol — no hay una fuente única entre las
+dos. Si se agrega, quita o reagrupa un módulo en el Sidebar, replicar el
+mismo cambio ahí o el editor de roles queda con una clasificación
+distinta a la del menú real (ya pasó una vez).
+
 ### 2.4 Capa de datos (`src/queries/`)
 
 Un archivo por dominio (`productos.queries.js`, `despachos.queries.js`,
@@ -115,6 +124,12 @@ y `OfflineQueueModal` (`components/ui/`) exponen el estado al usuario;
 `usePlanLimits()` combina eso con los conteos reales (`useProductosList`,
 `useUsuariosList`, etc.) para decidir si un formulario de "crear" debe
 bloquearse y mostrar el aviso de límite alcanzado.
+
+`config/constants.js` exporta además `PLAN_META` (label + color por plan:
+`trial`/`basico`/`profesional`/`empresarial`) para mostrar el plan vigente
+del tenant en cualquier pantalla (`Sidebar`, `Configuracion/TabEmpresa`) —
+el plan real (`sesion.plan`) se persiste recién al login, tomado de
+`GET /empresas/:codigo` (ver `Login.jsx`).
 
 ### 2.7 Temas
 
@@ -204,25 +219,29 @@ src/
 
 ## 5. Páginas (`src/pages/`)
 
-Agrupadas por dominio funcional (coincide 1:1 con los módulos del
-backend y con `Sidebar.jsx`):
+Agrupadas igual que el menú lateral real (`Sidebar.jsx` → `NAV`) — 8
+secciones más Dashboard/Alertas sueltos arriba de todo:
 
-| Dominio | Páginas |
+| Grupo (Sidebar) | Páginas |
 |---|---|
-| Núcleo | `Dashboard`, `Login` |
-| Inventario | `Inventario`, `Entradas`, `Salidas`, `Ajustes`, `Devoluciones`, `Transferencias`, `Movimientos`, `Kardex`, `Vencimientos`, `PuntoReorden`, `Prevision`, `InventarioFisico`, `LotesSeries`, `MapaAlmacen/` |
-| Catálogos | `Maestros` (categorías/almacenes), `Proveedores` |
-| Compras | `Ordenes`, `Cotizaciones` |
-| Comercial | `Clientes`, `Proformas`, `CuentasPorCobrar`, `ListaPrecios` |
-| Distribución | `Despachos`, `Transportes/`, `Empaque`, `Flota/`, `TrazabilidadPedidos` |
-| Operación interna | `PedidosInternos/` |
-| Portal externo | `PortalPedidos`, `PortalPublico`, `PortalProveedoresB2B`, `PortalProveedorPublico` |
-| Contable / SUNAT | `ContabilidadReportes`, `Financiero`, `Sunat` |
-| Reportes / KPIs | `Reportes`, `KPIsOperativos` |
-| Administración | `Usuarios/`, `Configuracion/`, `Auditoria`, `PanelAuditoria` |
-| Panel SaaS | `AdminSaaS/` (negocios, planes, renovaciones, alertas, landing) |
-| Marketing | `LandingPage/` |
-| Sistema | `Alertas`, `ColaSincronizacion`, `PWA`, `PWAMovil` |
+| *(sin sección, tope del menú)* | `Dashboard`, `Alertas` |
+| Inventario | `Inventario`, `Kardex`, `Movimientos`, `InventarioFisico` |
+| Operaciones | `Entradas`, `Salidas`, `Ajustes`, `Devoluciones`, `Transferencias` |
+| Despachos | `Clientes`, `Despachos`, `PedidosInternos/`, `PortalPedidos`, `Empaque`, `Transportes/`, `Flota/`, `TrazabilidadPedidos` |
+| Ventas | `ListaPrecios`, `Proformas`, `Sunat`, `CuentasPorCobrar` |
+| Compras | `Ordenes`, `Cotizaciones`, `Proveedores`, `PortalProveedoresB2B` |
+| Almacén | `MapaAlmacen/`, `LotesSeries` |
+| Análisis | `Vencimientos`, `PuntoReorden`, `Prevision`, `Reportes`, `KPIsOperativos`, `ContabilidadReportes`, `Financiero` |
+| Administración | `Usuarios/`, `Auditoria`, `PanelAuditoria`, `Incidencias`, `ColaSincronizacion`, `Configuracion/` |
+
+Fuera del Sidebar normal:
+
+| Categoría | Páginas |
+|---|---|
+| Panel SaaS (login propio, `/superadmin`) | `AdminSaaS/` (negocios, planes, renovaciones, alertas, landing) |
+| Público, sin sidebar (link firmado, sin cuenta) | `PortalPublico` (`/portal/:token`), `PortalProveedorPublico` (`/portal-proveedor/:token`), `LandingPage/` |
+| Ruteada pero sin entrada en el menú | `Maestros` (`/maestros` — categorías/almacenes, acceso solo por URL directa) |
+| **No ruteadas actualmente** (código presente, sin `<Route>` en `App.jsx`) | `PWA.jsx`, `PWAMovil.jsx` |
 
 Las carpetas (`AdminSaaS/`, `Configuracion/`, `Flota/`, `MapaAlmacen/`,
 `PedidosInternos/`, `Transportes/`, `Usuarios/`, `LandingPage/`) dividen
@@ -298,3 +317,13 @@ npm test
   `Login.jsx`, que orquesta el flujo de login antes de que exista sesión).
 - `AppContext` no crece con datos de negocio — eso es responsabilidad de
   TanStack Query (§2.1).
+- El formulario de un `Modal` debería vivir en un subcomponente propio
+  (ej. `ModalXxx` separado, patrón usado en Proformas/CxC), no en el
+  mismo componente que también lista los datos (patrón usado hoy en
+  `AdminSaaS/*`). Motivo: `useDialogA11y` (hook interno de
+  `components/ui/index.jsx` que usan `Modal`/`ConfirmDialog`) enfoca el
+  diálogo al abrir; si el formulario vive en el componente que renderiza
+  el `Modal`, cada tecla tipeada re-renderiza ese componente entero y le
+  perdía el foco al input activo — bug crítico real, ya corregido en el
+  hook, pero aislar el formulario en un subcomponente evita depender de
+  ese detalle interno y sigue el mismo patrón que el resto de la app.

@@ -1,8 +1,8 @@
 /**
- * DireccionInput.jsx — Campo de dirección con geocodificación dual
+ * DireccionInput.jsx — Campo de dirección con autocompletado (sugerencias), sin validación forzada
  *
- * MODO ONLINE  → Autocompletado en tiempo real con Nominatim (OSM), sin API key.
- *                Debounce 600ms · Restringido a Perú · Validación visual.
+ * MODO ONLINE  → Sugerencias en tiempo real con Nominatim (OSM), sin API key.
+ *                Debounce 600ms · Restringido a Perú.
  *
  * MODO OFFLINE → Si no hay internet (o Nominatim falla), cambia automáticamente
  *                al dataset local de distritos peruanos (INEI).
@@ -10,10 +10,20 @@
  *                Permite escribir "Miraflores", "San Isidro Lima", "Cusco", etc.
  *                y obtener la ubicación sin necesidad de conexión.
  *
+ * El campo es siempre texto libre — elegir una sugerencia solo la precarga
+ * (marca "valida" con un check verde), nunca bloquea ni marca error. Antes,
+ * al perder el foco sin elegir una sugerencia, se revalidaba el texto completo
+ * contra Nominatim y se marcaba "inválida" (borde rojo) si no había un match
+ * exacto — lo cual rechazaba cualquier dirección real con número/Mz/Lote u
+ * otro detalle que Nominatim no tiene en su base (el dataset de OSM para Perú
+ * rara vez llega a ese nivel de granularidad). Se quitó esa revalidación:
+ * ahora se puede completar la dirección sugerida con más detalle sin que
+ * vuelva a "reprobar".
+ *
  * El modo activo se indica con un badge pequeño junto al input.
  */
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { MapPin, CheckCircle, AlertCircle, Loader, Wifi, WifiOff } from 'lucide-react'
+import { MapPin, CheckCircle, Loader, Wifi, WifiOff } from 'lucide-react'
 import { buscarDistritosOffline } from '../../data/distritosPeruanos'
 
 const SI_BASE = 'w-full px-3 py-2 bg-[#1e2835] border rounded-lg text-[13px] text-[#e8edf2] outline-none focus:ring-2 font-[inherit] placeholder-[#5f6f80] transition-all pr-9'
@@ -27,7 +37,7 @@ export default function DireccionInput({
 }) {
   const [query,        setQuery]        = useState(value || '')
   const [sugerencias,  setSugerencias]  = useState([])
-  const [estado,       setEstado]       = useState('idle') // idle|buscando|valida|invalida
+  const [estado,       setEstado]       = useState('idle') // idle|buscando|valida
   const [abierto,      setAbierto]      = useState(false)
   const [seleccionado, setSeleccionado] = useState(!!value)
   const [modoOffline,  setModoOffline]  = useState(!navigator.onLine)
@@ -63,12 +73,11 @@ export default function DireccionInput({
       if (dropRef.current  && !dropRef.current.contains(e.target) &&
           inputRef.current  && !inputRef.current.contains(e.target)) {
         setAbierto(false)
-        if (query && !seleccionado) validarDireccion(query)
       }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [query, seleccionado])
+  }, [])
 
   // ── Búsqueda ONLINE con Nominatim ─────────────────────
   const buscarOnline = useCallback(async (texto) => {
@@ -90,12 +99,11 @@ export default function DireccionInput({
           fuente: 'nominatim',
         })))
         setAbierto(true)
-        setEstado('idle')
       } else {
         setSugerencias([])
         setAbierto(false)
-        setEstado('invalida')
       }
+      setEstado('idle')
     } catch {
       // Si Nominatim falla, caer a offline
       setModoOffline(true)
@@ -119,38 +127,12 @@ export default function DireccionInput({
         fuente:    'offline',
       })))
       setAbierto(true)
-      setEstado('idle')
     } else {
       setSugerencias([])
       setAbierto(false)
-      setEstado('invalida')
     }
+    setEstado('idle')
   }, [])
-
-  // ── Validar dirección (al salir del campo sin seleccionar) ─
-  async function validarDireccion(texto) {
-    if (!texto || texto.length < 4) return
-    if (modoOffline) {
-      const r = buscarDistritosOffline(texto, 1)
-      setEstado(r.length > 0 ? 'valida' : 'invalida')
-      return
-    }
-    setEstado('buscando')
-    try {
-      const q = encodeURIComponent(texto + ', Perú')
-      const r = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}&countrycodes=pe`,
-        { headers: { 'Accept-Language': 'es', 'User-Agent': 'StockPro/1.0' },
-          signal: AbortSignal.timeout(4000) }
-      )
-      const d = await r.json()
-      setEstado(d?.length > 0 ? 'valida' : 'invalida')
-    } catch {
-      setModoOffline(true)
-      const r = buscarDistritosOffline(texto, 1)
-      setEstado(r.length > 0 ? 'valida' : 'invalida')
-    }
-  }
 
   function formatearDireccion(item) {
     const a = item.address || {}
@@ -197,9 +179,8 @@ export default function DireccionInput({
   }
 
   const borderClass =
-    estado === 'valida'   ? 'border-green-500 focus:border-green-400 focus:ring-green-500/20'   :
-    estado === 'invalida' ? 'border-red-500   focus:border-red-400   focus:ring-red-500/20'     :
-    estado === 'buscando' ? 'border-blue-400  focus:border-blue-400  focus:ring-blue-400/20'    :
+    estado === 'valida'   ? 'border-green-500 focus:border-green-400 focus:ring-green-500/20' :
+    estado === 'buscando' ? 'border-blue-400  focus:border-blue-400  focus:ring-blue-400/20'  :
                             'border-white/8 focus:border-[#00c896] focus:ring-[#00c896]/20'
 
   return (
@@ -241,7 +222,6 @@ export default function DireccionInput({
         <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
           {estado === 'buscando' && <Loader size={13} className="text-blue-400 animate-spin"/>}
           {estado === 'valida'   && <CheckCircle size={13} className="text-green-400"/>}
-          {estado === 'invalida' && <AlertCircle size={13} className="text-red-400"/>}
         </div>
 
         {/* Dropdown de sugerencias */}
@@ -292,14 +272,6 @@ export default function DireccionInput({
           {modoOffline
             ? 'Distrito encontrado en dataset INEI'
             : 'Dirección verificada — aparecerá correctamente en el mapa'}
-        </p>
-      )}
-      {estado === 'invalida' && (
-        <p className="text-[11px] text-red-400 flex items-center gap-1">
-          <AlertCircle size={10}/>
-          {modoOffline
-            ? 'Distrito no encontrado. Prueba: Miraflores · San Isidro · La Molina'
-            : 'Dirección no encontrada. Formato: Av./Jr./Calle + número + distrito'}
         </p>
       )}
       {modoOffline && estado === 'idle' && !seleccionado && (

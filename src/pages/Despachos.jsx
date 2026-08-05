@@ -82,6 +82,7 @@ export default function Despachos() {
 
   const cliMap = useMemo(() => new Map(clientes.map(c => [c.id, c])), [clientes])
   const almMap = useMemo(() => new Map(almacenes.map(a => [a.id, a])), [almacenes])
+  const transportistaMap = useMemo(() => new Map(transportistas.map(t => [t.id, t])), [transportistas])
   const cliNombre = id => cliMap.get(id)?.razonSocial || '—'
   const almNombre = id => almMap.get(id)?.nombre     || '—'
 
@@ -309,7 +310,7 @@ export default function Despachos() {
                     <Btn variant="primary" size="sm" onClick={() => des.estado === 'PICKING' ? setPickingModal(des) : avanzarEstado(des)}>{estadoMeta.accion}</Btn>
                   )}
                   {des.guiaNumero && (
-                    <Btn variant="ghost" size="icon" title="PDF / Compartir" className="text-[#00c896]" onClick={() => setShareDoc(des)}>
+                    <Btn variant="ghost" size="icon" title="Compartir" className="text-[#00c896]" onClick={() => setShareDoc(des)}>
                       <FileText size={13}/>
                     </Btn>
                   )}
@@ -359,20 +360,39 @@ export default function Despachos() {
           onAnular={() => setConfirmAnu(detalle)}/>
       )}
 
-      {shareDoc && (
-        <Modal open title={`PDF / Compartir — ${shareDoc.guiaNumero}`} onClose={() => setShareDoc(null)} size="sm"
-          footer={<Btn variant="secondary" onClick={() => setShareDoc(null)}>Cerrar</Btn>}>
-          <PdfSharePanel
-            tipo="Guía de Remisión" numero={shareDoc.guiaNumero}
-            onClose={() => setShareDoc(null)}
-            onPrint={() => imprimirGuia({ des: shareDoc, cliente: cliMap.get(shareDoc.clienteId), productos, config: null })}
-            extra={{
-              whatsapp: `https://wa.me/${cliMap.get(shareDoc.clienteId)?.telefono?.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Estimado cliente, adjunto la Guía de Remisión ${shareDoc.guiaNumero}. Por favor confirmar recepción.`)}`,
-              mailto: `mailto:${cliMap.get(shareDoc.clienteId)?.email||''}?subject=${encodeURIComponent(`Guía de Remisión ${shareDoc.guiaNumero}`)}&body=${encodeURIComponent(`Estimado cliente,\n\nAdjunto la Guía de Remisión ${shareDoc.guiaNumero} por un total de ${formatCurrency(Number(shareDoc.total||0), simboloMoneda)}.\n\nQuedamos a su disposición.`)}`,
-            }}
-          />
-        </Modal>
-      )}
+      {shareDoc && (() => {
+        const cliente = cliMap.get(shareDoc.clienteId)
+        const transportista = transportistaMap.get(shareDoc.transportistaId)
+        // La Guía de Remisión tiene dos audiencias distintas: si hay transportista
+        // asignado, es quien debe llevarla en mano durante el traslado (exigencia
+        // legal en control de ruta) — el cliente recibe su copia como comprobante.
+        // Si no hay transportista (recojo en almacén), el cliente es quien transporta
+        // la mercadería y es el único destinatario, igual que antes.
+        const destinatarios = [
+          transportista && {
+            label: 'Transportista', nombre: transportista.nombre,
+            whatsapp: `https://wa.me/${transportista.telefono?.replace(/[^0-9]/g,'') || ''}?text=${encodeURIComponent(`Hola ${transportista.nombre}, adjunto la Guía de Remisión ${shareDoc.guiaNumero} del despacho a ${cliente?.razonSocial || 'cliente'}. Por favor llevarla contigo durante el traslado.`)}`,
+            mailto: `mailto:${transportista.email || ''}?subject=${encodeURIComponent(`Guía de Remisión ${shareDoc.guiaNumero}`)}&body=${encodeURIComponent(`Hola ${transportista.nombre},\n\nAdjunto la Guía de Remisión ${shareDoc.guiaNumero} del despacho a ${cliente?.razonSocial || 'cliente'}.\n\nPor favor llevarla contigo durante el traslado.`)}`,
+          },
+          {
+            label: 'Cliente', nombre: cliente?.razonSocial,
+            whatsapp: `https://wa.me/${cliente?.telefono?.replace(/[^0-9]/g,'') || ''}?text=${encodeURIComponent(`Estimado cliente, adjunto la Guía de Remisión ${shareDoc.guiaNumero}. Por favor confirmar recepción.`)}`,
+            mailto: `mailto:${cliente?.email || ''}?subject=${encodeURIComponent(`Guía de Remisión ${shareDoc.guiaNumero}`)}&body=${encodeURIComponent(`Estimado cliente,\n\nAdjunto la Guía de Remisión ${shareDoc.guiaNumero} por un total de ${formatCurrency(Number(shareDoc.total||0), simboloMoneda)}.\n\nQuedamos a su disposición.`)}`,
+          },
+        ].filter(Boolean)
+
+        return (
+          <Modal open title={`Compartir — ${shareDoc.guiaNumero}`} onClose={() => setShareDoc(null)} size="sm"
+            footer={<Btn variant="secondary" onClick={() => setShareDoc(null)}>Cerrar</Btn>}>
+            <PdfSharePanel
+              tipo="Guía de Remisión" numero={shareDoc.guiaNumero}
+              onClose={() => setShareDoc(null)}
+              onPrint={() => imprimirGuia({ des: shareDoc, cliente, productos, config: null })}
+              destinatarios={destinatarios}
+            />
+          </Modal>
+        )
+      })()}
 
       <ConfirmDialog open={!!confirmAnu} onClose={() => setConfirmAnu(null)} onConfirm={() => anular(confirmAnu)} danger
         title="Anular despacho" message={`¿Anular el despacho ${confirmAnu?.numero}? Esta acción no se puede deshacer.`}/>

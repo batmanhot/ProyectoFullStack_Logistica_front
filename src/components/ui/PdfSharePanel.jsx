@@ -1,11 +1,21 @@
 /**
- * PdfSharePanel.jsx — v2 optimizado
- * Compacto, sin nota redundante, acciones en fila horizontal con tooltip.
+ * PdfSharePanel.jsx — v3: soporta múltiples destinatarios agrupados
+ *
+ * "Generar PDF" es una acción única (el documento es el mismo sin importar
+ * quién lo reciba). WhatsApp/Correo se agrupan por destinatario — necesario
+ * desde que Despachos comparte la Guía de Remisión con dos audiencias
+ * distintas (transportista y cliente), cada una con su propio teléfono/email
+ * y su propio mensaje. Se pasa un array `destinatarios`:
+ *   [{ label:'Transportista', nombre:'Juan Pérez', whatsapp, mailto }, …]
+ *
+ * Compatibilidad: si no se pasa `destinatarios`, cae a la API anterior
+ * `extra={{ whatsapp, mailto }}` (un solo destinatario sin agrupar) — usada
+ * hoy por Cotizaciones.jsx y Ordenes.jsx (proveedor).
  */
 import { FileText, MessageCircle, Mail, Copy, Check } from 'lucide-react'
 import { useState } from 'react'
 
-export default function PdfSharePanel({ onClose, onPrint, numero, tipo = 'documento', extra = null }) {
+export default function PdfSharePanel({ onClose, onPrint, numero, tipo = 'documento', extra = null, destinatarios = null }) {
   const [copied, setCopied] = useState(false)
 
   function copiarNumero() {
@@ -15,44 +25,7 @@ export default function PdfSharePanel({ onClose, onPrint, numero, tipo = 'docume
     })
   }
 
-  const acciones = [
-    {
-      key: 'pdf',
-      Icon: FileText,
-      label: 'Generar PDF',
-      sublabel: 'Imprimir / guardar',
-      color: '#00c896',
-      bg: 'bg-[#00c896]/10',
-      bgHover: 'hover:bg-[#00c896]/18 hover:border-[#00c896]/40',
-      onClick: onPrint,
-      href: null,
-      show: true,
-    },
-    {
-      key: 'wa',
-      Icon: MessageCircle,
-      label: 'WhatsApp',
-      sublabel: 'Enviar al cliente',
-      color: '#22c55e',
-      bg: 'bg-green-500/10',
-      bgHover: 'hover:bg-green-500/15 hover:border-green-500/40',
-      onClick: null,
-      href: extra?.whatsapp || null,
-      show: !!extra?.whatsapp,
-    },
-    {
-      key: 'mail',
-      Icon: Mail,
-      label: 'Correo',
-      sublabel: 'Enviar por email',
-      color: '#3b82f6',
-      bg: 'bg-blue-500/10',
-      bgHover: 'hover:bg-blue-500/15 hover:border-blue-500/40',
-      onClick: null,
-      href: extra?.mailto || null,
-      show: !!extra?.mailto,
-    },
-  ].filter(a => a.show)
+  const grupos = destinatarios || (extra ? [{ label: null, whatsapp: extra.whatsapp, mailto: extra.mailto }] : [])
 
   return (
     <div className="flex flex-col gap-4">
@@ -77,33 +50,46 @@ export default function PdfSharePanel({ onClose, onPrint, numero, tipo = 'docume
         </div>
       </div>
 
-      {/* Acciones en grid */}
-      <div className={`grid gap-2.5 ${acciones.length === 1 ? 'grid-cols-1' : acciones.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-        {acciones.map(a => {
-          const Inner = (
-            <>
-              <div className={`w-10 h-10 rounded-xl ${a.bg} flex items-center justify-center mb-2.5 transition-colors`}>
-                <a.Icon size={18} style={{ color: a.color }}/>
+      {/* Generar PDF — acción única, independiente del destinatario */}
+      <button onClick={onPrint}
+        className="w-full flex items-center gap-3 px-3.5 py-3 bg-[#1a2230] border border-white/7 rounded-xl hover:bg-[#00c896]/10 hover:border-[#00c896]/40 transition-all text-left">
+        <div className="w-9 h-9 rounded-lg bg-[#00c896]/12 flex items-center justify-center shrink-0">
+          <FileText size={16} className="text-[#00c896]"/>
+        </div>
+        <div>
+          <div className="text-[12px] font-semibold text-[#e8edf2]">Generar PDF</div>
+          <div className="text-[10px] text-[#5f6f80]">Imprimir / guardar</div>
+        </div>
+      </button>
+
+      {/* Grupos por destinatario */}
+      {grupos.map((g, i) => {
+        const canales = [
+          g.whatsapp && { key: 'wa',   Icon: MessageCircle, label: 'WhatsApp', color: '#22c55e', bg: 'bg-green-500/10', bgHover: 'hover:bg-green-500/15 hover:border-green-500/40', href: g.whatsapp },
+          g.mailto   && { key: 'mail', Icon: Mail,          label: 'Correo',   color: '#3b82f6', bg: 'bg-blue-500/10',  bgHover: 'hover:bg-blue-500/15 hover:border-blue-500/40',  href: g.mailto },
+        ].filter(Boolean)
+        if (canales.length === 0) return null
+        return (
+          <div key={i} className="flex flex-col gap-1.5">
+            {g.label && (
+              <div className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-wide">
+                {g.label}{g.nombre && ` · ${g.nombre}`}
               </div>
-              <div className="text-[12px] font-semibold text-[#e8edf2] leading-tight mb-0.5">{a.label}</div>
-              <div className="text-[10px] text-[#5f6f80] leading-snug">{a.sublabel}</div>
-            </>
-          )
-
-          const cls = `flex flex-col items-center text-center px-3 py-3.5 bg-[#1a2230] border border-white/7 rounded-xl transition-all cursor-pointer ${a.bgHover}`
-
-          return a.href ? (
-            <a key={a.key} href={a.href} target="_blank" rel="noopener noreferrer"
-              className={cls + ' no-underline'}>
-              {Inner}
-            </a>
-          ) : (
-            <button key={a.key} onClick={a.onClick} className={cls}>
-              {Inner}
-            </button>
-          )
-        })}
-      </div>
+            )}
+            <div className={`grid gap-2.5 ${canales.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+              {canales.map(c => (
+                <a key={c.key} href={c.href} target="_blank" rel="noopener noreferrer"
+                  className={`flex flex-col items-center text-center px-3 py-3 bg-[#1a2230] border border-white/7 rounded-xl transition-all cursor-pointer no-underline ${c.bgHover}`}>
+                  <div className={`w-9 h-9 rounded-lg ${c.bg} flex items-center justify-center mb-2 transition-colors`}>
+                    <c.Icon size={16} style={{ color: c.color }}/>
+                  </div>
+                  <div className="text-[12px] font-semibold text-[#e8edf2]">{c.label}</div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )
+      })}
 
       {/* Nota mínima — solo si no hay backend */}
       <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-500/6 border border-amber-500/15 rounded-lg">
