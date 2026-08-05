@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Plus, Search, Eye, Truck, Package, CheckCircle, X,
-         ClipboardList, ArrowRight, FileText, MapPin, Printer, Download } from 'lucide-react'
+         ClipboardList, ArrowRight, FileText, MapPin, Printer, Download, CreditCard } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
 import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, Textarea, Alert, DataTable } from '../components/ui/index'
@@ -18,8 +18,14 @@ import { useAlmacenesList } from '../queries/almacenes.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useInventarioList } from '../queries/inventario.queries'
 import { useTransportistasList } from '../queries/transportistas.queries'
+import { useCrearCxC } from '../queries/cuentas-por-cobrar.queries'
 import { exportarDespachosXLSX } from '../utils/exportXLSX'
 import { exportarDespachosPDF } from '../utils/exportPDF'
+
+const FORMA_PAGO_META = {
+  CONTADO: { label: 'Contado', color: 'neutral' },
+  CREDITO: { label: 'Crédito', color: 'info' },
+}
 
 const ESTADOS = {
   PEDIDO:     { label:'Pedido',     color:'neutral', next:'APROBADO',   accion:'Aprobar',          icon:ClipboardList },
@@ -50,6 +56,7 @@ export default function Despachos() {
   const entregarDespacho   = useEntregarDespacho()
   const cancelarDespacho   = useCancelarDespacho()
   const asignarGuia        = useAsignarGuia()
+  const crearCxC           = useCrearCxC()
 
   const clientes = useMemo(() => clientesRaw.map(c => ({ ...c, activo: c.activo === true })), [clientesRaw])
   const productos = useMemo(() => {
@@ -65,6 +72,7 @@ export default function Despachos() {
   const [evidenciaModal,setEvidenciaModal]= useState(null)
   const [guiaModal,     setGuiaModal]     = useState(null)
   const [pickingModal,  setPickingModal]  = useState(null)
+  const [cxcModal,      setCxcModal]      = useState(null)
   const [busqueda,      setBusqueda]      = useState('')
   const [filtEst,       setFiltEst]       = useState('')
   const [filtAlm,       setFiltAlm]       = useState('')
@@ -164,6 +172,19 @@ export default function Despachos() {
     toast(`Despacho ${des.numero} anulado`, 'warning')
     setConfirmAnu(null)
     if (detalle?.id === des.id) setDetalle(null)
+  }
+
+  async function handleGenerarCxC(des, datos) {
+    const res = await crearCxC.mutateAsync({
+      clienteId: des.clienteId,
+      despachoId: des.id,
+      monto: Number(des.total),
+      diasCredito: datos.diasCredito,
+      notas: datos.notas || undefined,
+    })
+    if (res.error) { toast(res.error, 'error'); return }
+    setCxcModal(null)
+    toast(`Cuenta por cobrar ${res.data?.numero || ''} generada`, 'success')
   }
 
   async function handleNuevo(data) {
@@ -302,6 +323,11 @@ export default function Despachos() {
                       <CheckCircle size={13}/>
                     </Btn>
                   )}
+                  {['DESPACHADO','ENTREGADO'].includes(des.estado) && des.formaPago !== 'CONTADO' && (
+                    <Btn variant="ghost" size="icon" title="Generar Cuenta por Cobrar" className="text-[#00c896]" onClick={() => setCxcModal(des)}>
+                      <CreditCard size={13}/>
+                    </Btn>
+                  )}
                   {['APROBADO','PICKING'].includes(des.estado) && (
                     <Btn variant="ghost" size="icon" title="Picking List" className="text-amber-400"
                       onClick={() => imprimirPickingList({ des, cliente: cliMap.get(des.clienteId), productos, almacen: almMap.get(des.almacenId), config: null, sesion })}>
@@ -362,6 +388,12 @@ export default function Despachos() {
           saving={asignarGuia.isPending}/>
       )}
 
+      {cxcModal && (
+        <ModalGenerarCxC des={cxcModal} simboloMoneda={simboloMoneda} onClose={() => setCxcModal(null)}
+          onSave={datos => handleGenerarCxC(cxcModal, datos)}
+          saving={crearCxC.isPending}/>
+      )}
+
       {pickingModal && (
         <ModalPicking despacho={pickingModal} onClose={() => setPickingModal(null)}
           onListo={() => {
@@ -398,7 +430,7 @@ export default function Despachos() {
 
 // ── Modal Nuevo Pedido ────────────────────────────────────
 export function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, almacenes, transportistas=[], simboloMoneda, saving }) {
-  const initForm = { clienteId:'', almacenId: almacenes[0]?.id || '', fecha: fechaHoyISO(), fechaEntrega:'', transportistaId:'', direccionEntrega:'', observaciones:'' }
+  const initForm = { clienteId:'', almacenId: almacenes[0]?.id || '', fecha: fechaHoyISO(), fechaEntrega:'', transportistaId:'', direccionEntrega:'', observaciones:'', formaPago:'CREDITO' }
   const [form, setForm]   = useState(initForm)
   const [items, setItems] = useState([])
   const [ni, setNi]       = useState({ productoId:'', cantidad:'', precioVenta:'' })
@@ -442,6 +474,7 @@ export function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, a
       transportistaId:  form.transportistaId || undefined,
       direccionEntrega: form.direccionEntrega || undefined,
       observaciones:    form.observaciones  || undefined,
+      formaPago:        form.formaPago,
       items: items.map(i => ({ productoId: i.productoId, cantidad: i.cantidad, precioVenta: i.precioVenta })),
       subtotal, igv, total,
     })
@@ -471,6 +504,12 @@ export function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, a
         </Field>
         <Field label="Fecha pedido"><Input type="date" value={form.fecha} onChange={e => f('fecha', e.target.value)}/></Field>
         <Field label="Fecha entrega comprometida"><Input type="date" value={form.fechaEntrega} onChange={e => f('fechaEntrega', e.target.value)}/></Field>
+        <Field label="Forma de pago">
+          <Select value={form.formaPago} onChange={e => f('formaPago', e.target.value)}>
+            <option value="CREDITO">Crédito</option>
+            <option value="CONTADO">Contado</option>
+          </Select>
+        </Field>
       </div>
 
       <DireccionInput label="Dirección de entrega" value={form.direccionEntrega} onChange={v => f('direccionEntrega', v)} placeholder="Av. Principal 123, Distrito, Lima" required/>
@@ -572,6 +611,7 @@ function ModalDetalle({ des, productos, clientes, almacenes, simboloMoneda, onCl
           ['Fecha Entrega',  des.fechaEntrega ? formatDate(des.fechaEntrega) : '—'],
           ['Fecha Despacho', des.fechaDespacho ? formatDate(des.fechaDespacho) : '—'],
           ['Transportista',  des.transportista?.nombre || '—'],
+          ['Forma de pago',  (FORMA_PAGO_META[des.formaPago] || FORMA_PAGO_META.CREDITO).label],
         ].map(([k, v]) => (
           <div key={k} className="bg-[#1a2230] rounded-lg px-3.5 py-2.5">
             <div className="text-[10px] text-[#5f6f80] uppercase tracking-wide mb-0.5">{k}</div>
@@ -697,6 +737,34 @@ export function ModalAsignarGuia({ des, onClose, onSave, saving }) {
         <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1.5">Número de guía *</label>
         <Input value={guiaNumero} onChange={e => setGuiaNumero(e.target.value)} placeholder="GR-00001"/>
       </div>
+    </Modal>
+  )
+}
+
+/** Genera una CxC vinculada a este despacho — atajo desde DESPACHADO/ENTREGADO en ventas a crédito. */
+function ModalGenerarCxC({ des, simboloMoneda, onClose, onSave, saving }) {
+  const [diasCredito, setDiasCredito] = useState(30)
+  const [notas, setNotas] = useState('')
+
+  return (
+    <Modal open title={`Generar Cuenta por Cobrar — ${des.numero}`} onClose={onClose} size="sm"
+      footer={<>
+        <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+        <Btn variant="primary" disabled={saving} onClick={() => onSave({ diasCredito: Number(diasCredito), notas })}>
+          <CreditCard size={13}/> {saving ? 'Generando...' : 'Generar CxC'}
+        </Btn>
+      </>}>
+      <Alert variant="info">Se creará una cuenta por cobrar por el total del despacho, vinculada a {des.numero}.</Alert>
+      <div className="bg-[#1a2230] rounded-lg px-3.5 py-2.5">
+        <div className="text-[10px] text-[#5f6f80] uppercase tracking-wide mb-0.5">Monto</div>
+        <div className="text-[16px] font-mono font-semibold text-[#00c896]">{formatCurrency(Number(des.total || 0), simboloMoneda)}</div>
+      </div>
+      <Field label="Días de crédito">
+        <Input type="number" min="0" step="1" value={diasCredito} onChange={e => setDiasCredito(e.target.value)}/>
+      </Field>
+      <Field label="Notas">
+        <Textarea className="min-h-14" value={notas} onChange={e => setNotas(e.target.value)} placeholder="Observaciones de la cuenta..."/>
+      </Field>
     </Modal>
   )
 }

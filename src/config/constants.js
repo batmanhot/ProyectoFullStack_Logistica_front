@@ -18,6 +18,16 @@ export const AUDITORIA = {
   MAX_LOGS: 500,
 }
 
+// ── Planes SaaS ───────────────────────────────────────────
+// Mismos id/color que el catálogo de AdminSaaS (pages/AdminSaaS/constants.js:PLANES) —
+// acá solo lo necesario para mostrar el plan vigente del tenant (Sidebar, Configuración).
+export const PLAN_META = {
+  trial:       { label: 'Prueba Gratuita', color: '#6366f1' },
+  basico:      { label: 'Básico',          color: '#3b82f6' },
+  profesional: { label: 'Profesional',     color: '#00c896' },
+  empresarial: { label: 'Empresarial',     color: '#f59e0b' },
+}
+
 // Compartido por Auditoria.jsx e Incidencias.jsx: los slugs vienen del
 // primer segmento de ruta real del backend (ver AuditoriaInterceptor /
 // HttpExceptionFilter), no de nombres de localStorage.

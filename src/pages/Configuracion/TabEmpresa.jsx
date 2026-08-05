@@ -1,16 +1,21 @@
 import { Field } from '../../components/ui/index'
 import { SI } from './constants'
+import { PLAN_META } from '../../config/constants'
 
 export default function TabEmpresa({ form, f, tenantId, sesion }) {
+  const planMeta = PLAN_META[sesion?.plan]
   return (
     <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Datos de la Empresa</div>
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-[#5f6f80] font-mono">org: {tenantId}</span>
-          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${sesion?.plan === 'pro' ? 'bg-[#00c896]/15 text-[#00c896]' : 'bg-blue-500/15 text-blue-400'}`}>
-            {sesion?.plan || 'starter'}
-          </span>
+          {planMeta && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+              style={{ color: planMeta.color, background: `${planMeta.color}26` }}>
+              {planMeta.label}
+            </span>
+          )}
         </div>
       </div>
       <div className="flex flex-col gap-3.5">

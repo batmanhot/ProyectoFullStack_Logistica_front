@@ -158,7 +158,7 @@ export function ModalDetalle({ pedido, onClose, onSave, areas, productos, almace
               <div className="text-[12px] text-white/60">{pedido.notasSolicitud}</div>
             </div>
           )}
-          {error && <div className="px-3 py-2 bg-red-500/10 border border-red-500/25 rounded-lg text-[13px] text-red-400">{error}</div>}
+          {error && <div className="px-3 py-2 bg-red-500/10 border border-red-500/25 rounded-lg text-[13px] text-red-400 whitespace-pre-line">{error}</div>}
         </div>
 
         <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-white/8">

@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { Plus, Search, Edit2, Trash2, Tag, Copy, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency } from '../utils/helpers'
+import { getPrecio } from '../utils/precios'
 import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field, Alert, Input, Select, DataTable } from '../components/ui/index'
 import { exportarListaPreciosXLSX } from '../utils/exportXLSX'
 import { exportarListaPreciosPDF } from '../utils/exportPDF'
@@ -43,16 +44,6 @@ export default function ListaPrecios() {
   useEffect(() => { if (listas.length > 0 && !listaId) setListaId(listas[0].id) }, [listas, listaId])
 
   const lista = listas.find(l => l.id === listaId) || listas[0]
-
-  function getPrecio(prod, lista) {
-    const pmp  = Number(prod.precioCompra || 0)
-    const base = Number(prod.precioVenta  || 0)
-    const especial = lista.precios?.[prod.id]
-    if (especial !== undefined) return especial
-    if (lista.descuento > 0) return +(base * (1 - lista.descuento / 100)).toFixed(2)
-    if (lista.markup   > 0) return +(pmp  * (1 + lista.markup   / 100)).toFixed(2)
-    return base
-  }
 
   function getMargen(prod, precio) {
     const pmp = Number(prod.precioCompra || 0)
@@ -297,13 +288,13 @@ function ModalLista({ open, onClose, editando, onSave }) {
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Descuento % (sobre precio base)">
-          <Input type="number" value={form.descuento} onChange={e => f('descuento', +e.target.value)} min="0" max="100" step="0.5"/>
+          <Input type="number" value={form.descuento} onChange={e => setForm(p => ({ ...p, descuento: +e.target.value, markup: +e.target.value > 0 ? 0 : p.markup }))} min="0" max="100" step="0.5"/>
         </Field>
         <Field label="Markup % (sobre costo)">
-          <Input type="number" value={form.markup} onChange={e => f('markup', +e.target.value)} min="0" step="0.5"/>
+          <Input type="number" value={form.markup} onChange={e => setForm(p => ({ ...p, markup: +e.target.value, descuento: +e.target.value > 0 ? 0 : p.descuento }))} min="0" step="0.5"/>
         </Field>
       </div>
-      <Alert variant="info">El descuento aplica sobre el precio base del catálogo. El markup aplica sobre el costo unitario. Puedes además editar precios específicos por producto en la tabla.</Alert>
+      <Alert variant="info">Son mutuamente excluyentes: al activar uno se desactiva el otro. El descuento aplica sobre el precio base del catálogo; el markup aplica sobre el costo unitario (solo si el producto tiene costo registrado). Puedes además editar precios específicos por producto en la tabla.</Alert>
       <label className="flex items-center gap-2 cursor-pointer text-[13px] text-[#9ba8b6]">
         <input type="checkbox" checked={form.activa} onChange={e => f('activa', e.target.checked)} className="accent-[#00c896]"/>
         Lista activa

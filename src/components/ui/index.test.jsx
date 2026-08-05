@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
+import { useState } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Modal, ConfirmDialog, Toggle, Btn } from './index'
@@ -33,6 +34,34 @@ describe('Modal', () => {
     await user.click(screen.getByRole('button', { name: 'Cerrar' }))
 
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * Regresión: si el formulario del modal vive en el MISMO componente que lo
+   * renderiza (patrón de AdminSaaS/TabNegocios.jsx, a diferencia de un ModalXxx
+   * separado como en Proformas/CxC), cada tecla re-renderiza ese componente y
+   * recrea `onClose` como una función inline nueva. Con `onClose` en las deps del
+   * efecto de useDialogA11y, eso reejecutaba `ref.current?.focus()` en cada tecla,
+   * robándole el foco al input activo — se veía como "escribís una letra y te saca
+   * del campo". Este test simula exactamente ese patrón (a diferencia de los tests
+   * de ModalPago/ModalCxC, que reciben un onClose estable porque su formulario está
+   * aislado en un subcomponente propio, por eso no lo detectaban).
+   */
+  it('escribir en un input adentro no pierde el foco aunque el padre recree onClose en cada render', async () => {
+    function PadreConEstadoPropio() {
+      const [texto, setTexto] = useState('')
+      return (
+        <Modal open onClose={() => {}} title="Título">
+          <input aria-label="Campo" value={texto} onChange={e => setTexto(e.target.value)} />
+        </Modal>
+      )
+    }
+    const user = userEvent.setup()
+    render(<PadreConEstadoPropio />)
+
+    await user.type(screen.getByLabelText('Campo'), 'hola')
+
+    expect(screen.getByLabelText('Campo')).toHaveValue('hola')
   })
 })
 

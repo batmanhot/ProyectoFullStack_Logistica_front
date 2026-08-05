@@ -62,3 +62,28 @@ export function useRecibirOrdenCompra() {
     },
   })
 }
+
+// ── Módulo de Importación ──────────────────────────────────────────
+export function useAgregarGastoImportacion() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...dto }) => api.post(`/ordenes-compra/${id}/gastos-importacion`, dto),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all() }),
+  })
+}
+
+export function useEliminarGastoImportacion() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, gastoId }) => api.delete(`/ordenes-compra/${id}/gastos-importacion/${gastoId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all() }),
+  })
+}
+
+export function useActualizarEstadoLogistico() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...dto }) => api.patch(`/ordenes-compra/${id}/estado-logistico`, dto),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all() }),
+  })
+}

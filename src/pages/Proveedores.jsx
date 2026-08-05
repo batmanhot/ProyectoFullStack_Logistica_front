@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Plus, Search, Edit2, Trash2, Building2, Download, FileText } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, Building2, Download, FileText, Globe } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { Modal, ConfirmDialog, Badge, Btn, Field, Input, DataTable } from '../components/ui/index'
+import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, DataTable } from '../components/ui/index'
 import { usePlanLimits } from '../hooks/usePlanLimits'
 import { exportarProveedoresXLSX } from '../utils/exportXLSX'
 import { exportarProveedoresPDF } from '../utils/exportPDF'
@@ -108,6 +108,9 @@ export default function Proveedores() {
             { key:'telefono', header:'Teléfono', render: p => <span className="text-[#9ba8b6]">{p.telefono || '—'}</span> },
             { key:'email', header:'Email', render: p => <span className="text-[12px] text-blue-400">{p.email || '—'}</span> },
             { key:'direccion', header:'Dirección', render: p => <span className="text-[#9ba8b6] max-w-[180px] truncate block">{p.direccion || '—'}</span> },
+            { key:'paisOrigen', header:'Origen', render: p => p.paisOrigen
+              ? <span className="inline-flex items-center gap-1 text-[12px] text-blue-400"><Globe size={11}/> {p.paisOrigen}</span>
+              : <span className="text-[#5f6f80]">Nacional</span> },
             { key:'estado', header:'Estado', render: p => <Badge variant={p.activo ? 'success' : 'neutral'}>{p.activo ? 'Activo' : 'Inactivo'}</Badge> },
             { key:'acciones', header:'Acciones', stopPropagation:true, render: p => (
               <div className="flex gap-1">
@@ -165,17 +168,19 @@ export default function Proveedores() {
 }
 
 function ModalProveedor({ open, onClose, editando, onSave }) {
-  const init = { razonSocial: '', ruc: '', telefono: '', email: '', direccion: '', activo: true }
+  const init = { razonSocial: '', ruc: '', telefono: '', email: '', direccion: '', activo: true, paisOrigen: '', monedaNegociacion: 'PEN' }
   const [form, setForm] = useState(init)
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   useEffect(() => {
     setForm(editando ? {
       ...init, ...editando,
-      ruc:       editando.ruc       || '',
-      telefono:  editando.telefono  || '',
-      email:     editando.email     || '',
-      direccion: editando.direccion || '',
+      ruc:               editando.ruc               || '',
+      telefono:          editando.telefono           || '',
+      email:             editando.email               || '',
+      direccion:         editando.direccion           || '',
+      paisOrigen:        editando.paisOrigen          || '',
+      monedaNegociacion: editando.monedaNegociacion   || 'PEN',
     } : init)
   }, [editando, open])
 
@@ -226,6 +231,19 @@ function ModalProveedor({ open, onClose, editando, onSave }) {
           onChange={e => f('direccion', e.target.value)}
           placeholder="Av. Industrial 123, Lima"/>
       </Field>
+
+      <div className="grid grid-cols-2 gap-3.5">
+        <Field label="País de origen" hint="Solo si es un proveedor extranjero">
+          <Input value={form.paisOrigen}
+            onChange={e => f('paisOrigen', e.target.value)}
+            placeholder="China, EE.UU., Brasil..."/>
+        </Field>
+        <Field label="Moneda de negociación">
+          <Select value={form.monedaNegociacion} onChange={e => f('monedaNegociacion', e.target.value)}>
+            {['PEN', 'USD', 'EUR', 'CNY'].map(m => <option key={m} value={m}>{m}</option>)}
+          </Select>
+        </Field>
+      </div>
 
       <label className="flex items-center gap-2 cursor-pointer text-[13px] text-[#9ba8b6]">
         <input type="checkbox" checked={form.activo}

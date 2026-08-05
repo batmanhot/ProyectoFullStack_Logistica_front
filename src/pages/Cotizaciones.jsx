@@ -535,7 +535,9 @@ function ModalEditarCotizacion({ cotiz, saving, onClose, onSave }) {
 
   useEffect(() => {
     setForm({
-      fechaVencimiento: cotiz.fechaVencimiento || '',
+      // `fechaVencimiento` llega del backend como datetime ISO completo — un
+      // <input type="date"> solo acepta 'YYYY-MM-DD' exacto, si no se muestra en blanco.
+      fechaVencimiento: cotiz.fechaVencimiento?.split('T')[0] || '',
       notas:            cotiz.notas || '',
       estado:           cotiz.estado || '',
     })

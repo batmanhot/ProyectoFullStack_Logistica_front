@@ -257,10 +257,10 @@ export default function PortalPublico() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0e1117] flex flex-col">
+    <div className="h-screen bg-[#0e1117] flex flex-col overflow-hidden">
 
       {/* ── Header portal ─────────────────────────────── */}
-      <div className="bg-[#00c896] px-6 py-4 flex items-center justify-between">
+      <div className="shrink-0 bg-[#00c896] px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Globe size={22} className="text-[#082e1e]"/>
           <div>
@@ -275,7 +275,7 @@ export default function PortalPublico() {
       </div>
 
       {/* ── Tabs ──────────────────────────────────────── */}
-      <div className="bg-[#161d28] border-b border-white/8 px-4">
+      <div className="shrink-0 bg-[#161d28] border-b border-white/8 px-4">
         <div className="flex gap-0 max-w-2xl mx-auto">
           {[
             { id:'pedido',    label:'Nuevo Pedido',                                      icon:'🛒' },
@@ -293,7 +293,7 @@ export default function PortalPublico() {
       </div>
 
       {/* ── Contenido ─────────────────────────────────── */}
-      <div className="flex-1 px-4 py-6 max-w-2xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-4 py-6 max-w-2xl mx-auto w-full">
 
         {/* ─── TAB: NUEVO PEDIDO ──────────────────────── */}
         {tab === 'pedido' && (

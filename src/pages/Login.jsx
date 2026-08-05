@@ -178,7 +178,7 @@ export default function Login({ adminMode = false }) {
       setError(res.error || 'Credenciales incorrectas')
       return
     }
-    const sesion = { ...res.data.usuario, empresaCodigo: empresa.codigo }
+    const sesion = { ...res.data.usuario, empresaCodigo: empresa.codigo, empresaNombre: empresa.nombre, plan: empresa.plan }
     setSesion(sesion)
     toast(`Bienvenido, ${sesion.nombre}`, 'success')
   }
@@ -195,7 +195,7 @@ export default function Login({ adminMode = false }) {
       setError(res.error || 'No se pudo iniciar sesión con este usuario demo')
       return
     }
-    const sesion = { ...res.data.usuario, empresaCodigo: empresa.codigo }
+    const sesion = { ...res.data.usuario, empresaCodigo: empresa.codigo, empresaNombre: empresa.nombre, plan: empresa.plan }
     setSesion(sesion)
     toast(`Bienvenido, ${sesion.nombre}`, 'success')
   }

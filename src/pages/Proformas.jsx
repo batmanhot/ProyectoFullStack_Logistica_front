@@ -1,23 +1,35 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Search, Eye, Edit2, Trash2, FileText, CheckCircle, Copy, Download, X } from 'lucide-react'
+import { Plus, Search, Eye, Edit2, Trash2, FileText, CheckCircle, Copy, Download, X, Truck } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate } from '../utils/helpers'
 import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, DataTable } from '../components/ui/index'
 import { imprimirProforma } from '../utils/pdfTemplates'
 import { exportarProformasXLSX } from '../utils/exportXLSX'
 import { exportarProformasPDF } from '../utils/exportPDF'
-import { useProformasList, useCrearProforma, useActualizarProforma, useEliminarProforma } from '../queries/proformas.queries'
+import {
+  useProformasList, useCrearProforma, useActualizarProforma, useEliminarProforma,
+  useConvertirProformaDespacho,
+} from '../queries/proformas.queries'
 import { useClientesList } from '../queries/clientes.queries'
 import { useProductosList } from '../queries/productos.queries'
+import { useAlmacenesList } from '../queries/almacenes.queries'
+import { useListasPreciosList } from '../queries/listas-precios.queries'
+import { getPrecio } from '../utils/precios'
 
 const simboloMoneda = 'S/'
 
 const ESTADO_META = {
-  BORRADOR:  { label: 'Borrador',  color: 'neutral'  },
-  ENVIADA:   { label: 'Enviada',   color: 'info'     },
-  ACEPTADA:  { label: 'Aceptada',  color: 'success'  },
-  RECHAZADA: { label: 'Rechazada', color: 'danger'   },
-  VENCIDA:   { label: 'Vencida',   color: 'neutral'  },
+  BORRADOR:   { label: 'Borrador',   color: 'neutral'  },
+  ENVIADA:    { label: 'Enviada',    color: 'info'     },
+  ACEPTADA:   { label: 'Aceptada',   color: 'success'  },
+  RECHAZADA:  { label: 'Rechazada', color: 'danger'   },
+  VENCIDA:    { label: 'Vencida',    color: 'neutral'  },
+  CONVERTIDA: { label: 'Convertida', color: 'teal'     },
+}
+
+const FORMA_PAGO_META = {
+  CONTADO: { label: 'Contado', color: 'neutral' },
+  CREDITO: { label: 'Crédito', color: 'info' },
 }
 
 // El backend rechaza (403) cualquier update sobre proformas ACEPTADA/RECHAZADA
@@ -30,15 +42,19 @@ export default function Proformas() {
   const { data: proformas = [], isLoading } = useProformasList()
   const { data: clientes  = [] }            = useClientesList()
   const { data: productos = [] }            = useProductosList()
+  const { data: almacenes = [] }            = useAlmacenesList()
+  const { data: listasPrecios = [] }        = useListasPreciosList()
 
   const crearProforma     = useCrearProforma()
   const actualizarProforma = useActualizarProforma()
   const eliminarProforma  = useEliminarProforma()
+  const convertirDespacho = useConvertirProformaDespacho()
 
   const [modal,      setModal]      = useState(false)
   const [detalle,    setDetalle]    = useState(null)
   const [editando,   setEditando]   = useState(null)
   const [confirmDel, setConfirmDel] = useState(null)
+  const [convirtiendo, setConvirtiendo] = useState(null)
   const [busqueda,   setBusqueda]   = useState('')
   const [filtro,     setFiltro]     = useState('')
   const [filtDesde,  setFiltDesde]  = useState('')
@@ -77,11 +93,13 @@ export default function Proformas() {
       }
       res = await actualizarProforma.mutateAsync({ id: data.id, ...dto })
     } else {
-      // CreateProformaDto: clienteId, fechaVencimiento?, notas?, items (NO estado)
+      // CreateProformaDto: clienteId, fechaVencimiento?, notas?, formaPago?, items (NO estado)
       const dto = {
         clienteId:        data.clienteId,
         fechaVencimiento: data.fechaVencimiento || undefined,
         notas:            data.notas || undefined,
+        formaPago:        data.formaPago || 'CREDITO',
+        listaPrecioId:    data.listaPrecioId || undefined,
         items: (data.items || []).map(it => ({
           productoId:     it.productoId,
           descripcion:    it.descripcion || undefined,
@@ -101,6 +119,8 @@ export default function Proformas() {
       clienteId:        doc.clienteId,
       fechaVencimiento: doc.fechaVencimiento || undefined,
       notas:            doc.notas || undefined,
+      formaPago:        doc.formaPago || 'CREDITO',
+      listaPrecioId:    doc.listaPrecioId || undefined,
       items: (doc.items || []).map(it => ({
         productoId:     it.productoId,
         descripcion:    it.descripcion || undefined,
@@ -116,6 +136,15 @@ export default function Proformas() {
     const res = await actualizarProforma.mutateAsync({ id: doc.id, estado: 'ACEPTADA' })
     if (res?.error) { toast(res.error, 'error'); return }
     toast('Proforma aceptada', 'success')
+  }
+
+  async function handleConvertir(doc, almacenId) {
+    if (!almacenId) { toast('Selecciona el almacén desde el que se despacha', 'error'); return }
+    const res = await convertirDespacho.mutateAsync({ id: doc.id, almacenId })
+    if (res?.error) { toast(res.error, 'error'); return }
+    const numero = res?.data?.despacho?.numero || '—'
+    toast(`Proforma ${doc.numero} convertida a Despacho ${numero}`, 'success')
+    setConvirtiendo(null)
   }
 
   async function handleDelete(id) {
@@ -220,6 +249,11 @@ export default function Proformas() {
                         <CheckCircle size={12}/>
                       </Btn>
                     )}
+                    {doc.estado === 'ACEPTADA' && (
+                      <Btn variant="ghost" size="icon" title="Convertir a Despacho" className="text-[#00c896]" onClick={() => setConvirtiendo(doc)}>
+                        <Truck size={12}/>
+                      </Btn>
+                    )}
                     <Btn variant="ghost" size="icon" className="text-red-400" onClick={() => setConfirmDel(doc.id)}><Trash2 size={12}/></Btn>
                   </div>
                 )
@@ -232,12 +266,13 @@ export default function Proformas() {
         <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">
           ¿Cómo funciona el módulo de Proformas / Cotizaciones?
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
           {[
-            ['1. Crear proforma', 'Elige cliente y agrega los ítems con su cantidad y precio unitario — el subtotal, IGV y total se calculan automáticamente.'],
-            ['2. Enviar y hacer seguimiento', 'Marca el estado (Enviada, Aceptada, Rechazada) según la respuesta del cliente. Una proforma Aceptada o Rechazada ya no se puede editar.'],
-            ['3. Duplicar', 'Usa "Duplicar" para crear una nueva proforma con los mismos ítems, útil para cotizaciones recurrentes.'],
-            ['4. Imprimir o exportar', 'Cada proforma se puede imprimir en PDF individual; Excel/PDF exportan la lista completa filtrada.'],
+            ['1. Crear proforma', 'Elige cliente, forma de pago (Contado/Crédito) y agrega los ítems. La Lista de Precios se sugiere según la asignada al cliente, pero puedes cambiarla para esta proforma puntual — el precio de cada ítem sigue siendo editable a mano. Subtotal, IGV y total se calculan solos.'],
+            ['2. Enviar y hacer seguimiento', 'Marca el estado (Enviada, Aceptada, Rechazada) según la respuesta del cliente. Una proforma Aceptada, Rechazada o Convertida ya no se puede editar.'],
+            ['3. Convertir a Despacho', 'Una proforma Aceptada puede convertirse en un Despacho real (con reserva de stock) desde el botón dedicado, eligiendo el almacén — queda en estado Convertida y enlazada al despacho generado.'],
+            ['4. Duplicar', 'Usa "Duplicar" para crear una nueva proforma con los mismos ítems, útil para cotizaciones recurrentes.'],
+            ['5. Imprimir o exportar', 'Cada proforma se puede imprimir en PDF individual; Excel/PDF exportan la lista completa filtrada.'],
           ].map(([t, d]) => (
             <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
               <div className="text-[11px] font-semibold text-[#e8edf2] mb-1.5">{t}</div>
@@ -264,6 +299,7 @@ export default function Proformas() {
         editando={editando}
         clientes={clientes}
         productos={productos}
+        listasPrecios={listasPrecios}
         simboloMoneda={simboloMoneda}
         saving={isSaving}
         onSave={handleSave}
@@ -277,7 +313,43 @@ export default function Proformas() {
         title="Eliminar proforma"
         message="¿Eliminar esta proforma? La acción no se puede deshacer."
       />
+
+      {convirtiendo && (
+        <ModalConvertirDespacho
+          doc={convirtiendo}
+          almacenes={almacenes}
+          convirtiendo={convertirDespacho.isPending}
+          onClose={() => setConvirtiendo(null)}
+          onConfirm={almacenId => handleConvertir(convirtiendo, almacenId)}
+        />
+      )}
     </div>
+  )
+}
+
+// ── Modal Convertir a Despacho — mismo patrón que ModalDetallePedido en PortalPedidos.jsx ──
+function ModalConvertirDespacho({ doc, almacenes, convirtiendo, onClose, onConfirm }) {
+  const almacenesActivos = almacenes.filter(a => a.activo !== false)
+  const [almacenId, setAlmacenId] = useState(almacenesActivos[0]?.id || '')
+
+  return (
+    <Modal open title={`Convertir a Despacho — ${doc.numero}`} onClose={onClose} size="sm"
+      footer={<>
+        <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+        <Btn variant="primary" disabled={convirtiendo || !almacenId} onClick={() => onConfirm(almacenId)}>
+          <Truck size={13}/> {convirtiendo ? 'Convirtiendo...' : 'Convertir a Despacho'}
+        </Btn>
+      </>}>
+      <div className="px-3.5 py-2.5 bg-[#1a2230] rounded-lg text-[12px] text-[#9ba8b6]">
+        Se creará un Despacho con los mismos ítems de esta proforma, reservando stock en el almacén elegido.
+      </div>
+      <Field label="Almacén desde el que se despacha *">
+        <Select value={almacenId} onChange={e => setAlmacenId(e.target.value)}>
+          {almacenesActivos.length === 0 && <option value="">Sin almacenes disponibles</option>}
+          {almacenesActivos.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+        </Select>
+      </Field>
+    </Modal>
   )
 }
 
@@ -297,6 +369,8 @@ function ModalDetalle({ doc, clientes, productos, simboloMoneda, empresaNombre, 
           ['Fecha',       formatDate(doc.fecha)],
           ['Válida hasta', formatDate(doc.fechaVencimiento)],
           ['Estado',      doc.estado],
+          ['Forma de pago', (FORMA_PAGO_META[doc.formaPago] || FORMA_PAGO_META.CREDITO).label],
+          ['Lista de precios', doc.listaPrecio?.nombre || 'Precio base de catálogo'],
         ].map(([k, v]) => (
           <div key={k} className="bg-[#1a2230] rounded-lg px-3.5 py-2.5">
             <div className="text-[10px] text-[#5f6f80] mb-0.5">{k}</div>
@@ -341,11 +415,23 @@ function ModalDetalle({ doc, clientes, productos, simboloMoneda, empresaNombre, 
 // Estados válidos para actualizar (UpdateProformaDto excluye BORRADOR)
 const ESTADOS_EDIT = ['ENVIADA', 'ACEPTADA', 'RECHAZADA', 'VENCIDA']
 
-function ModalProforma({ open, onClose, editando, clientes, productos, simboloMoneda, saving, onSave }) {
-  const init = { clienteId: '', fechaVencimiento: '', estado: 'BORRADOR', items: [], notas: '' }
+// Precio de un producto según la lista elegida — sin lista, cae al precio de venta y,
+// si tampoco hay, al costo (mejor sugerir el costo que un precio en S/0.00 en una cotización).
+function resolverPrecio(p, lista) {
+  return lista ? getPrecio(p, lista) : Number(p.precioVenta || p.precioCompra || 0)
+}
+
+function ModalProforma({ open, onClose, editando, clientes, productos, listasPrecios = [], simboloMoneda, saving, onSave }) {
+  const init = { clienteId: '', fechaVencimiento: '', estado: 'BORRADOR', formaPago: 'CREDITO', listaPrecioId: '', items: [], notas: '' }
   const [form, setForm] = useState(init)
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
   const isEdit = !!editando
+
+  const clienteSeleccionado = clientes.find(c => c.id === form.clienteId)
+  const listaSeleccionada = form.listaPrecioId
+    ? listasPrecios.find(l => l.id === form.listaPrecioId && l.activa !== false)
+    : null
+  const esListaPorDefecto = clienteSeleccionado?.listaPrecioId === form.listaPrecioId
 
   useEffect(() => {
     if (!open) return
@@ -354,6 +440,36 @@ function ModalProforma({ open, onClose, editando, clientes, productos, simboloMo
 
   function addItem() {
     f('items', [...(form.items || []), { productoId: '', descripcion: '', cantidad: 1, precioUnitario: 0, subtotal: 0 }])
+  }
+
+  function recalcularItems(items, lista) {
+    return items.map(it => {
+      const p = productos.find(x => x.id === it.productoId)
+      if (!p) return it
+      const precioUnitario = resolverPrecio(p, lista)
+      return { ...it, precioUnitario, subtotal: +(Number(it.cantidad) * precioUnitario).toFixed(2) }
+    })
+  }
+
+  /**
+   * Al cambiar de cliente, adopta la lista de precios asignada a ese cliente
+   * (o ninguna) como punto de partida y recalcula los ítems YA cargados —
+   * sin esto, un ítem agregado antes de elegir cliente (o al cambiar de
+   * cliente con ítems ya cargados) se quedaba con el precio de la selección
+   * anterior para siempre. El usuario puede después elegir otra lista a mano
+   * con el selector "Lista de precios".
+   */
+  function handleClienteChange(clienteId) {
+    const cliente = clientes.find(c => c.id === clienteId)
+    const listaPrecioId = cliente?.listaPrecioId || ''
+    const lista = listaPrecioId ? listasPrecios.find(l => l.id === listaPrecioId && l.activa !== false) : null
+    setForm(prev => ({ ...prev, clienteId, listaPrecioId, items: recalcularItems(prev.items || [], lista) }))
+  }
+
+  /** Cambia la lista de precios usada en esta proforma puntual, sin tocar el cliente ni su asignación por defecto. */
+  function handleListaChange(listaPrecioId) {
+    const lista = listaPrecioId ? listasPrecios.find(l => l.id === listaPrecioId && l.activa !== false) : null
+    setForm(prev => ({ ...prev, listaPrecioId, items: recalcularItems(prev.items || [], lista) }))
   }
 
   function setItem(i, k, v) {
@@ -365,7 +481,7 @@ function ModalProforma({ open, onClose, editando, clientes, productos, simboloMo
     if (k === 'productoId') {
       const p = productos.find(x => x.id === v)
       items[i].descripcion    = p?.nombre || ''
-      items[i].precioUnitario = Number(p?.precioVenta || p?.precioCompra || 0)
+      items[i].precioUnitario = p ? resolverPrecio(p, listaSeleccionada) : 0
       items[i].subtotal       = +(Number(items[i].cantidad) * items[i].precioUnitario).toFixed(2)
     }
     f('items', items)
@@ -394,7 +510,7 @@ function ModalProforma({ open, onClose, editando, clientes, productos, simboloMo
         <Field label="Cliente">
           {isEdit
             ? <Input disabled readOnly className="opacity-50 cursor-not-allowed" value={clientes.find(c => c.id === form.clienteId)?.razonSocial || '—'}/>
-            : <Select value={form.clienteId} onChange={e => f('clienteId', e.target.value)}>
+            : <Select value={form.clienteId} onChange={e => handleClienteChange(e.target.value)}>
                 <option value="">Seleccionar...</option>
                 {clientes.filter(c => c.activo !== false).map(c => <option key={c.id} value={c.id}>{c.razonSocial}</option>)}
               </Select>
@@ -403,6 +519,12 @@ function ModalProforma({ open, onClose, editando, clientes, productos, simboloMo
         <Field label="Estado">
           {isEdit
             ? <Select value={form.estado} onChange={e => f('estado', e.target.value)}>
+                {/* BORRADOR no es un estado elegible (el backend lo rechaza), pero si es el
+                    valor actual debe existir como <option> — si no, el <select> no tiene con
+                    qué representarlo, el navegador cae a mostrar la primera opción (Enviada)
+                    sin que React se entere, y si el usuario no la toca (ya la ve "seleccionada")
+                    no se dispara onChange y el estado nunca se envía al guardar. */}
+                {form.estado === 'BORRADOR' && <option value="BORRADOR">{ESTADO_META.BORRADOR.label}</option>}
                 {ESTADOS_EDIT.map(k => <option key={k} value={k}>{ESTADO_META[k]?.label || k}</option>)}
               </Select>
             : <Input disabled readOnly className="opacity-50 cursor-not-allowed" value={ESTADO_META.BORRADOR.label}/>
@@ -411,12 +533,36 @@ function ModalProforma({ open, onClose, editando, clientes, productos, simboloMo
         <Field label="Válida hasta">
           <Input type="date" value={form.fechaVencimiento} onChange={e => f('fechaVencimiento', e.target.value)}/>
         </Field>
+        <Field label="Forma de pago">
+          {isEdit
+            ? <Input disabled readOnly className="opacity-50 cursor-not-allowed" value={FORMA_PAGO_META[form.formaPago]?.label || form.formaPago}/>
+            : <Select value={form.formaPago} onChange={e => f('formaPago', e.target.value)}>
+                <option value="CREDITO">Crédito</option>
+                <option value="CONTADO">Contado</option>
+              </Select>
+          }
+        </Field>
+        {!isEdit && (
+          <Field label="Lista de precios">
+            <Select value={form.listaPrecioId} onChange={e => handleListaChange(e.target.value)}>
+              <option value="">Precio base de catálogo</option>
+              {listasPrecios.filter(l => l.activa !== false).map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
+            </Select>
+          </Field>
+        )}
         <div className="col-span-full">
           <Field label="Notas">
             <Input value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Condiciones, plazos, observaciones..."/>
           </Field>
         </div>
       </div>
+
+      {!isEdit && listaSeleccionada && (
+        <div className="px-3.5 py-2 bg-[#00c896]/10 border border-[#00c896]/20 rounded-lg text-[12px] text-[#00c896]">
+          Precios sugeridos según la lista de precios "{listaSeleccionada.nombre}"
+          {esListaPorDefecto ? ' asignada a este cliente' : ' (elegida manualmente para esta proforma)'} — siguen siendo editables.
+        </div>
+      )}
 
       {/* Ítems: editables solo al crear; read-only al editar (backend no permite cambiarlos) */}
       <div>

@@ -1,3 +1,7 @@
+// Misma agrupación por secciones que `components/layout/Sidebar.jsx` (NAV, los
+// `divider`) — duplicada a mano acá para el editor de permisos por rol, no hay una
+// fuente única. Si se reagrupa el menú, replicar el mismo cambio acá (mismos
+// `modulo`/`id`) o este editor queda con una clasificación distinta a la del menú real.
 export const MODULOS_GRUPOS = [
   {
     grupo: 'General', color: '#00c896',
@@ -11,6 +15,7 @@ export const MODULOS_GRUPOS = [
     items: [
       { id:'inventario',      label:'Inventario',             desc:'Catálogo y stock de productos'     },
       { id:'kardex',          label:'Kardex',                 desc:'Historial valorizado por producto' },
+      { id:'movimientos',     label:'Movimientos',            desc:'Historial de todos los movimientos'},
       { id:'inv-fisico',      label:'Inventario Físico',      desc:'Conteo cíclico y ajuste masivo'    },
     ]
   },
@@ -22,14 +27,6 @@ export const MODULOS_GRUPOS = [
       { id:'ajustes',         label:'Ajustes',                desc:'Ajustes de inventario'             },
       { id:'devoluciones',    label:'Devoluciones',           desc:'Devoluciones cliente/proveedor'    },
       { id:'transferencias',  label:'Transferencias',         desc:'Traslados entre almacenes'         },
-    ]
-  },
-  {
-    grupo: 'Compras', color: '#f59e0b',
-    items: [
-      { id:'ordenes',         label:'Órdenes de Compra',      desc:'Ciclo de compras a proveedores'    },
-      { id:'cotizaciones',    label:'Cotizaciones',           desc:'RFQ y comparativa de precios'      },
-      { id:'proveedores',     label:'Proveedores',            desc:'Gestión de proveedores'            },
     ]
   },
   {
@@ -46,23 +43,20 @@ export const MODULOS_GRUPOS = [
     ]
   },
   {
-    grupo: 'Análisis', color: '#06b6d4',
+    grupo: 'Ventas', color: '#ec4899',
     items: [
-      { id:'movimientos',     label:'Movimientos',            desc:'Historial de todos los movimientos'},
-      { id:'vencimientos',    label:'Vencimientos',           desc:'Control de fechas de vencimiento'  },
-      { id:'reorden',         label:'Punto de Reorden',       desc:'Alertas de reposición'             },
-      { id:'prevision',       label:'Previsión',              desc:'Proyección de demanda'             },
-      { id:'reportes',        label:'Reportes',               desc:'ABC, rotación, valorizado'         },
-      { id:'kpis',            label:'KPIs Operativos',        desc:'Indicadores clave de operaciones'  },
+      { id:'lista-precios',   label:'Lista de Precios',       desc:'Gestión de precios de venta'       },
+      { id:'proformas',       label:'Proformas',              desc:'Cotizaciones comerciales'          },
       { id:'sunat',           label:'SUNAT / Fact.',          desc:'Facturación electrónica'           },
-      { id:'financiero',      label:'Financiero',             desc:'Dashboard financiero'              },
+      { id:'cxc',             label:'Cuentas por Cobrar',     desc:'Seguimiento de cobranzas'          },
     ]
   },
   {
-    grupo: 'Ventas', color: '#ec4899',
+    grupo: 'Compras', color: '#f59e0b',
     items: [
-      { id:'proformas',       label:'Proformas',              desc:'Cotizaciones comerciales'          },
-      { id:'cxc',             label:'Cuentas por Cobrar',     desc:'Seguimiento de cobranzas'          },
+      { id:'ordenes',         label:'Órdenes de Compra',      desc:'Ciclo de compras a proveedores'    },
+      { id:'cotizaciones',    label:'Cotizaciones',           desc:'RFQ y comparativa de precios'      },
+      { id:'proveedores',     label:'Proveedores',            desc:'Gestión de proveedores'            },
     ]
   },
   {
@@ -70,7 +64,17 @@ export const MODULOS_GRUPOS = [
     items: [
       { id:'mapa-almacen',    label:'Mapa de Almacén',        desc:'Vista visual del almacén'          },
       { id:'lotes-series',    label:'Lotes y Series',         desc:'Trazabilidad de lotes'             },
-      { id:'lista-precios',   label:'Lista de Precios',       desc:'Gestión de precios de venta'       },
+    ]
+  },
+  {
+    grupo: 'Análisis', color: '#06b6d4',
+    items: [
+      { id:'vencimientos',    label:'Vencimientos',           desc:'Control de fechas de vencimiento'  },
+      { id:'reorden',         label:'Punto de Reorden',       desc:'Alertas de reposición'             },
+      { id:'prevision',       label:'Previsión',              desc:'Proyección de demanda'             },
+      { id:'reportes',        label:'Reportes',               desc:'ABC, rotación, valorizado'         },
+      { id:'kpis',            label:'KPIs Operativos',        desc:'Indicadores clave de operaciones'  },
+      { id:'financiero',      label:'Financiero',             desc:'Dashboard financiero'              },
     ]
   },
   {

@@ -37,9 +37,21 @@ export function useProforma(id) {
 export function useCrearProforma() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ clienteId, fechaVencimiento, notas, items }) =>
-      api.post('/proformas', { clienteId, fechaVencimiento, notas, items }),
+    mutationFn: ({ clienteId, fechaVencimiento, notas, formaPago, listaPrecioId, items }) =>
+      api.post('/proformas', { clienteId, fechaVencimiento, notas, formaPago, listaPrecioId, items }),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all() }),
+  })
+}
+
+export function useConvertirProformaDespacho() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, almacenId, transportistaId, direccionEntrega }) =>
+      api.post(`/proformas/${id}/convertir-despacho`, { almacenId, transportistaId, direccionEntrega }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all() })
+      qc.invalidateQueries({ queryKey: ['despachos'] })
+    },
   })
 }
 

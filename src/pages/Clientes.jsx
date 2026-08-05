@@ -13,6 +13,7 @@ import DireccionInput from '../components/ui/DireccionInput'
 import { useNavigate } from 'react-router-dom'
 import { useClientesList, useCrearCliente, useActualizarCliente, useEliminarCliente } from '../queries/clientes.queries'
 import { useDespachosList } from '../queries/despachos.queries'
+import { useListasPreciosList } from '../queries/listas-precios.queries'
 import { exportarClientesXLSX } from '../utils/exportXLSX'
 import { exportarClientesPDF } from '../utils/exportPDF'
 
@@ -43,6 +44,7 @@ export default function Clientes() {
 
   const { data: clientesRaw = [], isLoading } = useClientesList({ incluirInactivos: true })
   const { data: despachos   = [] }            = useDespachosList()
+  const { data: listasPrecios = [] }          = useListasPreciosList()
   const crearCliente     = useCrearCliente()
   const actualizarCliente = useActualizarCliente()
   const eliminarCliente  = useEliminarCliente()
@@ -106,8 +108,9 @@ export default function Clientes() {
     }
     let res
     if (editando) {
-      res = await actualizarCliente.mutateAsync({ id: editando.id, ...payload, activo: form.activo })
+      res = await actualizarCliente.mutateAsync({ id: editando.id, ...payload, activo: form.activo, listaPrecioId: form.listaPrecioId || null })
     } else {
+      payload.listaPrecioId = form.listaPrecioId || undefined
       res = await crearCliente.mutateAsync(payload)
     }
     if (res.error) { toast(res.error, 'error'); return }
@@ -309,6 +312,7 @@ export default function Clientes() {
         open={modal}
         onClose={() => { setModal(false); setEditando(null) }}
         editando={editando}
+        listasPrecios={listasPrecios}
         onSave={handleSave}
         saving={crearCliente.isPending || actualizarCliente.isPending}
       />
@@ -515,8 +519,8 @@ function PerfilCliente({ cliente, despachos, simboloMoneda, onVolver, onEditar, 
 }
 
 // ── Modal Crear/Editar Cliente ────────────────────────────────
-function ModalCliente({ open, onClose, editando, onSave, saving }) {
-  const init = { razonSocial:'', ruc:'', contacto:'', telefono:'', email:'', direccion:'', condicionPago:'30', limiteCredito:'', notas:'', activo:true }
+function ModalCliente({ open, onClose, editando, listasPrecios = [], onSave, saving }) {
+  const init = { razonSocial:'', ruc:'', contacto:'', telefono:'', email:'', direccion:'', condicionPago:'30', limiteCredito:'', notas:'', activo:true, listaPrecioId:'' }
   const [form, setForm] = useState(init)
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
   useEffect(() => {
@@ -531,6 +535,7 @@ function ModalCliente({ open, onClose, editando, onSave, saving }) {
       notas:         editando.notas         || '',
       limiteCredito: editando.limiteCredito ?? '',
       activo:        editando.activo === true,
+      listaPrecioId: editando.listaPrecioId || '',
     } : init)
   }, [editando, open]) // eslint-disable-line
   return (
@@ -548,6 +553,12 @@ function ModalCliente({ open, onClose, editando, onSave, saving }) {
           </Select>
         </Field>
         <Field label="Límite de Crédito (S/)"><Input type="number" value={form.limiteCredito} onChange={e => f('limiteCredito', e.target.value)} placeholder="Sin límite" min="0"/></Field>
+        <Field label="Lista de precios" hint="Si el cliente tiene una lista asignada, sus precios se sugieren automáticamente al armar una Proforma.">
+          <Select value={form.listaPrecioId} onChange={e => f('listaPrecioId', e.target.value)}>
+            <option value="">Sin lista asignada (usa el precio de catálogo)</option>
+            {listasPrecios.filter(l => l.activa !== false).map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
+          </Select>
+        </Field>
       </div>
       <DireccionInput label="Dirección de entrega principal" value={form.direccion} onChange={v => f('direccion', v)} placeholder="Av. Principal 123, Distrito, Lima"/>
       <Field label="Notas internas"><Textarea className="min-h-14" value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Instrucciones especiales, condiciones, observaciones..."/></Field>

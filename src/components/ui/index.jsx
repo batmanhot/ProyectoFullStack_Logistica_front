@@ -2,16 +2,29 @@ import { useEffect, useRef } from 'react'
 import { X, CheckCircle2, AlertTriangle, Info, XCircle, Package } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 
-/** Cierra con Escape y enfoca el diálogo al abrir — compartido por Modal/ConfirmDialog. */
+/**
+ * Cierra con Escape y enfoca el diálogo al abrir — compartido por Modal/ConfirmDialog.
+ * `onClose` NO va en el array de dependencias a propósito: si el formulario del modal
+ * vive en el mismo componente que lo renderiza (ej. AdminSaaS/TabNegocios.jsx), cada
+ * tecla tipeada re-renderiza ese componente y recrea el `onClose` inline — con
+ * `onClose` como dependencia, el efecto se volvía a ejecutar en cada tecla y
+ * `ref.current?.focus()` le robaba el foco al input activo de vuelta al contenedor
+ * del diálogo (bug crítico: "una tecla y se sale del input"). Se guarda la versión
+ * más reciente en un ref para que Escape siga llamando al onClose actual sin que el
+ * efecto dependa de su identidad.
+ */
 function useDialogA11y(open, onClose) {
   const ref = useRef(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
   useEffect(() => {
     if (!open) return
-    function onKeyDown(e) { if (e.key === 'Escape') onClose?.() }
+    function onKeyDown(e) { if (e.key === 'Escape') onCloseRef.current?.() }
     document.addEventListener('keydown', onKeyDown)
     ref.current?.focus()
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [open, onClose])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
   return ref
 }
 
@@ -219,6 +232,18 @@ export function StockBadge({ stockActual, stockMinimo }) {
 export function EstadoOCBadge({ estado }) {
   const map = { PENDIENTE:'warning', APROBADA:'info', RECIBIDA:'success', CANCELADA:'danger', PARCIAL:'neutral' }
   return <Badge variant={map[estado] || 'neutral'}>{estado}</Badge>
+}
+
+/* ── Estado Logístico (Importación) Badge ─────────────── */
+export function EstadoLogisticoBadge({ estado }) {
+  const map = {
+    EN_ORIGEN:     { variant: 'neutral', label: 'En Origen' },
+    EN_TRANSITO:   { variant: 'info',    label: 'En Tránsito' },
+    EN_ADUANA:     { variant: 'warning', label: 'En Aduana' },
+    NACIONALIZADA: { variant: 'success', label: 'Nacionalizada' },
+  }
+  const cfg = map[estado] || { variant: 'neutral', label: estado || '—' }
+  return <Badge variant={cfg.variant}>{cfg.label}</Badge>
 }
 
 /* ── Spinner ─────────────────────────────────────────── */

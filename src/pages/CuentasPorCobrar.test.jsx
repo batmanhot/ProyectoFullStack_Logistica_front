@@ -36,7 +36,7 @@ describe('ModalPago (Cuentas por Cobrar)', () => {
     expect(screen.getByRole('button', { name: /Confirmar pago/ })).toBeDisabled()
   })
 
-  it('un pago parcial válido habilita Confirmar y llama a onConfirm con el monto numérico', async () => {
+  it('un pago parcial válido habilita Confirmar y llama a onConfirm con monto, método y notas', async () => {
     const user = userEvent.setup()
     const { onConfirm } = setup()
 
@@ -44,7 +44,18 @@ describe('ModalPago (Cuentas por Cobrar)', () => {
     await user.type(getFieldControl('Monto a pagar *'), '50')
     await user.click(screen.getByRole('button', { name: /Confirmar pago/ }))
 
-    expect(onConfirm).toHaveBeenCalledWith(50)
+    expect(onConfirm).toHaveBeenCalledWith({ monto: 50, metodo: undefined, notas: undefined })
+  })
+
+  it('permite elegir método de pago y notas, y los incluye en onConfirm', async () => {
+    const user = userEvent.setup()
+    const { onConfirm } = setup()
+
+    await user.selectOptions(getFieldControl('Método de pago'), 'yape')
+    await user.type(getFieldControl('Notas'), 'Op. 123456')
+    await user.click(screen.getByRole('button', { name: /Confirmar pago/ }))
+
+    expect(onConfirm).toHaveBeenCalledWith({ monto: 150, metodo: 'yape', notas: 'Op. 123456' })
   })
 
   it('un monto de 0 deshabilita Confirmar sin mostrar el Alert (campo vacío-equivalente)', async () => {

@@ -1,13 +1,16 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, CheckCircle, X, Eye, ShoppingCart, FileText, MessageCircle, Mail, Download } from 'lucide-react'
+import { Plus, Search, CheckCircle, X, Eye, ShoppingCart, FileText, MessageCircle, Mail, Download, Globe, ArrowRight, Trash2 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { usePlanLimits } from '../hooks/usePlanLimits'
 import { formatCurrency, formatDate } from '../utils/helpers'
-import { Modal, EstadoOCBadge, Btn, Field, Input, Select, Textarea, DataTable } from '../components/ui/index'
+import { Modal, EstadoOCBadge, EstadoLogisticoBadge, Badge, Btn, Field, Input, Select, Textarea, DataTable } from '../components/ui/index'
 import { ModalRecepcionParcial } from '../components/ui/ModalRecepcionParcial'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
 import { imprimirOC } from '../utils/pdfTemplates'
-import { useOrdenesCompraList, useCrearOrdenCompra, useActualizarOrdenCompra, useRecibirOrdenCompra } from '../queries/ordenes-compra.queries'
+import {
+  useOrdenesCompraList, useCrearOrdenCompra, useActualizarOrdenCompra, useRecibirOrdenCompra,
+  useAgregarGastoImportacion, useEliminarGastoImportacion, useActualizarEstadoLogistico,
+} from '../queries/ordenes-compra.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useProveedoresList } from '../queries/proveedores.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
@@ -15,6 +18,20 @@ import { exportarOrdenesXLSX } from '../utils/exportXLSX'
 import { exportarOrdenesPDF } from '../utils/exportPDF'
 
 const IGV = 0.18
+
+const MONEDAS = ['PEN', 'USD', 'EUR', 'CNY']
+
+const SECUENCIA_LOGISTICA = ['EN_ORIGEN', 'EN_TRANSITO', 'EN_ADUANA', 'NACIONALIZADA']
+const LABEL_LOGISTICO = { EN_ORIGEN: 'En Origen', EN_TRANSITO: 'En Tránsito', EN_ADUANA: 'En Aduana', NACIONALIZADA: 'Nacionalizada' }
+
+const TIPOS_GASTO_IMPORTACION = [
+  { value: 'FLETE',         label: 'Flete internacional' },
+  { value: 'SEGURO',        label: 'Seguro' },
+  { value: 'ARANCEL',       label: 'Arancel / Derechos' },
+  { value: 'AGENTE_ADUANA', label: 'Agente de aduana' },
+  { value: 'ALMACENAJE',    label: 'Almacenaje portuario' },
+  { value: 'OTRO',          label: 'Otro' },
+]
 
 export default function Ordenes() {
   const { toast, sesion } = useApp()
@@ -29,6 +46,9 @@ export default function Ordenes() {
   const crearOC     = useCrearOrdenCompra()
   const actualizarOC= useActualizarOrdenCompra()
   const recibirOC   = useRecibirOrdenCompra()
+  const agregarGasto     = useAgregarGastoImportacion()
+  const eliminarGasto    = useEliminarGastoImportacion()
+  const actualizarEstadoLog = useActualizarEstadoLogistico()
 
   const [modal,    setModal]    = useState(false)
   const [detalle,  setDetalle]  = useState(null)
@@ -95,6 +115,29 @@ export default function Ordenes() {
     if (res.error) { toast(res.error, 'error'); return }
     toast(`OC ${recepcion.numero} ${esCompleta ? 'recibida' : 'recepción parcial registrada'}`, 'success')
     setRecepcion(null)
+  }
+
+  async function avanzarEstadoLogistico(oc, nuevoEstado, tipoCambio) {
+    const res = await actualizarEstadoLog.mutateAsync({
+      id: oc.id, estadoLogistico: nuevoEstado, ...(tipoCambio ? { tipoCambio: +tipoCambio } : {}),
+    })
+    if (res.error) { toast(res.error, 'error'); return }
+    toast(`OC ${oc.numero}: ${LABEL_LOGISTICO[nuevoEstado]}`, 'success')
+    setDetalle(res.data)
+  }
+
+  async function agregarGastoOC(oc, gasto) {
+    const res = await agregarGasto.mutateAsync({ id: oc.id, ...gasto })
+    if (res.error) { toast(res.error, 'error'); return }
+    toast('Gasto de importación agregado', 'success')
+    setDetalle(d => d ? { ...d, gastosImportacion: [...(d.gastosImportacion || []), res.data] } : d)
+  }
+
+  async function eliminarGastoOC(oc, gastoId) {
+    const res = await eliminarGasto.mutateAsync({ id: oc.id, gastoId })
+    if (res.error) { toast(res.error, 'error'); return }
+    toast('Gasto eliminado', 'success')
+    setDetalle(d => d ? { ...d, gastosImportacion: (d.gastosImportacion || []).filter(g => g.id !== gastoId) } : d)
   }
 
   async function handleCrearOC(data) {
@@ -181,7 +224,12 @@ export default function Ordenes() {
           sortConfig={sortConfig}
           onSort={handleSort}
           columns={[
-            { key:'numero', header:'N° OC', sortable:true, render: oc => <span className="font-mono text-[12px] font-semibold text-[#00c896]">{oc.numero}</span> },
+            { key:'numero', header:'N° OC', sortable:true, render: oc => (
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono text-[12px] font-semibold text-[#00c896]">{oc.numero}</span>
+                {oc.esImportacion && <Globe size={12} className="text-blue-400" title="Orden de importación"/>}
+              </div>
+            ) },
             { key:'proveedor', header:'Proveedor', sortable:true, render: oc => (
               <>
                 <div className="font-medium">{provNombre(oc.proveedorId)}</div>
@@ -192,26 +240,34 @@ export default function Ordenes() {
             { key:'fechaEntrega', header:'Entrega', sortable:true, render: oc => <span className="font-mono text-[12px] text-[#9ba8b6]">{oc.fechaEntrega ? formatDate(oc.fechaEntrega) : '—'}</span> },
             { key:'items', header:'Ítems', render: oc => <span className="text-[#9ba8b6]">{oc.items?.length || oc._count?.items || 0}</span> },
             { key:'total', header:'Total', align:'right', sortable:true, render: oc => <span className="font-mono text-[12px] font-semibold">{formatCurrency(Number(oc.total || 0), simboloMoneda)}</span> },
-            { key:'estado', header:'Estado', sortable:true, render: oc => <EstadoOCBadge estado={oc.estado}/> },
-            { key:'acciones', header:'Acciones', stopPropagation:true, render: oc => (
-              <div className="flex gap-1">
-                <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetalle(oc)}><Eye size={13}/></Btn>
-                {oc.estado === 'APROBADA' && (
-                  <Btn variant="ghost" size="icon" title="PDF / Compartir" className="text-[#00c896]" onClick={() => setShareOC(oc)}>
-                    <FileText size={13}/>
-                  </Btn>
-                )}
-                {oc.estado === 'PENDIENTE' && (
-                  <Btn variant="ghost" size="icon" className="text-green-400" title="Aprobar" onClick={() => aprobar(oc)}><CheckCircle size={13}/></Btn>
-                )}
-                {(oc.estado === 'APROBADA' || oc.estado === 'PARCIAL') && (
-                  <Btn variant="primary" size="sm" onClick={() => abrirRecepcion(oc)}><CheckCircle size={12}/> Recibir</Btn>
-                )}
-                {(oc.estado === 'PENDIENTE' || oc.estado === 'APROBADA') && (
-                  <Btn variant="ghost" size="icon" className="text-red-400" title="Cancelar" onClick={() => cancelar(oc)}><X size={13}/></Btn>
-                )}
+            { key:'estado', header:'Estado', sortable:true, render: oc => (
+              <div className="flex flex-col gap-1 items-start">
+                <EstadoOCBadge estado={oc.estado}/>
+                {oc.esImportacion && <EstadoLogisticoBadge estado={oc.estadoLogistico}/>}
               </div>
             ) },
+            { key:'acciones', header:'Acciones', stopPropagation:true, render: oc => {
+              const puedeRecibir = (oc.estado === 'APROBADA' || oc.estado === 'PARCIAL') && (!oc.esImportacion || oc.estadoLogistico === 'NACIONALIZADA')
+              return (
+                <div className="flex gap-1">
+                  <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetalle(oc)}><Eye size={13}/></Btn>
+                  {oc.estado === 'APROBADA' && (
+                    <Btn variant="ghost" size="icon" title="PDF / Compartir" className="text-[#00c896]" onClick={() => setShareOC(oc)}>
+                      <FileText size={13}/>
+                    </Btn>
+                  )}
+                  {oc.estado === 'PENDIENTE' && (
+                    <Btn variant="ghost" size="icon" className="text-green-400" title="Aprobar" onClick={() => aprobar(oc)}><CheckCircle size={13}/></Btn>
+                  )}
+                  {puedeRecibir && (
+                    <Btn variant="primary" size="sm" onClick={() => abrirRecepcion(oc)}><CheckCircle size={12}/> Recibir</Btn>
+                  )}
+                  {(oc.estado === 'PENDIENTE' || oc.estado === 'APROBADA') && (
+                    <Btn variant="ghost" size="icon" className="text-red-400" title="Cancelar" onClick={() => cancelar(oc)}><X size={13}/></Btn>
+                  )}
+                </div>
+              )
+            } },
           ]}
         />
       </div>
@@ -246,7 +302,12 @@ export default function Ordenes() {
       {detalle && (
         <ModalDetalleOC oc={detalle} productos={productos} provNombre={provNombre}
           onClose={() => setDetalle(null)} onRecibir={() => abrirRecepcion(detalle)}
-          simboloMoneda={simboloMoneda}/>
+          simboloMoneda={simboloMoneda}
+          onAvanzarEstado={(nuevoEstado, tipoCambio) => avanzarEstadoLogistico(detalle, nuevoEstado, tipoCambio)}
+          onAgregarGasto={(gasto) => agregarGastoOC(detalle, gasto)}
+          onEliminarGasto={(gastoId) => eliminarGastoOC(detalle, gastoId)}
+          savingEstado={actualizarEstadoLog.isPending}
+          savingGasto={agregarGasto.isPending}/>
       )}
 
       {shareOC && (
@@ -273,14 +334,20 @@ export default function Ordenes() {
   )
 }
 
+const FORM_OC_INICIAL = {
+  proveedorId:'', almacenId:'', fechaEntrega:'', notas:'',
+  esImportacion:false, moneda:'USD', tipoCambio:'', incoterm:'',
+  numeroFacturaComercial:'', numeroBL:'', numeroDUA:'',
+}
+
 function ModalNuevaOC({ open, onClose, productos, proveedores, almacenes, onSaved, simboloMoneda, saving }) {
-  const [form, setForm] = useState({ proveedorId:'', almacenId:'', fechaEntrega:'', notas:'' })
+  const [form, setForm] = useState(FORM_OC_INICIAL)
   const [items, setItems] = useState([])
   const [ni, setNi] = useState({ productoId:'', cantidad:'', costoUnitario:'' })
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   useMemo(() => {
-    if (open) { setForm({ proveedorId:'', almacenId:'', fechaEntrega:'', notas:'' }); setItems([]); setNi({ productoId:'', cantidad:'', costoUnitario:'' }) }
+    if (open) { setForm(FORM_OC_INICIAL); setItems([]); setNi({ productoId:'', cantidad:'', costoUnitario:'' }) }
   }, [open])
 
   const subtotal = items.reduce((s, i) => s + i.subtotal, 0)
@@ -309,6 +376,15 @@ function ModalNuevaOC({ open, onClose, productos, proveedores, almacenes, onSave
       fechaEntrega: form.fechaEntrega || undefined,
       notas:        form.notas || undefined,
       items:        items.map(i => ({ productoId: i.productoId, cantidad: i.cantidad, costoUnitario: i.costoUnitario })),
+      ...(form.esImportacion && {
+        esImportacion: true,
+        moneda:        form.moneda,
+        tipoCambio:    form.tipoCambio ? +form.tipoCambio : undefined,
+        incoterm:      form.incoterm || undefined,
+        numeroFacturaComercial: form.numeroFacturaComercial || undefined,
+        numeroBL:               form.numeroBL || undefined,
+        numeroDUA:              form.numeroDUA || undefined,
+      }),
     })
   }
 
@@ -334,6 +410,42 @@ function ModalNuevaOC({ open, onClose, productos, proveedores, almacenes, onSave
         <Field label="Fecha de Entrega"><Input type="date" value={form.fechaEntrega} onChange={e => f('fechaEntrega', e.target.value)}/></Field>
       </div>
 
+      <label className="flex items-center gap-2 cursor-pointer text-[13px] text-[#9ba8b6]">
+        <input type="checkbox" checked={form.esImportacion}
+          onChange={e => f('esImportacion', e.target.checked)}
+          className="accent-[#00c896]"/>
+        <Globe size={14} className="text-blue-400"/> Es una orden de importación (proveedor extranjero)
+      </label>
+
+      {form.esImportacion && (
+        <div className="bg-[#1a2230] rounded-lg p-3.5 flex flex-col gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            <Field label="Moneda de la orden" hint="En la que se pactó el precio FOB">
+              <Select value={form.moneda} onChange={e => f('moneda', e.target.value)}>
+                {MONEDAS.map(m => <option key={m} value={m}>{m}</option>)}
+              </Select>
+            </Field>
+            <Field label="Tipo de cambio" hint="Opcional ahora, se puede fijar al nacionalizar">
+              <Input type="number" value={form.tipoCambio} onChange={e => f('tipoCambio', e.target.value)} min="0" step="0.0001"/>
+            </Field>
+            <Field label="Incoterm">
+              <Input value={form.incoterm} onChange={e => f('incoterm', e.target.value)} placeholder="FOB, CIF, EXW..."/>
+            </Field>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            <Field label="Factura comercial">
+              <Input value={form.numeroFacturaComercial} onChange={e => f('numeroFacturaComercial', e.target.value)}/>
+            </Field>
+            <Field label="BL / AWB">
+              <Input value={form.numeroBL} onChange={e => f('numeroBL', e.target.value)}/>
+            </Field>
+            <Field label="DUA">
+              <Input value={form.numeroDUA} onChange={e => f('numeroDUA', e.target.value)}/>
+            </Field>
+          </div>
+        </div>
+      )}
+
       <div className="text-[13px] font-semibold text-[#e8edf2]">Agregar ítems</div>
       <div className="flex gap-2 flex-wrap items-end">
         <div className="flex-[2] min-w-[180px]">
@@ -350,7 +462,7 @@ function ModalNuevaOC({ open, onClose, productos, proveedores, almacenes, onSave
           </Field>
         </div>
         <div className="flex-1 min-w-[90px]">
-          <Field label="Costo Unit.">
+          <Field label={form.esImportacion ? `Costo FOB (${form.moneda})` : 'Costo Unit.'}>
             <Input type="number" value={ni.costoUnitario} onChange={e => setNi(p => ({ ...p, costoUnitario: e.target.value }))} min="0" step="0.01"/>
           </Field>
         </div>
@@ -395,14 +507,42 @@ function ModalNuevaOC({ open, onClose, productos, proveedores, almacenes, onSave
   )
 }
 
-function ModalDetalleOC({ oc, productos, provNombre, onClose, onRecibir, simboloMoneda }) {
+function ModalDetalleOC({
+  oc, productos, provNombre, onClose, onRecibir, simboloMoneda,
+  onAvanzarEstado, onAgregarGasto, onEliminarGasto, savingEstado, savingGasto,
+}) {
   const prodMap = useMemo(() => new Map(productos.map(p => [p.id, p])), [productos])
+  const [tipoCambioInput, setTipoCambioInput] = useState('')
+  const [nuevoGasto, setNuevoGasto] = useState({ tipo:'FLETE', monto:'', moneda:'PEN', notas:'' })
+
+  const nacionalizada = oc.estadoLogistico === 'NACIONALIZADA'
+  const puedeRecibir  = ['PENDIENTE','APROBADA','PARCIAL'].includes(oc.estado) && (!oc.esImportacion || nacionalizada)
+  const siguienteEstado = oc.esImportacion
+    ? SECUENCIA_LOGISTICA[SECUENCIA_LOGISTICA.indexOf(oc.estadoLogistico) + 1]
+    : null
+  const requiereTipoCambio = siguienteEstado === 'NACIONALIZADA' && !oc.tipoCambio
+
+  function avanzar() {
+    if (requiereTipoCambio && !tipoCambioInput) return
+    onAvanzarEstado(siguienteEstado, requiereTipoCambio ? tipoCambioInput : undefined)
+    setTipoCambioInput('')
+  }
+
+  function agregarGasto() {
+    if (!nuevoGasto.monto) return
+    onAgregarGasto({ ...nuevoGasto, monto: +nuevoGasto.monto })
+    setNuevoGasto({ tipo:'FLETE', monto:'', moneda:'PEN', notas:'' })
+  }
+
+  const totalGastos = (oc.gastosImportacion || []).reduce((s, g) =>
+    s + (g.moneda === 'PEN' ? Number(g.monto) : Number(g.monto) * Number(oc.tipoCambio || 0)), 0)
+
   return (
     <Modal open title={`Orden ${oc.numero}`} onClose={onClose} size="lg"
       footer={
         <>
           <Btn variant="secondary" onClick={onClose}>Cerrar</Btn>
-          {['PENDIENTE','APROBADA','PARCIAL'].includes(oc.estado) && (
+          {puedeRecibir && (
             <Btn variant="primary" onClick={onRecibir}><CheckCircle size={14}/> Recibir mercadería</Btn>
           )}
         </>
@@ -421,11 +561,85 @@ function ModalDetalleOC({ oc, productos, provNombre, onClose, onRecibir, simbolo
         ))}
       </div>
 
+      {oc.esImportacion && (
+        <div className="bg-[#1a2230] rounded-lg p-3.5 flex flex-col gap-3.5">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <Globe size={14} className="text-blue-400"/>
+              <span className="text-[12px] font-semibold text-[#e8edf2]">Importación</span>
+              <EstadoLogisticoBadge estado={oc.estadoLogistico}/>
+            </div>
+            {siguienteEstado && (
+              <div className="flex items-center gap-2">
+                {requiereTipoCambio && (
+                  <Input type="number" placeholder="Tipo de cambio" value={tipoCambioInput}
+                    onChange={e => setTipoCambioInput(e.target.value)}
+                    className="!w-32 !py-1 text-[12px]" min="0" step="0.0001"/>
+                )}
+                <Btn variant="secondary" size="sm" disabled={savingEstado || (requiereTipoCambio && !tipoCambioInput)} onClick={avanzar}>
+                  {LABEL_LOGISTICO[siguienteEstado]} <ArrowRight size={12}/>
+                </Btn>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-[12px]">
+            <div><div className="text-[#5f6f80]">Moneda</div><div className="font-medium">{oc.moneda}</div></div>
+            <div><div className="text-[#5f6f80]">Tipo de cambio</div><div className="font-medium">{oc.tipoCambio ? Number(oc.tipoCambio).toFixed(4) : '—'}</div></div>
+            <div><div className="text-[#5f6f80]">Incoterm</div><div className="font-medium">{oc.incoterm || '—'}</div></div>
+            <div><div className="text-[#5f6f80]">Factura comercial</div><div className="font-medium">{oc.numeroFacturaComercial || '—'}</div></div>
+            <div><div className="text-[#5f6f80]">BL / AWB</div><div className="font-medium">{oc.numeroBL || '—'}</div></div>
+            <div><div className="text-[#5f6f80]">DUA</div><div className="font-medium">{oc.numeroDUA || '—'}</div></div>
+          </div>
+
+          <div>
+            <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] mb-2">Gastos de importación</div>
+            {(oc.gastosImportacion || []).length > 0 && (
+              <div className="overflow-x-auto rounded-lg border border-white/8 mb-2">
+                <table className="w-full border-collapse text-[12px]">
+                  <tbody>
+                    {oc.gastosImportacion.map(g => (
+                      <tr key={g.id} className="border-b border-white/6 last:border-0">
+                        <td className="px-3 py-1.5">{TIPOS_GASTO_IMPORTACION.find(t => t.value === g.tipo)?.label || g.tipo}</td>
+                        <td className="px-3 py-1.5 text-[#5f6f80]">{g.notas || '—'}</td>
+                        <td className="px-3 py-1.5 font-mono text-right">{formatCurrency(Number(g.monto), g.moneda === 'PEN' ? simboloMoneda : g.moneda)}</td>
+                        {!nacionalizada && (
+                          <td className="px-3 py-1.5 w-8">
+                            <Btn variant="ghost" size="icon" className="text-red-400" onClick={() => onEliminarGasto(g.id)}><Trash2 size={12}/></Btn>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                    <tr>
+                      <td className="px-3 py-1.5 font-semibold" colSpan={2}>Total gastos (est. en {simboloMoneda})</td>
+                      <td className="px-3 py-1.5 font-mono font-semibold text-right" colSpan={nacionalizada ? 1 : 2}>{formatCurrency(totalGastos, simboloMoneda)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {!nacionalizada && (
+              <div className="flex gap-2 flex-wrap items-end">
+                <Select value={nuevoGasto.tipo} onChange={e => setNuevoGasto(p => ({ ...p, tipo: e.target.value }))} className="!py-1 text-[12px] !w-36">
+                  {TIPOS_GASTO_IMPORTACION.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </Select>
+                <Input type="number" placeholder="Monto" value={nuevoGasto.monto} onChange={e => setNuevoGasto(p => ({ ...p, monto: e.target.value }))} className="!w-24 !py-1 text-[12px]" min="0" step="0.01"/>
+                <Select value={nuevoGasto.moneda} onChange={e => setNuevoGasto(p => ({ ...p, moneda: e.target.value }))} className="!py-1 text-[12px] !w-20">
+                  {MONEDAS.map(m => <option key={m} value={m}>{m}</option>)}
+                </Select>
+                <Input placeholder="Notas (opcional)" value={nuevoGasto.notas} onChange={e => setNuevoGasto(p => ({ ...p, notas: e.target.value }))} className="!py-1 text-[12px] flex-1 min-w-[120px]"/>
+                <Btn variant="secondary" size="sm" disabled={savingGasto || !nuevoGasto.monto} onClick={agregarGasto}>+ Agregar</Btn>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {oc.items?.length > 0 && (
         <div className="overflow-x-auto rounded-xl border border-white/8">
           <table className="w-full border-collapse text-[13px]">
             <thead><tr>
-              {['Producto','Pedido','Recibido','Pendiente','Costo Unit.','Subtotal'].map(h => (
+              {['Producto','Pedido','Recibido','Pendiente', oc.esImportacion ? 'Costo FOB' : 'Costo Unit.', ...(oc.esImportacion ? ['Costo Real'] : []),'Subtotal'].map(h => (
                 <th key={h} className="bg-[#1a2230] px-3.5 py-2 text-left text-[11px] font-semibold text-[#5f6f80] uppercase border-b border-white/8">{h}</th>
               ))}
             </tr></thead>
@@ -440,8 +654,11 @@ function ModalDetalleOC({ oc, productos, provNombre, onClose, onRecibir, simbolo
                     <td className="px-3.5 py-2 font-mono text-[12px]">{it.cantidad}</td>
                     <td className="px-3.5 py-2 font-mono text-[12px] text-green-400">{recibido}</td>
                     <td className="px-3.5 py-2 font-mono text-[12px]"><span className={pendiente > 0 ? 'text-amber-400' : 'text-green-400'}>{pendiente}</span></td>
-                    <td className="px-3.5 py-2 font-mono text-[12px]">{formatCurrency(Number(it.costoUnitario || 0), simboloMoneda)}</td>
-                    <td className="px-3.5 py-2 font-mono text-[12px] font-semibold">{formatCurrency(Number(it.subtotal || (it.cantidad * it.costoUnitario) || 0), simboloMoneda)}</td>
+                    <td className="px-3.5 py-2 font-mono text-[12px]">{formatCurrency(Number(it.costoUnitario || 0), oc.esImportacion ? oc.moneda : simboloMoneda)}</td>
+                    {oc.esImportacion && (
+                      <td className="px-3.5 py-2 font-mono text-[12px] text-[#00c896]">{it.costoUnitarioReal != null ? formatCurrency(Number(it.costoUnitarioReal), simboloMoneda) : '—'}</td>
+                    )}
+                    <td className="px-3.5 py-2 font-mono text-[12px] font-semibold">{formatCurrency(Number(it.subtotal || (it.cantidad * it.costoUnitario) || 0), oc.esImportacion ? oc.moneda : simboloMoneda)}</td>
                   </tr>
                 )
               })}
@@ -451,10 +668,13 @@ function ModalDetalleOC({ oc, productos, provNombre, onClose, onRecibir, simbolo
       )}
 
       <div className="flex flex-col items-end gap-1 text-[13px]">
-        <div className="text-[#9ba8b6]">Subtotal: <span className="font-medium text-[#e8edf2]">{formatCurrency(Number(oc.subtotal || 0), simboloMoneda)}</span></div>
-        <div className="text-[#9ba8b6]">IGV: <span className="font-medium text-[#e8edf2]">{formatCurrency(Number(oc.igv || 0), simboloMoneda)}</span></div>
-        <div className="text-[16px] font-semibold text-[#00c896]">Total: {formatCurrency(Number(oc.total || 0), simboloMoneda)}</div>
+        <div className="text-[#9ba8b6]">Subtotal: <span className="font-medium text-[#e8edf2]">{formatCurrency(Number(oc.subtotal || 0), oc.esImportacion ? oc.moneda : simboloMoneda)}</span></div>
+        <div className="text-[#9ba8b6]">IGV: <span className="font-medium text-[#e8edf2]">{formatCurrency(Number(oc.igv || 0), oc.esImportacion ? oc.moneda : simboloMoneda)}</span></div>
+        <div className="text-[16px] font-semibold text-[#00c896]">Total: {formatCurrency(Number(oc.total || 0), oc.esImportacion ? oc.moneda : simboloMoneda)}</div>
       </div>
+      {oc.esImportacion && !puedeRecibir && oc.estado !== 'RECIBIDA' && oc.estado !== 'CANCELADA' && (
+        <p className="text-[12px] text-amber-400">Esta orden debe llegar a "Nacionalizada" antes de poder recibir la mercadería.</p>
+      )}
       {oc.notas && <p className="text-[13px] text-[#9ba8b6]">Notas: {oc.notas}</p>}
     </Modal>
   )

@@ -5,6 +5,7 @@ import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart
 import { useApp } from '../../store/AppContext'
 import { useTheme } from '../../hooks/useTheme'
 import { estadoStock, diasParaVencer } from '../../utils/helpers'
+import { PLAN_META } from '../../config/constants'
 import StorageWidget from '../ui/StorageWidget'
 import OfflineBanner from '../ui/OfflineBanner'
 
@@ -14,12 +15,18 @@ const NAV_SAAS_ADMIN = [
   { label:'Administración SaaS', path:'/admin-saas', icon:Crown, modulo:'admin', color:'#f59e0b' },
 ]
 
+// La agrupación por secciones (los `divider`) se repite, a mano, en
+// `pages/Usuarios/constants.js` (MODULOS_GRUPOS) para el editor de permisos por rol —
+// no hay una fuente única. Si se agrega, quita o reagrupa un módulo acá, replicar el
+// mismo cambio ahí (mismos `modulo`/`id`) o el editor de roles queda con una
+// clasificación distinta a la del menú real.
 const NAV = [
   { label:'Dashboard',             path:'/',                icon:LayoutDashboard,  modulo:'dashboard',      color:'#3b82f6' },
   { label:'Alertas',               path:'/alertas',         icon:Bell,             modulo:'alertas',        color:'#ef4444', badge:'alertas' },
   { divider:true, label:'INVENTARIO' },
   { label:'Inventario',            path:'/inventario',      icon:Package,          modulo:'inventario',     color:'#f59e0b', badge:'stock' },
   { label:'Kardex',                path:'/kardex',          icon:BookOpen,         modulo:'kardex',         color:'#8b5cf6' },
+  { label:'Movimientos',           path:'/movimientos',     icon:Boxes,            modulo:'movimientos',    color:'#8b5cf6' },
   { label:'Inventario Físico',     path:'/inv-fisico',      icon:ClipboardList,    modulo:'inv-fisico',     color:'#06b6d4' },
   { divider:true, label:'OPERACIONES' },
   { label:'Entradas',              path:'/entradas',        icon:ArrowDownToLine,  modulo:'entradas',       color:'#10b981' },
@@ -27,10 +34,6 @@ const NAV = [
   { label:'Ajustes',               path:'/ajustes',         icon:SlidersHorizontal,modulo:'ajustes',        color:'#6366f1' },
   { label:'Devoluciones',          path:'/devoluciones',    icon:RotateCcw,        modulo:'devoluciones',   color:'#f97316' },
   { label:'Transferencias',        path:'/transferencias',  icon:ArrowRightLeft,   modulo:'transferencias', color:'#a855f7' },
-  { divider:true, label:'COMPRAS' },
-  { label:'Órdenes de Compra',     path:'/ordenes',         icon:ShoppingCart,     modulo:'ordenes',        color:'#0ea5e9' },
-  { label:'Cotizaciones',          path:'/cotizaciones',    icon:FileText,         modulo:'cotizaciones',   color:'#84cc16' },
-  { label:'Proveedores',           path:'/proveedores',     icon:Building2,        modulo:'proveedores',    color:'#f59e0b' },
   { divider:true, label:'DESPACHOS' },
   { label:'Clientes',              path:'/clientes',        icon:Users,            modulo:'clientes',       color:'#10b981' },
   { label:'Despachos',             path:'/despachos',       icon:Truck,            modulo:'despachos',      color:'#3b82f6' },
@@ -39,24 +42,28 @@ const NAV = [
   { label:'Empaque / Packing',     path:'/empaque',         icon:Package,          modulo:'empaque',        color:'#06b6d4' },
   { label:'Transportes',           path:'/transportes',     icon:NavIcon,          modulo:'transportes',    color:'#0ea5e9' },
   { label:'Flota y Mantenimiento', path:'/flota',           icon:Wrench,           modulo:'flota',          color:'#94a3b8' },
+  { label:'Trazabilidad Pedidos',  path:'/trazabilidad',    icon:ArrowRightLeft,   modulo:'despachos',      color:'#06b6d4' },
+  { divider:true, label:'VENTAS' },
+  { label:'Lista de Precios',      path:'/lista-precios',   icon:Tag,              modulo:'lista-precios',  color:'#eab308' },
+  { label:'Proformas / Cotiz.',    path:'/proformas',       icon:FileText,         modulo:'proformas',      color:'#84cc16' },
+  { label:'SUNAT / Fact. Elect.',  path:'/sunat',           icon:Zap,              modulo:'sunat',          color:'#eab308' },
+  { label:'Cuentas por Cobrar',    path:'/cxc',             icon:DollarSign,       modulo:'cxc',            color:'#f43f5e' },
+  { divider:true, label:'COMPRAS' },
+  { label:'Órdenes de Compra',     path:'/ordenes',         icon:ShoppingCart,     modulo:'ordenes',        color:'#0ea5e9' },
+  { label:'Cotizaciones',          path:'/cotizaciones',    icon:FileText,         modulo:'cotizaciones',   color:'#84cc16' },
+  { label:'Proveedores',           path:'/proveedores',     icon:Building2,        modulo:'proveedores',    color:'#f59e0b' },
+  { label:'Portal Proveedores B2B',path:'/portal-prov-b2b', icon:Building2,        modulo:'proveedores',    color:'#0ea5e9' },
+  { divider:true, label:'ALMACÉN' },
+  { label:'Mapa de Almacén',       path:'/mapa-almacen',    icon:Grid3x3,          modulo:'mapa-almacen',   color:'#8b5cf6' },
+  { label:'Lotes y Series',        path:'/lotes-series',    icon:Layers,           modulo:'lotes-series',   color:'#f97316' },
   { divider:true, label:'ANÁLISIS' },
-  { label:'Movimientos',           path:'/movimientos',     icon:Boxes,            modulo:'movimientos',    color:'#8b5cf6' },
   { label:'Vencimientos',          path:'/vencimientos',    icon:Clock,            modulo:'vencimientos',   color:'#ef4444' },
   { label:'Punto de Reorden',      path:'/reorden',         icon:TrendingDown,     modulo:'reorden',        color:'#f59e0b' },
   { label:'Previsión de Demanda',  path:'/prevision',       icon:Activity,         modulo:'prevision',      color:'#6366f1' },
   { label:'Reportes',              path:'/reportes',        icon:BarChart3,        modulo:'reportes',       color:'#3b82f6' },
   { label:'KPIs Operativos',       path:'/kpis',            icon:Target,           modulo:'kpis',           color:'#10b981' },
-  { label:'SUNAT / Fact. Elect.',  path:'/sunat',           icon:Zap,              modulo:'sunat',          color:'#eab308' },
   { label:'Reportes Contables',    path:'/contabilidad',    icon:BookOpen,         modulo:'reportes',       color:'#a855f7' },
-  { label:'Trazabilidad Pedidos',  path:'/trazabilidad',    icon:ArrowRightLeft,   modulo:'despachos',      color:'#06b6d4' },
   { label:'Dashboard Financiero',  path:'/financiero',      icon:TrendingUp,       modulo:'financiero',     color:'#22c55e' },
-  { divider:true, label:'VENTAS' },
-  { label:'Proformas / Cotiz.',    path:'/proformas',       icon:FileText,         modulo:'proformas',      color:'#84cc16' },
-  { label:'Cuentas por Cobrar',    path:'/cxc',             icon:DollarSign,       modulo:'cxc',            color:'#f43f5e' },
-  { divider:true, label:'ALMACÉN' },
-  { label:'Mapa de Almacén',       path:'/mapa-almacen',    icon:Grid3x3,          modulo:'mapa-almacen',   color:'#8b5cf6' },
-  { label:'Lotes y Series',        path:'/lotes-series',    icon:Layers,           modulo:'lotes-series',   color:'#f97316' },
-  { label:'Lista de Precios',      path:'/lista-precios',   icon:Tag,              modulo:'lista-precios',  color:'#eab308' },
   { divider:true, label:'ADMINISTRACIÓN' },
   { label:'Usuarios y Roles',      path:'/usuarios',        icon:Users,            modulo:'usuarios',       color:'#6366f1' },
   { label:'Auditoría',             path:'/auditoria',       icon:Shield,           modulo:'auditoria',      color:'#ef4444' },
@@ -64,8 +71,6 @@ const NAV = [
   { label:'Incidencias',           path:'/incidencias',     icon:Bug,              modulo:'incidencias',    color:'#ef4444' },
   { label:'Cola de Sincronización',path:'/cola-sync',       icon:RefreshCw,        modulo:'cola-sync',      color:'#f59e0b' },
   { label:'Configuración',         path:'/configuracion',   icon:Settings,         modulo:'configuracion',  color:'#94a3b8' },
-
-  { label:'Portal Proveedores B2B',path:'/portal-prov-b2b', icon:Building2,        modulo:'proveedores',    color:'#0ea5e9' },
 ]
 
 function SidebarThemeButton({ collapsed }) {
@@ -135,6 +140,7 @@ function SidebarThemeButton({ collapsed }) {
 export default function Sidebar({ collapsed, onToggle }) {
   const { sesion, logout, tienePermiso } = useApp()
   const navigate = useNavigate()
+  const planMeta = PLAN_META[sesion?.plan]
 
   function handleLogout() {
     logout()
@@ -196,24 +202,34 @@ export default function Sidebar({ collapsed, onToggle }) {
           {/* Barra acento superior */}
           <div style={{ height: 2, background: 'var(--sidebar-line)' }}/>
 
-          {/* Bloque — Identidad de la app */}
+          {/* Bloque — Identidad de la app: nombre real del tenant (sesion.empresaNombre,
+              persistido al login desde GET /empresas/:codigo) y el plan SaaS vigente
+              (sesion.plan) — antes decía "Mi Empresa" y "v2.0" fijos, sin relación con
+              los datos reales de la cuenta. Sin nombre real (saas_admin sin tenant, o una
+              sesión guardada antes de este cambio) cae a "StockPro" — nunca a un
+              placeholder con pinta de dato real como "Mi Empresa", que es justo lo que
+              generaba la confusión. */}
           <div className="flex items-center gap-3 px-4 pt-3.5 pb-3">
 
-            <div className="w-11 h-11 shrink-0 flex items-center justify-center overflow-hidden">
-              <img src={logoImg} alt="Logo" className="w-11 h-11 object-contain" style={{ filter:'brightness(1.08)' }}/>
+            <div className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl overflow-hidden"
+              style={{ background: 'var(--sidebar-surface)', border: '1px solid var(--border)' }}>
+              <img src={logoImg} alt="Logo" className="w-8 h-8 object-contain" style={{ filter:'brightness(1.08)' }}/>
             </div>
 
             <div className="flex-1 min-w-0">
-              <div className="text-[13.5px] font-bold truncate leading-snug" style={{ color: 'var(--sidebar-fg)' }}>
-                {sesion?.empresaId ? 'Mi Empresa' : 'StockPro'}
+              <div className="text-[14px] font-bold truncate leading-snug" style={{ color: 'var(--sidebar-fg)' }}>
+                {sesion?.empresaNombre || 'StockPro'}
               </div>
-              <div className="flex items-center gap-1.5 mt-0.75">
-                <span className="text-[10px] font-bold uppercase tracking-[0.06em]"
-                  style={{ color: 'var(--accent)', opacity: 0.75 }}>StockPro</span>
-                <span className="text-[9px] px-1.5 py-px rounded font-semibold"
-                  style={{ color: 'var(--sidebar-fg-muted)', background: 'var(--sidebar-surface)', letterSpacing: '0.03em' }}>
-                  v2.0
-                </span>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="text-[9.5px] font-bold uppercase tracking-[0.08em]"
+                  style={{ color: 'var(--accent)', opacity: 0.8 }}>StockPro</span>
+                {planMeta && (
+                  <span className="flex items-center gap-1 text-[9px] px-1.5 py-px rounded-full font-semibold"
+                    style={{ color: planMeta.color, background: `${planMeta.color}1f` }}>
+                    <span className="w-1 h-1 rounded-full shrink-0" style={{ background: planMeta.color }}/>
+                    {planMeta.label}
+                  </span>
+                )}
               </div>
             </div>
 
