@@ -56,7 +56,7 @@ export default function TabNegocios({ negocios, crearNegocio, actualizarNegocio,
 
   function openNew() {
     setEditItem(null)
-    setForm({ nombre:'', ruc:'', contacto:'', email:'', telefono:'', plan:'trial', estado:'trial', fechaVencimiento:format(addDays(new Date(), 30), 'yyyy-MM-dd'), empresaId:'', notas:'', adminNombre:'', adminEmail:'', adminPassword:'' })
+    setForm({ nombre:'', nombreCorto:'', ruc:'', contacto:'', email:'', telefono:'', plan:'trial', estado:'trial', fechaVencimiento:format(addDays(new Date(), 30), 'yyyy-MM-dd'), empresaId:'', notas:'', adminNombre:'', adminEmail:'', adminPassword:'' })
     setModal(true)
   }
 
@@ -66,14 +66,14 @@ export default function TabNegocios({ negocios, crearNegocio, actualizarNegocio,
     if (!form.nombre?.trim()) { toast('El nombre es requerido', 'error'); return }
     if (!form.empresaId?.trim()) { toast('El ID de empresa es requerido', 'error'); return }
     if (editItem) {
-      const res = await actualizarNegocio.mutateAsync({ id: editItem.id, nombre: form.nombre, ruc: form.ruc, contacto: form.contacto, email: form.email, telefono: form.telefono, plan: form.plan, estado: form.estado, fechaVencimiento: form.fechaVencimiento || undefined, notas: form.notas })
+      const res = await actualizarNegocio.mutateAsync({ id: editItem.id, nombre: form.nombre, nombreCorto: form.nombreCorto, ruc: form.ruc, contacto: form.contacto, email: form.email, telefono: form.telefono, plan: form.plan, estado: form.estado, fechaVencimiento: form.fechaVencimiento || undefined, notas: form.notas })
       if (res?.error) { toast(res.error, 'error'); return }
       toast('Negocio actualizado', 'success')
     } else {
       if (!form.adminNombre?.trim()) { toast('El nombre del admin es requerido', 'error'); return }
       if (!form.adminEmail?.trim())  { toast('El email del admin es requerido', 'error');  return }
       if ((form.adminPassword?.length ?? 0) < 8) { toast('La contraseña del admin debe tener al menos 8 caracteres', 'error'); return }
-      const res = await crearNegocio.mutateAsync({ codigo: form.empresaId, nombre: form.nombre, ruc: form.ruc, contacto: form.contacto, email: form.email, telefono: form.telefono, plan: form.plan, fechaVencimiento: form.fechaVencimiento || undefined, notas: form.notas, adminNombre: form.adminNombre, adminEmail: form.adminEmail, adminPassword: form.adminPassword })
+      const res = await crearNegocio.mutateAsync({ codigo: form.empresaId, nombre: form.nombre, nombreCorto: form.nombreCorto, ruc: form.ruc, contacto: form.contacto, email: form.email, telefono: form.telefono, plan: form.plan, fechaVencimiento: form.fechaVencimiento || undefined, notas: form.notas, adminNombre: form.adminNombre, adminEmail: form.adminEmail, adminPassword: form.adminPassword })
       if (res?.error) { toast(res.error, 'error'); return }
       toast('Negocio registrado correctamente', 'success')
     }
@@ -201,6 +201,10 @@ export default function TabNegocios({ negocios, crearNegocio, actualizarNegocio,
         <div className="grid grid-cols-2 gap-4">
           <Field label="Nombre del negocio *" className="col-span-2">
             <input className={`${inp} col-span-2`} value={form.nombre||''} onChange={e => f('nombre',e.target.value)} placeholder="Empresa XYZ S.A.C." />
+          </Field>
+          <Field label="Nombre corto (opcional)" className="col-span-2">
+            <input className={`${inp} col-span-2`} value={form.nombreCorto||''} onChange={e => f('nombreCorto',e.target.value)} placeholder="Empresa XYZ" />
+            <div className="text-[11px] text-[#5f6f80] mt-1">Se muestra en el sidebar del negocio en lugar del nombre completo, si se llena. Útil cuando el nombre completo es muy largo.</div>
           </Field>
           <Field label="RUC / Identificación fiscal">
             <input className={inp} value={form.ruc||''} onChange={e => f('ruc',e.target.value)} placeholder="20123456789" />

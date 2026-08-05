@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useMemo, useState, useRef, useEffect } from 'react'
 import logoImg from '../../assets/logo.webp'
-import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, ShieldCheck, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Globe, Target, Zap, Palette, Check, RefreshCw, Crown, Bug} from 'lucide-react'
+import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, ShieldCheck, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Globe, Target, Zap, Palette, Check, RefreshCw, Crown, Bug, HelpCircle} from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { useTheme } from '../../hooks/useTheme'
 import { estadoStock, diasParaVencer } from '../../utils/helpers'
@@ -137,6 +137,22 @@ function SidebarThemeButton({ collapsed }) {
   )
 }
 
+function SidebarHelpLink({ collapsed }) {
+  return (
+    <a
+      href="/manual.html"
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Manual de Usuario"
+      className={`flex items-center gap-3 mx-2 my-0.5 rounded-lg transition-all duration-150 no-underline overflow-hidden whitespace-nowrap hover:bg-white/5
+        ${collapsed ? 'px-0 justify-center h-10' : 'px-3 py-2'}`}
+      style={{ color: 'var(--sidebar-fg-nav)' }}>
+      <HelpCircle size={16} className="shrink-0" style={{ opacity: 0.85 }}/>
+      {!collapsed && <span className="flex-1 text-[13.5px] font-medium">Manual de Usuario</span>}
+    </a>
+  )
+}
+
 export default function Sidebar({ collapsed, onToggle }) {
   const { sesion, logout, tienePermiso } = useApp()
   const navigate = useNavigate()
@@ -208,7 +224,8 @@ export default function Sidebar({ collapsed, onToggle }) {
               los datos reales de la cuenta. Sin nombre real (saas_admin sin tenant, o una
               sesión guardada antes de este cambio) cae a "StockPro" — nunca a un
               placeholder con pinta de dato real como "Mi Empresa", que es justo lo que
-              generaba la confusión. */}
+              generaba la confusión. Si el negocio tiene un nombreCorto configurado en
+              AdminSaaS, se prioriza sobre el nombre completo (que puede truncarse acá). */}
           <div className="flex items-center gap-3 px-4 pt-3.5 pb-3">
 
             <div className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl overflow-hidden"
@@ -217,8 +234,8 @@ export default function Sidebar({ collapsed, onToggle }) {
             </div>
 
             <div className="flex-1 min-w-0">
-              <div className="text-[14px] font-bold truncate leading-snug" style={{ color: 'var(--sidebar-fg)' }}>
-                {sesion?.empresaNombre || 'StockPro'}
+              <div className="text-[14px] font-bold truncate leading-snug" title={sesion?.empresaNombre} style={{ color: 'var(--sidebar-fg)' }}>
+                {sesion?.empresaNombreCorto || sesion?.empresaNombre || 'StockPro'}
               </div>
               <div className="flex items-center gap-1.5 mt-1">
                 <span className="text-[9.5px] font-bold uppercase tracking-[0.08em]"
@@ -305,6 +322,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           <div className="h-px bg-white/5 mx-3"/>
 
           <SidebarThemeButton collapsed={collapsed}/>
+          <SidebarHelpLink collapsed={collapsed}/>
 
           <div className="h-px bg-white/5 mx-3"/>
 
