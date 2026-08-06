@@ -49,6 +49,17 @@ export default defineConfig(({ mode }) => {
     react(),
     htmlSecurityHeaders(env.VITE_API_URL || 'http://localhost:3000'),
     VitePWA({
+      // Fase 2 (2026-08-05): antes 'generateSW' (implícito) — necesitamos un
+      // listener 'push' custom, que generateSW no soporta. El cacheo de
+      // Google Fonts que antes vivía en `workbox.runtimeCaching` ahora se
+      // define a mano dentro de src/sw.js.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
+      injectManifest: {
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+      },
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png','logo.svg','favicon.ico'],
       manifest: {
@@ -66,15 +77,7 @@ export default defineConfig(({ mode }) => {
           { src:'/favicon.png', sizes:'512x512', type:'image/png', purpose:'any maskable' },
         ],
       },
-      workbox: {
-        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
-          { urlPattern:/^https:\/\/fonts\.googleapis\.com\/.*/i, handler:'CacheFirst', options:{ cacheName:'gfonts-cache', expiration:{ maxEntries:10, maxAgeSeconds:31536000 } } },
-          { urlPattern:/^https:\/\/fonts\.gstatic\.com\/.*/i,   handler:'CacheFirst', options:{ cacheName:'gstatic-cache', expiration:{ maxEntries:10, maxAgeSeconds:31536000 } } },
-        ],
-      },
-      devOptions: { enabled: true },
+      devOptions: { enabled: true, type: 'module' },
     }),
   ],
   resolve: { alias: { '@': '/src' } },

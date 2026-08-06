@@ -68,6 +68,7 @@ export default function Usuarios() {
       ...(data.password                    ? { password: data.password } : {}),
       ...(rolId                            ? { rolId }                   : {}),
       ...(data.areaId                      ? { areaId: data.areaId }     : {}),
+      ...(data.transportistaId             ? { transportistaId: data.transportistaId } : {}),
       ...(editando                         ? { activo: data.activo }     : { email: data.email }),
     }
     const res = editando

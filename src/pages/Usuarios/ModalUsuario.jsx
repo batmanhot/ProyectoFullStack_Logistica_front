@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Eye, EyeOff, Shield, Key, CheckSquare, Square } from 'lucide-react'
 import { Modal, Field, Btn, Input, Select } from '../../components/ui/index'
 import { useAreasInternasList } from '../../queries/areas-internas.queries'
+import { useTransportistasList } from '../../queries/transportistas.queries'
 import { MODULOS_GRUPOS } from './constants'
 
 // ════════════════════════════════════════════════════════
@@ -9,24 +10,39 @@ import { MODULOS_GRUPOS } from './constants'
 // ════════════════════════════════════════════════════════
 export default function ModalUsuario({ open, onClose, editando, onSave, sesionId, roles }) {
   const { data: areas = [] } = useAreasInternasList()
-  const init = { nombre:'', email:'', password:'', rol:'almacenero', areaId:'', activo:true }
+  const { data: transportistas = [] } = useTransportistasList()
+  const init = { nombre:'', email:'', password:'', rol:'almacenero', areaId:'', transportistaId:'', activo:true }
   const [form,     setForm]     = useState(init)
   const [showPass, setShowPass] = useState(false)
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   useEffect(() => {
-    setForm(editando ? { ...init, ...editando, password:'' } : init)
+    // editando trae rol/area/transportista como objetos anidados (shape real
+    // de la API) — hay que aplanarlos a los campos que este form maneja
+    // (form.rol es un código string, no un objeto). Bug preexistente: antes
+    // de este fix, editar CUALQUIER usuario dejaba el selector de Rol y de
+    // Área sin preseleccionar nada, porque se pisaban con el objeto crudo.
+    setForm(editando ? {
+      ...init,
+      ...editando,
+      rol: editando.rol?.codigo || editando.rol || init.rol,
+      areaId: editando.area?.id || editando.areaId || '',
+      transportistaId: editando.transportista?.id || editando.transportistaId || '',
+      password: '',
+    } : init)
     setShowPass(false)
   }, [editando, open]) // eslint-disable-line
 
-  const rolSeleccionado = roles[form.rol]
-  const esAdmin         = rolSeleccionado?.permisos?.includes('*')
-  const necesitaArea    = form.rol === 'solicitante'
+  const rolSeleccionado    = roles[form.rol]
+  const esAdmin            = rolSeleccionado?.permisos?.includes('*')
+  const necesitaArea       = form.rol === 'solicitante'
+  const necesitaTransportista = form.rol === 'chofer'
   const passOk  = editando
     ? (!form.password || form.password.length >= 8)
     : form.password.length >= 8
   const canSave = form.nombre.trim() && form.email.trim() && passOk
     && (!necesitaArea || form.areaId)
+    && (!necesitaTransportista || form.transportistaId)
 
   return (
     <Modal open={open} onClose={onClose}
@@ -75,6 +91,18 @@ export default function ModalUsuario({ open, onClose, editando, onSave, sesionId
             ))}
           </Select>
           <span className="text-[10px] text-[#5f6f80] mt-1">El solicitante solo verá pedidos internos de esta área</span>
+        </Field>
+      )}
+
+      {form.rol === 'chofer' && (
+        <Field label="Transportista vinculado *">
+          <Select value={form.transportistaId || ''} onChange={e => f('transportistaId', e.target.value)}>
+            <option value="">Selecciona un transportista...</option>
+            {(transportistas || []).filter(t => t.activo).map(t => (
+              <option key={t.id} value={t.id}>{t.nombre}{t.placa ? ` (${t.placa})` : ''}</option>
+            ))}
+          </Select>
+          <span className="text-[10px] text-[#5f6f80] mt-1">El chofer solo verá y confirmará entrega de los despachos asignados a este transportista</span>
         </Field>
       )}
 

@@ -7,13 +7,14 @@ const KEYS = {
   one:  (id) => ['despachos', id],
 }
 
-export function useDespachosList({ clienteId, estado, enabled = true } = {}) {
+export function useDespachosList({ clienteId, estado, transportistaId, enabled = true } = {}) {
   return useQuery({
-    queryKey: KEYS.list({ clienteId, estado }),
+    queryKey: KEYS.list({ clienteId, estado, transportistaId }),
     queryFn: async () => {
       const params = new URLSearchParams()
-      if (clienteId) params.set('clienteId', clienteId)
-      if (estado)    params.set('estado', estado)
+      if (clienteId)       params.set('clienteId', clienteId)
+      if (estado)          params.set('estado', estado)
+      if (transportistaId) params.set('transportistaId', transportistaId)
       const qs = params.toString() ? `?${params}` : ''
       const r = await api.get(`/despachos${qs}`)
       if (r.error) throw new Error(r.error)

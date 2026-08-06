@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { X, PlayCircle, Flag, Navigation as NavIcon, CheckCircle } from 'lucide-react'
+import { X, PlayCircle, Flag, Navigation as NavIcon, CheckCircle, Printer } from 'lucide-react'
 import { formatCurrency, formatDate, formatTime } from '../../utils/helpers'
 import { Modal, Btn, Badge, ConfirmDialog, Input } from '../../components/ui/index'
+import { imprimirHojaReparto } from '../../utils/pdfTemplates'
 import { ESTADO_RUTA, ESTADO_PARADA } from './constants'
 
 // ── Modal Detalle / Gestión de Ruta ──────────────────────
-export default function ModalDetalleRuta({ ruta, despachos, clientes, transportistas, almacenes, onClose, onIniciar, onCompletar, onCancelar, onMarcarParada }) {
+export default function ModalDetalleRuta({ ruta, despachos, clientes, transportistas, almacenes, onClose, onIniciar, onCompletar, onCancelar, onMarcarParada, puedeIniciar = true, puedeCancelar = true, pdfConfig }) {
   const [confirmCancelar, setConfirmCancelar] = useState(false)
   const [obsParada, setObsParada] = useState({})
   const tra      = transportistas.find(t => t.id === ruta.transportistaId)
@@ -13,19 +14,29 @@ export default function ModalDetalleRuta({ ruta, despachos, clientes, transporti
   const Icon     = meta.icon
   const paradas  = ruta.paradas || []
   const entregadas = paradas.filter(p => p.estado === 'ENTREGADO').length
-  const cliNombre  = id => clientes.find(c => c.id === id)?.razonSocial || '—'
+  // El Chofer no tiene permiso 'clientes' — su lista completa llega vacía.
+  // Los despachos ya traen el cliente embebido (ver DespachosService.findAll),
+  // así que se usa como respaldo para no depender de esa lista.
+  const cliNombre = id => {
+    const directo = clientes.find(c => c.id === id)?.razonSocial
+    if (directo) return directo
+    return despachos.find(d => d.clienteId === id)?.cliente?.razonSocial || '—'
+  }
   const almacen    = almacenes?.find(a => a.id === ruta.almacenId)
 
   return (
     <Modal open title={`Ruta ${ruta.numero}`} onClose={onClose} size="lg"
       footer={<>
         <Btn variant="secondary" onClick={onClose}>Cerrar</Btn>
-        {ruta.estado === 'PROGRAMADA' && (
+        <Btn variant="ghost" onClick={() => imprimirHojaReparto({ ruta, despachos, clientes, transportista: tra, config: pdfConfig })}>
+          <Printer size={14}/> Hoja de Reparto
+        </Btn>
+        {puedeCancelar && ruta.estado === 'PROGRAMADA' && (
           <Btn variant="ghost" className="text-red-400 hover:text-red-300" onClick={() => setConfirmCancelar(true)}>
             <X size={14}/> Cancelar Ruta
           </Btn>
         )}
-        {ruta.estado === 'PROGRAMADA' && <Btn variant="primary" onClick={onIniciar}><PlayCircle size={14}/> Iniciar Ruta</Btn>}
+        {puedeIniciar && ruta.estado === 'PROGRAMADA' && <Btn variant="primary" onClick={onIniciar}><PlayCircle size={14}/> Iniciar Ruta</Btn>}
         {ruta.estado === 'EN_RUTA'    && <Btn variant="success" onClick={onCompletar}><Flag size={14}/> Cerrar Ruta</Btn>}
       </>}>
 

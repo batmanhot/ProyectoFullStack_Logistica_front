@@ -2,10 +2,10 @@ import { useState, useMemo } from 'react'
 import {
   Plus, Search, Truck, Clock,
   CheckCircle, Eye, Navigation as NavIcon,
-  PlayCircle, Download, FileText,
+  PlayCircle, Download, FileText, Printer,
 } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
-import { formatDate, formatTime } from '../../utils/helpers'
+import { formatDate, formatTime, fechaHoyISO } from '../../utils/helpers'
 import { Badge, Btn, Input, Select, DataTable } from '../../components/ui/index'
 import { useRutasList, useCrearRuta, useIniciarRuta, useCompletarRuta, useCancelarRuta, useMarcarParada } from '../../queries/rutas.queries'
 import { useTransportistasList } from '../../queries/transportistas.queries'
@@ -14,6 +14,8 @@ import { useClientesList } from '../../queries/clientes.queries'
 import { useAlmacenesList } from '../../queries/almacenes.queries'
 import { exportarRutasXLSX } from '../../utils/exportXLSX'
 import { exportarRutasPDF } from '../../utils/exportPDF'
+import { imprimirHojaReparto } from '../../utils/pdfTemplates'
+import { useEmpresaPDFConfig } from '../../queries/configuracion.queries'
 import { ESTADO_RUTA } from './constants'
 import ModalNuevaRuta from './ModalNuevaRuta'
 import ModalDetalleRuta from './ModalDetalleRuta'
@@ -24,11 +26,20 @@ import ModalDetalleRuta from './ModalDetalleRuta'
 export default function TabRutas() {
   const { toast, sesion } = useApp()
 
-  const { data: rutas          = [], isLoading } = useRutasList()
+  const esChofer = sesion?.rol?.codigo === 'chofer'
+  const pdfConfig = useEmpresaPDFConfig()
+
+  const { data: rutasRaw       = [], isLoading } = useRutasList()
   const { data: despachos      = [] }            = useDespachosList()
   const { data: transRaw       = [] }            = useTransportistasList({ incluirInactivos: true })
   const { data: clientesRaw    = [] }            = useClientesList({ incluirInactivos: true })
   const { data: almacenes      = [] }            = useAlmacenesList()
+
+  // El Chofer solo gestiona SUS propias rutas asignadas (Usuario.transportistaId) —
+  // no el panorama completo de la empresa.
+  const rutas = useMemo(() =>
+    esChofer ? rutasRaw.filter(r => r.transportistaId === sesion?.transportistaId) : rutasRaw
+  , [rutasRaw, esChofer, sesion?.transportistaId])
 
   const crearRuta    = useCrearRuta()
   const iniciarRuta  = useIniciarRuta()
@@ -43,6 +54,8 @@ export default function TabRutas() {
   const [detalle,    setDetalle]    = useState(null)
   const [filtEst,    setFiltEst]    = useState('')
   const [busq,       setBusq]       = useState('')
+  const [filtDesde,  setFiltDesde]  = useState('')
+  const [filtHasta,  setFiltHasta]  = useState('')
   const [sortConfig, setSortConfig] = useState({ key:'fechaSalida', direction:'desc' })
 
   const handleSort = key => setSortConfig(s => ({ key, direction: s.key === key && s.direction === 'asc' ? 'desc' : 'asc' }))
@@ -50,6 +63,8 @@ export default function TabRutas() {
   const filtered = useMemo(() => {
     let d = [...rutas]
     if (filtEst) d = d.filter(r => r.estado === filtEst)
+    if (filtDesde) d = d.filter(r => (r.fechaSalida || '').slice(0, 10) >= filtDesde)
+    if (filtHasta) d = d.filter(r => (r.fechaSalida || '').slice(0, 10) <= filtHasta)
     if (busq) {
       const q = busq.toLowerCase()
       d = d.filter(r => r.numero?.toLowerCase().includes(q) || transportistas.find(t => t.id === r.transportistaId)?.nombre?.toLowerCase().includes(q))
@@ -63,7 +78,7 @@ export default function TabRutas() {
       return 0
     })
     return d
-  }, [rutas, filtEst, busq, transportistas, sortConfig])
+  }, [rutas, filtEst, filtDesde, filtHasta, busq, transportistas, sortConfig])
 
   const kpis = useMemo(() => ({
     programadas: rutas.filter(r => r.estado === 'PROGRAMADA').length,
@@ -138,7 +153,9 @@ export default function TabRutas() {
             <Btn variant="ghost" size="sm" onClick={() => exportarRutasPDF(filtered, transportistas, sesion?.nombre)}>
               <FileText size={13}/> PDF
             </Btn>
-            <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nueva Ruta</Btn>
+            {!esChofer && (
+              <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nueva Ruta</Btn>
+            )}
           </div>
         </div>
 
@@ -152,7 +169,12 @@ export default function TabRutas() {
             <option value="">Todos los estados</option>
             {Object.entries(ESTADO_RUTA).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </Select>
-          {(busq || filtEst) && <Btn variant="ghost" size="sm" onClick={() => { setBusq(''); setFiltEst('') }}>Limpiar</Btn>}
+          <Input type="date" aria-label="Fecha de salida desde" style={{ width:150 }} value={filtDesde} onChange={e => setFiltDesde(e.target.value)}/>
+          <Input type="date" aria-label="Fecha de salida hasta" style={{ width:150 }} value={filtHasta} onChange={e => setFiltHasta(e.target.value)}/>
+          <Btn variant="ghost" size="sm" onClick={() => { const hoy = fechaHoyISO(); setFiltDesde(hoy); setFiltHasta(hoy) }}>Hoy</Btn>
+          {(busq || filtEst || filtDesde || filtHasta) && (
+            <Btn variant="ghost" size="sm" onClick={() => { setBusq(''); setFiltEst(''); setFiltDesde(''); setFiltHasta('') }}>Limpiar</Btn>
+          )}
         </div>
 
         <DataTable
@@ -207,7 +229,11 @@ export default function TabRutas() {
             { key: 'acciones', header: 'Acciones', stopPropagation: true, render: ruta => (
                 <div className="flex gap-1 items-center">
                   <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetalle(ruta)}><Eye size={13}/></Btn>
-                  {ruta.estado === 'PROGRAMADA' && (
+                  <Btn variant="ghost" size="icon" title="Imprimir Hoja de Reparto" className="text-[#00c896]"
+                    onClick={() => imprimirHojaReparto({ ruta, despachos, clientes, transportista: transportistas.find(t => t.id === ruta.transportistaId), config: pdfConfig })}>
+                    <Printer size={13}/>
+                  </Btn>
+                  {!esChofer && ruta.estado === 'PROGRAMADA' && (
                     <Btn variant="primary" size="sm" onClick={() => handleIniciar(ruta)}><PlayCircle size={12}/> Iniciar</Btn>
                   )}
                   {ruta.estado === 'EN_RUTA' && (
@@ -240,6 +266,9 @@ export default function TabRutas() {
           onCompletar={() => handleCompletar(detalle)}
           onCancelar={() => handleCancelar(detalle)}
           onMarcarParada={(dId, estado, obs) => handleMarcarParada(detalle, dId, estado, obs)}
+          puedeIniciar={!esChofer}
+          puedeCancelar={!esChofer}
+          pdfConfig={pdfConfig}
         />
       )}
 

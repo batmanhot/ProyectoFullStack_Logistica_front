@@ -6,7 +6,7 @@ import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils
 import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, Textarea, Alert, DataTable } from '../components/ui/index'
 import DireccionInput from '../components/ui/DireccionInput'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
-import { imprimirGuia, imprimirPickingList } from '../utils/pdfTemplates'
+import { imprimirGuia, armarHtmlGuia, imprimirPickingList } from '../utils/pdfTemplates'
 import {
   useDespachosList, useCrearDespacho,
   useAprobarDespacho, useIniciarPicking, useMarcarListo, useDespachar,
@@ -19,6 +19,7 @@ import { useProductosList } from '../queries/productos.queries'
 import { useInventarioList } from '../queries/inventario.queries'
 import { useTransportistasList } from '../queries/transportistas.queries'
 import { useCrearCxC } from '../queries/cuentas-por-cobrar.queries'
+import { useEmpresaPDFConfig } from '../queries/configuracion.queries'
 import { exportarDespachosXLSX } from '../utils/exportXLSX'
 import { exportarDespachosPDF } from '../utils/exportPDF'
 
@@ -40,6 +41,7 @@ const ESTADOS = {
 export default function Despachos() {
   const { toast, sesion } = useApp()
   const simboloMoneda = 'S/'
+  const pdfConfig = useEmpresaPDFConfig()
 
   const { data: despachos   = [], isLoading } = useDespachosList()
   const { data: clientesRaw = [] }            = useClientesList({ incluirInactivos: true })
@@ -76,20 +78,37 @@ export default function Despachos() {
   const [busqueda,      setBusqueda]      = useState('')
   const [filtEst,       setFiltEst]       = useState('')
   const [filtAlm,       setFiltAlm]       = useState('')
+  const [filtDesde,     setFiltDesde]     = useState('')
+  const [filtHasta,     setFiltHasta]     = useState('')
   const [sortConfig,    setSortConfig]    = useState({ key:'fecha', direction:'desc' })
 
   const handleSort = key => setSortConfig(s => ({ key, direction: s.key === key && s.direction === 'asc' ? 'desc' : 'asc' }))
 
-  const cliMap = useMemo(() => new Map(clientes.map(c => [c.id, c])), [clientes])
+  // El rol Chofer no tiene permiso 'clientes'/'transportes' (por diseño, ver
+  // seed.ts) — sus listas completas llegan vacías. Los despachos ya traen
+  // cliente/transportista embebidos (ver DespachosService.findAll), así que
+  // se usan como respaldo para no depender de esas listas para mostrar nombres.
+  const cliMap = useMemo(() => {
+    const m = new Map(clientes.map(c => [c.id, c]))
+    despachos.forEach(d => { if (d.clienteId && d.cliente && !m.has(d.clienteId)) m.set(d.clienteId, d.cliente) })
+    return m
+  }, [clientes, despachos])
   const almMap = useMemo(() => new Map(almacenes.map(a => [a.id, a])), [almacenes])
-  const transportistaMap = useMemo(() => new Map(transportistas.map(t => [t.id, t])), [transportistas])
+  const transportistaMap = useMemo(() => {
+    const m = new Map(transportistas.map(t => [t.id, t]))
+    despachos.forEach(d => { if (d.transportistaId && d.transportista && !m.has(d.transportistaId)) m.set(d.transportistaId, d.transportista) })
+    return m
+  }, [transportistas, despachos])
   const cliNombre = id => cliMap.get(id)?.razonSocial || '—'
   const almNombre = id => almMap.get(id)?.nombre     || '—'
+  const esChofer  = sesion?.rol?.codigo === 'chofer'
 
   const filtered = useMemo(() => {
     let d = [...despachos]
     if (filtEst)  d = d.filter(x => x.estado === filtEst)
     if (filtAlm)  d = d.filter(x => x.almacenId === filtAlm)
+    if (filtDesde) d = d.filter(x => (x.fecha || x.createdAt || '').slice(0, 10) >= filtDesde)
+    if (filtHasta) d = d.filter(x => (x.fecha || x.createdAt || '').slice(0, 10) <= filtHasta)
     if (busqueda) {
       const q = busqueda.toLowerCase()
       d = d.filter(x =>
@@ -107,7 +126,7 @@ export default function Despachos() {
       return 0
     })
     return d
-  }, [despachos, filtEst, filtAlm, busqueda, sortConfig, cliNombre])
+  }, [despachos, filtEst, filtAlm, filtDesde, filtHasta, busqueda, sortConfig, cliNombre])
 
   const kpis = useMemo(() => ({
     pedidos:    despachos.filter(d => d.estado === 'PEDIDO').length,
@@ -249,7 +268,9 @@ export default function Despachos() {
             <Btn variant="ghost" size="sm" onClick={() => exportarDespachosPDF(filtered, clientes, almacenes, transportistas, simboloMoneda, sesion?.nombre)}>
               <FileText size={13}/> PDF
             </Btn>
-            <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nuevo Pedido</Btn>
+            {!esChofer && (
+              <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nuevo Pedido</Btn>
+            )}
           </div>
         </div>
 
@@ -267,9 +288,12 @@ export default function Despachos() {
             <option value="">Todos los almacenes</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
           </Select>
+          <Input type="date" aria-label="Fecha desde" style={{ width:135, padding:'5px 8px', fontSize:12 }} value={filtDesde} onChange={e => setFiltDesde(e.target.value)}/>
+          <Input type="date" aria-label="Fecha hasta" style={{ width:135, padding:'5px 8px', fontSize:12 }} value={filtHasta} onChange={e => setFiltHasta(e.target.value)}/>
+          <Btn variant="ghost" size="sm" onClick={() => { const hoy = fechaHoyISO(); setFiltDesde(hoy); setFiltHasta(hoy) }}>Hoy</Btn>
           <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
-          {(busqueda || filtEst || filtAlm) && (
-            <Btn variant="ghost" size="sm" onClick={() => { setBusqueda(''); setFiltEst(''); setFiltAlm('') }}><X size={12}/> Limpiar</Btn>
+          {(busqueda || filtEst || filtAlm || filtDesde || filtHasta) && (
+            <Btn variant="ghost" size="sm" onClick={() => { setBusqueda(''); setFiltEst(''); setFiltAlm(''); setFiltDesde(''); setFiltHasta('') }}><X size={12}/> Limpiar</Btn>
           )}
         </div>
 
@@ -292,7 +316,12 @@ export default function Despachos() {
               </>
             ) },
             { key:'fecha', header:'Fecha Pedido', sortable:true, render: des => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatDate(des.fecha || des.createdAt)}</span> },
-            { key:'fechaEntrega', header:'F. Entrega', sortable:true, render: des => <span className="font-mono text-[12px] text-[#9ba8b6]">{des.fechaEntrega ? formatDate(des.fechaEntrega) : '—'}</span> },
+            { key:'fechaEntrega', header:'F. Entrega', sortable:true, render: des => {
+              // Entregado: mostrar la fecha REAL de entrega (fechaEntregado, capturada al
+              // confirmar recepción). En cualquier otro estado, la estimada pedida por el cliente.
+              const fechaMostrar = des.fechaEntregado || des.fechaEntrega
+              return <span className="font-mono text-[12px] text-[#9ba8b6]">{fechaMostrar ? formatDate(fechaMostrar) : '—'}</span>
+            } },
             { key:'items', header:'Ítems', render: des => <span className="text-[#9ba8b6]">{des.items?.length || des._count?.items || 0}</span> },
             { key:'total', header:'Total', sortable:true, render: des => <span className="font-mono text-[12px] font-semibold">{formatCurrency(Number(des.total || 0), simboloMoneda)}</span> },
             { key:'guiaNumero', header:'Guía', sortable:true, render: des => <span className="font-mono text-[12px] text-[#9ba8b6]">{des.guiaNumero || '—'}</span> },
@@ -306,7 +335,7 @@ export default function Despachos() {
               return (
                 <div className="flex gap-1 items-center">
                   <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetalle(des)}><Eye size={13}/></Btn>
-                  {estadoMeta.next && (
+                  {estadoMeta.next && (!esChofer || des.estado === 'DESPACHADO') && (
                     <Btn variant="primary" size="sm" onClick={() => des.estado === 'PICKING' ? setPickingModal(des) : avanzarEstado(des)}>{estadoMeta.accion}</Btn>
                   )}
                   {des.guiaNumero && (
@@ -314,7 +343,7 @@ export default function Despachos() {
                       <FileText size={13}/>
                     </Btn>
                   )}
-                  {!des.guiaNumero && ['DESPACHADO','ENTREGADO'].includes(des.estado) && (
+                  {!esChofer && !des.guiaNumero && ['DESPACHADO','ENTREGADO'].includes(des.estado) && (
                     <Btn variant="ghost" size="icon" title="Asignar guía de remisión" className="text-amber-400" onClick={() => setGuiaModal(des)}>
                       <FileText size={13}/>
                     </Btn>
@@ -324,18 +353,18 @@ export default function Despachos() {
                       <CheckCircle size={13}/>
                     </Btn>
                   )}
-                  {['DESPACHADO','ENTREGADO'].includes(des.estado) && des.formaPago !== 'CONTADO' && (
+                  {!esChofer && ['DESPACHADO','ENTREGADO'].includes(des.estado) && des.formaPago !== 'CONTADO' && (
                     <Btn variant="ghost" size="icon" title="Generar Cuenta por Cobrar" className="text-[#00c896]" onClick={() => setCxcModal(des)}>
                       <CreditCard size={13}/>
                     </Btn>
                   )}
-                  {['APROBADO','PICKING'].includes(des.estado) && (
+                  {!esChofer && ['APROBADO','PICKING'].includes(des.estado) && (
                     <Btn variant="ghost" size="icon" title="Picking List" className="text-amber-400"
-                      onClick={() => imprimirPickingList({ des, cliente: cliMap.get(des.clienteId), productos, almacen: almMap.get(des.almacenId), config: null, sesion })}>
+                      onClick={() => imprimirPickingList({ des, cliente: cliMap.get(des.clienteId), productos, almacen: almMap.get(des.almacenId), config: pdfConfig, sesion })}>
                       <Printer size={13}/>
                     </Btn>
                   )}
-                  {!['ENTREGADO','CANCELADO','DESPACHADO'].includes(des.estado) && (
+                  {!esChofer && !['ENTREGADO','CANCELADO','DESPACHADO'].includes(des.estado) && (
                     <Btn variant="ghost" size="icon" title="Anular" className="text-red-400" onClick={() => setConfirmAnu(des)}>
                       <X size={13}/>
                     </Btn>
@@ -357,7 +386,9 @@ export default function Despachos() {
           des={detalle} productos={productos} clientes={clientes} almacenes={almacenes}
           simboloMoneda={simboloMoneda} onClose={() => setDetalle(null)}
           onAvanzar={() => detalle.estado === 'PICKING' ? setPickingModal(detalle) : avanzarEstado(detalle)}
-          onAnular={() => setConfirmAnu(detalle)}/>
+          onAnular={() => setConfirmAnu(detalle)}
+          puedeGestionar={!esChofer || detalle.estado === 'DESPACHADO'}
+          puedeAnular={!esChofer}/>
       )}
 
       {shareDoc && (() => {
@@ -370,14 +401,12 @@ export default function Despachos() {
         // la mercadería y es el único destinatario, igual que antes.
         const destinatarios = [
           transportista && {
-            label: 'Transportista', nombre: transportista.nombre,
+            label: 'Transportista', nombre: transportista.nombre, email: transportista.email || undefined,
             whatsapp: `https://wa.me/${transportista.telefono?.replace(/[^0-9]/g,'') || ''}?text=${encodeURIComponent(`Hola ${transportista.nombre}, adjunto la Guía de Remisión ${shareDoc.guiaNumero} del despacho a ${cliente?.razonSocial || 'cliente'}. Por favor llevarla contigo durante el traslado.`)}`,
-            mailto: `mailto:${transportista.email || ''}?subject=${encodeURIComponent(`Guía de Remisión ${shareDoc.guiaNumero}`)}&body=${encodeURIComponent(`Hola ${transportista.nombre},\n\nAdjunto la Guía de Remisión ${shareDoc.guiaNumero} del despacho a ${cliente?.razonSocial || 'cliente'}.\n\nPor favor llevarla contigo durante el traslado.`)}`,
           },
           {
-            label: 'Cliente', nombre: cliente?.razonSocial,
+            label: 'Cliente', nombre: cliente?.razonSocial, email: cliente?.email || undefined,
             whatsapp: `https://wa.me/${cliente?.telefono?.replace(/[^0-9]/g,'') || ''}?text=${encodeURIComponent(`Estimado cliente, adjunto la Guía de Remisión ${shareDoc.guiaNumero}. Por favor confirmar recepción.`)}`,
-            mailto: `mailto:${cliente?.email || ''}?subject=${encodeURIComponent(`Guía de Remisión ${shareDoc.guiaNumero}`)}&body=${encodeURIComponent(`Estimado cliente,\n\nAdjunto la Guía de Remisión ${shareDoc.guiaNumero} por un total de ${formatCurrency(Number(shareDoc.total||0), simboloMoneda)}.\n\nQuedamos a su disposición.`)}`,
           },
         ].filter(Boolean)
 
@@ -387,7 +416,9 @@ export default function Despachos() {
             <PdfSharePanel
               tipo="Guía de Remisión" numero={shareDoc.guiaNumero}
               onClose={() => setShareDoc(null)}
-              onPrint={() => imprimirGuia({ des: shareDoc, cliente, productos, config: null })}
+              onPrint={() => imprimirGuia({ des: shareDoc, cliente, productos, config: pdfConfig })}
+              getHtml={() => armarHtmlGuia({ des: shareDoc, cliente, productos, config: pdfConfig })}
+              asunto={`Guía de Remisión ${shareDoc.guiaNumero}`}
               destinatarios={destinatarios}
             />
           </Modal>
@@ -589,8 +620,8 @@ export function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, a
 }
 
 // ── Modal Detalle Despacho ────────────────────────────────
-function ModalDetalle({ des, productos, clientes, almacenes, simboloMoneda, onClose, onAvanzar, onAnular }) {
-  const cli      = clientes.find(c => c.id === des.clienteId)
+function ModalDetalle({ des, productos, clientes, almacenes, simboloMoneda, onClose, onAvanzar, onAnular, puedeGestionar = true, puedeAnular = true }) {
+  const cli      = clientes.find(c => c.id === des.clienteId) || des.cliente
   const alm      = almacenes.find(a => a.id === des.almacenId)
   const estMeta  = ESTADOS[des.estado]
   const EstIcon  = estMeta?.icon || ClipboardList
@@ -602,10 +633,10 @@ function ModalDetalle({ des, productos, clientes, almacenes, simboloMoneda, onCl
     <Modal open title={`Despacho — ${des.numero}`} onClose={onClose} size="lg"
       footer={<>
         <Btn variant="secondary" onClick={onClose}>Cerrar</Btn>
-        {!['ENTREGADO','CANCELADO'].includes(des.estado) && (
+        {puedeAnular && !['ENTREGADO','CANCELADO'].includes(des.estado) && (
           <Btn variant="ghost" className="text-red-400 hover:text-red-300" onClick={onAnular}>Anular</Btn>
         )}
-        {estMeta?.next && <Btn variant="primary" onClick={onAvanzar}><EstIcon size={14}/> {estMeta.accion}</Btn>}
+        {puedeGestionar && estMeta?.next && <Btn variant="primary" onClick={onAvanzar}><EstIcon size={14}/> {estMeta.accion}</Btn>}
       </>}>
 
       {des.estado !== 'CANCELADO' && (
@@ -625,13 +656,14 @@ function ModalDetalle({ des, productos, clientes, almacenes, simboloMoneda, onCl
 
       <div className="grid grid-cols-2 gap-3 mb-4">
         {[
-          ['Cliente',        cli?.razonSocial || '—'],
-          ['Almacén',        alm?.nombre || '—'],
-          ['Fecha Pedido',   formatDate(des.fecha || des.createdAt)],
-          ['Fecha Entrega',  des.fechaEntrega ? formatDate(des.fechaEntrega) : '—'],
-          ['Fecha Despacho', des.fechaDespacho ? formatDate(des.fechaDespacho) : '—'],
-          ['Transportista',  des.transportista?.nombre || '—'],
-          ['Forma de pago',  (FORMA_PAGO_META[des.formaPago] || FORMA_PAGO_META.CREDITO).label],
+          ['Cliente',          cli?.razonSocial || '—'],
+          ['Almacén',          alm?.nombre || '—'],
+          ['Fecha Pedido',     formatDate(des.fecha || des.createdAt)],
+          ['Entrega Estimada', des.fechaEntrega ? formatDate(des.fechaEntrega) : '—'],
+          ['Fecha Despacho',   des.fechaDespacho ? formatDate(des.fechaDespacho) : '—'],
+          ['Fecha Entregado',  des.fechaEntregado ? formatDate(des.fechaEntregado) : '—'],
+          ['Transportista',    des.transportista?.nombre || '—'],
+          ['Forma de pago',    (FORMA_PAGO_META[des.formaPago] || FORMA_PAGO_META.CREDITO).label],
         ].map(([k, v]) => (
           <div key={k} className="bg-[#1a2230] rounded-lg px-3.5 py-2.5">
             <div className="text-[10px] text-[#5f6f80] uppercase tracking-wide mb-0.5">{k}</div>
@@ -661,7 +693,7 @@ function ModalDetalle({ des, productos, clientes, almacenes, simboloMoneda, onCl
           <table className="w-full border-collapse text-[13px]">
             <thead><tr>{['Producto','Cantidad','P. Venta','Subtotal'].map(h => <th key={h} className="bg-[#1a2230] px-3.5 py-2 text-left text-[11px] font-semibold text-[#5f6f80] uppercase border-b border-white/8">{h}</th>)}</tr></thead>
             <tbody>{des.items.map((it, i) => {
-              const p = prodMap.get(it.productoId)
+              const p = prodMap.get(it.productoId) || it.producto
               return (
                 <tr key={i} className="border-b border-white/6 last:border-0">
                   <td className="px-3.5 py-2"><div className="font-medium">{p?.nombre || it.productoId}</div><div className="text-[11px] text-[#5f6f80]">{p?.sku}</div></td>
@@ -690,7 +722,7 @@ function ModalDetalle({ des, productos, clientes, almacenes, simboloMoneda, onCl
 }
 
 // ── Modal Evidencia de Entrega ────────────────────────────
-function ModalEvidencia({ des, onClose, onConfirm }) {
+export function ModalEvidencia({ des, onClose, onConfirm }) {
   const [foto,    setFoto]    = useState(null)
   const [preview, setPreview] = useState(null)
   const [receptor,setReceptor]= useState('')
@@ -704,14 +736,16 @@ function ModalEvidencia({ des, onClose, onConfirm }) {
     reader.readAsDataURL(file)
   }
 
+  const puedeConfirmar = !!foto && receptor.trim().length > 0
+
   return (
     <Modal open title={`Confirmar Entrega — ${des.numero}`} onClose={onClose} size="md"
-      footer={<><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn variant="primary" onClick={() => onConfirm({ foto, receptor, notas })}><CheckCircle size={13}/> Confirmar Entrega</Btn></>}>
+      footer={<><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn variant="primary" disabled={!puedeConfirmar} onClick={() => onConfirm({ foto, receptor, notas })}><CheckCircle size={13}/> Confirmar Entrega</Btn></>}>
 
-      <Alert variant="info">Registra la evidencia de entrega. La foto y nombre del receptor quedan guardados en el despacho.</Alert>
+      <Alert variant="info">Para confirmar la entrega, registrá el nombre de quien recibe y una foto de evidencia — quedan guardados en el despacho para trazabilidad.</Alert>
 
       <div className="flex flex-col gap-2">
-        <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide">Foto de entrega (opcional)</label>
+        <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide">Foto de entrega *</label>
         {preview ? (
           <div className="relative">
             <img src={preview} alt="Evidencia" className="w-full max-h-48 object-cover rounded-xl border border-white/8"/>

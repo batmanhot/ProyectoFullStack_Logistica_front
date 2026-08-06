@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Search, Eye, Edit2, Trash2, FileText, CheckCircle, Copy, Download, X, Truck } from 'lucide-react'
+import { Plus, Search, Eye, Edit2, Trash2, FileText, CheckCircle, Copy, Download, X, Truck, MessageCircle } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate } from '../utils/helpers'
 import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, DataTable } from '../components/ui/index'
-import { imprimirProforma } from '../utils/pdfTemplates'
+import { imprimirProforma, armarHtmlProforma, descargarPdfBase64 } from '../utils/pdfTemplates'
 import { exportarProformasXLSX } from '../utils/exportXLSX'
 import { exportarProformasPDF } from '../utils/exportPDF'
 import {
@@ -14,6 +14,8 @@ import { useClientesList } from '../queries/clientes.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
 import { useListasPreciosList } from '../queries/listas-precios.queries'
+import { useGenerarPdf } from '../queries/email.queries'
+import { useEmpresaPDFConfig } from '../queries/configuracion.queries'
 import { getPrecio } from '../utils/precios'
 
 const simboloMoneda = 'S/'
@@ -38,6 +40,7 @@ const NO_EDITABLE = ['ACEPTADA', 'RECHAZADA']
 
 export default function Proformas() {
   const { sesion, toast } = useApp()
+  const pdfConfig = useEmpresaPDFConfig()
 
   const { data: proformas = [], isLoading } = useProformasList()
   const { data: clientes  = [] }            = useClientesList()
@@ -49,6 +52,27 @@ export default function Proformas() {
   const actualizarProforma = useActualizarProforma()
   const eliminarProforma  = useEliminarProforma()
   const convertirDespacho = useConvertirProformaDespacho()
+  const generarPdf        = useGenerarPdf()
+
+  const [enviandoWhatsapp, setEnviandoWhatsapp] = useState(null)
+
+  async function compartirWhatsApp(doc) {
+    const cli = clientes.find(c => c.id === doc.clienteId)
+    if (!cli?.telefono) { toast('Este cliente no tiene teléfono registrado', 'error'); return }
+
+    setEnviandoWhatsapp(doc.id)
+    const html = armarHtmlProforma({ doc, cliente: cli, productos, config: pdfConfig })
+    const res = await generarPdf.mutateAsync({ html, numeroDocumento: doc.numero })
+    setEnviandoWhatsapp(null)
+    if (res.error) { toast(res.error, 'error'); return }
+
+    descargarPdfBase64(res.data.pdfBase64, res.data.nombreArchivo)
+    const texto = encodeURIComponent(
+      `Estimado ${cli.razonSocial}, adjunto la Proforma ${doc.numero} por un total de ${formatCurrency(Number(doc.total || 0), simboloMoneda)}. Quedamos atentos a su confirmación.`
+    )
+    window.open(`https://wa.me/${cli.telefono.replace(/[^0-9]/g, '')}?text=${texto}`, '_blank')
+    toast('PDF descargado — adjúntalo en el chat de WhatsApp que se abrió', 'success')
+  }
 
   const [modal,      setModal]      = useState(false)
   const [detalle,    setDetalle]    = useState(null)
@@ -240,8 +264,12 @@ export default function Proformas() {
                       title={NO_EDITABLE.includes(doc.estado) ? `No se puede editar una proforma ${meta.label.toLowerCase()}` : 'Editar'}
                       onClick={() => { setEditando(doc); setModal(true) }}><Edit2 size={12}/></Btn>
                     <Btn variant="ghost" size="icon" title="Imprimir" className="text-[#00c896]"
-                      onClick={() => imprimirProforma({ doc, cliente: clientes.find(c => c.id === doc.clienteId), productos, config: { simboloMoneda, empresa: sesion?.nombre } })}>
+                      onClick={() => imprimirProforma({ doc, cliente: clientes.find(c => c.id === doc.clienteId), productos, config: pdfConfig })}>
                       <FileText size={12}/>
+                    </Btn>
+                    <Btn variant="ghost" size="icon" title="Compartir por WhatsApp" className="text-green-400"
+                      disabled={enviandoWhatsapp === doc.id} onClick={() => compartirWhatsApp(doc)}>
+                      <MessageCircle size={12}/>
                     </Btn>
                     <Btn variant="ghost" size="icon" title="Duplicar" onClick={() => duplicar(doc)}><Copy size={12}/></Btn>
                     {doc.estado === 'ENVIADA' && (
@@ -288,7 +316,9 @@ export default function Proformas() {
           clientes={clientes}
           productos={productos}
           simboloMoneda={simboloMoneda}
-          empresaNombre={sesion?.nombre}
+          pdfConfig={pdfConfig}
+          enviandoWhatsapp={enviandoWhatsapp === detalle.id}
+          onCompartirWhatsApp={() => compartirWhatsApp(detalle)}
           onClose={() => setDetalle(null)}
         />
       )}
@@ -353,13 +383,16 @@ function ModalConvertirDespacho({ doc, almacenes, convirtiendo, onClose, onConfi
   )
 }
 
-function ModalDetalle({ doc, clientes, productos, simboloMoneda, empresaNombre, onClose }) {
+function ModalDetalle({ doc, clientes, productos, simboloMoneda, pdfConfig, enviandoWhatsapp, onCompartirWhatsApp, onClose }) {
   const cli = clientes.find(c => c.id === doc.clienteId)
   return (
     <Modal open title={`Proforma — ${doc.numero}`} onClose={onClose} size="lg"
       footer={<>
         <Btn variant="secondary" onClick={onClose}>Cerrar</Btn>
-        <Btn variant="primary" onClick={() => imprimirProforma({ doc, cliente: cli, productos, config: { simboloMoneda, empresa: empresaNombre } })}>
+        <Btn variant="secondary" disabled={enviandoWhatsapp} onClick={onCompartirWhatsApp}>
+          <MessageCircle size={13}/> {enviandoWhatsapp ? 'Generando...' : 'WhatsApp'}
+        </Btn>
+        <Btn variant="primary" onClick={() => imprimirProforma({ doc, cliente: cli, productos, config: pdfConfig })}>
           <FileText size={13}/> Imprimir PDF
         </Btn>
       </>}>

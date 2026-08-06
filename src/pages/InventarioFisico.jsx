@@ -308,7 +308,7 @@ function ConteoCiclico({ inventarioId, simboloMoneda, onVolver }) {
 }
 
 // ── Modal Nuevo Inventario ───────────────────────────────────
-function ModalNuevoInventario({ open, onClose, onCrear, almacenes, categorias, saving }) {
+export function ModalNuevoInventario({ open, onClose, onCrear, almacenes, categorias, saving }) {
   const [form, setForm] = useState({ almacenId: '', categoriaId: '', notas: '' })
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 

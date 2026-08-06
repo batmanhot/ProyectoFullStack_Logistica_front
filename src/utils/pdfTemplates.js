@@ -99,7 +99,11 @@ function imprimirConIframe(html) {
 // ════════════════════════════════════════════════════════
 // ORDEN DE COMPRA
 // ════════════════════════════════════════════════════════
-export function imprimirOC({ oc, proveedor, productos, config }) {
+export function imprimirOC(args) {
+  imprimirConIframe(armarHtmlOC(args))
+}
+
+export function armarHtmlOC({ oc, proveedor, productos, config }) {
   const s   = config?.simboloMoneda || 'S/'
   const emp = config?.empresa        || 'Mi Empresa S.A.C.'
   const ruc = config?.ruc             || ''
@@ -195,7 +199,7 @@ ${oc.notas ? `<div class="notas"><strong>Notas:</strong> ${oc.notas}</div>` : ''
 </body>
 </html>`
 
-  imprimirConIframe(html)
+  return html
 }
 
 // ════════════════════════════════════════════════════════
@@ -308,7 +312,11 @@ export function imprimirRFQ({ cotiz, productos, config }) {
 // ════════════════════════════════════════════════════════
 // GUÍA DE REMISIÓN / DESPACHO
 // ════════════════════════════════════════════════════════
-export function imprimirGuia({ des, cliente, productos, config }) {
+export function imprimirGuia(args) {
+  imprimirConIframe(armarHtmlGuia(args))
+}
+
+export function armarHtmlGuia({ des, cliente, productos, config }) {
   const s   = config?.simboloMoneda || 'S/'
   const emp = config?.empresa        || 'Mi Empresa S.A.C.'
   const ruc = config?.ruc             || ''
@@ -317,7 +325,7 @@ export function imprimirGuia({ des, cliente, productos, config }) {
   const dir = config?.direccion       || ''
 
   const filas = (des.items || []).map(item => {
-    const p = productos.find(x => x.id === item.productoId)
+    const p = productos.find(x => x.id === item.productoId) || item.producto
     return `<tr>
       <td>${p?.sku || '—'}</td>
       <td><strong>${p?.nombre || item.productoId}</strong></td>
@@ -347,7 +355,7 @@ export function imprimirGuia({ des, cliente, productos, config }) {
     <div class="doc-tipo">Guía de Remisión</div>
     <div class="doc-num">${des.guiaNumero || des.numero}</div>
     <span class="badge verde">DESPACHADO</span>
-    <div style="font-size:11px;color:#888;margin-top:6px">Fecha: <strong>${des.fechaDespacho || des.fecha}</strong></div>
+    <div style="font-size:11px;color:#888;margin-top:6px">Fecha: <strong>${formatDate(des.fechaDespacho || des.fecha)}</strong></div>
   </div>
 </div>
 
@@ -369,7 +377,7 @@ export function imprimirGuia({ des, cliente, productos, config }) {
   </div>
 </div>
 
-<div class="fl" style="margin-bottom:16px"><label>Transportista</label><span>${des.transportista || '—'}</span></div>
+<div class="fl" style="margin-bottom:16px"><label>Transportista</label><span>${des.transportista?.nombre || des.transportista || '—'}</span></div>
 
 <div class="stitle">Mercadería Despachada</div>
 <table>
@@ -403,7 +411,7 @@ ${des.observaciones ? `<div class="notas"><strong>Observaciones:</strong> ${des.
 
 </body></html>`
 
-  imprimirConIframe(html)
+  return html
 }
 
 // ════════════════════════════════════════════════════════
@@ -532,9 +540,116 @@ table.picking tbody td{padding:10px 10px;vertical-align:middle}
 }
 
 // ════════════════════════════════════════════════════════
+// HOJA DE REPARTO — Manifiesto de entrega para el transportista
+// ════════════════════════════════════════════════════════
+export function imprimirHojaReparto({ ruta, despachos, clientes, transportista, config }) {
+  const emp = config?.empresa || 'Mi Empresa S.A.C.'
+  const ruc = config?.ruc      || ''
+  const s   = config?.simboloMoneda || 'S/'
+
+  const paradas = [...(ruta.paradas || [])].sort((a, b) => (a.orden || 0) - (b.orden || 0))
+
+  const filas = paradas.map(parada => {
+    const des = despachos.find(d => d.id === parada.despachoId)
+    const cli = clientes.find(c => c.id === des?.clienteId)
+    return `<tr>
+      <td style="text-align:center;font-weight:700;font-size:14px;color:#555">${parada.orden}</td>
+      <td style="font-family:monospace;font-size:11px;color:#007a5e;font-weight:700;white-space:nowrap">${des?.numero || '—'}</td>
+      <td>
+        <strong>${cli?.razonSocial || '—'}</strong>
+        ${cli?.ruc ? `<div style="font-size:9px;color:#888">RUC/DNI: ${cli.ruc}</div>` : ''}
+      </td>
+      <td style="font-size:11px">${des?.direccionEntrega || cli?.direccion || '—'}</td>
+      <td style="font-size:11px;white-space:nowrap">${cli?.telefono || '—'}</td>
+      <td class="r" style="font-weight:700;white-space:nowrap">${fm(des?.total, s)}</td>
+      <td style="min-width:130px"><div class="firma-linea"></div><span class="firma-lbl">Nombre y DNI</span></td>
+      <td style="min-width:110px"><div class="firma-linea"></div><span class="firma-lbl">Firma</span></td>
+      <td style="min-width:55px"><div class="firma-linea"></div><span class="firma-lbl">Hora</span></td>
+    </tr>`
+  }).join('')
+
+  const fecha = new Date().toLocaleDateString('es-PE', { day:'2-digit', month:'2-digit', year:'numeric' })
+
+  const html = `<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="UTF-8">
+<title>Hoja de Reparto ${ruta.numero}</title>
+<style>
+${CSS}
+body{padding:20px 24px}
+@media print{body{padding:0}@page{margin:10mm;size:A4 landscape}}
+.reparto-header{background:#1a1a2e;color:#fff;padding:14px 20px;border-radius:8px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.reparto-header h1{font-size:18px;font-weight:900;color:#00c896;letter-spacing:-0.4px;margin-bottom:2px}
+.reparto-header .sub{color:rgba(255,255,255,0.6);font-size:10px}
+.reparto-header .badge-ruta{background:#00c896;color:#000;font-weight:900;font-size:12px;padding:5px 14px;border-radius:18px;letter-spacing:.04em}
+.meta-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px}
+.meta-item label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;display:block;margin-bottom:1px}
+.meta-item span{font-size:12px;font-weight:600;color:#111}
+table.reparto{width:100%;border-collapse:collapse;font-size:11px}
+table.reparto thead th{background:#1a1a2e;color:#fff;padding:7px 8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:left}
+table.reparto tbody tr{border-bottom:1px solid #e5e7eb}
+table.reparto tbody tr:nth-child(even){background:#f9fafb}
+table.reparto tbody td{padding:9px 8px;vertical-align:top}
+.firma-linea{border-bottom:1px solid #999;height:22px}
+.firma-lbl{font-size:8px;color:#999;text-transform:uppercase;letter-spacing:.04em}
+.footer{margin-top:14px;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9px;color:#aaa}
+</style>
+</head><body>
+
+<div class="reparto-header">
+  <div>
+    <h1>HOJA DE REPARTO</h1>
+    <div class="sub">${emp}${ruc ? ` &middot; RUC ${ruc}` : ''}</div>
+  </div>
+  <div class="badge-ruta">RUTA ${ruta.numero}</div>
+</div>
+
+<div class="meta-grid">
+  <div class="meta-item"><label>Transportista</label><span>${transportista?.nombre || '—'}</span></div>
+  <div class="meta-item"><label>Placa / Vehículo</label><span>${transportista?.placa || '—'}${transportista?.vehiculo ? ` &middot; ${transportista.vehiculo}` : ''}</span></div>
+  <div class="meta-item"><label>Fecha de salida</label><span>${formatDate(ruta.fechaSalida)}</span></div>
+  <div class="meta-item"><label>N&deg; de paradas</label><span style="color:#007a5e;font-size:15px">${paradas.length}</span></div>
+  <div class="meta-item"><label>Generado</label><span>${fecha}</span></div>
+</div>
+
+<div class="instrucciones">
+  <b>Instrucciones para el transportista:</b>
+  Entregar cada pedido en la dirección indicada. Al entregar, solicitar a quien recibe que anote su nombre, DNI y firme en la fila correspondiente como comprobante de entrega. Devolver esta hoja firmada al finalizar la ruta.
+</div>
+
+<table class="reparto">
+  <thead><tr>
+    <th style="width:28px">#</th>
+    <th style="width:75px">Despacho</th>
+    <th>Cliente</th>
+    <th>Dirección de entrega</th>
+    <th style="width:85px">Teléfono</th>
+    <th style="width:70px">Monto</th>
+    <th>Recibí conforme</th>
+    <th>Firma</th>
+    <th>Hora</th>
+  </tr></thead>
+  <tbody>${filas}</tbody>
+</table>
+
+<div class="footer">
+  <span>Hoja de reparto generada por StockPro &middot; ${fecha}</span>
+  <span>${ruta.numero} &middot; ${emp}</span>
+</div>
+
+</body></html>`
+
+  imprimirConIframe(html)
+}
+
+// ════════════════════════════════════════════════════════
 // PROFORMA / COTIZACIÓN DE VENTA
 // ════════════════════════════════════════════════════════
-export function imprimirProforma({ doc, cliente, productos, config }) {
+export function imprimirProforma(args) {
+  imprimirConIframe(armarHtmlProforma(args))
+}
+
+export function armarHtmlProforma({ doc, cliente, productos, config }) {
   const s   = config?.simboloMoneda || 'S/'
   const emp = config?.empresa        || 'Mi Empresa S.A.C.'
   const ruc = config?.ruc             || ''
@@ -633,7 +748,23 @@ ${doc.notas ? `<div class="notas"><strong>Notas y condiciones:</strong> ${doc.no
 </div>
 </body></html>`
 
-  imprimirConIframe(html)
+  return html
+}
+
+/** Descarga un PDF (base64, ver EmailService.generarPdfBase64) como archivo real en el dispositivo. */
+export function descargarPdfBase64(base64, nombreArchivo) {
+  const binario = atob(base64)
+  const bytes = new Uint8Array(binario.length)
+  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i)
+  const blob = new Blob([bytes], { type: 'application/pdf' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = nombreArchivo
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
 }
 
 // ════════════════════════════════════════════════════════

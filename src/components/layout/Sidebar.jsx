@@ -9,7 +9,7 @@ import { PLAN_META } from '../../config/constants'
 import StorageWidget from '../ui/StorageWidget'
 import OfflineBanner from '../ui/OfflineBanner'
 
-const ROLES_LABEL = { saas_admin:'Super Admin', owner:'Propietario', admin:'Administrador', supervisor:'Supervisor', almacenero:'Almacenero', solicitante:'Solicitante' }
+const ROLES_LABEL = { saas_admin:'Super Admin', owner:'Propietario', admin:'Administrador', supervisor:'Supervisor', almacenero:'Almacenero', solicitante:'Solicitante', chofer:'Chofer' }
 
 const NAV_SAAS_ADMIN = [
   { label:'Administración SaaS', path:'/admin-saas', icon:Crown, modulo:'admin', color:'#f59e0b' },

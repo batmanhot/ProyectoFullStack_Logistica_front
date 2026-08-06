@@ -21,6 +21,8 @@ import { useClientesList } from '../queries/clientes.queries'
 import { useRutasList } from '../queries/rutas.queries'
 import { useCategoriasList } from '../queries/categorias.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
+import DashboardAlmacenero from './DashboardAlmacenero/index.jsx'
+import DashboardChofer from './DashboardChofer/index.jsx'
 
 const TT = { background:'#1a2230', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, fontSize:12, color:'#e8edf2' }
 const PIE_COLORS = ['#00c896','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899']
@@ -165,6 +167,10 @@ export default function Dashboard() {
 
   if (sesion?.rol?.codigo === 'almacenero') {
     return <DashboardAlmacenero productos={productos} despachos={despachos} kpis={kpis} nav={nav} simboloMoneda={simboloMoneda}/>
+  }
+
+  if (sesion?.rol?.codigo === 'chofer') {
+    return <DashboardChofer/>
   }
 
   return (
@@ -400,40 +406,3 @@ export default function Dashboard() {
   )
 }
 
-function DashboardAlmacenero({ productos, despachos, kpis, nav, simboloMoneda }) {
-  const criticos        = productos.filter(p => { const e = estadoStock(p.stockActual, p.stockMinimo); return (e.estado === 'critico' || e.estado === 'agotado') && p.activo })
-  const pendientePicking = despachos.filter(d => ['PICKING','LISTO'].includes(d.estado))
-  const paraDespachar   = despachos.filter(d => d.estado === 'LISTO')
-  return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-[18px] font-bold text-[#e8edf2]">Panel de Almacén 📦</h1>
-          <p className="text-[12px] text-[#5f6f80] mt-0.5">Vista operativa — {new Date().toLocaleDateString('es-PE', { weekday:'long', day:'numeric', month:'long' })}</p>
-        </div>
-        <div className="text-[11px] px-3 py-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg font-semibold">Rol: Almacenero</div>
-      </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { label:'En picking',      val:pendientePicking.length, color:'#f59e0b', nav:'/despachos' },
-          { label:'Para despachar',  val:paraDespachar.length,   color:'#00c896', nav:'/despachos' },
-          { label:'Stock crítico',   val:criticos.length,         color:'#ef4444', nav:'/inventario' },
-          { label:'Total productos', val:kpis.totalProductos,     color:'#3b82f6', nav:'/inventario' },
-        ].map(({ label, val, color, nav: to }) => (
-          <div key={label} onClick={() => nav(to)} className="relative bg-[#161d28] border border-white/8 rounded-xl px-5 py-4 overflow-hidden cursor-pointer hover:border-white/14 transition-all">
-            <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl" style={{ background:color }}/>
-            <div className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-[0.07em] mb-2">{label}</div>
-            <div className="text-[28px] font-semibold" style={{ color }}>{val}</div>
-          </div>
-        ))}
-      </div>
-      {criticos.length === 0 && pendientePicking.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 gap-3">
-          <span style={{ fontSize:48 }}>✅</span>
-          <div className="text-[16px] font-semibold text-[#e8edf2]">Todo en orden</div>
-          <div className="text-[13px] text-[#5f6f80]">No hay alertas de stock ni despachos pendientes.</div>
-        </div>
-      )}
-    </div>
-  )
-}

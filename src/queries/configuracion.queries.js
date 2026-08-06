@@ -12,6 +12,23 @@ export function useConfiguracion({ enabled = true } = {}) {
   })
 }
 
+/**
+ * Datos de empresa listos para inyectar en las plantillas de PDF (pdfTemplates.js
+ * espera `config.empresa`, no `config.nombre` — de ahí el mapeo). Sin esto, las
+ * plantillas caen a su valor por defecto hardcodeado ("Mi Empresa S.A.C.").
+ */
+export function useEmpresaPDFConfig() {
+  const { data } = useConfiguracion()
+  return {
+    simboloMoneda: 'S/',
+    empresa:       data?.nombre    || '',
+    ruc:           data?.ruc       || '',
+    telefono:      data?.telefono  || '',
+    email:         data?.email     || '',
+    direccion:     data?.direccion || '',
+  }
+}
+
 /** Actualiza los campos de empresa (PATCH parcial — solo envía los campos modificados). */
 export function usePatchConfiguracion() {
   const qc = useQueryClient()
