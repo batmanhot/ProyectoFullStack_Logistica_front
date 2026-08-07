@@ -7,7 +7,7 @@ const KEYS = {
   one:  (id) => ['pedidos-internos', id],
 }
 
-export function usePedidosInternosList({ areaId, estado } = {}) {
+export function usePedidosInternosList({ areaId, estado, enabled = true } = {}) {
   return useQuery({
     queryKey: KEYS.list({ areaId, estado }),
     queryFn: async () => {
@@ -19,6 +19,7 @@ export function usePedidosInternosList({ areaId, estado } = {}) {
       if (r.error) throw new Error(r.error)
       return r.data ?? []
     },
+    enabled,
   })
 }
 

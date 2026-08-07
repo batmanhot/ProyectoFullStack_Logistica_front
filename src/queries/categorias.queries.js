@@ -14,7 +14,7 @@ function toEstado(activo) {
   return activo ? 'Activo' : 'Inactivo'
 }
 
-export function useCategoriasList({ incluirInactivas = false } = {}) {
+export function useCategoriasList({ incluirInactivas = false, enabled = true } = {}) {
   return useQuery({
     queryKey: KEYS.list({ incluirInactivas }),
     queryFn: async () => {
@@ -23,6 +23,7 @@ export function useCategoriasList({ incluirInactivas = false } = {}) {
       if (r.error) throw new Error(r.error)
       return (r.data ?? []).map(normalize)
     },
+    enabled,
   })
 }
 

@@ -3,12 +3,19 @@ import { X, PlayCircle, Flag, Navigation as NavIcon, CheckCircle, Printer } from
 import { formatCurrency, formatDate, formatTime } from '../../utils/helpers'
 import { Modal, Btn, Badge, ConfirmDialog, Input } from '../../components/ui/index'
 import { imprimirHojaReparto } from '../../utils/pdfTemplates'
+import { ModalEvidencia } from '../Despachos.jsx'
 import { ESTADO_RUTA, ESTADO_PARADA } from './constants'
 
 // ── Modal Detalle / Gestión de Ruta ──────────────────────
 export default function ModalDetalleRuta({ ruta, despachos, clientes, transportistas, almacenes, onClose, onIniciar, onCompletar, onCancelar, onMarcarParada, puedeIniciar = true, puedeCancelar = true, pdfConfig }) {
   const [confirmCancelar, setConfirmCancelar] = useState(false)
   const [obsParada, setObsParada] = useState({})
+  const [confirmandoEntrega, setConfirmandoEntrega] = useState(null) // despacho de la parada en confirmación (foto + receptor)
+
+  async function confirmarEntregaConEvidencia(evidencia) {
+    await onMarcarParada(confirmandoEntrega.id, 'ENTREGADO', obsParada[confirmandoEntrega.id] || '', evidencia)
+    setConfirmandoEntrega(null)
+  }
   const tra      = transportistas.find(t => t.id === ruta.transportistaId)
   const meta     = ESTADO_RUTA[ruta.estado] || ESTADO_RUTA.PROGRAMADA
   const Icon     = meta.icon
@@ -122,7 +129,7 @@ export default function ModalDetalleRuta({ ruta, despachos, clientes, transporti
                         <NavIcon size={12}/> En Camino
                       </Btn>
                     )}
-                    <Btn variant="primary" size="sm" onClick={() => onMarcarParada(parada.despachoId, 'ENTREGADO', obsParada[parada.despachoId] || '')}>
+                    <Btn variant="primary" size="sm" onClick={() => setConfirmandoEntrega(des)}>
                       <CheckCircle size={12}/> Confirmar Entrega
                     </Btn>
                     <Btn variant="ghost" size="sm" className="text-red-400 hover:text-red-300"
@@ -133,6 +140,13 @@ export default function ModalDetalleRuta({ ruta, despachos, clientes, transporti
                 </div>
               )}
               {parada.observacion && <div className="mt-2 text-[11px] text-[#9ba8b6] italic">{parada.observacion}</div>}
+              {parada.estado === 'ENTREGADO' && (des?.receptorNombre || des?.evidenciaFoto) && (
+                <div className="flex flex-col gap-1.5 mt-3 pt-3 border-t border-white/6">
+                  <div className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-wide">Evidencia de entrega</div>
+                  {des.receptorNombre && <div className="text-[12px] text-[#e8edf2]">Recibió: <span className="font-medium">{des.receptorNombre}</span></div>}
+                  {des.evidenciaFoto && <img src={des.evidenciaFoto} alt="Evidencia de entrega" className="w-full max-h-40 object-cover rounded-lg border border-white/8"/>}
+                </div>
+              )}
             </div>
           )
         })}
@@ -145,6 +159,11 @@ export default function ModalDetalleRuta({ ruta, despachos, clientes, transporti
         title="Cancelar ruta"
         message={`¿Cancelar la ruta ${ruta.numero}? Solo se puede cancelar antes de iniciarla. Los despachos incluidos no se ven afectados y podrás asignarlos a otra ruta.`}
       />
+
+      {confirmandoEntrega && (
+        <ModalEvidencia des={confirmandoEntrega} onClose={() => setConfirmandoEntrega(null)}
+          onConfirm={confirmarEntregaConEvidencia}/>
+      )}
     </Modal>
   )
 }

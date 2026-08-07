@@ -205,7 +205,11 @@ ${oc.notas ? `<div class="notas"><strong>Notas:</strong> ${oc.notas}</div>` : ''
 // ════════════════════════════════════════════════════════
 // COTIZACIÓN / RFQ
 // ════════════════════════════════════════════════════════
-export function imprimirRFQ({ cotiz, productos, config }) {
+export function imprimirRFQ(args) {
+  imprimirConIframe(armarHtmlRFQ(args))
+}
+
+export function armarHtmlRFQ({ cotiz, productos, config }) {
   const s   = config?.simboloMoneda || 'S/'
   const emp = config?.empresa        || 'Mi Empresa S.A.C.'
   const ruc = config?.ruc             || ''
@@ -306,7 +310,7 @@ export function imprimirRFQ({ cotiz, productos, config }) {
 </body>
 </html>`
 
-  imprimirConIframe(html)
+  return html
 }
 
 // ════════════════════════════════════════════════════════

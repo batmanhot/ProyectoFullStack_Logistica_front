@@ -322,10 +322,12 @@ export default function Ordenes() {
             onPrint={() => imprimirOC({ oc: shareOC, proveedor: provMap.get(shareOC.proveedorId), productos, config: pdfConfig })}
             getHtml={() => armarHtmlOC({ oc: shareOC, proveedor: provMap.get(shareOC.proveedorId), productos, config: pdfConfig })}
             asunto={`Orden de Compra ${shareOC.numero}`}
+            empresaNombre={pdfConfig.empresa}
             destinatarios={[{
               nombre: provMap.get(shareOC.proveedorId)?.razonSocial,
               email: provMap.get(shareOC.proveedorId)?.email || undefined,
               whatsapp: `https://wa.me/${provMap.get(shareOC.proveedorId)?.telefono?.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Estimado proveedor, adjunto la Orden de Compra ${shareOC.numero} para su atención.`)}`,
+              mensaje: 'Adjuntamos la Orden de Compra para su atención. Por favor confirmar recepción y coordinar la preparación del pedido según lo indicado en el documento.',
             }]}
           />
         </Modal>

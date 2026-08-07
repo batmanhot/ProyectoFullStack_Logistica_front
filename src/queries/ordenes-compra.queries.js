@@ -7,7 +7,7 @@ const KEYS = {
   one:  (id) => ['ordenes-compra', id],
 }
 
-export function useOrdenesCompraList({ proveedorId, estado } = {}) {
+export function useOrdenesCompraList({ proveedorId, estado, enabled = true } = {}) {
   return useQuery({
     queryKey: KEYS.list({ proveedorId, estado }),
     queryFn: async () => {
@@ -19,6 +19,7 @@ export function useOrdenesCompraList({ proveedorId, estado } = {}) {
       if (r.error) throw new Error(r.error)
       return r.data ?? []
     },
+    enabled,
   })
 }
 

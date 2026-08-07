@@ -25,7 +25,7 @@ import { useEnviarDocumentoEmail } from '../../queries/email.queries'
 
 export default function PdfSharePanel({
   onClose, onPrint, numero, tipo = 'documento', extra = null, destinatarios = null,
-  getHtml = null, asunto = null,
+  getHtml = null, asunto = null, empresaNombre = null,
 }) {
   const { toast } = useApp()
   const enviarEmail = useEnviarDocumentoEmail()
@@ -46,6 +46,9 @@ export default function PdfSharePanel({
       destinatarioEmail: destinatario.email,
       destinatarioNombre: destinatario.nombre || undefined,
       asunto: asunto || `${tipo} ${numero}`,
+      mensaje: destinatario.mensaje || undefined,
+      tipoDocumento: tipo,
+      empresaNombre: empresaNombre || undefined,
       html: getHtml(),
       numeroDocumento: numero,
     })

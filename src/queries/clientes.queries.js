@@ -7,7 +7,7 @@ const KEYS = {
   one:  (id) => ['clientes', id],
 }
 
-export function useClientesList({ busqueda, incluirInactivos = false } = {}) {
+export function useClientesList({ busqueda, incluirInactivos = false, enabled = true } = {}) {
   return useQuery({
     queryKey: KEYS.list({ busqueda, incluirInactivos }),
     queryFn: async () => {
@@ -19,6 +19,7 @@ export function useClientesList({ busqueda, incluirInactivos = false } = {}) {
       if (r.error) throw new Error(r.error)
       return r.data ?? []
     },
+    enabled,
   })
 }
 

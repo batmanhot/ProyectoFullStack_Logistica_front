@@ -221,6 +221,13 @@ export default function TabLanding({ landing, guardarLanding, planes, toast }) {
                   </div>
                 </div>
               ))}
+              <div className="pt-2 border-t border-white/6">
+                {lbl('Email de soporte (uso interno)', 'No se publica en el sitio web. Es el contacto técnico que usa el sistema — por ejemplo, ante Google/Mozilla si detectan mal uso del envío de notificaciones push.')}
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5f6f80]"><Mail size={13}/></span>
+                  <input className={`${inp} pl-8`} value={local.contacto?.emailSoporte||''} onChange={e => set('contacto.emailSoporte',e.target.value)} placeholder="soporte@tudominio.com" />
+                </div>
+              </div>
             </div>
           </Card>
           <Card>

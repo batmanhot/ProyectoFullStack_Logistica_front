@@ -8,6 +8,10 @@ vi.mock('../../queries/areas-internas.queries', () => ({
   useAreasInternasList: () => ({ data: [{ id: 'area-1', nombre: 'Compras', codigo: 'COMP', activo: true }] }),
 }))
 
+vi.mock('../../queries/transportistas.queries', () => ({
+  useTransportistasList: () => ({ data: [{ id: 'trans-1', nombre: 'Juan Pérez', activo: true }] }),
+}))
+
 const ROLES = {
   almacenero: { label: 'Operario de Almacén', permisos: ['inventario'] },
   admin: { label: 'Administrador', permisos: ['*'] },

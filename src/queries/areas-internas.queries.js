@@ -7,7 +7,7 @@ const KEYS = {
   one:  (id) => ['areas-internas', id],
 }
 
-export function useAreasInternasList({ incluirInactivas = false } = {}) {
+export function useAreasInternasList({ incluirInactivas = false, enabled = true } = {}) {
   return useQuery({
     queryKey: KEYS.list({ incluirInactivas }),
     queryFn: async () => {
@@ -16,6 +16,7 @@ export function useAreasInternasList({ incluirInactivas = false } = {}) {
       if (r.error) throw new Error(r.error)
       return r.data ?? []
     },
+    enabled,
   })
 }
 

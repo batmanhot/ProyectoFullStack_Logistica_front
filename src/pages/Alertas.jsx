@@ -4,21 +4,30 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { formatDate, formatCurrency, vencimientoMasUrgentePorProducto } from '../utils/helpers'
-import { TIPOS, generarAlertas } from '../utils/alertas'
+import { TIPOS, TIPOS_CHOFER, generarAlertas, generarAlertasChofer } from '../utils/alertas'
 import { Badge, Btn, Modal } from '../components/ui/index'
+import { useApp } from '../store/AppContext'
 import { useProductosList } from '../queries/productos.queries'
 import { useOrdenesCompraList } from '../queries/ordenes-compra.queries'
 import { useCategoriasList } from '../queries/categorias.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
 import { useLotesList } from '../queries/lotes.queries'
+import { useRutasList } from '../queries/rutas.queries'
 
 // ════════════════════════════════════════════════════════
 export default function Alertas() {
-  const { data: productos  = [] } = useProductosList()
-  const { data: ordenes    = [] } = useOrdenesCompraList()
-  const { data: categorias = [] } = useCategoriasList()
-  const { data: almacenes  = [] } = useAlmacenesList()
-  const { data: lotes      = [] } = useLotesList(undefined, { enabled: true })
+  const { sesion } = useApp()
+  const esChofer = sesion?.rol?.codigo === 'chofer'
+
+  // El Chofer no tiene permiso a inventario/OC/almacenes — esas 5 consultas le
+  // devuelven 403 (lista vacía) y generarAlertas() nunca encontraría nada real.
+  // Para su rol se usan alertas de SUS rutas en vez de las de inventario.
+  const { data: productos  = [] } = useProductosList({ enabled: !esChofer })
+  const { data: ordenes    = [] } = useOrdenesCompraList({ enabled: !esChofer })
+  const { data: categorias = [] } = useCategoriasList({ enabled: !esChofer })
+  const { data: almacenes  = [] } = useAlmacenesList({ enabled: !esChofer })
+  const { data: lotes      = [] } = useLotesList(undefined, { enabled: !esChofer })
+  const { data: rutasRaw   = [] } = useRutasList()
   const config        = null   // sin config de empresa; diasAlertaVencimiento usa default 30
   const simboloMoneda = 'S/'
   const navigate = useNavigate()
@@ -31,9 +40,17 @@ export default function Alertas() {
 
   const vencPorProducto = useMemo(() => vencimientoMasUrgentePorProducto(lotes), [lotes])
 
+  const rutasPropias = useMemo(() =>
+    rutasRaw.filter(r => r.transportistaId === sesion?.transportistaId)
+  , [rutasRaw, sesion?.transportistaId])
+
+  const TIPOS_ACTIVOS = esChofer ? TIPOS_CHOFER : TIPOS
+
   const alertas = useMemo(() =>
-    generarAlertas(productos, ordenes, vencPorProducto, config, categorias, almacenes, simboloMoneda)
-  , [productos, ordenes, vencPorProducto, config, categorias, almacenes, simboloMoneda])
+    esChofer
+      ? generarAlertasChofer(rutasPropias)
+      : generarAlertas(productos, ordenes, vencPorProducto, config, categorias, almacenes, simboloMoneda)
+  , [esChofer, rutasPropias, productos, ordenes, vencPorProducto, config, categorias, almacenes, simboloMoneda])
 
   const filtered = useMemo(() =>
     filtroTipo === 'all' ? alertas : alertas.filter(a => a.tipo === filtroTipo)
@@ -52,19 +69,19 @@ export default function Alertas() {
 
   const conteos = useMemo(() => {
     const c = { all: alertas.length }
-    Object.keys(TIPOS).forEach(t => { c[t] = alertas.filter(a => a.tipo === t).length })
+    Object.keys(TIPOS_ACTIVOS).forEach(t => { c[t] = alertas.filter(a => a.tipo === t).length })
     return c
-  }, [alertas])
+  }, [alertas, TIPOS_ACTIVOS])
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
       {/* KPIs por tipo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
-        {[['Todas', 'all', Bell], ...Object.entries(TIPOS).map(([k,v]) => [v.label, k, v.icon])].map(([label, key]) => {
+        {[['Todas', 'all', Bell], ...Object.entries(TIPOS_ACTIVOS).map(([k,v]) => [v.label, k, v.icon])].map(([label, key]) => {
           const count  = key === 'all' ? conteos.all : (conteos[key] || 0)
           const activo = filtroTipo === key
-          const meta   = key !== 'all' ? TIPOS[key] : null
+          const meta   = key !== 'all' ? TIPOS_ACTIVOS[key] : null
           return (
             <button key={key} onClick={() => setFiltroTipo(key)}
               className="relative text-left p-3.5 sm:p-4 rounded-xl border transition-all overflow-hidden"
@@ -113,13 +130,13 @@ export default function Alertas() {
             <CheckCircle size={48} className="text-green-400 opacity-40"/>
             <div className="text-center">
               <p className="text-[14px] font-medium text-[#9ba8b6] mb-1">Sin alertas activas</p>
-              <p className="text-[12px] text-[#5f6f80]">Todo el inventario está en orden.</p>
+              <p className="text-[12px] text-[#5f6f80]">{esChofer ? 'Tus rutas están al día.' : 'Todo el inventario está en orden.'}</p>
             </div>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
             {filtered.map((alerta, i) => {
-              const meta   = TIPOS[alerta.tipo]
+              const meta   = TIPOS_ACTIVOS[alerta.tipo]
               const Icon   = meta?.icon || Bell
               const esLeida = leidas.includes(alerta.titulo)
               const color  = alerta.prioridad === 1 ? { bg:'bg-red-500/4', border:'border-red-500/20', hborder:'hover:border-red-500/40', dot:'bg-red-400' }
@@ -184,7 +201,7 @@ export default function Alertas() {
 // ════════════════════════════════════════════════════════
 function ModalDetalleAlerta({ alerta, simboloMoneda, navigate, onClose, onMarcarLeida }) {
 
-  const meta  = TIPOS[alerta.tipo]
+  const meta  = TIPOS[alerta.tipo] || TIPOS_CHOFER[alerta.tipo]
   const Icon  = meta?.icon || Bell
 
   return (
@@ -211,6 +228,12 @@ function ModalDetalleAlerta({ alerta, simboloMoneda, navigate, onClose, onMarcar
 
       {/* Detalles del producto/OC */}
       <div className="flex flex-col gap-2 mb-4">
+        {alerta.rutaNumero && (
+          <div className="bg-[#1a2230] rounded-lg px-3 py-2.5">
+            <div className="text-[10px] text-[#5f6f80] uppercase tracking-wide mb-0.5">Ruta</div>
+            <div className="text-[12px] font-semibold text-[#00c896] font-mono">{alerta.rutaNumero}</div>
+          </div>
+        )}
         {alerta.sku && (
           <div className="grid grid-cols-2 gap-2">
             {[

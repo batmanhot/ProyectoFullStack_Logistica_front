@@ -403,10 +403,12 @@ export default function Despachos() {
           transportista && {
             label: 'Transportista', nombre: transportista.nombre, email: transportista.email || undefined,
             whatsapp: `https://wa.me/${transportista.telefono?.replace(/[^0-9]/g,'') || ''}?text=${encodeURIComponent(`Hola ${transportista.nombre}, adjunto la Guía de Remisión ${shareDoc.guiaNumero} del despacho a ${cliente?.razonSocial || 'cliente'}. Por favor llevarla contigo durante el traslado.`)}`,
+            mensaje: `Le compartimos la Guía de Remisión correspondiente al despacho hacia ${cliente?.razonSocial || 'el cliente'}. Por favor llévela con usted durante el traslado — es el documento que sustenta el transporte de la mercadería.`,
           },
           {
             label: 'Cliente', nombre: cliente?.razonSocial, email: cliente?.email || undefined,
             whatsapp: `https://wa.me/${cliente?.telefono?.replace(/[^0-9]/g,'') || ''}?text=${encodeURIComponent(`Estimado cliente, adjunto la Guía de Remisión ${shareDoc.guiaNumero}. Por favor confirmar recepción.`)}`,
+            mensaje: 'Adjuntamos la Guía de Remisión correspondiente a su pedido. Este documento acompaña la mercadería durante el traslado y sirve como comprobante de la entrega.',
           },
         ].filter(Boolean)
 
@@ -419,6 +421,7 @@ export default function Despachos() {
               onPrint={() => imprimirGuia({ des: shareDoc, cliente, productos, config: pdfConfig })}
               getHtml={() => armarHtmlGuia({ des: shareDoc, cliente, productos, config: pdfConfig })}
               asunto={`Guía de Remisión ${shareDoc.guiaNumero}`}
+              empresaNombre={pdfConfig.empresa}
               destinatarios={destinatarios}
             />
           </Modal>

@@ -6,7 +6,7 @@ const KEYS = {
   list: (p) => ['proveedores', 'list', p],
 }
 
-export function useProveedoresList({ incluirInactivos = false } = {}) {
+export function useProveedoresList({ incluirInactivos = false, enabled = true } = {}) {
   return useQuery({
     queryKey: KEYS.list({ incluirInactivos }),
     queryFn: async () => {
@@ -15,6 +15,7 @@ export function useProveedoresList({ incluirInactivos = false } = {}) {
       if (r.error) throw new Error(r.error)
       return r.data ?? []
     },
+    enabled,
   })
 }
 

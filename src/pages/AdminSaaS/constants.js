@@ -52,7 +52,7 @@ export const LANDING_INIT = {
     { id:'cf_6', icono:'☁️', titulo:'100% en la Nube', descripcion:'Accede desde cualquier dispositivo, sin instalaciones ni actualizaciones.' },
     { id:'cf_7', icono:'🔮', titulo:'Previsión de Demanda', descripcion:'Anticipa la demanda con análisis histórico de movimientos. Reabastécete antes de que el stock se agote y reduce el capital inmovilizado.' }
   ],
-  contacto: { email:'ventas@stockpro.com', telefono:'+51 1 234 5678', whatsapp:'+51 999 000 111', direccion:'Lima, Perú' },
+  contacto: { email:'ventas@stockpro.com', telefono:'+51 1 234 5678', whatsapp:'+51 999 000 111', direccion:'Lima, Perú', emailSoporte:'' },
   redesSociales: { linkedin:'', twitter:'', facebook:'', instagram:'', youtube:'' },
   seo: { titulo:'StockPro — Sistema Logístico SaaS', descripcion:'Gestiona tu inventario, despachos y logística con StockPro. Prueba gratis por 14 días.', keywords:'logística, inventario, saas, gestión almacén, stockpro, peru' },
   footer: { textoLegal:'© 2026 StockPro. Todos los derechos reservados.', mostrarPrecios:true, moneda:'USD', probarGratisDias:14 }

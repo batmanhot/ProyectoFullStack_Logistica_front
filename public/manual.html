@@ -650,7 +650,7 @@
             <p class="module-purpose">La pantalla de inicio: un resumen del estado del negocio hoy — inventario, operaciones del día, despachos en curso y alertas activas — antes de entrar a cualquier módulo puntual.</p>
           </div>
           <div class="prose">
-            <p>Es lo primero que se ve al iniciar sesión (ruta <span class="field">/</span>). El contenido depende del rol: un <strong>Almacenero</strong> ve un panel reducido con 4 indicadores pensados para operar — En picking, Para despachar, Stock crítico, Total productos — cada uno clickeable hacia el módulo correspondiente. Cualquier otro rol ve el panel completo.</p>
+            <p>Es lo primero que se ve al iniciar sesión (ruta <span class="field">/</span>). El contenido depende del rol: un <strong>Almacenero</strong> ve un panel reducido con 4 indicadores pensados para operar — En picking, Para despachar, Stock crítico, Total productos — cada uno clickeable hacia el módulo correspondiente. Un <strong>Chofer</strong> ve el "Panel de Chofer": sus rutas propias (Programadas y En Ruta) con hora de salida y progreso de entregas — tocar una abre el mismo detalle de gestión de <a href="#m-transportes">Transportes</a>, con acceso a Iniciar Ruta, marcar paradas y Confirmar Entrega. Cualquier otro rol ve el panel completo.</p>
             <p>El panel completo se organiza en bloques: <strong>Inventario</strong> (total de productos, valor del stock a precio de compra, stock crítico/agotado, clientes activos), <strong>Operaciones de Hoy</strong> (movimientos, entradas, salidas y órdenes de compra pendientes de aprobar, todo del día en curso), un gráfico de <strong>Entradas vs. Salidas</strong> de los últimos 14 días, <strong>Valor por Categoría</strong>, el <strong>Pipeline de Despachos</strong> por estado (Pedido → Aprobado → Picking → Listo → Despachado → Entregado), el <strong>Top 5 de Productos</strong> más despachados en 30 días, los <strong>Últimos Despachos</strong>, las <strong>Alertas Activas</strong> más urgentes y los <strong>Últimos Movimientos de Inventario</strong>.</p>
             <p>Todo es de solo lectura y clickeable: cada tarjeta, fila o gráfico lleva directo al módulo que explica ese dato — no hay nada para crear ni editar desde acá.</p>
           </div>
@@ -673,6 +673,7 @@
             <p>El estado leído/no leído se guarda por usuario. El botón <kbd>Marcar todas leídas</kbd> aparece solo cuando hay alertas sin leer; al hacer clic en una alerta se abre su detalle y queda marcada como leída automáticamente.</p>
           </div>
           <div class="note"><div class="dot"></div><div>Las alertas no son una tabla separada que haya que mantener: se recalculan en cada carga a partir del inventario, los lotes y las órdenes de compra vigentes — no puede quedar una alerta "vieja" mostrando un problema ya resuelto.</div></div>
+          <div class="note"><div class="dot"></div><div>Para el rol <strong>Chofer</strong>, Alertas muestra otra cosa por completo: no tiene acceso a inventario, así que en su lugar ve avisos de <strong>sus propias rutas</strong> — una parada demorada en una ruta ya iniciada, una ruta programada cuya hora de salida ya pasó sin haberse iniciado, o una ruta con todas las entregas resueltas a la que le falta el paso de "Cerrar Ruta".</div></div>
           <div class="example">
             <div class="example-label">Ejemplo práctico</div>
             <p class="example-lede">Un lote de un insumo perecible vence en 12 días y todavía queda stock sin vender.</p>
@@ -953,9 +954,10 @@
             <li><span class="step-body"><p><span class="pill info">Picking</span> — <kbd>Iniciar Picking</kbd> abre la lista de preparación; hay que confirmar el 100% de las líneas antes de poder avanzar (no se permite picking parcial).</p></span></li>
             <li><span class="step-body"><p><span class="pill success">Listo</span> — se llega solo, en cuanto coinciden <em>picking completo</em> y <em>empaque confirmado</em> (en cualquier orden); si la operación no usa empaque formal, "Marcar Listo" alcanza con el picking.</p></span></li>
             <li><span class="step-body"><p><span class="pill success">Despachado</span> — <kbd>Despachar</kbd> emite la guía de remisión y descuenta el stock real.</p></span></li>
-            <li><span class="step-body"><p><span class="pill success">Entregado</span> — <kbd>Confirmar Entrega</kbd>, con nombre del receptor y foto opcional, cierra el ciclo.</p></span></li>
+            <li><span class="step-body"><p><span class="pill success">Entregado</span> — <kbd>Confirmar Entrega</kbd> exige nombre del receptor y una foto de evidencia (ambos obligatorios) para cerrar el ciclo.</p></span></li>
           </ol>
           <div class="note"><div class="dot"></div><div>Si la venta es a Crédito (no Contado), en Despachado/Entregado aparece el botón "Generar Cuenta por Cobrar". El botón "Compartir" reparte la guía de remisión según corresponda: al <strong>Transportista</strong> si hay uno asignado (la debe llevar en mano durante el traslado) y siempre al <strong>Cliente</strong>, como comprobante.</div></div>
+          <div class="note"><div class="dot"></div><div>Desde "Compartir", el botón <kbd>Correo</kbd> envía el documento de verdad (PDF real adjunto) cuando el destinatario tiene un email registrado — no es un simple link <span class="field">mailto:</span>. El cuerpo del correo incluye el nombre de la empresa, un saludo, el motivo del envío y la referencia del documento.</div></div>
           <div class="example">
             <div class="example-label">Ejemplo práctico</div>
             <p class="example-lede">Un pedido a crédito, con transportista asignado, llega a Despachado.</p>
@@ -1040,10 +1042,11 @@
           <ol class="steps">
             <li><span class="step-body"><p><kbd>Nueva Ruta</kbd> agrupa despachos <span class="pill success">Listo</span> bajo un transportista y un almacén de origen.</p></span></li>
             <li><span class="step-body"><p><kbd>Iniciar Ruta</kbd> la pasa a <span class="pill info">En Ruta</span>.</p></span></li>
-            <li><span class="step-body"><p>Por cada parada, <kbd>Confirmar Entrega</kbd> o <kbd>No Entregado</kbd> según corresponda.</p></span></li>
+            <li><span class="step-body"><p>Por cada parada, <kbd>Confirmar Entrega</kbd> (pide foto de evidencia y nombre del receptor, igual que en Despachos) o <kbd>No Entregado</kbd> según corresponda.</p></span></li>
             <li><span class="step-body"><p><kbd>Cerrar Ruta</kbd> la termina. La pestaña <span class="field">Seguimiento</span> muestra en vivo el % de avance de cada ruta en tránsito.</p></span></li>
           </ol>
           <div class="note"><div class="dot"></div><div>En la pestaña "Transportistas" se da de alta cada transportista (propio o tercero) — solo los activos aparecen para asignar en una ruta o un despacho.</div></div>
+          <div class="note"><div class="dot"></div><div>El rol <strong>Chofer</strong> entra a este módulo con vista reducida a la pestaña "Rutas y Salidas", filtrada a sus propias rutas — sin Nueva Ruta ni Cancelar Ruta, pero con acceso a Iniciar Ruta, gestionar paradas y Confirmar Entrega. El mismo flujo está disponible desde el "Panel de Chofer" (ver <a href="#m-dashboard">Dashboard</a>), sin tener que entrar a este módulo.</div></div>
           <div class="example">
             <div class="example-label">Ejemplo práctico</div>
             <p class="example-lede">5 despachos Listos tienen destino en la misma zona de la ciudad.</p>
@@ -1081,6 +1084,7 @@
             <p class="example-lede">Un cliente pregunta por qué todavía no llegó su pedido.</p>
             <div class="example-result">Se busca el número en Trazabilidad y <strong>se ve exactamente en qué paso está</strong> — por ejemplo, "Despachado, en la Ruta con tal transportista" — sin tener que llamar al almacén para averiguarlo.</div>
           </div>
+          <div class="note"><div class="dot"></div><div>El rol <strong>Chofer</strong> solo ve acá la pestaña "Pedidos de Clientes" — Órdenes de Compra y Pedidos Internos no le competen y quedan ocultas, sin selector de pestañas.</div></div>
         </section>
 
       </div>
@@ -1548,7 +1552,7 @@
             <li><span class="step-body"><p>Para crear un rol a medida: pestaña <span class="field">Roles y Permisos</span> → <kbd>Nuevo Rol</kbd> → marcás módulo por módulo qué puede ver.</p></span></li>
             <li><span class="step-body"><p>"Eliminar" un usuario es definitivo; "desactivar" le quita el acceso pero conserva su historial.</p></span></li>
           </ol>
-          <div class="note"><div class="dot"></div><div>No podés eliminar tu propio usuario ni el rol que estás usando en este momento; los 11 roles base del sistema no se pueden borrar, solo editarles los permisos.</div></div>
+          <div class="note"><div class="dot"></div><div>No podés eliminar tu propio usuario ni el rol que estás usando en este momento; los 12 roles base del sistema (incluye "Chofer", la vista móvil reducida para el transportista) no se pueden borrar, solo editarles los permisos.</div></div>
           <div class="example">
             <div class="example-label">Ejemplo práctico</div>
             <p class="example-lede">Un nuevo empleado de almacén necesita acceso solo a Inventario y Despachos.</p>

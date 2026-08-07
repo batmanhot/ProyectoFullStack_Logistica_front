@@ -108,8 +108,15 @@ export default function TabRutas() {
     setDetalle(null)
   }
 
-  async function handleMarcarParada(ruta, despachoId, estado, obs = '') {
-    const res = await marcarParada.mutateAsync({ id: ruta.id, despachoId, estado, observacion: obs })
+  async function handleMarcarParada(ruta, despachoId, estado, obs = '', evidencia = null) {
+    const res = await marcarParada.mutateAsync({
+      id: ruta.id, despachoId, estado, observacion: obs,
+      ...(evidencia && {
+        receptorNombre: evidencia.receptor,
+        evidenciaFoto:  evidencia.foto,
+        evidenciaNotas: evidencia.notas,
+      }),
+    })
     if (res?.error) { toast(res.error, 'error'); return }
     toast(estado === 'ENTREGADO' ? '✓ Entrega confirmada' : 'Parada marcada como no entregada', estado === 'ENTREGADO' ? 'success' : 'warning')
     // Refrescar detalle con datos actualizados del servidor
@@ -233,7 +240,7 @@ export default function TabRutas() {
                     onClick={() => imprimirHojaReparto({ ruta, despachos, clientes, transportista: transportistas.find(t => t.id === ruta.transportistaId), config: pdfConfig })}>
                     <Printer size={13}/>
                   </Btn>
-                  {!esChofer && ruta.estado === 'PROGRAMADA' && (
+                  {ruta.estado === 'PROGRAMADA' && (
                     <Btn variant="primary" size="sm" onClick={() => handleIniciar(ruta)}><PlayCircle size={12}/> Iniciar</Btn>
                   )}
                   {ruta.estado === 'EN_RUTA' && (
@@ -265,8 +272,7 @@ export default function TabRutas() {
           onIniciar={() => handleIniciar(detalle)}
           onCompletar={() => handleCompletar(detalle)}
           onCancelar={() => handleCancelar(detalle)}
-          onMarcarParada={(dId, estado, obs) => handleMarcarParada(detalle, dId, estado, obs)}
-          puedeIniciar={!esChofer}
+          onMarcarParada={(dId, estado, obs, evidencia) => handleMarcarParada(detalle, dId, estado, obs, evidencia)}
           puedeCancelar={!esChofer}
           pdfConfig={pdfConfig}
         />

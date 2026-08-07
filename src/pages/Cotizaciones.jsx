@@ -5,12 +5,13 @@ import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy } from '../utils/helpers'
 import { Modal, Badge, Btn, Field, Input, Select, Textarea, DataTable } from '../components/ui/index'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
-import { imprimirRFQ } from '../utils/pdfTemplates'
+import { imprimirRFQ, armarHtmlRFQ } from '../utils/pdfTemplates'
 import { exportarCotizacionesXLSX } from '../utils/exportXLSX'
 import { exportarCotizacionesPDF } from '../utils/exportPDF'
 import { useCotizacionesList, useCrearCotizacion, useActualizarCotizacion, useAgregarRespuesta, useMarcarGanadora } from '../queries/cotizaciones.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useProveedoresList } from '../queries/proveedores.queries'
+import { useEmpresaPDFConfig } from '../queries/configuracion.queries'
 
 const simboloMoneda = 'S/'
 
@@ -23,11 +24,12 @@ const ESTADOS_COT = {
 }
 
 export default function Cotizaciones() {
-  const { sesion, toast } = useApp()
+  const { toast } = useApp()
 
   const { data: cotizaciones = [], isLoading } = useCotizacionesList()
   const { data: productos    = [] }            = useProductosList()
   const { data: proveedores  = [] }            = useProveedoresList()
+  const pdfConfig = useEmpresaPDFConfig()
 
   const crearCotizacion     = useCrearCotizacion()
   const actualizarCotizacion = useActualizarCotizacion()
@@ -38,6 +40,7 @@ export default function Cotizaciones() {
   const [editando,  setEditando]  = useState(null)
   const [detalle,   setDetalle]   = useState(null)
   const [shareRFQ,  setShareRFQ]  = useState(null)
+  const [provDestId, setProvDestId] = useState('')
   const [filtEst,   setFiltEst]   = useState('')
   const [busqueda,  setBusqueda]  = useState('')
   const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' })
@@ -142,7 +145,7 @@ export default function Cotizaciones() {
             <Btn variant="ghost" size="sm" onClick={async () => { await exportarCotizacionesXLSX(cotizaciones, proveedores, productos) }}>
               <Download size={13}/> Excel
             </Btn>
-            <Btn variant="ghost" size="sm" onClick={async () => { await exportarCotizacionesPDF(cotizaciones, proveedores, simboloMoneda, sesion?.nombre) }}>
+            <Btn variant="ghost" size="sm" onClick={async () => { await exportarCotizacionesPDF(cotizaciones, proveedores, simboloMoneda, pdfConfig.empresa) }}>
               <FileText size={13}/> PDF
             </Btn>
             <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nueva RFQ</Btn>
@@ -192,7 +195,7 @@ export default function Cotizaciones() {
                   <Btn variant="ghost" size="icon" title="Editar" onClick={() => setEditando(c)}><Edit2 size={13}/></Btn>
                 )}
                 {c.estado === 'ENVIADA' && (
-                  <Btn variant="ghost" size="icon" title="PDF / Compartir" className="text-[#00c896]" onClick={() => setShareRFQ(c)}>
+                  <Btn variant="ghost" size="icon" title="PDF / Compartir" className="text-[#00c896]" onClick={() => { setShareRFQ(c); setProvDestId('') }}>
                     <FileText size={13}/>
                   </Btn>
                 )}
@@ -240,21 +243,41 @@ export default function Cotizaciones() {
         />
       )}
 
-      {shareRFQ && (
-        <Modal open title={`PDF / Compartir — ${shareRFQ.numero}`} onClose={() => setShareRFQ(null)} size="sm"
-          footer={<Btn variant="secondary" onClick={() => setShareRFQ(null)}>Cerrar</Btn>}>
-          <PdfSharePanel
-            tipo="Solicitud de Cotización"
-            numero={shareRFQ.numero}
-            onClose={() => setShareRFQ(null)}
-            onPrint={() => imprimirRFQ({ cotiz: shareRFQ, productos, config: { simboloMoneda } })}
-            extra={{
-              whatsapp: `https://wa.me/?text=${encodeURIComponent(`Estimado proveedor, le enviamos la Solicitud de Cotización ${shareRFQ.numero}. Por favor revisar los ítems adjuntos y enviarnos su mejor oferta.`)}`,
-              mailto: `mailto:?subject=${encodeURIComponent(`Solicitud de Cotización ${shareRFQ.numero}`)}&body=${encodeURIComponent(`Estimado Proveedor,\n\nAdjuntamos la Solicitud de Cotización ${shareRFQ.numero}.\n\nQuedamos a la espera de su respuesta.`)}`,
-            }}
-          />
-        </Modal>
-      )}
+      {shareRFQ && (() => {
+        const provSel = proveedores.find(p => p.id === provDestId)
+        const mensaje = `Estimado proveedor, le enviamos la Solicitud de Cotización ${shareRFQ.numero}. Por favor revisar los ítems adjuntos y enviarnos su mejor oferta.`
+        return (
+          <Modal open title={`PDF / Compartir — ${shareRFQ.numero}`} onClose={() => setShareRFQ(null)} size="sm"
+            footer={<Btn variant="secondary" onClick={() => setShareRFQ(null)}>Cerrar</Btn>}>
+            <Field label="Proveedor destinatario" hint="Elige a quién enviarle esta RFQ — puedes repetir el envío para varios proveedores">
+              <Select value={provDestId} onChange={e => setProvDestId(e.target.value)}>
+                <option value="">Sin seleccionar (compartir genérico)</option>
+                {proveedores.filter(p => p.activo).map(p => <option key={p.id} value={p.id}>{p.razonSocial}</option>)}
+              </Select>
+            </Field>
+            <PdfSharePanel
+              tipo="Solicitud de Cotización"
+              numero={shareRFQ.numero}
+              onClose={() => setShareRFQ(null)}
+              onPrint={() => imprimirRFQ({ cotiz: shareRFQ, productos, config: pdfConfig })}
+              getHtml={() => armarHtmlRFQ({ cotiz: shareRFQ, productos, config: pdfConfig })}
+              asunto={`Solicitud de Cotización ${shareRFQ.numero}`}
+              empresaNombre={pdfConfig.empresa}
+              destinatarios={provSel ? [{
+                label: 'Proveedor',
+                nombre: provSel.razonSocial,
+                email: provSel.email || undefined,
+                whatsapp: `https://wa.me/${(provSel.telefono || '').replace(/\D/g, '')}?text=${encodeURIComponent(mensaje)}`,
+                mensaje: 'Le solicitamos su mejor cotización para los productos detallados en el documento adjunto. Agradeceremos remitirnos su propuesta de precios y condiciones a la brevedad.',
+              }] : null}
+              extra={!provSel ? {
+                whatsapp: `https://wa.me/?text=${encodeURIComponent(mensaje)}`,
+                mailto: `mailto:?subject=${encodeURIComponent(`Solicitud de Cotización ${shareRFQ.numero}`)}&body=${encodeURIComponent(`Estimado Proveedor,\n\nAdjuntamos la Solicitud de Cotización ${shareRFQ.numero}.\n\nQuedamos a la espera de su respuesta.`)}`,
+              } : null}
+            />
+          </Modal>
+        )
+      })()}
 
       {detalle && (
         <ModalDetalleRFQ

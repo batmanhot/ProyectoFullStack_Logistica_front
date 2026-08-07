@@ -27,6 +27,7 @@ estado, la autenticación, y cómo levantarlo en local.
 | Fechas | date-fns |
 | Exportación | jsPDF + jspdf-autotable (PDF), ExcelJS/xlsx (Excel) |
 | PWA / offline | `vite-plugin-pwa` (Workbox) + cola propia en IndexedDB (`services/offlineQueue.js`) |
+| Notificaciones | Web Push API (VAPID) — ver §2.9 |
 | Tests | Vitest + Testing Library (jsdom) |
 
 ---
@@ -97,6 +98,15 @@ dos. Si se agrega, quita o reagrupa un módulo en el Sidebar, replicar el
 mismo cambio ahí o el editor de roles queda con una clasificación
 distinta a la del menú real (ya pasó una vez).
 
+Un ítem del `NAV` puede llevar además `ocultarPara: ['codigoRol', …]` —
+lo oculta para ese rol puntual sin tocar el permiso de módulo (que puede
+seguir haciendo falta para otra pantalla que comparte el mismo `modulo`,
+o para llamadas de API de otras vistas). Ejemplo real: el rol `chofer`
+tiene el permiso `despachos` (lo necesita para "Trazabilidad Pedidos" y
+para que `Transportes`/`Panel de Chofer` lean datos de despacho
+embebidos), pero no debe ver la pantalla completa de "Despachos" — se
+oculta con `ocultarPara: ['chofer']` en vez de quitarle el permiso.
+
 ### 2.4 Capa de datos (`src/queries/`)
 
 Un archivo por dominio (`productos.queries.js`, `despachos.queries.js`,
@@ -146,6 +156,27 @@ siempre a través del sistema de temas).
 con precache de assets y runtime caching de Google Fonts. `devOptions.enabled: true`
 lo activa también en `npm run dev`. `pages/PWA.jsx`/`PWAMovil.jsx` son las
 pantallas de instalación guiada.
+
+### 2.9 Notificaciones Web Push
+
+`utils/push.js` (boilerplate de suscripción del navegador) +
+`queries/push.queries.js` (`usePushSubscribe`/`usePushUnsubscribe`) —
+botón "Activar notificaciones" en `DashboardAlmacenero/AlertasTab.jsx`.
+`VITE_VAPID_PUBLIC_KEY` debe coincidir exactamente con `VAPID_PUBLIC_KEY`
+del backend. El envío real (cron cada 30 min, alertas de stock/vencimiento)
+corre en el backend — ver su propio README, §3.
+
+### 2.10 Envío de documentos por correo
+
+`components/ui/PdfSharePanel.jsx` es el panel "Compartir" usado en
+Despachos (Guía de Remisión), Órdenes de Compra y Cotizaciones (RFQ). Con
+un `destinatario.email` y `getHtml`/`asunto`, el botón "Correo" envía de
+verdad vía `queries/email.queries.js` (`POST /email/enviar-documento` —
+el backend re-renderiza el mismo HTML a PDF con Puppeteer y lo adjunta,
+ver README del backend). Sin esos datos, cae a un link `mailto:` sin
+destinatario precargado. `pdfTemplates.js` separa la construcción del
+HTML (`armarHtmlXxx`) de la acción de imprimir (`imprimirXxx`) justo para
+poder reenviar ese mismo HTML al backend sin duplicar la plantilla.
 
 ---
 
@@ -243,7 +274,13 @@ Fuera del Sidebar normal:
 | Ruteada pero sin entrada en el menú | `Maestros` (`/maestros` — categorías/almacenes, acceso solo por URL directa) |
 | **No ruteadas actualmente** (código presente, sin `<Route>` en `App.jsx`) | `PWA.jsx`, `PWAMovil.jsx` |
 
-Las carpetas (`AdminSaaS/`, `Configuracion/`, `Flota/`, `MapaAlmacen/`,
+`Dashboard.jsx` no es una sola vista: según `sesion.rol?.codigo` renderiza
+el panel genérico, o delega en `DashboardAlmacenero/` (rol `almacenero`) o
+`DashboardChofer/` (rol `chofer`, panel de rutas propias — ver README del
+backend §2.3 para el resto de restricciones de ese rol).
+
+Las carpetas (`AdminSaaS/`, `Configuracion/`, `DashboardAlmacenero/`,
+`DashboardChofer/`, `Flota/`, `MapaAlmacen/`,
 `PedidosInternos/`, `Transportes/`, `Usuarios/`, `LandingPage/`) dividen
 páginas grandes en sub-componentes/tabs — patrón aplicado a las páginas
 que crecieron demasiado como archivo único.

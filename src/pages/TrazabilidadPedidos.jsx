@@ -14,6 +14,7 @@ import { Search, Package, Truck, ShoppingCart, CheckCircle,
          FileText, Building2, Users, X, ClipboardList } from 'lucide-react'
 import { formatDate, formatCurrency } from '../utils/helpers'
 import { Badge, Input, Select, LineaTiempo } from '../components/ui/index'
+import { useApp } from '../store/AppContext'
 import { useDespachosList } from '../queries/despachos.queries'
 import { useRutasList } from '../queries/rutas.queries'
 import { useOrdenesCompraList } from '../queries/ordenes-compra.queries'
@@ -55,7 +56,10 @@ const FLUJO_PI_RECHAZADO = [{ id:'RECHAZADO', label:'Rechazado', color:'#ef4444'
 // ── Card de Despacho / Pedido Cliente ─────────────────
 function CardDespacho({ des, clientes, almacenes=[], productos, simboloMoneda, rutaInfo }) {
   const [open, setOpen] = useState(false)
-  const cli     = clientes.find(c => c.id === des.clienteId)
+  // Respaldo al cliente ya embebido en el despacho — necesario para el rol Chofer,
+  // que no tiene permiso 'clientes' y por eso no recibe la lista completa (ver
+  // TrazabilidadPedidos()). Mismo patrón ya usado en ModalDetalleRuta.jsx.
+  const cli = clientes.find(c => c.id === des.clienteId) || des.cliente
   const cancelado = des.estado === 'CANCELADO'
   const entregado = des.estado === 'ENTREGADO'
   const estadoMeta = FLUJO_DESPACHO.find(f=>f.id===des.estado) ||
@@ -130,7 +134,7 @@ function CardDespacho({ des, clientes, almacenes=[], productos, simboloMoneda, r
                 Productos
               </div>
               {des.items.map((it,i)=>{
-                const prod = productos.find(p=>p.id===it.productoId)
+                const prod = productos.find(p=>p.id===it.productoId) || it.producto
                 return (
                   <div key={i} className="flex items-center justify-between px-3.5 py-2 border-t border-white/4">
                     <div className="flex-1 min-w-0">
@@ -361,15 +365,22 @@ function CardPedidoInterno({ pi, areas, almacenes, productos }) {
 
 // ── Componente principal ──────────────────────────────
 export default function TrazabilidadPedidos() {
+  const { sesion } = useApp()
+  // El Chofer no tiene permiso a clientes/proveedores/inventario/OC/pedidos-internos
+  // (esas 5 consultas le devuelven 403) — para su rol solo tiene sentido la pestaña
+  // "Pedidos de Clientes", con cliente/producto tomados del despacho embebido en vez
+  // de estas listas (ver CardDespacho más abajo).
+  const esChofer = sesion?.rol?.codigo === 'chofer'
+
   const { data: despachos  = [] } = useDespachosList()
   const { data: rutas      = [] } = useRutasList()
-  const { data: ordenes    = [] } = useOrdenesCompraList()
-  const { data: clientes   = [] } = useClientesList({ incluirInactivos: true })
-  const { data: proveedores= [] } = useProveedoresList({ incluirInactivos: true })
-  const { data: productos  = [] } = useProductosList()
+  const { data: ordenes    = [] } = useOrdenesCompraList({ enabled: !esChofer })
+  const { data: clientes   = [] } = useClientesList({ incluirInactivos: true, enabled: !esChofer })
+  const { data: proveedores= [] } = useProveedoresList({ incluirInactivos: true, enabled: !esChofer })
+  const { data: productos  = [] } = useProductosList({ enabled: !esChofer })
   const { data: almacenes  = [] } = useAlmacenesList()
-  const { data: pedidosInternos = [] } = usePedidosInternosList()
-  const { data: areasInternas   = [] } = useAreasInternasList({ incluirInactivas: true })
+  const { data: pedidosInternos = [] } = usePedidosInternosList({ enabled: !esChofer })
+  const { data: areasInternas   = [] } = useAreasInternasList({ incluirInactivas: true, enabled: !esChofer })
   const simboloMoneda = 'S/'
 
   // Conecta Despacho→Ruta — RutasService.findAll ya incluye paradas.despacho y
@@ -380,7 +391,9 @@ export default function TrazabilidadPedidos() {
     return map
   }, [rutas])
 
-  const [tipo,     setTipo]     = useState('clientes') // clientes | oc | internos
+  const [tipoUsuario, setTipoUsuario] = useState('clientes') // clientes | oc | internos
+  const tipo = esChofer ? 'clientes' : tipoUsuario // Chofer solo tiene la pestaña de clientes
+  const setTipo = setTipoUsuario
   const [busqueda, setBusqueda] = useState('')
   const [filtEst,  setFiltEst]  = useState('')
 
@@ -458,33 +471,40 @@ export default function TrazabilidadPedidos() {
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
-      {/* Selector de tipo */}
-      <div className="flex gap-2">
-        <button onClick={()=>{setTipo('clientes');setFiltEst('');setBusqueda('')}}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-[13px] font-semibold transition-all ${
-            tipo==='clientes'
-              ? 'bg-[#00c896]/15 text-[#00c896] border-[#00c896]/30'
-              : 'bg-[#1a2230] text-[#9ba8b6] border-white/8 hover:text-[#e8edf2]'}`}>
+      {/* Selector de tipo — el Chofer solo tiene Pedidos de Clientes, no hace falta elegir */}
+      {esChofer ? (
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border bg-[#00c896]/15 text-[#00c896] border-[#00c896]/30 text-[13px] font-semibold w-fit">
           <Truck size={15}/> Pedidos de Clientes
           <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-white/10">{kpisClientes.total}</span>
-        </button>
-        <button onClick={()=>{setTipo('oc');setFiltEst('');setBusqueda('')}}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-[13px] font-semibold transition-all ${
-            tipo==='oc'
-              ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
-              : 'bg-[#1a2230] text-[#9ba8b6] border-white/8 hover:text-[#e8edf2]'}`}>
-          <ShoppingCart size={15}/> Órdenes de Compra
-          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-white/10">{kpisOC.total}</span>
-        </button>
-        <button onClick={()=>{setTipo('internos');setFiltEst('');setBusqueda('')}}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-[13px] font-semibold transition-all ${
-            tipo==='internos'
-              ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-              : 'bg-[#1a2230] text-[#9ba8b6] border-white/8 hover:text-[#e8edf2]'}`}>
-          <ClipboardList size={15}/> Pedidos Internos
-          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-white/10">{kpisInternos.total}</span>
-        </button>
-      </div>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <button onClick={()=>{setTipo('clientes');setFiltEst('');setBusqueda('')}}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-[13px] font-semibold transition-all ${
+              tipo==='clientes'
+                ? 'bg-[#00c896]/15 text-[#00c896] border-[#00c896]/30'
+                : 'bg-[#1a2230] text-[#9ba8b6] border-white/8 hover:text-[#e8edf2]'}`}>
+            <Truck size={15}/> Pedidos de Clientes
+            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-white/10">{kpisClientes.total}</span>
+          </button>
+          <button onClick={()=>{setTipo('oc');setFiltEst('');setBusqueda('')}}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-[13px] font-semibold transition-all ${
+              tipo==='oc'
+                ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                : 'bg-[#1a2230] text-[#9ba8b6] border-white/8 hover:text-[#e8edf2]'}`}>
+            <ShoppingCart size={15}/> Órdenes de Compra
+            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-white/10">{kpisOC.total}</span>
+          </button>
+          <button onClick={()=>{setTipo('internos');setFiltEst('');setBusqueda('')}}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-[13px] font-semibold transition-all ${
+              tipo==='internos'
+                ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                : 'bg-[#1a2230] text-[#9ba8b6] border-white/8 hover:text-[#e8edf2]'}`}>
+            <ClipboardList size={15}/> Pedidos Internos
+            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-white/10">{kpisInternos.total}</span>
+          </button>
+        </div>
+      )}
 
       {/* KPIs */}
       {tipo === 'clientes' ? (
@@ -601,11 +621,11 @@ export default function TrazabilidadPedidos() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {[
             { t:'Pedidos de Clientes', d:'Sigue el recorrido de un despacho desde Pedido hasta Entregado — 6 estados, incluyendo los que llegan del Portal de Pedidos.' },
-            { t:'Órdenes de Compra', d:'Sigue una OC a proveedor desde Pendiente hasta Recibida, con la barra de recepción por producto para ver qué falta llegar.' },
-            { t:'Pedidos Internos', d:'Sigue una solicitud entre áreas desde Borrador hasta Entregado al área solicitante, con prioridad y motivo de rechazo si aplica.' },
+            !esChofer && { t:'Órdenes de Compra', d:'Sigue una OC a proveedor desde Pendiente hasta Recibida, con la barra de recepción por producto para ver qué falta llegar.' },
+            !esChofer && { t:'Pedidos Internos', d:'Sigue una solicitud entre áreas desde Borrador hasta Entregado al área solicitante, con prioridad y motivo de rechazo si aplica.' },
             { t:'Línea de tiempo', d:'Cada tarjeta expandible muestra el flujo completo de estados: los pasados en verde/color, el actual resaltado, los pendientes en gris.' },
-            { t:'Filtros', d:'Busca por número de documento, cliente/proveedor/área, o filtra por un estado específico dentro de cada uno de los 3 flujos.' },
-          ].map(({t,d}) => (
+            { t:'Filtros', d: esChofer ? 'Busca por número de despacho o cliente, o filtra por un estado específico.' : 'Busca por número de documento, cliente/proveedor/área, o filtra por un estado específico dentro de cada uno de los 3 flujos.' },
+          ].filter(Boolean).map(({t,d}) => (
             <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
               <div className="text-[12px] font-semibold text-[#e8edf2] mb-1">{t}</div>
               <div className="text-[11px] text-[#9ba8b6] leading-relaxed">{d}</div>

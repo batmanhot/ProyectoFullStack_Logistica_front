@@ -4,8 +4,8 @@ import { useApp } from '../../store/AppContext'
 import { Btn } from '../../components/ui/index'
 import { vencimientoMasUrgentePorProducto } from '../../utils/helpers'
 import { TIPOS, generarAlertas } from '../../utils/alertas'
-import { pushSoportado, suscribirse } from '../../utils/push'
-import { usePushSubscribe } from '../../queries/push.queries'
+import { pushSoportado, suscribirse, desuscribirse } from '../../utils/push'
+import { usePushSubscribe, usePushUnsubscribe } from '../../queries/push.queries'
 import { useProductosList } from '../../queries/productos.queries'
 import { useOrdenesCompraList } from '../../queries/ordenes-compra.queries'
 import { useCategoriasList } from '../../queries/categorias.queries'
@@ -16,15 +16,37 @@ function ActivarNotificaciones() {
   const { toast } = useApp()
   const [permiso, setPermiso] = useState(() => (pushSoportado() ? Notification.permission : 'unsupported'))
   const [activando, setActivando] = useState(false)
+  const [desactivando, setDesactivando] = useState(false)
   const pushSubscribe = usePushSubscribe()
+  const pushUnsubscribe = usePushUnsubscribe()
 
   if (permiso === 'unsupported') return null
 
+  async function desactivar() {
+    setDesactivando(true)
+    try {
+      const endpoint = await desuscribirse()
+      if (endpoint) await pushUnsubscribe.mutateAsync(endpoint)
+      setPermiso('default')
+      toast('Notificaciones desactivadas', 'success')
+    } catch (e) {
+      toast(e.message || 'No se pudo desactivar las notificaciones', 'error')
+    } finally {
+      setDesactivando(false)
+    }
+  }
+
   if (permiso === 'granted') {
     return (
-      <span className="flex items-center gap-1.5 text-[11px] text-[#00c896] font-semibold">
-        <BellRing size={12}/> Notificaciones activadas
-      </span>
+      <div className="flex items-center gap-2.5">
+        <span className="flex items-center gap-1.5 text-[11px] text-[#00c896] font-semibold">
+          <BellRing size={12}/> Notificaciones activadas
+        </span>
+        <button onClick={desactivar} disabled={desactivando}
+          className="text-[11px] text-[#5f6f80] hover:text-[#9ba8b6] underline decoration-dotted transition-colors disabled:opacity-50">
+          {desactivando ? 'Desactivando...' : 'Desactivar'}
+        </button>
+      </div>
     )
   }
 

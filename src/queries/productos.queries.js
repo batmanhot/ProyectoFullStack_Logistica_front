@@ -7,7 +7,7 @@ const KEYS = {
   one:  (id) => ['productos', id],
 }
 
-export function useProductosList({ busqueda, categoriaId, proveedorId, incluirInactivos = false } = {}) {
+export function useProductosList({ busqueda, categoriaId, proveedorId, incluirInactivos = false, enabled = true } = {}) {
   return useQuery({
     queryKey: KEYS.list({ busqueda, categoriaId, proveedorId, incluirInactivos }),
     queryFn: async () => {
@@ -21,6 +21,7 @@ export function useProductosList({ busqueda, categoriaId, proveedorId, incluirIn
       if (r.error) throw new Error(r.error)
       return r.data ?? []
     },
+    enabled,
   })
 }
 

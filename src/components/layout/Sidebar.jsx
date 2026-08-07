@@ -36,7 +36,10 @@ const NAV = [
   { label:'Transferencias',        path:'/transferencias',  icon:ArrowRightLeft,   modulo:'transferencias', color:'#a855f7' },
   { divider:true, label:'DESPACHOS' },
   { label:'Clientes',              path:'/clientes',        icon:Users,            modulo:'clientes',       color:'#10b981' },
-  { label:'Despachos',             path:'/despachos',       icon:Truck,            modulo:'despachos',      color:'#3b82f6' },
+  // Chofer sigue necesitando el permiso 'despachos' (Trazabilidad Pedidos lo comparte, y las
+  // vistas de Transportes/Panel de Chofer leen despacho embebido) pero la pantalla completa de
+  // Despachos —gestión de TODOS los despachos de la empresa— no es para el rol transportista.
+  { label:'Despachos',             path:'/despachos',       icon:Truck,            modulo:'despachos',      color:'#3b82f6', ocultarPara:['chofer'] },
   { label:'Pedidos Internos',      path:'/pedidos-internos',icon:ClipboardList,    modulo:'pedidos-internos', color:'#f97316', badge:'pedidos-internos' },
   { label:'Portal de Pedidos',     path:'/portal-pedidos',  icon:Globe,            modulo:'portal-pedidos', color:'#0ea5e9' },
   { label:'Empaque / Packing',     path:'/empaque',         icon:Package,          modulo:'empaque',        color:'#06b6d4' },
@@ -176,6 +179,7 @@ export default function Sidebar({ collapsed, onToggle }) {
     const marked = NAV.map(item => {
       if (item.divider) return item
       if (!tienePermiso(item.modulo)) return null
+      if (item.ocultarPara?.includes(sesion.rol?.codigo)) return null
       return item
     })
     const result = []
