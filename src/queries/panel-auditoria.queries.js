@@ -15,7 +15,10 @@ export function useBitacoraAuditoria(filtros = {}) {
   const qs = params.toString()
   return useQuery({
     queryKey: [KEY, 'bitacora', filtros],
-    queryFn:  () => api.get(`/panel-auditoria/bitacora${qs ? `?${qs}` : ''}`).then(r => r.data ?? []),
+    // /panel-auditoria/bitacora reusa AuditoriaService.findAll(), que devuelve
+    // paginado ({data, total, page, pageSize, kpis}) — hay que desenvolver un
+    // nivel más que las otras 3 pestañas de este panel (que sí son arrays planos).
+    queryFn:  () => api.get(`/panel-auditoria/bitacora${qs ? `?${qs}` : ''}`).then(r => r.data?.data ?? []),
   })
 }
 
