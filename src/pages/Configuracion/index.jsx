@@ -148,7 +148,6 @@ export default function Configuracion() {
           confirmReset={confirmReset} setConfirmReset={setConfirmReset}
           confirmLimpiar={confirmLimpiar} setConfirmLimpiar={setConfirmLimpiar}
           handleReset={handleReset} handleLimpiar={handleLimpiar}
-          toast={toast}
         />
       )}
 

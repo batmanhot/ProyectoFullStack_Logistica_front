@@ -3,8 +3,8 @@
  *
  * Todos los demás módulos ya migraron a backend real (ver memoria de
  * integración frontend-backend) — lo único que sigue viviendo acá es la
- * configuración local que usa Configuracion.jsx (getConfig/saveConfig/
- * exportarDatos), único importador real de este archivo.
+ * configuración local que usa Configuracion.jsx (getConfig/saveConfig),
+ * único importador real de este archivo.
  */
 import { AUDITORIA } from '../config/constants'
 import { CONFIG_DEFAULT, CONFIGS_DEMO } from '../data/demoData'
@@ -16,14 +16,7 @@ function k(name) { return `sp_${_tenantId}_${name}` }
 const SK = { session: 'sp_session' }
 
 const KEYS = {
-  get config()      { return k('config')      },
-  get productos()   { return k('productos')   },
-  get categorias()  { return k('categorias')  },
-  get almacenes()   { return k('almacenes')   },
-  get proveedores() { return k('proveedores') },
-  get movimientos() { return k('movimientos') },
-  get ordenes()     { return k('ordenes')     },
-  get usuarios()    { return k('usuarios')    },
+  get config() { return k('config') },
 }
 
 function _audit(accion, modulo, detalle, datos) {
@@ -73,13 +66,4 @@ export function saveConfig(cfg){
   guardar(KEYS.config,{...c,...cfg})
   _audit('UPDATE','configuracion','Configuración del sistema actualizada')
   return ok(true)
-}
-
-export function exportarDatos(){
-  const d={}
-  ;[KEYS.config,KEYS.productos,KEYS.categorias,KEYS.almacenes,KEYS.proveedores,
-    KEYS.movimientos,KEYS.ordenes,KEYS.usuarios,
-    k('ajustes'),k('devoluciones'),k('transferencias'),k('cotizaciones')
-  ].forEach(key=>{try{d[key]=JSON.parse(localStorage.getItem(key)||'null')}catch{d[key]=null}})
-  return ok(d)
 }

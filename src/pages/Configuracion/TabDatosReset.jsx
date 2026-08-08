@@ -1,5 +1,4 @@
 import { Save, RefreshCw, Trash2 } from 'lucide-react'
-import * as storage from '../../services/storage'
 import { ConfirmDialog, Field, Btn, Toggle } from '../../components/ui/index'
 import { SI, SEL } from './constants'
 
@@ -10,27 +9,9 @@ export default function TabDatosReset({
   confirmReset, setConfirmReset,
   confirmLimpiar, setConfirmLimpiar,
   handleReset, handleLimpiar,
-  toast,
 }) {
   return (
     <div className="flex flex-col gap-5">
-      <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
-        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-3">Exportar Datos</div>
-        <p className="text-[13px] text-[#9ba8b6] mb-4 leading-relaxed">
-          Descarga una copia de todos los datos del sistema en formato JSON. Útil como respaldo antes de conectar el backend.
-        </p>
-        <Btn variant="secondary" onClick={() => {
-          const datos = storage.exportarDatos().data
-          const a = document.createElement('a')
-          a.href = URL.createObjectURL(new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' }))
-          a.download = `stockpro_${tenantId}_backup_${new Date().toISOString().split('T')[0]}.json`
-          a.click()
-          toast('Backup descargado', 'success')
-        }}>
-          Descargar Backup JSON
-        </Btn>
-      </div>
-
       {/* ── Limpiar datos operativos ── */}
       <div className="bg-[#161d28] border border-amber-500/25 rounded-xl p-5">
         <div className="text-[11px] font-semibold text-amber-400 uppercase tracking-[0.06em] mb-3">Limpiar Datos Operativos</div>
