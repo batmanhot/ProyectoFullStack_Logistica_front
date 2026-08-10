@@ -73,7 +73,7 @@ export default function TabNegocios({ negocios, crearNegocio, actualizarNegocio,
       if (!form.adminNombre?.trim()) { toast('El nombre del admin es requerido', 'error'); return }
       if (!form.adminEmail?.trim())  { toast('El email del admin es requerido', 'error');  return }
       if ((form.adminPassword?.length ?? 0) < 8) { toast('La contraseña del admin debe tener al menos 8 caracteres', 'error'); return }
-      const res = await crearNegocio.mutateAsync({ codigo: form.empresaId, nombre: form.nombre, nombreCorto: form.nombreCorto, ruc: form.ruc, contacto: form.contacto, email: form.email, telefono: form.telefono, plan: form.plan, fechaVencimiento: form.fechaVencimiento || undefined, notas: form.notas, adminNombre: form.adminNombre, adminEmail: form.adminEmail, adminPassword: form.adminPassword })
+      const res = await crearNegocio.mutateAsync({ codigo: form.empresaId, nombre: form.nombre, nombreCorto: form.nombreCorto, ruc: form.ruc, contacto: form.contacto, email: form.email, telefono: form.telefono, plan: form.plan, estado: form.estado, fechaVencimiento: form.fechaVencimiento || undefined, notas: form.notas, adminNombre: form.adminNombre, adminEmail: form.adminEmail, adminPassword: form.adminPassword })
       if (res?.error) { toast(res.error, 'error'); return }
       toast('Negocio registrado correctamente', 'success')
     }
