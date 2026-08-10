@@ -202,7 +202,7 @@ export default function Login({ adminMode = false }) {
 
   return (
     <div
-      className="min-h-screen w-full flex relative"
+      className="h-screen w-full flex relative overflow-hidden"
       style={{ backgroundImage: `url(${fondoLogistica})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
     >
       <div className="absolute inset-0 bg-black/30" />
@@ -231,7 +231,7 @@ export default function Login({ adminMode = false }) {
       </div>
 
       {/* Panel derecho — formulario */}
-      <div className="relative z-10 w-full lg:w-auto lg:min-w-100 lg:max-w-110 flex items-center justify-center p-6"
+      <div className="relative z-10 w-full lg:w-auto lg:min-w-100 lg:max-w-110 flex items-start lg:items-center justify-center overflow-y-auto p-6"
            style={{ background: `color-mix(in srgb, ${acD} 90%, transparent)`, backdropFilter: 'blur(18px)', borderLeft: '1px solid rgba(255,255,255,0.07)' }}>
         <div className="w-full max-w-sm">
 
