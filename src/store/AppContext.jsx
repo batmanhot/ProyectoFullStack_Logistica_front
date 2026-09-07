@@ -1,8 +1,13 @@
 import { createContext, useContext, useReducer, useEffect, useCallback, useState } from 'react'
 import api, { tokenManager } from '../services/api'
 import { iniciarSyncAutomatico, detenerSyncAutomatico, sincronizarConServidor } from '../services/offlineQueue'
-
-const SESSION_KEY = 'sp_session'
+import {
+  SESSION_KEY_TENANT,
+  SESSION_KEY_ADMIN,
+  esRutaSuperAdmin,
+  slotParaSesion,
+  slotParaRuta,
+} from './sessionSlots'
 
 const initialState = {
   sesion:  null,
@@ -38,24 +43,37 @@ export function AppProvider({ children }) {
     }
   }, [])
 
-  // Restaurar sesión desde localStorage al montar. El PlatformAdmin (saas_admin)
-  // usa un par de tokens aparte (tokenManager.getAdminAccess, ver api.js) — antes
-  // esto solo miraba el token de tenant, así que cualquier recarga de página
-  // cerraba la sesión de SuperAdmin sin avisar (y con ella, cualquier navegación
-  // por URL directa a una ruta de SuperAdmin).
+  // Restaurar sesión desde localStorage al montar.
+  //
+  // SuperAdmin y tenant tienen slots de sesión separados (ver sessionSlots.js):
+  // se restaura el que corresponde a la URL de ESTA pestaña, no "el último que
+  // logueó". Así, con el SuperAdmin en una pestaña y un negocio en otra, un
+  // reload (manual o por PWA autoUpdate) mantiene cada pestaña en su identidad.
+  // Los tokens ya viven en pares separados (tokenManager, ver api.js).
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(SESSION_KEY)
+      const enRutaAdmin = esRutaSuperAdmin(window.location.pathname)
+      const stored = localStorage.getItem(slotParaRuta(window.location.pathname))
       if (stored) {
         const sesionGuardada = JSON.parse(stored)
         const esAdmin = sesionGuardada?.rol?.codigo === 'saas_admin'
-        const access = esAdmin ? tokenManager.getAdminAccess() : tokenManager.getAccess()
-        if (access && !tokenManager.isExpired(access)) {
-          dispatch({ type: 'SET_SESION', payload: sesionGuardada })
-          return
+        // El slot y la identidad tienen que coincidir. Descarta datos viejos de
+        // antes de separar los slots (una sesión saas_admin que quedó en la
+        // clave de tenant, o al revés) sin dispararlos en el contexto.
+        if (esAdmin === enRutaAdmin) {
+          const access = esAdmin ? tokenManager.getAdminAccess() : tokenManager.getAccess()
+          if (access && !tokenManager.isExpired(access)) {
+            dispatch({ type: 'SET_SESION', payload: sesionGuardada })
+            return
+          }
+        } else if (!enRutaAdmin && esAdmin) {
+          // Limpieza puntual: sesión de SuperAdmin abandonada en el slot de tenant.
+          localStorage.removeItem(SESSION_KEY_TENANT)
         }
       }
-    } catch {}
+    } catch {
+      /* storage bloqueado o JSON inválido — se arranca sin sesión */
+    }
     dispatch({ type: 'SET_LOADING', payload: false })
   }, [])
 
@@ -86,15 +104,24 @@ export function AppProvider({ children }) {
   // La página Login.jsx llama a api.buscarEmpresa + api.login directamente
   // y luego llama a esta función solo para persistir la sesión en el context.
   const setSesion = useCallback((sesion) => {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(sesion))
+    // Escribe en el slot de la identidad (admin vs tenant). No toca el otro
+    // slot a propósito: son independientes para permitir SuperAdmin + tenant
+    // abiertos a la vez en pestañas distintas.
+    localStorage.setItem(slotParaSesion(sesion), JSON.stringify(sesion))
     dispatch({ type: 'SET_SESION', payload: sesion })
   }, [])
 
   const logout = useCallback(() => {
-    api.logout()
-    localStorage.removeItem(SESSION_KEY)
+    const esAdmin = state.sesion?.rol?.codigo === 'saas_admin'
+    if (esAdmin) {
+      api.logoutAdmin()
+      localStorage.removeItem(SESSION_KEY_ADMIN)
+    } else {
+      api.logout()
+      localStorage.removeItem(SESSION_KEY_TENANT)
+    }
     dispatch({ type: 'SET_SESION', payload: null })
-  }, [])
+  }, [state.sesion])
 
   const tienePermiso = useCallback((modulo) => {
     const permisos = state.sesion?.rol?.permisos
