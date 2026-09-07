@@ -1,6 +1,16 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+
+// ModalDetalleRuta monta <ModalVistaPreviaDocumento>, que llama a useApp() y a
+// hooks de react-query en el nivel superior — sin AppProvider/QueryClient el
+// render explota. Este test cubre la máquina de estados de la ruta y sus
+// paradas, no la vista previa del PDF, así que se stubea el modal a un no-op.
+vi.mock('../../components/ui/index', async (importOriginal) => ({
+  ...(await importOriginal()),
+  ModalVistaPreviaDocumento: () => null,
+}))
+
 import ModalDetalleRuta from './ModalDetalleRuta'
 
 const DESPACHOS = [

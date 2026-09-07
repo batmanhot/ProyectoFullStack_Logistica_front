@@ -15,7 +15,11 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dev-dist
 *.local
+
+# Cobertura de tests — reporte generado, se regenera con `npm run test:cov`
+coverage
 
 # Playwright — artefactos de cada corrida, no versionar
 /test-results/

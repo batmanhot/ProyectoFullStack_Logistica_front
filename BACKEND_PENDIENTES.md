@@ -1,3 +1,18 @@
+> # ⚠️ DOCUMENTO OBSOLETO — no seguir
+> Este plan (2026-05-25) proponía un backend en **Django REST Framework** con
+> el frontend corriendo aún 100% sobre `localStorage`/`IndexedDB`. Nada de eso
+> refleja el estado real:
+> - El backend se construyó en **NestJS 11 + Prisma 6 + PostgreSQL** — vive en
+>   `../../back/stockpro-api` (ver su `README.md`).
+> - El frontend ya está **cableado al backend** vía `src/services/api.js` y las
+>   `queries/*` de react-query; `storageAdapter` / la cola offline siguen para
+>   el modo sin conexión, no como almacén principal.
+>
+> Se conserva solo como registro histórico. Para el estado y pendientes reales,
+> ver `docs/BITACORA.md` y `docs/MEJORAS-DIFERIDAS.md`.
+
+---
+
 # STOCKPRO — Pendientes para el Backend (Django REST Framework)
 
 > **Fecha:** 2026-05-25  
