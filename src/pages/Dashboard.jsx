@@ -23,6 +23,14 @@ import { useCategoriasList } from '../queries/categorias.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
 import DashboardAlmacenero from './DashboardAlmacenero/index.jsx'
 import DashboardChofer from './DashboardChofer/index.jsx'
+import DashboardEjecutivoComercial from './DashboardEjecutivoComercial/index.jsx'
+import DashboardContable from './DashboardContable/index.jsx'
+import DashboardCoordinadorTransporte from './DashboardCoordinadorTransporte/index.jsx'
+import DashboardAnalistaCompras from './DashboardAnalistaCompras/index.jsx'
+import DashboardSolicitante from './DashboardSolicitante/index.jsx'
+import DashboardAuditor from './DashboardAuditor/index.jsx'
+import DashboardSupervisor from './DashboardSupervisor/index.jsx'
+import DashboardDespachador from './DashboardDespachador/index.jsx'
 
 const TT = { background:'#1a2230', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, fontSize:12, color:'#e8edf2' }
 const PIE_COLORS = ['#00c896','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899']
@@ -171,6 +179,38 @@ export default function Dashboard() {
 
   if (sesion?.rol?.codigo === 'chofer') {
     return <DashboardChofer/>
+  }
+
+  if (sesion?.rol?.codigo === 'ejecutivo-comercial') {
+    return <DashboardEjecutivoComercial/>
+  }
+
+  if (sesion?.rol?.codigo === 'contable-finanzas') {
+    return <DashboardContable/>
+  }
+
+  if (sesion?.rol?.codigo === 'coordinador-transporte') {
+    return <DashboardCoordinadorTransporte/>
+  }
+
+  if (sesion?.rol?.codigo === 'analista-compras') {
+    return <DashboardAnalistaCompras/>
+  }
+
+  if (sesion?.rol?.codigo === 'solicitante') {
+    return <DashboardSolicitante/>
+  }
+
+  if (sesion?.rol?.codigo === 'auditor') {
+    return <DashboardAuditor/>
+  }
+
+  if (sesion?.rol?.codigo === 'supervisor') {
+    return <DashboardSupervisor/>
+  }
+
+  if (sesion?.rol?.codigo === 'despachador') {
+    return <DashboardDespachador/>
   }
 
   return (

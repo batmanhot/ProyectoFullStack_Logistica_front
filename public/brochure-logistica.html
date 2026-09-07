@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StockPro | Plataforma Integral de Gesti&oacute;n Log&iacute;stica</title>
+  <style>
+    :root {
+      --ink: #e8edf2;
+      --muted: #9ba8b6;
+      --faint: #5f6f80;
+      --base: #0e1117;
+      --surface: #141920;
+      --card: #161d28;
+      --input: #1e2835;
+      --line: rgba(255,255,255,.1);
+      --green: #00c896;
+      --green-dark: #009e76;
+      --blue: #3b82f6;
+      --orange: #f97316;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    @page { size: A4; margin: 0; }
+    html, body { margin: 0; background: #06090d; color: var(--ink); font-family: "Aptos", "Segoe UI", sans-serif; }
+    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .page { width: 210mm; min-height: 297mm; margin: 0 auto 18px; padding: 18mm 17mm 14mm; overflow: hidden; position: relative; background: var(--base); page-break-after: always; }
+    .page:last-child { page-break-after: auto; }
+    .page::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(135deg, rgba(0,200,150,.06), transparent 28%, transparent 72%, rgba(59,130,246,.06)); }
+    .content { position: relative; z-index: 1; }
+    .topline { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+    .brand { display: flex; gap: 10px; align-items: center; font-weight: 800; letter-spacing: .04em; font-size: 15px; }
+    .brand img { width: 38px; height: 38px; object-fit: contain; }
+    .eyebrow { color: var(--green); text-transform: uppercase; font-size: 10px; font-weight: 800; letter-spacing: .16em; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 42px; line-height: .98; letter-spacing: -.04em; max-width: 145mm; }
+    h2 { font-size: 25px; line-height: 1.03; letter-spacing: -.03em; }
+    h3 { font-size: 14px; }
+    .lead { color: var(--muted); font-size: 15px; line-height: 1.45; max-width: 112mm; }
+    .hero { padding: 27mm 0 16mm; }
+    .hero .eyebrow { margin-bottom: 10px; }
+    .hero h1 { margin-bottom: 14px; }
+    .hero .lead { margin-bottom: 19px; }
+    .pill { display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; background: rgba(0,200,150,.11); border: 1px solid rgba(0,200,150,.3); color: #8ff1d4; font-size: 11px; font-weight: 700; }
+    .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 14px var(--green); }
+    .dashboard { min-height: 103mm; border: 1px solid var(--line); background: var(--surface); box-shadow: 0 24px 70px rgba(0,0,0,.35); position: relative; padding: 11mm 10mm 9mm; }
+    .dashboard::after { content: "CAPTURA REAL DEL SISTEMA"; position: absolute; inset: 0; display: grid; place-items: center; color: var(--faint); font-size: 11px; font-weight: 800; letter-spacing: .16em; border: 1px dashed rgba(255,255,255,.15); margin: 8mm; }
+    .dash-head { display: flex; justify-content: space-between; align-items: center; padding-bottom: 9mm; border-bottom: 1px solid var(--line); opacity: .9; }
+    .dash-title { font-weight: 800; font-size: 18px; }
+    .dash-actions { display: flex; gap: 6px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+    .dot.blue { background: var(--blue); }
+    .dot.orange { background: var(--orange); }
+    .dash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10mm; opacity: .8; }
+    .metric { background: var(--card); border: 1px solid var(--line); padding: 9px; }
+    .metric strong { display: block; margin-top: 6px; font-size: 20px; }
+    .metric span { color: var(--muted); font-size: 10px; }
+    .problem { display: grid; grid-template-columns: 1fr 1fr; gap: 18mm; align-items: end; }
+    .problem h2 { margin: 8px 0 10px; }
+    .problem p { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .signal-list { display: grid; gap: 7px; }
+    .signal { display: flex; gap: 9px; align-items: center; color: var(--muted); font-size: 11px; }
+    .signal i { width: 7px; height: 7px; flex: 0 0 auto; background: var(--red); border-radius: 50%; }
+    .footer { position: absolute; left: 17mm; right: 17mm; bottom: 9mm; display: flex; justify-content: space-between; color: var(--faint); font-size: 9px; text-transform: uppercase; letter-spacing: .12em; }
+    .section-head { padding: 19mm 0 10mm; display: flex; align-items: end; justify-content: space-between; gap: 12mm; }
+    .section-head p { max-width: 72mm; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .areas { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .area { min-height: 45mm; background: var(--card); border: 1px solid var(--line); padding: 9mm 8mm; position: relative; }
+    .area:nth-child(1) { border-top: 2px solid var(--green); }
+    .area:nth-child(2) { border-top: 2px solid var(--orange); }
+    .area:nth-child(3) { border-top: 2px solid var(--blue); }
+    .area:nth-child(4) { border-top: 2px solid var(--yellow); }
+    .area:nth-child(5) { border-top: 2px solid #a78bfa; }
+    .area:nth-child(6) { border-top: 2px solid #22d3ee; }
+    .area .number { position: absolute; right: 8mm; top: 8mm; color: var(--faint); font-size: 10px; font-weight: 800; }
+    .area .icon { color: var(--green); font-size: 20px; margin-bottom: 8px; }
+    .area:nth-child(2) .icon { color: var(--orange); }
+    .area:nth-child(3) .icon { color: var(--blue); }
+    .area:nth-child(4) .icon { color: var(--yellow); }
+    .area:nth-child(5) .icon { color: #a78bfa; }
+    .area:nth-child(6) .icon { color: #22d3ee; }
+    .area h3 { text-transform: uppercase; letter-spacing: .1em; font-size: 12px; margin-bottom: 7px; }
+    .area p { color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .flow { margin-top: 9mm; padding: 8mm; background: var(--surface); border: 1px solid var(--line); }
+    .flow-label { color: var(--green); font-size: 9px; font-weight: 800; letter-spacing: .14em; margin-bottom: 8px; }
+    .flowline { display: flex; align-items: center; justify-content: space-between; gap: 4px; color: var(--ink); font-size: 9px; font-weight: 700; }
+    .flowline b { color: var(--green); font-size: 13px; }
+    .benefit-intro { max-width: 112mm; color: var(--muted); font-size: 14px; line-height: 1.45; margin: 9px 0 13mm; }
+    .benefits { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .benefit { padding: 8mm 7mm; background: var(--card); border: 1px solid var(--line); min-height: 37mm; }
+    .benefit .mark { color: var(--green); font-size: 22px; margin-bottom: 8px; }
+    .benefit h3 { text-transform: uppercase; font-size: 10px; letter-spacing: .09em; margin-bottom: 7px; }
+    .benefit p { color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .cta { margin-top: 12mm; padding: 12mm; background: linear-gradient(120deg, rgba(0,200,150,.16), rgba(59,130,246,.1)); border: 1px solid rgba(0,200,150,.35); display: flex; justify-content: space-between; gap: 10mm; align-items: end; }
+    .cta h2 { max-width: 102mm; font-size: 26px; }
+    .cta p { color: var(--muted); font-size: 11px; line-height: 1.4; margin-top: 7px; }
+    .contact { min-width: 50mm; border-left: 1px solid var(--line); padding-left: 9mm; color: var(--muted); font-size: 10px; line-height: 2; }
+    .contact strong { display: block; color: var(--green); font-size: 11px; letter-spacing: .1em; margin-bottom: 4px; }
+    .contact span { display: block; border-bottom: 1px dashed rgba(255,255,255,.18); }
+    .audience { margin-top: 9mm; display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; }
+    .audience strong { color: var(--ink); }
+    @media screen and (max-width: 800px) { body { background: var(--base); } .page { width: 100%; min-height: auto; margin: 0; padding: 12vw 7vw 16vw; } .hero { padding: 15vw 0 10vw; } h1 { font-size: 12vw; } .problem, .section-head, .cta { display: block; } .section-head p { margin-top: 12px; } .areas, .benefits { grid-template-columns: 1fr; } .flowline { flex-wrap: wrap; justify-content: center; gap: 7px; } .contact { border-left: 0; border-top: 1px solid var(--line); margin-top: 18px; padding: 14px 0 0; } .footer { position: static; margin-top: 24px; } }
+    @media print { body { background: var(--base); } .page { margin: 0; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="content">
+      <header class="topline"><div class="brand"><img src="/logo.webp" alt="StockPro"><span>STOCKPRO</span></div><span class="eyebrow">Plataforma integral</span></header>
+      <section class="hero"><div class="eyebrow">Gesti&oacute;n log&iacute;stica con claridad</div><h1>Control total de tu operaci&oacute;n log&iacute;stica</h1><p class="lead">Una plataforma integral para gestionar inventario, compras, pedidos, despachos, transporte y trazabilidad desde un solo lugar.</p><span class="pill">M&aacute;s visibilidad. Menos errores. Mayor control.</span></section>
+      <section class="dashboard"><div class="dash-head"><span class="dash-title">Inventario</span><div class="dash-actions"><i class="dot"></i><i class="dot blue"></i><i class="dot orange"></i></div></div><div class="dash-grid"><div class="metric"><span>Stock disponible</span><strong>---</strong></div><div class="metric"><span>Movimientos del d&iacute;a</span><strong>---</strong></div><div class="metric"><span>Alertas activas</span><strong>---</strong></div></div></section>
+      <section class="problem"><div><div class="eyebrow">Cuando la operaci&oacute;n crece</div><h2>Las herramientas desconectadas dejan de ser suficientes.</h2><p>Centraliza la informaci&oacute;n, conecta las &aacute;reas y convierte los datos operativos en decisiones oportunas.</p></div><div class="signal-list"><div class="signal"><i></i>Informaci&oacute;n dispersa y procesos manuales</div><div class="signal"><i></i>Inventarios dif&iacute;ciles de controlar</div><div class="signal"><i></i>Pedidos y despachos sin visibilidad</div><div class="signal"><i></i>Errores en entradas y salidas</div></div></section>
+    </div>
+    <footer class="footer"><span>StockPro | Gestion logistica</span><span>01</span></footer>
+  </main>
+
+  <main class="page">
+    <div class="content">
+      <header class="topline"><div class="brand"><img src="/logo.webp" alt="StockPro"><span>STOCKPRO</span></div><span class="eyebrow">Una operacion conectada</span></header>
+      <section class="section-head"><div><div class="eyebrow">Todo en un solo lugar</div><h1>Toda tu operaci&oacute;n conectada</h1></div><p>Desde que compras un producto hasta que llega a tu cliente, cada etapa queda visible y ordenada.</p></section>
+      <section class="areas">
+        <article class="area"><span class="number">01</span><div class="icon">&#9632;</div><h3>Inventario</h3><p>Conoce qu&eacute; tienes, d&oacute;nde est&aacute; y cu&aacute;nto representa. Control de stock, kardex, movimientos, ajustes y alertas.</p></article>
+        <article class="area"><span class="number">02</span><div class="icon">&#9632;</div><h3>Compras</h3><p>Organiza el abastecimiento desde la cotizaci&oacute;n y la orden de compra hasta la recepci&oacute;n.</p></article>
+        <article class="area"><span class="number">03</span><div class="icon">&#9632;</div><h3>Pedidos y despachos</h3><p>Lleva cada pedido por un flujo claro: preparaci&oacute;n, packing y despacho.</p></article>
+        <article class="area"><span class="number">04</span><div class="icon">&#9632;</div><h3>Transporte</h3><p>Conecta la operaci&oacute;n con transportistas, rutas, flota, mantenimiento y entregas.</p></article>
+        <article class="area"><span class="number">05</span><div class="icon">&#9632;</div><h3>Trazabilidad</h3><p>Sigue estados, movimientos, historial, responsables y avances de cada operaci&oacute;n.</p></article>
+        <article class="area"><span class="number">06</span><div class="icon">&#9632;</div><h3>Gesti&oacute;n</h3><p>Transforma la actividad diaria en indicadores, reportes y mejor informaci&oacute;n para decidir.</p></article>
+      </section>
+      <section class="flow"><div class="flow-label">EL RECORRIDO DE TU OPERACION</div><div class="flowline"><span>Compra</span><b>&rarr;</b><span>Recepcion</span><b>&rarr;</b><span>Inventario</span><b>&rarr;</b><span>Pedido</span><b>&rarr;</b><span>Packing</span><b>&rarr;</b><span>Despacho</span><b>&rarr;</b><span>Entrega</span><b>&rarr;</b><span>Control</span></div></section>
+    </div>
+    <footer class="footer"><span>StockPro | Gestion logistica</span><span>02</span></footer>
+  </main>
+
+  <main class="page">
+    <div class="content">
+      <header class="topline"><div class="brand"><img src="/logo.webp" alt="StockPro"><span>STOCKPRO</span></div><span class="eyebrow">Gestion para crecer</span></header>
+      <section class="section-head"><div><div class="eyebrow">El resultado</div><h1>Una operacion mas controlada. Una empresa mejor gestionada.</h1></div></section>
+      <p class="benefit-intro">La plataforma no solo registra operaciones. Te ayuda a entender que esta ocurriendo para actuar a tiempo.</p>
+      <section class="benefits">
+        <article class="benefit"><div class="mark">&#9670;</div><h3>Mayor control</h3><p>Conoce el estado de tu inventario, pedidos y operaciones.</p></article>
+        <article class="benefit"><div class="mark">&#9671;</div><h3>Trazabilidad</h3><p>Sigue movimientos, procesos, estados y responsables.</p></article>
+        <article class="benefit"><div class="mark">&#9889;</div><h3>Mayor productividad</h3><p>Reduce tareas manuales y agiliza los procesos operativos.</p></article>
+        <article class="benefit"><div class="mark">&#9633;</div><h3>Mejores decisiones</h3><p>Obtiene informacion e indicadores para gestionar con claridad.</p></article>
+        <article class="benefit"><div class="mark">&#9673;</div><h3>Mayor seguridad</h3><p>Controla usuarios, roles, permisos y responsabilidades.</p></article>
+        <article class="benefit"><div class="mark">&#8599;</div><h3>Preparada para crecer</h3><p>Una plataforma que acompana la evolucion de tu operacion.</p></article>
+      </section>
+      <section class="cta"><div><div class="eyebrow">Da el siguiente paso</div><h2>Quieres tener mayor control sobre tu operacion logistica?</h2><p>Conoce como StockPro puede adaptarse a los procesos de tu empresa.</p></div><div class="contact"><strong>SOLICITA UNA DEMOSTRACION</strong><span>WhatsApp: __________________</span><span>Correo: ____________________</span><span>Web: _______________________</span></div></section>
+      <div class="audience"><span><strong>Ideal para:</strong> distribucion, industria, comercio y operaciones con almacenes</span><span>03</span></div>
+    </div>
+    <footer class="footer"><span>StockPro | Gestion logistica</span><span>Control para decidir mejor</span></footer>
+  </main>
+</body>
+</html>

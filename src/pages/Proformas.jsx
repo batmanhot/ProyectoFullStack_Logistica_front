@@ -2,8 +2,8 @@ import { useState, useMemo, useEffect } from 'react'
 import { Plus, Search, Eye, Edit2, Trash2, FileText, CheckCircle, Copy, Download, X, Truck, MessageCircle } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate } from '../utils/helpers'
-import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, DataTable } from '../components/ui/index'
-import { imprimirProforma, armarHtmlProforma, descargarPdfBase64 } from '../utils/pdfTemplates'
+import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, DataTable, ModalVistaPreviaDocumento } from '../components/ui/index'
+import { armarHtmlProforma, descargarPdfBase64 } from '../utils/pdfTemplates'
 import { exportarProformasXLSX } from '../utils/exportXLSX'
 import { exportarProformasPDF } from '../utils/exportPDF'
 import {
@@ -55,6 +55,7 @@ export default function Proformas() {
   const generarPdf        = useGenerarPdf()
 
   const [enviandoWhatsapp, setEnviandoWhatsapp] = useState(null)
+  const [preview, setPreview] = useState(null) // { titulo, html, numeroDocumento } | null
 
   async function compartirWhatsApp(doc) {
     const cli = clientes.find(c => c.id === doc.clienteId)
@@ -217,7 +218,7 @@ export default function Proformas() {
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
             <Input className="pl-8" placeholder="Buscar número o cliente..." value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <Select className="w-auto" value={filtro} onChange={e => setFiltro(e.target.value)}>
+          <Select style={{ width: 170 }} value={filtro} onChange={e => setFiltro(e.target.value)}>
             <option value="">Todos los estados</option>
             {Object.entries(ESTADO_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </Select>
@@ -264,7 +265,11 @@ export default function Proformas() {
                       title={NO_EDITABLE.includes(doc.estado) ? `No se puede editar una proforma ${meta.label.toLowerCase()}` : 'Editar'}
                       onClick={() => { setEditando(doc); setModal(true) }}><Edit2 size={12}/></Btn>
                     <Btn variant="ghost" size="icon" title="Imprimir" className="text-[#00c896]"
-                      onClick={() => imprimirProforma({ doc, cliente: clientes.find(c => c.id === doc.clienteId), productos, config: pdfConfig })}>
+                      onClick={() => setPreview({
+                        titulo: `Proforma — ${doc.numero}`,
+                        html: armarHtmlProforma({ doc, cliente: clientes.find(c => c.id === doc.clienteId), productos, config: pdfConfig }),
+                        numeroDocumento: doc.numero,
+                      })}>
                       <FileText size={12}/>
                     </Btn>
                     <Btn variant="ghost" size="icon" title="Compartir por WhatsApp" className="text-green-400"
@@ -353,6 +358,14 @@ export default function Proformas() {
           onConfirm={almacenId => handleConvertir(convirtiendo, almacenId)}
         />
       )}
+
+      <ModalVistaPreviaDocumento
+        open={!!preview}
+        onClose={() => setPreview(null)}
+        titulo={preview?.titulo}
+        html={preview?.html}
+        numeroDocumento={preview?.numeroDocumento}
+      />
     </div>
   )
 }
@@ -385,6 +398,7 @@ function ModalConvertirDespacho({ doc, almacenes, convirtiendo, onClose, onConfi
 
 function ModalDetalle({ doc, clientes, productos, simboloMoneda, pdfConfig, enviandoWhatsapp, onCompartirWhatsApp, onClose }) {
   const cli = clientes.find(c => c.id === doc.clienteId)
+  const [preview, setPreview] = useState(null) // { titulo, html, numeroDocumento } | null
   return (
     <Modal open title={`Proforma — ${doc.numero}`} onClose={onClose} size="lg"
       footer={<>
@@ -392,7 +406,11 @@ function ModalDetalle({ doc, clientes, productos, simboloMoneda, pdfConfig, envi
         <Btn variant="secondary" disabled={enviandoWhatsapp} onClick={onCompartirWhatsApp}>
           <MessageCircle size={13}/> {enviandoWhatsapp ? 'Generando...' : 'WhatsApp'}
         </Btn>
-        <Btn variant="primary" onClick={() => imprimirProforma({ doc, cliente: cli, productos, config: pdfConfig })}>
+        <Btn variant="primary" onClick={() => setPreview({
+          titulo: `Proforma — ${doc.numero}`,
+          html: armarHtmlProforma({ doc, cliente: cli, productos, config: pdfConfig }),
+          numeroDocumento: doc.numero,
+        })}>
           <FileText size={13}/> Imprimir PDF
         </Btn>
       </>}>
@@ -441,6 +459,14 @@ function ModalDetalle({ doc, clientes, productos, simboloMoneda, pdfConfig, envi
       {doc.notas && (
         <div className="px-3.5 py-2.5 bg-[#1a2230] rounded-lg text-[12px] text-[#9ba8b6] border-l-2 border-[#00c896]/40">{doc.notas}</div>
       )}
+
+      <ModalVistaPreviaDocumento
+        open={!!preview}
+        onClose={() => setPreview(null)}
+        titulo={preview?.titulo}
+        html={preview?.html}
+        numeroDocumento={preview?.numeroDocumento}
+      />
     </Modal>
   )
 }
@@ -634,7 +660,7 @@ function ModalProforma({ open, onClose, editando, clientes, productos, listasPre
             <>
               {(form.items || []).map((item, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 mb-2 items-end">
-                  <div className="col-span-4">
+                  <div className="col-span-3">
                     {i === 0 && <div className="text-[10px] text-[#5f6f80] mb-1">Producto</div>}
                     <Select value={item.productoId} onChange={e => setItem(i, 'productoId', e.target.value)}>
                       <option value="">Seleccionar...</option>
@@ -653,9 +679,9 @@ function ModalProforma({ open, onClose, editando, clientes, productos, listasPre
                     {i === 0 && <div className="text-[10px] text-[#5f6f80] mb-1">P. Unitario</div>}
                     <Input type="number" value={item.precioUnitario} onChange={e => setItem(i, 'precioUnitario', +e.target.value)} min="0" step="0.01"/>
                   </div>
-                  <div className="col-span-1 text-right pt-1">
+                  <div className="col-span-2 text-right pt-1">
                     {i === 0 && <div className="text-[10px] text-[#5f6f80] mb-1">Subtotal</div>}
-                    <div className="text-[12px] font-mono font-semibold text-[#00c896] py-2">{formatCurrency(item.subtotal, simboloMoneda)}</div>
+                    <div className="text-[12px] font-mono font-semibold text-[#00c896] py-2 whitespace-nowrap">{formatCurrency(item.subtotal, simboloMoneda)}</div>
                   </div>
                   <div className="col-span-1 flex justify-end">
                     <Btn variant="ghost" size="icon" className="text-red-400" onClick={() => removeItem(i)}><Trash2 size={12}/></Btn>

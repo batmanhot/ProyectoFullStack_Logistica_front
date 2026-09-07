@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { RefreshCw, DollarSign, Calendar, Clock, Search, Plus, Trash2, Save } from 'lucide-react'
 import {
   Modal, ConfirmDialog, EmptyState, Badge, Btn,
-  Field, TableWrap, Th, Td, KpiCard,
+  Field, TableWrap, Th, Td, KpiCard, Input, Select,
 } from '../../components/ui/index'
 import { today } from './constants'
 
@@ -56,7 +56,6 @@ export default function TabRenovaciones({ renovaciones, crearRenovacion, anularR
     setModal(false)
   }
 
-  const inp = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] placeholder-[#5f6f80] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20'
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   const montoTotal = filtered.reduce((s,r) => s + (r.monto||0), 0)
@@ -74,23 +73,23 @@ export default function TabRenovaciones({ renovaciones, crearRenovacion, anularR
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[180px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5f6f80]" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar empresa o comprobante…" className={`${inp} pl-8`} />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar empresa o comprobante…" className="pl-8" />
         </div>
-        <select value={filtroNeg} onChange={e => setFiltroNeg(e.target.value)} className={`${inp} w-auto`}>
+        <Select value={filtroNeg} onChange={e => setFiltroNeg(e.target.value)} style={{ width: 200 }}>
           <option value="todos">Todos los negocios</option>
           {negocios.map(n => <option key={n.id} value={n.id}>{n.nombre}</option>)}
-        </select>
-        <select value={filtroEst} onChange={e => setFiltroEst(e.target.value)} className={`${inp} w-auto`}>
+        </Select>
+        <Select value={filtroEst} onChange={e => setFiltroEst(e.target.value)} style={{ width: 170 }}>
           <option value="todos">Todos los estados</option>
           {['pagado','pendiente','fallido','anulado'].map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
-        </select>
+        </Select>
         <Btn variant="primary" onClick={openNew}><Plus size={14}/>Registrar pago</Btn>
       </div>
 
       {filtered.length > 0 && (
-        <div className="text-[12px] text-[#5f6f80]">
-          Mostrando {filtered.length} registros · Total filtrado: <span className="text-[#00c896] font-semibold">${montoTotal.toLocaleString()} USD</span>
+        <div className="text-[12px] text-[var(--text-muted)]">
+          Mostrando {filtered.length} registros · Total filtrado: <span className="text-[var(--accent)] font-semibold">${montoTotal.toLocaleString()} USD</span>
         </div>
       )}
 
@@ -108,17 +107,17 @@ export default function TabRenovaciones({ renovaciones, crearRenovacion, anularR
                 return (
                   <tr key={r.id} className="border-t border-white/5 hover:bg-white/2">
                     <Td>
-                      <div className="font-medium text-[#e8edf2]">{r.negocioNombre}</div>
-                      <div className="text-[11px] text-[#5f6f80]">{r.fechaPago}</div>
+                      <div className="font-medium text-[var(--text-primary)]">{r.negocioNombre}</div>
+                      <div className="text-[11px] text-[var(--text-muted)]">{r.fechaPago}</div>
                     </Td>
                     <Td>
                       {plan && <span className="text-[12px] font-semibold px-2 py-0.5 rounded-full" style={{ background:`${plan.color}20`, color:plan.color }}>{plan.nombre}</span>}
                     </Td>
                     <Td muted>
                       <div className="text-[12px]">{r.periodoInicio}</div>
-                      <div className="text-[11px] text-[#5f6f80]">→ {r.periodoFin}</div>
+                      <div className="text-[11px] text-[var(--text-muted)]">→ {r.periodoFin}</div>
                     </Td>
-                    <Td mono><span className="text-[#00c896] font-bold">${(r.monto||0).toLocaleString()}</span> <span className="text-[11px] text-[#5f6f80]">{r.moneda}</span></Td>
+                    <Td mono><span className="text-[var(--accent)] font-bold">${(r.monto||0).toLocaleString()}</span> <span className="text-[11px] text-[var(--text-muted)]">{r.moneda}</span></Td>
                     <Td muted>{r.metodoPago}</Td>
                     <Td mono muted>{r.comprobante}</Td>
                     <Td><Badge variant={estadoVariant[r.estado]||'neutral'}>{r.estado}</Badge></Td>
@@ -141,52 +140,52 @@ export default function TabRenovaciones({ renovaciones, crearRenovacion, anularR
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
             <Field label="Empresa *">
-              <select className={inp} value={form.negocioId||''} onChange={e => f('negocioId',e.target.value)}>
+              <Select value={form.negocioId||''} onChange={e => f('negocioId',e.target.value)}>
                 <option value="">Seleccionar negocio…</option>
                 {negocios.map(n => <option key={n.id} value={n.id}>{n.nombre}</option>)}
-              </select>
+              </Select>
             </Field>
           </div>
           <Field label="Plan">
-            <select className={inp} value={form.plan||'pro'} onChange={e => f('plan',e.target.value)}>
+            <Select value={form.plan||'pro'} onChange={e => f('plan',e.target.value)}>
               {planes.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-            </select>
+            </Select>
           </Field>
           <Field label="Ciclo">
-            <select className={inp} value={form.ciclo||'mensual'} onChange={e => f('ciclo',e.target.value)}>
+            <Select value={form.ciclo||'mensual'} onChange={e => f('ciclo',e.target.value)}>
               <option value="mensual">Mensual</option>
               <option value="anual">Anual</option>
-            </select>
+            </Select>
           </Field>
           <Field label="Monto">
-            <input type="number" min="0" className={inp} value={form.monto||''} onChange={e => f('monto',parseFloat(e.target.value)||0)} />
+            <Input type="number" min="0" value={form.monto||''} onChange={e => f('monto',parseFloat(e.target.value)||0)} />
           </Field>
           <Field label="Moneda">
-            <select className={inp} value={form.moneda||'USD'} onChange={e => f('moneda',e.target.value)}>
+            <Select value={form.moneda||'USD'} onChange={e => f('moneda',e.target.value)}>
               <option>USD</option><option>PEN</option><option>EUR</option>
-            </select>
+            </Select>
           </Field>
           <Field label="Fecha de pago">
-            <input type="date" className={inp} value={form.fechaPago||''} onChange={e => f('fechaPago',e.target.value)} />
+            <Input type="date" value={form.fechaPago||''} onChange={e => f('fechaPago',e.target.value)} />
           </Field>
           <Field label="Método de pago">
-            <select className={inp} value={form.metodoPago||'tarjeta'} onChange={e => f('metodoPago',e.target.value)}>
+            <Select value={form.metodoPago||'tarjeta'} onChange={e => f('metodoPago',e.target.value)}>
               {['tarjeta','transferencia','efectivo','paypal','yape'].map(m => <option key={m} value={m}>{m.charAt(0).toUpperCase()+m.slice(1)}</option>)}
-            </select>
+            </Select>
           </Field>
           <Field label="Inicio del período">
-            <input type="date" className={inp} value={form.periodoInicio||''} onChange={e => f('periodoInicio',e.target.value)} />
+            <Input type="date" value={form.periodoInicio||''} onChange={e => f('periodoInicio',e.target.value)} />
           </Field>
           <Field label="Fin del período">
-            <input type="date" className={inp} value={form.periodoFin||''} onChange={e => f('periodoFin',e.target.value)} />
+            <Input type="date" value={form.periodoFin||''} onChange={e => f('periodoFin',e.target.value)} />
           </Field>
           <Field label="N° Comprobante">
-            <input className={inp} value={form.comprobante||''} onChange={e => f('comprobante',e.target.value)} />
+            <Input value={form.comprobante||''} onChange={e => f('comprobante',e.target.value)} />
           </Field>
           <Field label="Estado">
-            <select className={inp} value={form.estado||'pagado'} onChange={e => f('estado',e.target.value)}>
+            <Select value={form.estado||'pagado'} onChange={e => f('estado',e.target.value)}>
               {['pagado','pendiente','fallido','anulado'].map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
-            </select>
+            </Select>
           </Field>
         </div>
       </Modal>

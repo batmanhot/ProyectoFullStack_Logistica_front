@@ -3,11 +3,12 @@ import { Plus, Package, Send, X } from 'lucide-react'
 import { Input, Select, Textarea } from '../../components/ui'
 
 // ── Modal Nuevo / Editar Pedido ─────────────────────────────
-export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacenes, sesion, areaFija, saving }) {
+export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacenes, proyectos = [], sesion, areaFija, saving }) {
   const esSolicitante = sesion?.rol?.codigo === 'solicitante'
   const [form, setForm] = useState({
     areaId:         pedido?.areaId         || areaFija || '',
     almacenId:      pedido?.almacenId      || (almacenes[0]?.id || ''),
+    proyectoId:     pedido?.proyectoId     || '',
     fechaRequerida: pedido?.fechaRequerida?.split('T')[0] || '',
     prioridad:      pedido?.prioridad      || 'NORMAL',
     notasSolicitud: pedido?.notasSolicitud || '',
@@ -54,6 +55,9 @@ export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacen
         fechaRequerida: form.fechaRequerida || undefined,
         prioridad:      form.prioridad || undefined,
         notasSolicitud: form.notasSolicitud || undefined,
+        // Gestión de Pedidos por Proyecto — `null` explícito para poder
+        // quitar un proyecto ya asignado, no solo para setearlo.
+        proyectoId:     form.proyectoId || null,
       }
       const res = await onSave({ type: 'update', id: pedido.id, dto, enviar })
       if (res?.error) { setError(res.error); return }
@@ -61,6 +65,7 @@ export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacen
       const dto = {
         areaId:         form.areaId,
         almacenId:      form.almacenId,
+        proyectoId:     form.proyectoId || undefined,
         fechaRequerida: form.fechaRequerida || undefined,
         prioridad:      form.prioridad || undefined,
         notasSolicitud: form.notasSolicitud || undefined,
@@ -117,6 +122,17 @@ export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacen
                 </Select>
               )}
             </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold text-white/40 uppercase tracking-wide">Proyecto (opcional)</label>
+            <Select value={form.proyectoId} onChange={e => setForm(f => ({...f, proyectoId: e.target.value}))}>
+              <option value="">Sin proyecto asignado</option>
+              {proyectos.filter(p => p.activo !== false).map(p => (
+                <option key={p.id} value={p.id}>{p.codigo} — {p.nombre}</option>
+              ))}
+            </Select>
+            <p className="text-[11px] text-white/25">Si este pedido es para un proyecto/obra específico, selecciónalo — sirve para el reporte de consumo por proyecto.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

@@ -3,10 +3,10 @@ import { Plus, Search, Eye, Truck, Package, CheckCircle, X,
          ClipboardList, ArrowRight, FileText, MapPin, Printer, Download, CreditCard } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
-import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, Textarea, Alert, DataTable } from '../components/ui/index'
+import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, Textarea, Alert, DataTable, ModalVistaPreviaDocumento } from '../components/ui/index'
 import DireccionInput from '../components/ui/DireccionInput'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
-import { imprimirGuia, armarHtmlGuia, imprimirPickingList } from '../utils/pdfTemplates'
+import { armarHtmlGuia, armarHtmlPickingList } from '../utils/pdfTemplates'
 import {
   useDespachosList, useCrearDespacho,
   useAprobarDespacho, useIniciarPicking, useMarcarListo, useDespachar,
@@ -75,6 +75,7 @@ export default function Despachos() {
   const [guiaModal,     setGuiaModal]     = useState(null)
   const [pickingModal,  setPickingModal]  = useState(null)
   const [cxcModal,      setCxcModal]      = useState(null)
+  const [previewDoc,    setPreviewDoc]    = useState(null) // { titulo, html, numeroDocumento } | null
   const [busqueda,      setBusqueda]      = useState('')
   const [filtEst,       setFiltEst]       = useState('')
   const [filtAlm,       setFiltAlm]       = useState('')
@@ -360,7 +361,11 @@ export default function Despachos() {
                   )}
                   {!esChofer && ['APROBADO','PICKING'].includes(des.estado) && (
                     <Btn variant="ghost" size="icon" title="Picking List" className="text-amber-400"
-                      onClick={() => imprimirPickingList({ des, cliente: cliMap.get(des.clienteId), productos, almacen: almMap.get(des.almacenId), config: pdfConfig, sesion })}>
+                      onClick={() => setPreviewDoc({
+                        titulo: `Picking List — ${des.numero}`,
+                        html: armarHtmlPickingList({ des, cliente: cliMap.get(des.clienteId), productos, almacen: almMap.get(des.almacenId), config: pdfConfig, sesion }),
+                        numeroDocumento: des.numero,
+                      })}>
                       <Printer size={13}/>
                     </Btn>
                   )}
@@ -418,7 +423,11 @@ export default function Despachos() {
             <PdfSharePanel
               tipo="Guía de Remisión" numero={shareDoc.guiaNumero}
               onClose={() => setShareDoc(null)}
-              onPrint={() => imprimirGuia({ des: shareDoc, cliente, productos, config: pdfConfig })}
+              onPrint={() => setPreviewDoc({
+                titulo: `Guía de Remisión — ${shareDoc.guiaNumero}`,
+                html: armarHtmlGuia({ des: shareDoc, cliente, productos, config: pdfConfig }),
+                numeroDocumento: shareDoc.guiaNumero,
+              })}
               getHtml={() => armarHtmlGuia({ des: shareDoc, cliente, productos, config: pdfConfig })}
               asunto={`Guía de Remisión ${shareDoc.guiaNumero}`}
               empresaNombre={pdfConfig.empresa}
@@ -478,6 +487,14 @@ export default function Despachos() {
           ))}
         </div>
       </div>
+
+      <ModalVistaPreviaDocumento
+        open={!!previewDoc}
+        onClose={() => setPreviewDoc(null)}
+        titulo={previewDoc?.titulo}
+        html={previewDoc?.html}
+        numeroDocumento={previewDoc?.numeroDocumento}
+      />
     </div>
   )
 }

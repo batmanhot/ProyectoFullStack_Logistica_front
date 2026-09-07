@@ -186,7 +186,7 @@ export default function CuentasPorCobrar() {
             <Input className="pl-8" placeholder="Buscar número o cliente..."
               value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <Select className="w-auto" value={filtro} onChange={e => setFiltro(e.target.value)}>
+          <Select style={{ width: 170 }} value={filtro} onChange={e => setFiltro(e.target.value)}>
             <option value="">Todos los estados</option>
             {Object.entries(ESTADO_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </Select>

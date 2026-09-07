@@ -83,7 +83,7 @@ export default function TabCombustible({ flota }) {
             <span className="ml-2 text-[#3d4f60] normal-case font-normal">({registros.length})</span>
           </span>
           <div className="flex gap-2">
-            <Select className="w-auto" value={filtUnidad} onChange={e => setFiltUnidad(e.target.value)}>
+            <Select style={{ width: 200 }} value={filtUnidad} onChange={e => setFiltUnidad(e.target.value)}>
               <option value="">Todas las unidades</option>
               {flota.map(u => (
                 <option key={u.id} value={u.id}>{u.placa} — {u.nombre}</option>

@@ -3,8 +3,8 @@ import { Globe, Copy, Check, Eye, CheckCircle, X, Plus,
          Package, Info, Download } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate } from '../utils/helpers'
-import { imprimirPedidoPortal } from '../utils/pdfTemplates'
-import { Modal, Badge, Btn, Field, DataTable, Input, Select } from '../components/ui/index'
+import { armarHtmlPedidoPortal } from '../utils/pdfTemplates'
+import { Modal, Badge, Btn, Field, DataTable, Input, Select, ModalVistaPreviaDocumento } from '../components/ui/index'
 import { useClientesList, useGenerarPortalLinkCliente } from '../queries/clientes.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
@@ -432,19 +432,21 @@ function ModalDetallePedido({ pedido, clientes, productos, almacenes, modoInicia
   const [motivoRechazo, setMotivoRechazo] = useState('')
   const [rechazando,    setRechazando]    = useState(modoInicial === 'rechazar')
   const [almacenId,     setAlmacenId]     = useState(almacenes[0]?.id || '')
+  const [preview,       setPreview]       = useState(null) // { titulo, html, numeroDocumento } | null
 
-  function descargarPDF() {
-    imprimirPedidoPortal({
+  function verPDF() {
+    const html = armarHtmlPedidoPortal({
       pedido, productos, cliente: cli,
       config: { empresa: config?.nombre, ruc: config?.ruc, direccion: config?.direccion, telefono: config?.telefono, email: config?.email, simboloMoneda },
     })
+    setPreview({ titulo: `Pedido — ${pedido.numero}`, html, numeroDocumento: pedido.numero })
   }
 
   return (
     <Modal open title={`Pedido portal — ${pedido.numero}`} onClose={onClose} size="lg"
       footer={<>
         <Btn variant="secondary" onClick={onClose}>Cerrar</Btn>
-        <Btn variant="ghost" onClick={descargarPDF}><Download size={13}/> Descargar PDF</Btn>
+        <Btn variant="ghost" onClick={verPDF}><Download size={13}/> Vista previa / PDF</Btn>
         {pedido.estado==='NUEVO' && !rechazando && (
           <>
             <Btn variant="ghost" className="text-red-400" onClick={()=>setRechazando(true)}>
@@ -526,6 +528,14 @@ function ModalDetallePedido({ pedido, clientes, productos, almacenes, modoInicia
         <div className="flex gap-8"><span className="text-[#5f6f80]">IGV</span><span className="font-mono">{formatCurrency(pedido.igv||0,simboloMoneda)}</span></div>
         <div className="flex gap-8 font-bold text-[14px] text-[#00c896]"><span>TOTAL</span><span className="font-mono">{formatCurrency(pedido.total||0,simboloMoneda)}</span></div>
       </div>
+
+      <ModalVistaPreviaDocumento
+        open={!!preview}
+        onClose={() => setPreview(null)}
+        titulo={preview?.titulo}
+        html={preview?.html}
+        numeroDocumento={preview?.numeroDocumento}
+      />
     </Modal>
   )
 }

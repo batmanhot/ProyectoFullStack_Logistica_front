@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { formatDate, formatTime, fechaHoyISO } from '../../utils/helpers'
-import { Badge, Btn, Input, Select, DataTable } from '../../components/ui/index'
+import { Badge, Btn, Input, Select, DataTable, ModalVistaPreviaDocumento } from '../../components/ui/index'
 import { useRutasList, useCrearRuta, useIniciarRuta, useCompletarRuta, useCancelarRuta, useMarcarParada } from '../../queries/rutas.queries'
 import { useTransportistasList } from '../../queries/transportistas.queries'
 import { useDespachosList } from '../../queries/despachos.queries'
@@ -14,7 +14,7 @@ import { useClientesList } from '../../queries/clientes.queries'
 import { useAlmacenesList } from '../../queries/almacenes.queries'
 import { exportarRutasXLSX } from '../../utils/exportXLSX'
 import { exportarRutasPDF } from '../../utils/exportPDF'
-import { imprimirHojaReparto } from '../../utils/pdfTemplates'
+import { armarHtmlHojaReparto } from '../../utils/pdfTemplates'
 import { useEmpresaPDFConfig } from '../../queries/configuracion.queries'
 import { ESTADO_RUTA } from './constants'
 import ModalNuevaRuta from './ModalNuevaRuta'
@@ -52,6 +52,7 @@ export default function TabRutas() {
 
   const [modal,      setModal]      = useState(false)
   const [detalle,    setDetalle]    = useState(null)
+  const [preview,    setPreview]    = useState(null) // { titulo, html, numeroDocumento } | null
   const [filtEst,    setFiltEst]    = useState('')
   const [busq,       setBusq]       = useState('')
   const [filtDesde,  setFiltDesde]  = useState('')
@@ -172,7 +173,7 @@ export default function TabRutas() {
             <Input className="pl-8" placeholder="Buscar número, transportista..."
               value={busq} onChange={e => setBusq(e.target.value)}/>
           </div>
-          <Select className="w-auto" value={filtEst} onChange={e => setFiltEst(e.target.value)}>
+          <Select style={{ width: 170 }} value={filtEst} onChange={e => setFiltEst(e.target.value)}>
             <option value="">Todos los estados</option>
             {Object.entries(ESTADO_RUTA).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </Select>
@@ -237,7 +238,11 @@ export default function TabRutas() {
                 <div className="flex gap-1 items-center">
                   <Btn variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetalle(ruta)}><Eye size={13}/></Btn>
                   <Btn variant="ghost" size="icon" title="Imprimir Hoja de Reparto" className="text-[#00c896]"
-                    onClick={() => imprimirHojaReparto({ ruta, despachos, clientes, transportista: transportistas.find(t => t.id === ruta.transportistaId), config: pdfConfig })}>
+                    onClick={() => setPreview({
+                      titulo: `Hoja de Reparto — ${ruta.numero}`,
+                      html: armarHtmlHojaReparto({ ruta, despachos, clientes, transportista: transportistas.find(t => t.id === ruta.transportistaId), config: pdfConfig }),
+                      numeroDocumento: ruta.numero,
+                    })}>
                     <Printer size={13}/>
                   </Btn>
                   {ruta.estado === 'PROGRAMADA' && (
@@ -296,6 +301,14 @@ export default function TabRutas() {
           ))}
         </div>
       </div>
+
+      <ModalVistaPreviaDocumento
+        open={!!preview}
+        onClose={() => setPreview(null)}
+        titulo={preview?.titulo}
+        html={preview?.html}
+        numeroDocumento={preview?.numeroDocumento}
+      />
     </>
   )
 }

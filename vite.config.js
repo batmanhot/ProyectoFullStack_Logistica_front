@@ -1,4 +1,5 @@
 import { defineConfig, loadEnv } from 'vite'
+import { resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -43,7 +44,40 @@ function htmlSecurityHeaders(apiUrl) {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  // La consola SuperAdmin es una vista de evaluación. No se publica por
+  // accidente: el pipeline debe habilitarla explícitamente y protegerla con
+  // autenticación/autorización de plataforma antes de conectar datos reales.
+  const buildInputs = { app: resolve(process.cwd(), 'index.html') }
+  if (env.VITE_INCLUDE_SUPERADMIN_PREVIEW === 'true') {
+    buildInputs['superadmin-v2'] = resolve(process.cwd(), 'superadmin-v2.html')
+  }
+  if (env.VITE_INCLUDE_RRHH_PREVIEW === 'true') {
+    buildInputs['rrhh-afiliacion'] = resolve(process.cwd(), 'rrhh-afiliacion.html')
+  }
+  if (env.VITE_INCLUDE_RRHH_V2_PREVIEW === 'true') {
+    buildInputs['rrhh-afiliacion-v2'] = resolve(process.cwd(), 'rrhh-afiliacion-v2.html')
+  }
+  if (env.VITE_INCLUDE_RRHH_V3_PREVIEW === 'true') {
+    buildInputs['rrhh-afiliacion-v3'] = resolve(process.cwd(), 'rrhh-afiliacion-v3.html')
+  }
+  if (env.VITE_INCLUDE_CONTROL_TOWER_PREVIEW === 'true') {
+    buildInputs['control-tower'] = resolve(process.cwd(), 'control-tower.html')
+  }
+  if (env.VITE_INCLUDE_CONTROL_TOWER_V2_PREVIEW === 'true') {
+    buildInputs['transport-control-tower-v2'] = resolve(process.cwd(), 'transport-control-tower-v2.html')
+  }
+  if (env.VITE_INCLUDE_RRHH_ABSENCES_PREVIEW === 'true') {
+    buildInputs['rrhh-ausencias'] = resolve(process.cwd(), 'rrhh-ausencias.html')
+  }
+  if (env.VITE_INCLUDE_MINING_CONTROL_PREVIEW === 'true') {
+    buildInputs['mining-control-center'] = resolve(process.cwd(), 'mining-control-center.html')
+  }
   return {
+  build: {
+    rollupOptions: {
+      input: buildInputs,
+    },
+  },
   plugins: [
     tailwindcss(),
     react(),

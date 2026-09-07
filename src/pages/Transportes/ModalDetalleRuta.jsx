@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { X, PlayCircle, Flag, Navigation as NavIcon, CheckCircle, Printer } from 'lucide-react'
 import { formatCurrency, formatDate, formatTime } from '../../utils/helpers'
-import { Modal, Btn, Badge, ConfirmDialog, Input } from '../../components/ui/index'
-import { imprimirHojaReparto } from '../../utils/pdfTemplates'
+import { Modal, Btn, Badge, ConfirmDialog, Input, ModalVistaPreviaDocumento } from '../../components/ui/index'
+import { armarHtmlHojaReparto } from '../../utils/pdfTemplates'
 import { ModalEvidencia } from '../Despachos.jsx'
 import { ESTADO_RUTA, ESTADO_PARADA } from './constants'
 
@@ -11,6 +11,7 @@ export default function ModalDetalleRuta({ ruta, despachos, clientes, transporti
   const [confirmCancelar, setConfirmCancelar] = useState(false)
   const [obsParada, setObsParada] = useState({})
   const [confirmandoEntrega, setConfirmandoEntrega] = useState(null) // despacho de la parada en confirmación (foto + receptor)
+  const [preview, setPreview] = useState(null) // { titulo, html, numeroDocumento } | null
 
   async function confirmarEntregaConEvidencia(evidencia) {
     await onMarcarParada(confirmandoEntrega.id, 'ENTREGADO', obsParada[confirmandoEntrega.id] || '', evidencia)
@@ -35,7 +36,11 @@ export default function ModalDetalleRuta({ ruta, despachos, clientes, transporti
     <Modal open title={`Ruta ${ruta.numero}`} onClose={onClose} size="lg"
       footer={<>
         <Btn variant="secondary" onClick={onClose}>Cerrar</Btn>
-        <Btn variant="ghost" onClick={() => imprimirHojaReparto({ ruta, despachos, clientes, transportista: tra, config: pdfConfig })}>
+        <Btn variant="ghost" onClick={() => setPreview({
+          titulo: `Hoja de Reparto — ${ruta.numero}`,
+          html: armarHtmlHojaReparto({ ruta, despachos, clientes, transportista: tra, config: pdfConfig }),
+          numeroDocumento: ruta.numero,
+        })}>
           <Printer size={14}/> Hoja de Reparto
         </Btn>
         {puedeCancelar && ruta.estado === 'PROGRAMADA' && (
@@ -164,6 +169,14 @@ export default function ModalDetalleRuta({ ruta, despachos, clientes, transporti
         <ModalEvidencia des={confirmandoEntrega} onClose={() => setConfirmandoEntrega(null)}
           onConfirm={confirmarEntregaConEvidencia}/>
       )}
+
+      <ModalVistaPreviaDocumento
+        open={!!preview}
+        onClose={() => setPreview(null)}
+        titulo={preview?.titulo}
+        html={preview?.html}
+        numeroDocumento={preview?.numeroDocumento}
+      />
     </Modal>
   )
 }

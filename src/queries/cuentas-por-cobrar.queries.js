@@ -7,7 +7,7 @@ const KEYS = {
   one:  (id) => ['cuentas-por-cobrar', id],
 }
 
-export function useCxCList({ clienteId, estado } = {}) {
+export function useCxCList({ clienteId, estado, enabled = true } = {}) {
   return useQuery({
     queryKey: KEYS.list({ clienteId, estado }),
     queryFn: async () => {
@@ -19,6 +19,7 @@ export function useCxCList({ clienteId, estado } = {}) {
       if (r.error) throw new Error(r.error)
       return r.data ?? []
     },
+    enabled,
   })
 }
 

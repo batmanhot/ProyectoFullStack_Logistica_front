@@ -13,7 +13,7 @@ export const MODULOS_GRUPOS = [
   {
     grupo: 'Inventario', color: '#3b82f6',
     items: [
-      { id:'inventario',      label:'Inventario',             desc:'Catálogo y stock de productos'     },
+      { id:'inventario',      label:'Productos',              desc:'Catálogo y stock de productos'     },
       { id:'kardex',          label:'Kardex',                 desc:'Historial valorizado por producto' },
       { id:'movimientos',     label:'Movimientos',            desc:'Historial de todos los movimientos'},
       { id:'inv-fisico',      label:'Inventario Físico',      desc:'Conteo cíclico y ajuste masivo'    },
@@ -47,8 +47,9 @@ export const MODULOS_GRUPOS = [
     items: [
       { id:'lista-precios',   label:'Lista de Precios',       desc:'Gestión de precios de venta'       },
       { id:'proformas',       label:'Proformas',              desc:'Cotizaciones comerciales'          },
-      { id:'sunat',           label:'SUNAT / Fact.',          desc:'Facturación electrónica'           },
+      { id:'sunat',           label:'Guías de Remisión',       desc:'Exportación de guías para SUNAT'   },
       { id:'cxc',             label:'Cuentas por Cobrar',     desc:'Seguimiento de cobranzas'          },
+      { id:'oportunidades',   label:'Oportunidades',          desc:'Seguimiento comercial y pipeline de ventas' },
     ]
   },
   {
@@ -63,7 +64,7 @@ export const MODULOS_GRUPOS = [
     grupo: 'Almacén', color: '#84cc16',
     items: [
       { id:'mapa-almacen',    label:'Mapa de Almacén',        desc:'Vista visual del almacén'          },
-      { id:'lotes-series',    label:'Lotes y Series',         desc:'Trazabilidad de lotes'             },
+      { id:'lotes-series',    label:'Lotes',                  desc:'Trazabilidad de lotes'             },
     ]
   },
   {
@@ -72,16 +73,18 @@ export const MODULOS_GRUPOS = [
       { id:'vencimientos',    label:'Vencimientos',           desc:'Control de fechas de vencimiento'  },
       { id:'reorden',         label:'Punto de Reorden',       desc:'Alertas de reposición'             },
       { id:'prevision',       label:'Previsión',              desc:'Proyección de demanda'             },
-      { id:'reportes',        label:'Reportes',               desc:'ABC, rotación, valorizado'         },
+      { id:'reportes',        label:'Análisis de Inventario', desc:'ABC, rotación, valorizado'         },
       { id:'kpis',            label:'KPIs Operativos',        desc:'Indicadores clave de operaciones'  },
       { id:'financiero',      label:'Financiero',             desc:'Dashboard financiero'              },
+      { id:'reportes-proyecto', label:'Consumo por Proyecto', desc:'Valorización de despachos por proyecto/CDR/área' },
     ]
   },
   {
     grupo: 'Administración', color: '#ef4444',
     items: [
       { id:'usuarios',        label:'Usuarios y Roles',       desc:'Gestión de accesos'                },
-      { id:'auditoria',       label:'Auditoría',              desc:'Registro de actividades'           },
+      { id:'proyectos',       label:'Proyectos y CDR',        desc:'Catálogo de proyectos y centros de responsabilidad' },
+      { id:'auditoria',       label:'Bitácora',               desc:'Registro de actividades'           },
       { id:'cola-sync',       label:'Cola de Sincronización', desc:'Monitoreo de operaciones pendientes' },
       { id:'configuracion',   label:'Configuración',          desc:'Parámetros del sistema'            },
       { id:'panel-auditoria', label:'Panel de Auditoría',     desc:'Vista de solo lectura: bitácora, discrepancias, trazabilidad y conciliación' },

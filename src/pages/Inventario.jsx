@@ -18,6 +18,9 @@ export default function Inventario() {
   const { toast, sesion } = useApp()
   const planLimits = usePlanLimits()
   const simboloMoneda = 'S/'
+  // Auditoría 2026-09-04: eliminar (soft-delete) queda restringido a
+  // Owner/Admin/Gerente de Operaciones — ver GestionGuard en el backend.
+  const esGestion = sesion?.rol?.permisos?.includes('*') || sesion?.rol?.codigo === 'gerente-operaciones'
 
   // ── Datos reales ──────────────────────────────────────
   const { data: productosRaw  = [], isLoading: loadingProd } = useProductosList({ incluirInactivos: true })
@@ -268,8 +271,10 @@ export default function Inventario() {
               <div className="flex gap-1">
                 <Btn variant="ghost" size="icon" title="Ver detalle"  onClick={() => setModalDet(p)}><Eye   size={13}/></Btn>
                 <Btn variant="ghost" size="icon" title="Editar"       onClick={() => { setEditando(p); setModalForm(true) }}><Edit2 size={13}/></Btn>
-                <Btn variant="ghost" size="icon" title="Eliminar" className="text-red-400 hover:text-red-300"
-                  onClick={() => setConfirmDel(p.id)}><Trash2 size={13}/></Btn>
+                {esGestion && (
+                  <Btn variant="ghost" size="icon" title="Eliminar" className="text-red-400 hover:text-red-300"
+                    onClick={() => setConfirmDel(p.id)}><Trash2 size={13}/></Btn>
+                )}
               </div>
             ) },
           ]}

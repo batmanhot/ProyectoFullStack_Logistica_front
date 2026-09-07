@@ -1,0 +1,667 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════
+   SISTEMA DE TEMAS — StockPro v2.2
+   Temas: oscuro | ocean | forest | sunset | midnight | nature | light
+   IDs legacy (dark-teal, dark-slate, dark-midnight, light-clean) se migran en JS
+   ═══════════════════════════════════════════════════════ */
+
+/* ── 1. OSCURO — Verde esmeralda (default) ─────────────── */
+:root,
+[data-theme="oscuro"],
+[data-theme="dark-teal"] {
+  --accent:          #00c896;
+  --accent-dark:     #009e76;
+  --accent-dim:      rgba(0,200,150,0.12);
+  --accent-text:     #082e1e;
+
+  --bg-base:         #0e1117;
+  --bg-surface:      #141920;
+  --bg-card:         #161d28;
+  --bg-input:        #1e2835;
+  --bg-muted:        #1a2230;
+  --bg-sidebar:      #0f1520;
+
+  --border:          rgba(255,255,255,0.08);
+  --border-strong:   rgba(255,255,255,0.14);
+
+  --text-primary:    #e8edf2;
+  --text-secondary:  #9ba8b6;
+  --text-muted:      #5f6f80;
+  --text-faint:      #3d4f60;
+
+  --sidebar-brand:   linear-gradient(160deg, #0f1a2e 0%, #0f1520 60%, #121a1f 100%);
+  --sidebar-line:    linear-gradient(90deg, #f97316, #00c896, #3b82f6);
+  --sidebar-fg:      #d0dae6;
+  --sidebar-fg-muted: #7a8fa8;
+  --sidebar-fg-faint: #3d4f60;
+  --sidebar-fg-nav:  #8a9ab0;
+  --sidebar-surface: rgba(255,255,255,0.07);
+  --logo-glow:       rgba(249,115,22,0.25);
+  --scrollbar:       rgba(255,255,255,0.14);
+  --shadow-modal:    0 24px 60px rgba(0,0,0,0.6);
+}
+
+/* ── 2. OCÉANO — Azul marino profundo ──────────────────── */
+[data-theme="ocean"],
+[data-theme="dark-slate"] {
+  --accent:          #0ea5e9;
+  --accent-dark:     #0284c7;
+  --accent-dim:      rgba(14,165,233,0.12);
+  --accent-text:     #001a30;
+
+  --bg-base:         #09111f;
+  --bg-surface:      #0c1828;
+  --bg-card:         #0f1e34;
+  --bg-input:        #132540;
+  --bg-muted:        #112030;
+  --bg-sidebar:      #07101c;
+
+  --border:          rgba(255,255,255,0.08);
+  --border-strong:   rgba(255,255,255,0.14);
+
+  --text-primary:    #e0eaf8;
+  --text-secondary:  #7aa2c8;
+  --text-muted:      #3d6080;
+  --text-faint:      #1e3a52;
+
+  --sidebar-brand:   linear-gradient(160deg, #071020 0%, #07101c 60%, #0a1525 100%);
+  --sidebar-line:    linear-gradient(90deg, #0ea5e9, #38bdf8, #6366f1);
+  --sidebar-fg:      #cce0f5;
+  --sidebar-fg-muted: #5a8ab0;
+  --sidebar-fg-faint: #1e3a52;
+  --sidebar-fg-nav:  #7aa2c8;
+  --sidebar-surface: rgba(255,255,255,0.07);
+  --logo-glow:       rgba(14,165,233,0.3);
+  --scrollbar:       rgba(255,255,255,0.12);
+  --shadow-modal:    0 24px 60px rgba(0,0,0,0.7);
+}
+
+/* ── 3. BOSQUE — Verde natural profundo ─────────────────── */
+[data-theme="forest"] {
+  --accent:          #22c55e;
+  --accent-dark:     #16a34a;
+  --accent-dim:      rgba(34,197,94,0.12);
+  --accent-text:     #051a0e;
+
+  --bg-base:         #091410;
+  --bg-surface:      #0d1c16;
+  --bg-card:         #10201a;
+  --bg-input:        #152a20;
+  --bg-muted:        #12221a;
+  --bg-sidebar:      #07100c;
+
+  --border:          rgba(255,255,255,0.08);
+  --border-strong:   rgba(255,255,255,0.14);
+
+  --text-primary:    #daf0e4;
+  --text-secondary:  #6aaa84;
+  --text-muted:      #346048;
+  --text-faint:      #1a3828;
+
+  --sidebar-brand:   linear-gradient(160deg, #071410 0%, #07100c 60%, #0a1510 100%);
+  --sidebar-line:    linear-gradient(90deg, #22c55e, #84cc16, #06b6d4);
+  --sidebar-fg:      #c8e8d4;
+  --sidebar-fg-muted: #5a8a6e;
+  --sidebar-fg-faint: #1a3828;
+  --sidebar-fg-nav:  #6aaa84;
+  --sidebar-surface: rgba(255,255,255,0.07);
+  --logo-glow:       rgba(34,197,94,0.3);
+  --scrollbar:       rgba(255,255,255,0.12);
+  --shadow-modal:    0 24px 60px rgba(0,0,0,0.7);
+}
+
+/* ── 4. ATARDECER — Púrpura cálido con naranja ──────────── */
+[data-theme="sunset"] {
+  --accent:          #f97316;
+  --accent-dark:     #ea580c;
+  --accent-dim:      rgba(249,115,22,0.12);
+  --accent-text:     #2d0f00;
+
+  --bg-base:         #110c1d;
+  --bg-surface:      #18102a;
+  --bg-card:         #1d1432;
+  --bg-input:        #251840;
+  --bg-muted:        #1f1635;
+  --bg-sidebar:      #0d0918;
+
+  --border:          rgba(255,255,255,0.08);
+  --border-strong:   rgba(255,255,255,0.14);
+
+  --text-primary:    #f0e8f8;
+  --text-secondary:  #a888c8;
+  --text-muted:      #6840a0;
+  --text-faint:      #38246a;
+
+  --sidebar-brand:   linear-gradient(160deg, #100c20 0%, #0d0918 60%, #120c1e 100%);
+  --sidebar-line:    linear-gradient(90deg, #f97316, #ec4899, #8b5cf6);
+  --sidebar-fg:      #ecdcf8;
+  --sidebar-fg-muted: #8060a0;
+  --sidebar-fg-faint: #38246a;
+  --sidebar-fg-nav:  #a888c8;
+  --sidebar-surface: rgba(255,255,255,0.07);
+  --logo-glow:       rgba(249,115,22,0.35);
+  --scrollbar:       rgba(255,255,255,0.12);
+  --shadow-modal:    0 24px 60px rgba(0,0,0,0.75);
+}
+
+/* ── 5. MEDIANOCHE — Negro carbón con ámbar ─────────────── */
+[data-theme="midnight"],
+[data-theme="dark-midnight"] {
+  --accent:          #f59e0b;
+  --accent-dark:     #d97706;
+  --accent-dim:      rgba(245,158,11,0.12);
+  --accent-text:     #1c1000;
+
+  --bg-base:         #08080a;
+  --bg-surface:      #0e0e12;
+  --bg-card:         #111116;
+  --bg-input:        #18181e;
+  --bg-muted:        #14141a;
+  --bg-sidebar:      #060608;
+
+  --border:          rgba(255,255,255,0.07);
+  --border-strong:   rgba(255,255,255,0.12);
+
+  --text-primary:    #eaedf4;
+  --text-secondary:  #8a95a8;
+  --text-muted:      #4e5a6e;
+  --text-faint:      #2e3748;
+
+  --sidebar-brand:   linear-gradient(160deg, #0a0a0e 0%, #060608 60%, #080810 100%);
+  --sidebar-line:    linear-gradient(90deg, #f59e0b, #f97316, #ef4444);
+  --sidebar-fg:      #e0e4f0;
+  --sidebar-fg-muted: #6a7890;
+  --sidebar-fg-faint: #2e3748;
+  --sidebar-fg-nav:  #8a95a8;
+  --sidebar-surface: rgba(255,255,255,0.06);
+  --logo-glow:       rgba(245,158,11,0.3);
+  --scrollbar:       rgba(255,255,255,0.10);
+  --shadow-modal:    0 24px 60px rgba(0,0,0,0.85);
+}
+
+/* ── 6. NATURALEZA — Tierra cálida con lima ─────────────── */
+[data-theme="nature"] {
+  --accent:          #84cc16;
+  --accent-dark:     #65a30d;
+  --accent-dim:      rgba(132,204,22,0.12);
+  --accent-text:     #1a2800;
+
+  --bg-base:         #0f0e09;
+  --bg-surface:      #181610;
+  --bg-card:         #1c1a12;
+  --bg-input:        #242116;
+  --bg-muted:        #1f1d13;
+  --bg-sidebar:      #0c0b08;
+
+  --border:          rgba(255,255,255,0.07);
+  --border-strong:   rgba(255,255,255,0.12);
+
+  --text-primary:    #eaedd8;
+  --text-secondary:  #9aaa78;
+  --text-muted:      #5a6848;
+  --text-faint:      #383e28;
+
+  --sidebar-brand:   linear-gradient(160deg, #100e08 0%, #0c0b08 60%, #110f09 100%);
+  --sidebar-line:    linear-gradient(90deg, #84cc16, #22c55e, #f59e0b);
+  --sidebar-fg:      #dce8c8;
+  --sidebar-fg-muted: #7a8860;
+  --sidebar-fg-faint: #383e28;
+  --sidebar-fg-nav:  #9aaa78;
+  --sidebar-surface: rgba(255,255,255,0.06);
+  --logo-glow:       rgba(132,204,22,0.28);
+  --scrollbar:       rgba(255,255,255,0.10);
+  --shadow-modal:    0 24px 60px rgba(0,0,0,0.75);
+}
+
+/* ── 7. CLARO — Modo claro profesional ──────────────────── */
+[data-theme="light"],
+[data-theme="light"], [data-theme="light-clean"] {
+  --accent:          #059669;
+  --accent-dark:     #047857;
+  --accent-dim:      rgba(5,150,105,0.08);
+  --accent-text:     #ffffff;
+
+  --bg-base:         #f0f2f5;
+  --bg-surface:      #ffffff;
+  --bg-card:         #ffffff;
+  --bg-input:        #f8fafc;
+  --bg-muted:        #f1f4f8;
+  --bg-sidebar:      #f1f5f9;
+
+  --border:          rgba(0,0,0,0.08);
+  --border-strong:   rgba(0,0,0,0.14);
+
+  --text-primary:    #111827;
+  --text-secondary:  #4b5563;
+  --text-muted:      #9ca3af;
+  --text-faint:      #d1d5db;
+
+  --sidebar-brand:   linear-gradient(160deg, #e8eef5 0%, #f1f5f9 60%, #f8fafc 100%);
+  --sidebar-line:    linear-gradient(90deg, #059669, #0891b2, #7c3aed);
+  --sidebar-fg:      #1e293b;
+  --sidebar-fg-muted: #64748b;
+  --sidebar-fg-faint: #94a3b8;
+  --sidebar-fg-nav:  #334155;
+  --sidebar-surface: rgba(0,0,0,0.06);
+  --logo-glow:       rgba(5,150,105,0.25);
+  --scrollbar:       rgba(0,0,0,0.12);
+  --shadow-modal:    0 16px 48px rgba(0,0,0,0.12);
+}
+
+/* ══════════════════════════════════════════════════════
+   TOKENS LEGACY — Mapeo para compatibilidad con clases
+   hardcodeadas existentes en páginas JSX
+   ══════════════════════════════════════════════════════ */
+:root,
+[data-theme="oscuro"],   [data-theme="dark-teal"],
+[data-theme="ocean"],    [data-theme="dark-slate"],
+[data-theme="forest"],
+[data-theme="sunset"],
+[data-theme="midnight"], [data-theme="dark-midnight"],
+[data-theme="nature"],
+[data-theme="light"],    [data-theme="light"], [data-theme="light-clean"] {
+  /* Tailwind theme bridge */
+  --color-teal-DEFAULT: var(--accent);
+  --color-teal-dark:    var(--accent-dark);
+  --color-teal-dim:     var(--accent-dim);
+  --color-bg-base:      var(--bg-base);
+  --color-bg-surface:   var(--bg-surface);
+  --color-bg-card:      var(--bg-card);
+  --color-bg-input:     var(--bg-input);
+  --color-bg-muted:     var(--bg-muted);
+  --color-border-DEFAULT: var(--border);
+  --color-border-strong:  var(--border-strong);
+  --color-text-primary:   var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted:     var(--text-muted);
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger:  #ef4444;
+  --color-info:    #3b82f6;
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'DM Mono', 'Courier New', monospace;
+}
+
+/* ══════════════════════════════════════════════════════
+   OVERRIDES GLOBALES — usar variables en vez de hardcode
+   ══════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  transition: color-scheme 0.2s;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.5;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+/* ══════════════════════════════════════════════════════
+   FONT-MONO RENDERING — Evitar efecto borroso/blur
+   en textos monoespaciados sobre fondos oscuros.
+   El problema: font-mono + font-semibold/bold a tamaños
+   pequeños (11–13px) con colores luminosos (#00c896, etc.)
+   sobre fondo oscuro activa el suavizado de subpíxeles
+   del navegador, que en pantallas HiDPI genera un efecto
+   de "blur" visual. La solución es forzar antialiasing
+   grayscale + text-rendering optimizado en todos los
+   elementos que usen fuente monoespaciada.
+   ══════════════════════════════════════════════════════ */
+.font-mono,
+code, kbd, samp, pre,
+[class*="font-mono"] {
+  -webkit-font-smoothing:  antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering:          optimizeLegibility;
+  font-variant-numeric:    tabular-nums;
+}
+
+/* Celdas de tabla con números de documento, SKUs, etc.
+   Se aplica a cualquier td/span que combine fuente mono
+   con colores de acento del sistema */
+td.font-mono,
+span.font-mono,
+div.font-mono {
+  -webkit-font-smoothing:  antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering:          optimizeLegibility;
+}
+
+#root {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Clases utilitarias que usan variables de tema ── */
+.bg-themed-base    { background-color: var(--bg-base)    !important; }
+.bg-themed-surface { background-color: var(--bg-surface) !important; }
+.bg-themed-card    { background-color: var(--bg-card)    !important; }
+.bg-themed-input   { background-color: var(--bg-input)   !important; }
+.bg-themed-muted   { background-color: var(--bg-muted)   !important; }
+.bg-themed-sidebar { background-color: var(--bg-sidebar) !important; }
+.border-themed     { border-color: var(--border)         !important; }
+.text-themed-primary   { color: var(--text-primary)   !important; }
+.text-themed-secondary { color: var(--text-secondary) !important; }
+.text-themed-muted     { color: var(--text-muted)     !important; }
+.text-accent       { color: var(--accent)             !important; }
+.bg-accent-dim     { background-color: var(--accent-dim) !important; }
+
+/* ── Override de hardcoded Tailwind colors hacia variables ── */
+/* bg-[#0e1117] → bg-base */
+.bg-\[\#0e1117\]  { background-color: var(--bg-base)    !important; }
+/* bg-[#141920] → bg-surface */
+.bg-\[\#141920\]  { background-color: var(--bg-surface) !important; }
+/* bg-[#161d28] → bg-card */
+.bg-\[\#161d28\]  { background-color: var(--bg-card)    !important; }
+/* bg-[#1e2835] → bg-input */
+.bg-\[\#1e2835\]  { background-color: var(--bg-input)   !important; }
+/* bg-[#1a2230] → bg-muted */
+.bg-\[\#1a2230\]  { background-color: var(--bg-muted)   !important; }
+/* bg-[#0f1520] → bg-sidebar */
+.bg-\[\#0f1520\]  { background-color: var(--bg-sidebar) !important; }
+
+/* text colors */
+.text-\[\#e8edf2\] { color: var(--text-primary)   !important; }
+.text-\[\#9ba8b6\] { color: var(--text-secondary) !important; }
+.text-\[\#5f6f80\] { color: var(--text-muted)     !important; }
+.text-\[\#3d4f60\] { color: var(--text-faint)     !important; }
+.text-\[\#00c896\] { color: var(--accent)         !important; }
+
+/* border colors */
+.border-white\/\[0\.08\] { border-color: var(--border)        !important; }
+.border-white\/\[0\.12\] { border-color: var(--border)        !important; }
+.border-white\/\[0\.07\] { border-color: var(--border)        !important; }
+.border-white\/\[0\.14\] { border-color: var(--border-strong) !important; }
+
+/* accent bg utilities */
+.bg-\[\#00c896\]    { background-color: var(--accent)     !important; }
+.hover\:bg-\[\#00e0aa\]:hover { background-color: var(--accent-dark) !important; }
+.focus\:border-\[\#00c896\]:focus { border-color: var(--accent) !important; }
+.focus\:ring-\[\#00c896\]\/20:focus { --tw-ring-color: var(--accent-dim) !important; }
+
+/* ══════════════════════════════════════════════════════
+   LIGHT MODE — Overrides para tema "Claro"
+   Selectores CORRECTOS: [data-theme="light"] .CLASS,
+                          [data-theme="light-clean"] .CLASS
+   ══════════════════════════════════════════════════════ */
+
+/* Scrollbar y select */
+[data-theme="light"] ::-webkit-scrollbar-thumb,
+[data-theme="light-clean"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.14); }
+
+[data-theme="light"] select,
+[data-theme="light-clean"] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234b5563' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* ── text-white/* → colores oscuros sobre fondo claro ── */
+[data-theme="light"] .text-white,
+[data-theme="light-clean"] .text-white      { color: var(--text-primary)   !important; }
+
+[data-theme="light"] .text-white\/90,
+[data-theme="light-clean"] .text-white\/90  { color: var(--text-primary)   !important; }
+
+[data-theme="light"] .text-white\/80,
+[data-theme="light-clean"] .text-white\/80  { color: var(--text-primary)   !important; }
+
+[data-theme="light"] .text-white\/70,
+[data-theme="light-clean"] .text-white\/70  { color: var(--text-secondary) !important; }
+
+[data-theme="light"] .text-white\/60,
+[data-theme="light-clean"] .text-white\/60  { color: var(--text-secondary) !important; }
+
+[data-theme="light"] .text-white\/50,
+[data-theme="light-clean"] .text-white\/50  { color: var(--text-secondary) !important; }
+
+[data-theme="light"] .text-white\/40,
+[data-theme="light-clean"] .text-white\/40  { color: var(--text-muted)     !important; }
+
+[data-theme="light"] .text-white\/35,
+[data-theme="light-clean"] .text-white\/35  { color: var(--text-muted)     !important; }
+
+[data-theme="light"] .text-white\/30,
+[data-theme="light-clean"] .text-white\/30  { color: var(--text-muted)     !important; }
+
+[data-theme="light"] .text-white\/25,
+[data-theme="light-clean"] .text-white\/25  { color: var(--text-muted)     !important; }
+
+[data-theme="light"] .text-white\/20,
+[data-theme="light-clean"] .text-white\/20  { color: var(--text-faint)     !important; }
+
+[data-theme="light"] .text-white\/15,
+[data-theme="light-clean"] .text-white\/15  { color: var(--text-faint)     !important; }
+
+[data-theme="light"] .text-white\/10,
+[data-theme="light-clean"] .text-white\/10  { color: var(--text-faint)     !important; }
+
+/* hover text */
+[data-theme="light"] .hover\:text-white\/80:hover,
+[data-theme="light-clean"] .hover\:text-white\/80:hover { color: var(--text-primary)   !important; }
+
+[data-theme="light"] .hover\:text-white\/70:hover,
+[data-theme="light-clean"] .hover\:text-white\/70:hover { color: var(--text-secondary) !important; }
+
+[data-theme="light"] .hover\:text-white\/60:hover,
+[data-theme="light-clean"] .hover\:text-white\/60:hover { color: var(--text-secondary) !important; }
+
+/* ── bg-white/* → tinta suave sobre blanco ── */
+[data-theme="light"] .bg-white\/3,
+[data-theme="light-clean"] .bg-white\/3  { background-color: rgba(0,0,0,0.03) !important; }
+
+[data-theme="light"] .bg-white\/4,
+[data-theme="light-clean"] .bg-white\/4  { background-color: rgba(0,0,0,0.04) !important; }
+
+[data-theme="light"] .bg-white\/5,
+[data-theme="light-clean"] .bg-white\/5  { background-color: rgba(0,0,0,0.04) !important; }
+
+[data-theme="light"] .bg-white\/6,
+[data-theme="light-clean"] .bg-white\/6  { background-color: rgba(0,0,0,0.05) !important; }
+
+[data-theme="light"] .bg-white\/8,
+[data-theme="light-clean"] .bg-white\/8  { background-color: rgba(0,0,0,0.06) !important; }
+
+[data-theme="light"] .bg-white\/10,
+[data-theme="light-clean"] .bg-white\/10 { background-color: rgba(0,0,0,0.07) !important; }
+
+[data-theme="light"] .bg-white\/12,
+[data-theme="light-clean"] .bg-white\/12 { background-color: rgba(0,0,0,0.08) !important; }
+
+[data-theme="light"] .bg-white\/15,
+[data-theme="light-clean"] .bg-white\/15 { background-color: rgba(0,0,0,0.10) !important; }
+
+[data-theme="light"] .bg-white\/20,
+[data-theme="light-clean"] .bg-white\/20 { background-color: rgba(0,0,0,0.10) !important; }
+
+/* hover bg */
+[data-theme="light"] .hover\:bg-white\/5:hover,
+[data-theme="light-clean"] .hover\:bg-white\/5:hover  { background-color: rgba(0,0,0,0.04) !important; }
+
+[data-theme="light"] .hover\:bg-white\/6:hover,
+[data-theme="light-clean"] .hover\:bg-white\/6:hover  { background-color: rgba(0,0,0,0.05) !important; }
+
+[data-theme="light"] .hover\:bg-white\/8:hover,
+[data-theme="light-clean"] .hover\:bg-white\/8:hover  { background-color: rgba(0,0,0,0.06) !important; }
+
+[data-theme="light"] .hover\:bg-white\/10:hover,
+[data-theme="light-clean"] .hover\:bg-white\/10:hover { background-color: rgba(0,0,0,0.07) !important; }
+
+[data-theme="light"] .hover\:bg-white\/12:hover,
+[data-theme="light-clean"] .hover\:bg-white\/12:hover { background-color: rgba(0,0,0,0.08) !important; }
+
+/* ── border-white/* ── */
+[data-theme="light"] .border-white\/5,
+[data-theme="light-clean"] .border-white\/5  { border-color: rgba(0,0,0,0.05) !important; }
+
+[data-theme="light"] .border-white\/6,
+[data-theme="light-clean"] .border-white\/6  { border-color: rgba(0,0,0,0.06) !important; }
+
+[data-theme="light"] .border-white\/8,
+[data-theme="light-clean"] .border-white\/8  { border-color: rgba(0,0,0,0.08) !important; }
+
+[data-theme="light"] .border-white\/10,
+[data-theme="light-clean"] .border-white\/10 { border-color: rgba(0,0,0,0.10) !important; }
+
+[data-theme="light"] .border-white\/12,
+[data-theme="light-clean"] .border-white\/12 { border-color: rgba(0,0,0,0.10) !important; }
+
+[data-theme="light"] .border-white\/\[0\.08\],
+[data-theme="light-clean"] .border-white\/\[0\.08\] { border-color: rgba(0,0,0,0.08) !important; }
+
+[data-theme="light"] .border-white\/\[0\.07\],
+[data-theme="light-clean"] .border-white\/\[0\.07\] { border-color: rgba(0,0,0,0.07) !important; }
+
+/* ── Colores de estado (-300/-400) — pensados para fondo oscuro
+   (Badge, alertas, iconos de estado en 75+ páginas). Sobre fondo blanco
+   quedan con muy poco contraste (ej. text-red-400 #f87171 sobre blanco).
+   Se oscurecen solo en tema claro; bg-*-500/N (los tints pastel) ya
+   funcionan bien en ambos temas y no se tocan. ── */
+[data-theme="light"] .text-red-400,
+[data-theme="light-clean"] .text-red-400     { color: #b91c1c !important; }
+[data-theme="light"] .text-red-300,
+[data-theme="light-clean"] .text-red-300     { color: #b91c1c !important; }
+[data-theme="light"] .hover\:text-red-300:hover,
+[data-theme="light-clean"] .hover\:text-red-300:hover { color: #991b1b !important; }
+
+[data-theme="light"] .text-amber-400,
+[data-theme="light-clean"] .text-amber-400   { color: #b45309 !important; }
+[data-theme="light"] .text-amber-300,
+[data-theme="light-clean"] .text-amber-300   { color: #b45309 !important; }
+
+[data-theme="light"] .text-green-400,
+[data-theme="light-clean"] .text-green-400   { color: #15803d !important; }
+[data-theme="light"] .text-green-300,
+[data-theme="light-clean"] .text-green-300   { color: #15803d !important; }
+
+[data-theme="light"] .text-blue-400,
+[data-theme="light-clean"] .text-blue-400    { color: #1d4ed8 !important; }
+[data-theme="light"] .text-blue-300,
+[data-theme="light-clean"] .text-blue-300    { color: #1d4ed8 !important; }
+
+[data-theme="light"] .text-emerald-400,
+[data-theme="light-clean"] .text-emerald-400 { color: #047857 !important; }
+[data-theme="light"] .text-emerald-300,
+[data-theme="light-clean"] .text-emerald-300 { color: #047857 !important; }
+
+[data-theme="light"] .text-yellow-400,
+[data-theme="light-clean"] .text-yellow-400  { color: #a16207 !important; }
+[data-theme="light"] .text-yellow-300,
+[data-theme="light-clean"] .text-yellow-300  { color: #a16207 !important; }
+
+[data-theme="light"] .text-purple-400,
+[data-theme="light-clean"] .text-purple-400  { color: #6d28d9 !important; }
+
+/* ── overlays de modales ── */
+[data-theme="light"] .bg-black\/70,
+[data-theme="light-clean"] .bg-black\/70 { background-color: rgba(0,0,0,0.35) !important; }
+
+[data-theme="light"] .bg-black\/60,
+[data-theme="light-clean"] .bg-black\/60 { background-color: rgba(0,0,0,0.25) !important; }
+
+[data-theme="light"] .bg-black\/30,
+[data-theme="light-clean"] .bg-black\/30 { background-color: rgba(0,0,0,0.12) !important; }
+
+[data-theme="light"] .bg-black\/20,
+[data-theme="light-clean"] .bg-black\/20 { background-color: rgba(0,0,0,0.08) !important; }
+
+/* ── Scrollbar ─────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+/* ── Select arrow ──────────────────────────────────── */
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235f6f80' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ── Logo sidebar sin fondo ────────────────────────── */
+/* mix-blend-mode:screen funde los píxeles oscuros del logo
+   con el fondo del sidebar, eliminando visualmente el recuadro.
+   En el tema claro se revierte a normal. */
+aside img {
+  mix-blend-mode: screen;
+}
+[data-theme="light"] aside img,
+[data-theme="light-clean"] aside img {
+  mix-blend-mode: normal;
+}
+
+/* ══════════════════════════════════════════════════════
+   LANDING PAGE — Aislamiento total del sistema de temas
+   Garantiza que la landing tenga siempre su propio diseño
+   oscuro, independientemente del tema activo en la app.
+   Las reglas de override de colores hardcodeados de arriba
+   usan CSS variables: al forzarlas aquí, las resuelven al
+   valor correcto dentro de [data-landing].
+   ══════════════════════════════════════════════════════ */
+[data-landing] {
+  /* Variables base — tema oscuro forzado */
+  --bg-base:        #0e1117 !important;
+  --bg-surface:     #141920 !important;
+  --bg-card:        #161d28 !important;
+  --bg-input:       #1e2835 !important;
+  --bg-muted:       #1a2230 !important;
+  --bg-sidebar:     #0f1520 !important;
+  --border:         rgba(255,255,255,0.08) !important;
+  --border-strong:  rgba(255,255,255,0.14) !important;
+  --text-primary:   #e8edf2 !important;
+  --text-secondary: #9ba8b6 !important;
+  --text-muted:     #5f6f80 !important;
+  --text-faint:     #3d4f60 !important;
+  --accent:         #00c896 !important;
+  --accent-dark:    #009e76 !important;
+  --accent-dim:     rgba(0,200,150,0.12) !important;
+  --scrollbar:      rgba(255,255,255,0.14) !important;
+  color-scheme: dark;
+  /* Scroll propio — escapa el overflow:hidden del #root */
+  position: fixed !important;
+  inset: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  z-index: 100 !important;
+}
+
+/* ── Animaciones ───────────────────────────────────── */
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(-12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)     scale(1); }
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+@keyframes bounce-subtle {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.85); }
+}
+
+.animate-modal-in   { animation: modal-in 0.18s ease-out both; }
+.animate-toast-in   { animation: toast-in 0.2s ease-out both; }
+.animate-spin-slow  { animation: spin-slow 1.2s linear infinite; }
+.animate-bounce-subtle { animation: bounce-subtle 1s ease-in-out infinite; }
+.animate-pulse-dot  { animation: pulse-dot 1.5s ease-in-out infinite; }
+
+/* ── Theme transition suave ──────────────────────── */
+body, aside, header, main, nav, .bg-\[\#0e1117\], .bg-\[\#141920\],
+.bg-\[\#161d28\], .bg-\[\#1a2230\], .bg-\[\#1e2835\], .bg-\[\#0f1520\] {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.2s ease;
+}

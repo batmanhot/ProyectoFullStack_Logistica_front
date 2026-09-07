@@ -1,32 +1,35 @@
 import { useState } from 'react'
-import { Building2, CreditCard, RefreshCw, SlidersHorizontal, Bell, Globe } from 'lucide-react'
+import { LayoutDashboard, Building2, CreditCard, RefreshCw, SlidersHorizontal, Bell, Globe } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { tokenManager } from '../../services/api'
 import {
-  useNegociosList, useCrearNegocio, useActualizarNegocio, useEliminarNegocio,
+  useNegociosList, useCrearNegocio, useActualizarNegocio, useEliminarNegocio, useArchivarNegocio,
   usePlanesAdminList, useCrearPlan, useActualizarPlan, useEliminarPlan,
   useRenovacionesList, useCrearRenovacion, useAnularRenovacion,
   useAlertasList, useVencimientosProximos, useCrearAlerta, useActualizarAlerta, useEliminarAlerta,
   useLanding, useGuardarLanding,
 } from '../../queries/admin.queries'
 import AdminLoginGate from './AdminLoginGate'
+import TabDashboard from './TabDashboard'
 import TabNegocios from './TabNegocios'
 import TabPlanes from './TabPlanes'
 import TabRenovaciones from './TabRenovaciones'
 import TabLimites from './TabLimites'
 import TabAlertas from './TabAlertas'
 import TabLanding from './TabLanding'
+import { AdminSidebarNav, PageHead } from './ui/Chrome'
 
 // ══════════════════════════════════════════════════════════
 // MAIN PAGE
 // ══════════════════════════════════════════════════════════
 export default function AdminSaaS() {
   const { toast } = useApp()
-  const [tab,        setTab]        = useState('negocios')
+  const [tab,        setTab]        = useState('dashboard')
   const [adminLogged, setAdminLogged] = useState(() => !!tokenManager.getAdminAccess())
 
   // ── hooks API ──────────────────────────────────────────
-  const { data: negocios     = [] } = useNegociosList()
+  const { data: negociosRaw = [] } = useNegociosList()
+  const negocios = Array.isArray(negociosRaw) ? negociosRaw : []
   const { data: planes       = [] } = usePlanesAdminList()
   const { data: renovaciones = [] } = useRenovacionesList()
   const { data: alertas      = [] } = useAlertasList()
@@ -36,6 +39,7 @@ export default function AdminSaaS() {
   const crearNegocio      = useCrearNegocio()
   const actualizarNegocio = useActualizarNegocio()
   const eliminarNegocio   = useEliminarNegocio()
+  const archivarNegocio   = useArchivarNegocio()
   const crearPlan         = useCrearPlan()
   const actualizarPlan    = useActualizarPlan()
   const eliminarPlan      = useEliminarPlan()
@@ -48,37 +52,36 @@ export default function AdminSaaS() {
 
   if (!adminLogged) return <AdminLoginGate onLogin={() => setAdminLogged(true)} />
 
-  const TABS = [
-    { id:'negocios',     label:'Negocios',              icon: Building2,         desc:`${negocios.length} registrados` },
-    { id:'planes',       label:'Planes y Precios',      icon: CreditCard,        desc:`${planes.length} planes` },
-    { id:'renovaciones', label:'Historial Renovaciones', icon: RefreshCw,        desc:`${renovaciones.length} registros` },
-    { id:'limites',      label:'Límites del Plan',      icon: SlidersHorizontal, desc:'Configurar límites' },
-    { id:'alertas',      label:'Alertas de Vencimiento', icon: Bell,             desc:`${alertas.length} reglas` },
-    { id:'landing',      label:'Landing Page',          icon: Globe,             desc:'Config. sitio web' },
-  ]
+  const TAB_META = {
+    dashboard:    { label:'Dashboard',              icon: LayoutDashboard,   count: null,               title:'Vista general',           description:'MRR, riesgo de cartera y actividad reciente de la plataforma.' },
+    negocios:     { label:'Negocios',               icon: Building2,         count: negocios.length,    title:'Negocios',                 description:'Tenants registrados, su estado de acceso y su ciclo de facturación.' },
+    planes:       { label:'Planes y Precios',       icon: CreditCard,        count: planes.length,      title:'Planes y Precios',         description:'Catálogo de planes comerciales que se ofrecen a los negocios.' },
+    renovaciones: { label:'Historial Renovaciones', icon: RefreshCw,         count: renovaciones.length, title:'Historial de Renovaciones', description:'Pagos y renovaciones registradas por cada negocio.' },
+    limites:      { label:'Límites del Plan',       icon: SlidersHorizontal, count: null,               title:'Límites del Plan',         description:'Módulos y topes de uso habilitados por cada plan.' },
+    alertas:      { label:'Alertas de Vencimiento', icon: Bell,              count: alertas.length,     title:'Alertas de Vencimiento',   description:'Reglas de notificación y envíos reales a negocios por vencer.' },
+    landing:      { label:'Landing Page',           icon: Globe,             count: null,               title:'Landing Page',             description:'Contenido público del sitio de marketing.' },
+  }
+
+  const NAV_GROUPS = [
+    { label:'Plataforma',   items:['dashboard', 'negocios'] },
+    { label:'Comercial',    items:['planes', 'limites', 'renovaciones'] },
+    { label:'Comunicación', items:['alertas', 'landing'] },
+  ].map(group => ({
+    label: group.label,
+    items: group.items.map(id => ({ id, label: TAB_META[id].label, icon: TAB_META[id].icon, count: TAB_META[id].count })),
+  }))
+
+  const active = TAB_META[tab]
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden bg-[#0e1117]">
-      {/* Tab bar */}
-      <div className="flex gap-0.5 px-5 pt-4 border-b border-white/8 overflow-x-auto shrink-0">
-        {TABS.map(t => {
-          const Icon = t.icon
-          const active = tab === t.id
-          return (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium rounded-t-lg border-b-2 -mb-px whitespace-nowrap transition-colors ${
-                active ? 'text-[#00c896] border-[#00c896] bg-[#00c896]/5' : 'text-[#8899a6] border-transparent hover:text-[#e8edf2] hover:bg-white/5'
-              }`}>
-              <Icon size={15} />
-              {t.label}
-            </button>
-          )
-        })}
-      </div>
+    <div className="flex flex-1 overflow-hidden bg-[var(--bg-base)]">
+      <AdminSidebarNav groups={NAV_GROUPS} activeId={tab} onSelect={setTab} />
 
-      {/* Tab content */}
       <div className="flex-1 overflow-y-auto p-6 min-h-0">
-        {tab === 'negocios'     && <TabNegocios     negocios={negocios} crearNegocio={crearNegocio} actualizarNegocio={actualizarNegocio} eliminarNegocio={eliminarNegocio} planes={planes} toast={toast} />}
+        <PageHead eyebrow="SuperAdmin" title={active.title} description={active.description} />
+
+        {tab === 'dashboard'    && <TabDashboard    negocios={negocios} planes={planes} renovaciones={renovaciones} vencimientos={vencimientos} />}
+        {tab === 'negocios'     && <TabNegocios     negocios={negocios} crearNegocio={crearNegocio} actualizarNegocio={actualizarNegocio} eliminarNegocio={eliminarNegocio} archivarNegocio={archivarNegocio} planes={planes} toast={toast} />}
         {tab === 'planes'       && <TabPlanes       planes={planes} crearPlan={crearPlan} actualizarPlan={actualizarPlan} eliminarPlan={eliminarPlan} toast={toast} />}
         {tab === 'renovaciones' && <TabRenovaciones renovaciones={renovaciones} crearRenovacion={crearRenovacion} anularRenovacion={anularRenovacion} negocios={negocios} planes={planes} toast={toast} />}
         {tab === 'limites'      && <TabLimites      planes={planes} actualizarPlan={actualizarPlan} toast={toast} />}

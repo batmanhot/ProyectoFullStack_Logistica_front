@@ -8,7 +8,7 @@ import {
 import { useApp } from '../store/AppContext'
 import { usePlanLimits } from '../hooks/usePlanLimits'
 import { formatCurrency, formatDate } from '../utils/helpers'
-import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, Textarea, Alert, DataTable } from '../components/ui/index'
+import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, Textarea, Alert, DataTable, EmptyState } from '../components/ui/index'
 import DireccionInput from '../components/ui/DireccionInput'
 import { useNavigate } from 'react-router-dom'
 import { useClientesList, useCrearCliente, useActualizarCliente, useEliminarCliente } from '../queries/clientes.queries'
@@ -41,6 +41,11 @@ export default function Clientes() {
   const planLimits = usePlanLimits()
   const nav = useNavigate()
   const simboloMoneda = 'S/'
+  // Auditoría 2026-09-04: eliminar (soft-delete) queda restringido a
+  // Owner/Admin/Gerente de Operaciones — ver GestionGuard en el backend,
+  // que es quien realmente lo hace cumplir. Ocultar el botón acá es solo
+  // para no ofrecer una acción que el servidor va a rechazar con 403.
+  const esGestion = sesion?.rol?.permisos?.includes('*') || sesion?.rol?.codigo === 'gerente-operaciones'
 
   const { data: clientesRaw = [], isLoading } = useClientesList({ incluirInactivos: true })
   const { data: despachos   = [] }            = useDespachosList()
@@ -262,7 +267,9 @@ export default function Clientes() {
               <div className="flex gap-1">
                 <Btn variant="ghost" size="icon" title="Ver perfil" onClick={() => setPerfilId(cli.id)}><Eye size={13}/></Btn>
                 <Btn variant="ghost" size="icon" title="Editar" onClick={() => { setEditando(cli); setModal(true) }}><Edit2 size={13}/></Btn>
-                <Btn variant="ghost" size="icon" title="Eliminar" className="text-red-400 hover:text-red-300" onClick={() => setConfirmDel(cli.id)}><Trash2 size={13}/></Btn>
+                {esGestion && (
+                  <Btn variant="ghost" size="icon" title="Eliminar" className="text-red-400 hover:text-red-300" onClick={() => setConfirmDel(cli.id)}><Trash2 size={13}/></Btn>
+                )}
               </div>
             ) },
           ]}

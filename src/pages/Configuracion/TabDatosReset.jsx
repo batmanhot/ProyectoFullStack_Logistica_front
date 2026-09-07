@@ -22,7 +22,7 @@ export default function TabDatosReset({
         <div className="grid grid-cols-2 gap-2 mb-4 text-[12px]">
           {[
             ['Conserva', ['Configuración empresa','Categorías','Almacenes','Usuarios y roles','Áreas internas'], 'text-emerald-400'],
-            ['Elimina',  ['Productos · Proveedores','Movimientos (entradas/salidas)','Órdenes · Cotizaciones','Clientes · Despachos · Transportes','Pedidos Internos · Auditoría'], 'text-red-400'],
+            ['Elimina',  ['Productos · Proveedores','Movimientos (entradas/salidas)','Órdenes · Cotizaciones','Clientes · Despachos · Transportes','Oportunidades comerciales','Pedidos Internos · Proyectos · CDR','Auditoría'], 'text-red-400'],
           ].map(([titulo, items, color]) => (
             <div key={titulo} className="bg-black/20 rounded-lg p-3">
               <p className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${color}`}>{titulo}</p>

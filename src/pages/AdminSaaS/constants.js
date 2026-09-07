@@ -58,10 +58,24 @@ export const LANDING_INIT = {
   footer: { textoLegal:'© 2026 StockPro. Todos los derechos reservados.', mostrarPrecios:true, moneda:'USD', probarGratisDias:14 }
 }
 
-export const ESTADO_BADGE = { activo:'success', trial:'info', suspendido:'warning', vencido:'danger', cancelado:'neutral' }
+export const ESTADO_BADGE = {
+  activo:'success', trial:'info', por_vencer:'warning', gracia:'warning',
+  suspendido:'warning', vencido:'danger', cancelado:'neutral', archivado:'neutral',
+}
+export const ESTADO_LABEL = {
+  activo:'Activo', trial:'Trial', por_vencer:'Por vencer', gracia:'En gracia',
+  suspendido:'Suspendido', vencido:'Vencido', cancelado:'Cancelado', archivado:'Archivado',
+}
 
+/**
+ * El backend (NegociosService.calcularEstadoEfectivo, ver estado-negocio.util.ts)
+ * ya manda `estadoEfectivo` calculado — incluye por_vencer/gracia/vencido, que
+ * nunca se guardan en `estado`. Este fallback solo cubre datos viejos en caché
+ * o el estado local de creación (PLANES_INIT-style) antes de que responda la API.
+ */
 export function estadoEfectivo(n) {
-  if (n.estado === 'cancelado' || n.estado === 'suspendido') return n.estado
+  if (n.estadoEfectivo) return n.estadoEfectivo
+  if (n.estado === 'cancelado' || n.estado === 'suspendido' || n.estado === 'archivado') return n.estado
   if (n.fechaVencimiento && new Date(n.fechaVencimiento) < new Date(new Date().toDateString())) return 'vencido'
   return n.estado
 }

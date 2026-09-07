@@ -1,4 +1,4 @@
-import { Package, X } from 'lucide-react'
+import { X } from 'lucide-react'
 
 export function Navbar({ sitio, primary, scrolled, menuOpen, setMenuOpen, navigate, goSection }) {
   return (
@@ -12,7 +12,7 @@ export function Navbar({ sitio, primary, scrolled, menuOpen, setMenuOpen, naviga
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <div className="w-9 h-9 rounded-xl flex items-center justify-center"
                style={{ background: `${primary}20`, boxShadow: `0 0 16px ${primary}20` }}>
-            <Package size={20} style={{ color: primary }}/>
+            <img src="/logo.webp" alt="StockPro" className="w-7 h-7 object-contain" />
           </div>
           <span className="font-extrabold text-[19px] text-[#e8edf2] tracking-tight">
             {sitio?.nombre || 'StockPro'}

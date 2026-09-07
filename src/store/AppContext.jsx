@@ -38,14 +38,22 @@ export function AppProvider({ children }) {
     }
   }, [])
 
-  // Restaurar sesión desde localStorage al montar
+  // Restaurar sesión desde localStorage al montar. El PlatformAdmin (saas_admin)
+  // usa un par de tokens aparte (tokenManager.getAdminAccess, ver api.js) — antes
+  // esto solo miraba el token de tenant, así que cualquier recarga de página
+  // cerraba la sesión de SuperAdmin sin avisar (y con ella, cualquier navegación
+  // por URL directa a una ruta de SuperAdmin).
   useEffect(() => {
     try {
       const stored = localStorage.getItem(SESSION_KEY)
-      const access = tokenManager.getAccess()
-      if (stored && access && !tokenManager.isExpired(access)) {
-        dispatch({ type: 'SET_SESION', payload: JSON.parse(stored) })
-        return
+      if (stored) {
+        const sesionGuardada = JSON.parse(stored)
+        const esAdmin = sesionGuardada?.rol?.codigo === 'saas_admin'
+        const access = esAdmin ? tokenManager.getAdminAccess() : tokenManager.getAccess()
+        if (access && !tokenManager.isExpired(access)) {
+          dispatch({ type: 'SET_SESION', payload: sesionGuardada })
+          return
+        }
       }
     } catch {}
     dispatch({ type: 'SET_LOADING', payload: false })

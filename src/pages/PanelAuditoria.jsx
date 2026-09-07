@@ -10,7 +10,7 @@ import {
 const TABS = [
   { id: 'bitacora',      label: 'Bitácora',      icon: ScrollText },
   { id: 'discrepancias', label: 'Discrepancias', icon: GitCompareArrows },
-  { id: 'movimientos',   label: 'Trazabilidad',  icon: Boxes },
+  { id: 'movimientos',   label: 'Movimientos',  icon: Boxes },
   { id: 'cxc',           label: 'Conciliación',  icon: DollarSign },
 ]
 

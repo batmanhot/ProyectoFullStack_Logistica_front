@@ -11,7 +11,7 @@ import { MODULOS_GRUPOS } from './constants'
 export default function ModalUsuario({ open, onClose, editando, onSave, sesionId, roles }) {
   const { data: areas = [] } = useAreasInternasList()
   const { data: transportistas = [] } = useTransportistasList()
-  const init = { nombre:'', email:'', password:'', rol:'almacenero', areaId:'', transportistaId:'', activo:true }
+  const init = { nombre:'', email:'', password:'', rol:'almacenero', areaId:'', transportistaId:'', metaVentasMensual:'', activo:true }
   const [form,     setForm]     = useState(init)
   const [showPass, setShowPass] = useState(false)
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
@@ -106,6 +106,13 @@ export default function ModalUsuario({ open, onClose, editando, onSave, sesionId
         </Field>
       )}
 
+      {form.rol === 'ejecutivo-comercial' && (
+        <Field label="Meta de ventas mensual (S/)" hint="Opcional — déjalo vacío si este vendedor no maneja una cuota fija (ej. vende por teléfono/WhatsApp/correo sin meta formal)">
+          <Input type="number" min="0" step="0.01" value={form.metaVentasMensual ?? ''}
+            onChange={e => f('metaVentasMensual', e.target.value)} placeholder="Sin meta configurada"/>
+        </Field>
+      )}
+
       {rolSeleccionado && (
         <div className="bg-[#1a2230] rounded-xl p-4 border border-white/6">
           <div className="flex items-center gap-2 mb-3">
@@ -143,6 +150,7 @@ export default function ModalUsuario({ open, onClose, editando, onSave, sesionId
           Usuario activo
         </label>
       )}
+
     </Modal>
   )
 }

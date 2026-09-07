@@ -155,11 +155,23 @@ async function _request(method, endpoint, data = null, opts = {}) {
 
     if (res.status === 204) return { data: null, error: null, status: 204 }
 
-    const json = await res.json()
+    const text = await res.text()
+    let json = null
+
+    if (text) {
+      try {
+        json = JSON.parse(text)
+      } catch {
+        if (!res.ok) {
+          return { data: null, error: text.slice(0, 250) || `Error ${res.status}`, status: res.status }
+        }
+        return { data: null, error: 'La respuesta del servidor no está en formato JSON válido.', status: res.status }
+      }
+    }
 
     // El backend NestJS envuelve TODAS las respuestas en {data, error}
     // El HttpExceptionFilter envía error como objeto {statusCode, message} — normalizar a string
-    if ('data' in json || 'error' in json) {
+    if (json && ('data' in json || 'error' in json)) {
       const rawErr = json.error
       const error  = rawErr && typeof rawErr === 'object'
         ? (rawErr.message ?? String(rawErr.statusCode ?? 'Error'))
@@ -167,7 +179,7 @@ async function _request(method, endpoint, data = null, opts = {}) {
       return { data: json.data, error, status: res.status }
     }
 
-    if (!res.ok) return { data: null, error: json.message || `Error ${res.status}`, status: res.status }
+    if (!res.ok) return { data: null, error: json?.message || `Error ${res.status}`, status: res.status }
     return { data: json, error: null, status: res.status }
 
   } catch (e) {
@@ -194,7 +206,7 @@ async function _request(method, endpoint, data = null, opts = {}) {
       data:    null,
       error:   offline
         ? (encolado ? 'Sin conexión — la operación se guardó y se sincronizará automáticamente' : 'Sin conexión a internet')
-        : (e.message || 'Error de red'),
+        : ('No se pudo conectar con el servidor. Verifica que el backend esté levantado.'),
       status:  0,
       offline,
       encolado,

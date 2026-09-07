@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { Package, Eye, EyeOff, LogIn, Shield, Building2, ArrowLeft, ChevronRight, Crown, Wrench } from 'lucide-react'
+import { Eye, EyeOff, LogIn, Shield, Building2, ArrowLeft, ChevronRight, Crown, Wrench } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import api from '../services/api'
 import { useTheme } from '../hooks/useTheme'
+import { usePublicLanding } from '../queries/admin.queries'
 import fondoLogistica from '../assets/Logistica_fondo.webp'
 
 const ROLES_LABEL = {
@@ -114,8 +115,11 @@ export default function Login({ adminMode = false }) {
   const { orgId } = useParams()
   const { setSesion, toast } = useApp()
   const { current: tema } = useTheme()
+  const { data: landing } = usePublicLanding()
   const ac  = tema.accent
   const acD = tema.preview?.[0]
+  const productName = landing?.sitio?.nombre?.trim() || 'StockPro'
+  const isStockPro = productName.toLowerCase() === 'stockpro'
 
   const [paso,        setPaso]        = useState('empresa')
   const [empresa,     setEmpresa]     = useState(null)
@@ -237,17 +241,22 @@ export default function Login({ adminMode = false }) {
 
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: ac }}>
+            {adminMode ? (
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: ac }}>
+                <Crown size={28} color="rgba(0,0,0,0.7)" strokeWidth={2.5} />
+              </div>
+            ) : (
+              <img src="/logo.webp" alt="StockPro" className="w-24 h-24 object-contain mb-3" />
+            )}
+            <h1 className="text-[24px] font-semibold text-white tracking-tight">
               {adminMode
-                ? <Crown size={28} color="rgba(0,0,0,0.7)" strokeWidth={2.5} />
-                : <Package size={28} color="rgba(0,0,0,0.7)" strokeWidth={2.5} />
-              }
-            </div>
-            <h1 className="text-[24px] font-semibold text-white">
-              {adminMode ? 'Admin Sistema' : 'StockPro'}
+                ? 'Admin Sistema'
+                : isStockPro
+                  ? <><span>STOCK</span><span style={{ color: '#00c896' }}>PRO</span></>
+                  : productName}
             </h1>
-            <p className="text-[13px] text-white/40 mt-1">
-              {adminMode ? 'Acceso exclusivo administrador' : 'Sistema de Gestión Logística'}
+            <p className="text-[13px] text-white/40 mt-1 text-center leading-tight tracking-wide">
+              {adminMode ? 'Acceso exclusivo administrador' : <>PLATAFORMA INTELIGENTE<br />DE GESTIÓN LOGÍSTICA</>}
             </p>
           </div>
 

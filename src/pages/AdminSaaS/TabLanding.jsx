@@ -5,7 +5,7 @@ import {
   Plus, Edit2, Trash2, Save, Link2,
 } from 'lucide-react'
 import {
-  Modal, Field, Card, CardHeader, Btn, Toggle,
+  Modal, Field, Card, CardHeader, Btn, Toggle, Input, Select, Textarea,
 } from '../../components/ui/index'
 import { uid, LANDING_INIT } from './constants'
 
@@ -53,11 +53,10 @@ export default function TabLanding({ landing, guardarLanding, planes, toast }) {
   }
   function removeFeat(id) { setLocal(p => ({ ...p, caracteristicas: p.caracteristicas.filter(c => c.id !== id) })) }
 
-  const inp = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] placeholder-[#5f6f80] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20'
   const lbl = (label, hint) => (
     <div>
-      <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide block mb-1">{label}</label>
-      {hint && <p className="text-[11px] text-[#5f6f80] mb-1.5">{hint}</p>}
+      <label className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide block mb-1">{label}</label>
+      {hint && <p className="text-[11px] text-[var(--text-muted)] mb-1.5">{hint}</p>}
     </div>
   )
 
@@ -71,22 +70,18 @@ export default function TabLanding({ landing, guardarLanding, planes, toast }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-[15px] font-semibold text-[#e8edf2]">Configuración del Sitio Web / Landing Page</h2>
-          <p className="text-[12px] text-[#5f6f80] mt-0.5">Esta información se usará para publicar y promocionar el sistema</p>
-        </div>
+      <div className="flex items-center justify-end">
         <Btn variant="primary" onClick={save}><Save size={14}/>Guardar todo</Btn>
       </div>
 
       {/* Sub-nav */}
-      <div className="flex gap-1 border-b border-white/6 pb-0">
+      <div className="flex gap-1 border-b border-[var(--border)] pb-0">
         {SECTIONS.map(s => {
           const Icon = s.icon
           const active = section === s.id
           return (
             <button key={s.id} onClick={() => setSection(s.id)}
-              className={`flex items-center gap-2 px-3 py-2 text-[12px] font-medium rounded-t border-b-2 -mb-px transition-colors ${active ? 'text-[#00c896] border-[#00c896]' : 'text-[#5f6f80] border-transparent hover:text-[#e8edf2]'}`}>
+              className={`flex items-center gap-2 px-3 py-2 text-[12px] font-medium rounded-t border-b-2 -mb-px transition-colors ${active ? 'text-[var(--accent)] border-[var(--accent)]' : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-primary)]'}`}>
               <Icon size={13}/>{s.label}
             </button>
           )
@@ -100,28 +95,28 @@ export default function TabLanding({ landing, guardarLanding, planes, toast }) {
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               {lbl('Nombre del producto / marca')}
-              <input className={inp} value={local.sitio?.nombre||''} onChange={e => set('sitio.nombre',e.target.value)} placeholder="StockPro" />
+              <Input value={local.sitio?.nombre||''} onChange={e => set('sitio.nombre',e.target.value)} placeholder="StockPro" />
             </div>
             <div className="col-span-2">
               {lbl('Tagline', 'Frase corta descriptiva')}
-              <input className={inp} value={local.sitio?.tagline||''} onChange={e => set('sitio.tagline',e.target.value)} placeholder="Logística inteligente para tu empresa" />
+              <Input value={local.sitio?.tagline||''} onChange={e => set('sitio.tagline',e.target.value)} placeholder="Logística inteligente para tu empresa" />
             </div>
             <div className="col-span-2">
               {lbl('Descripción', 'Texto descriptivo completo del producto')}
-              <textarea rows={3} className={`${inp} resize-y`} value={local.sitio?.descripcion||''} onChange={e => set('sitio.descripcion',e.target.value)} />
+              <Textarea rows={3} value={local.sitio?.descripcion||''} onChange={e => set('sitio.descripcion',e.target.value)} />
             </div>
             <div>
               {lbl('Color primario')}
               <div className="flex items-center gap-2">
-                <input type="color" value={local.sitio?.colorPrimario||'#00c896'} onChange={e => set('sitio.colorPrimario',e.target.value)} className="w-10 h-9 rounded cursor-pointer bg-transparent border border-white/8" />
-                <input className={`${inp} flex-1`} value={local.sitio?.colorPrimario||''} onChange={e => set('sitio.colorPrimario',e.target.value)} />
+                <input type="color" value={local.sitio?.colorPrimario||'#00c896'} onChange={e => set('sitio.colorPrimario',e.target.value)} className="w-10 h-9 rounded cursor-pointer bg-transparent border border-[var(--border)]" />
+                <Input className="flex-1" value={local.sitio?.colorPrimario||''} onChange={e => set('sitio.colorPrimario',e.target.value)} />
               </div>
             </div>
             <div>
               {lbl('URL del logo')}
               <div className="flex items-center gap-2">
-                <Link2 size={13} className="text-[#5f6f80] shrink-0" />
-                <input className={inp} value={local.sitio?.logoUrl||''} onChange={e => set('sitio.logoUrl',e.target.value)} placeholder="https://…" />
+                <Link2 size={13} className="text-[var(--text-muted)] shrink-0" />
+                <Input value={local.sitio?.logoUrl||''} onChange={e => set('sitio.logoUrl',e.target.value)} placeholder="https://…" />
               </div>
             </div>
           </div>
@@ -134,23 +129,23 @@ export default function TabLanding({ landing, guardarLanding, planes, toast }) {
           <CardHeader title="Sección Hero (portada principal)" />
           <div className="space-y-4">
             {lbl('Título principal')}
-            <input className={inp} value={local.hero?.titulo||''} onChange={e => set('hero.titulo',e.target.value)} placeholder="Controla tu logística con precisión" />
+            <Input value={local.hero?.titulo||''} onChange={e => set('hero.titulo',e.target.value)} placeholder="Controla tu logística con precisión" />
             {lbl('Subtítulo')}
-            <textarea rows={2} className={`${inp} resize-y`} value={local.hero?.subtitulo||''} onChange={e => set('hero.subtitulo',e.target.value)} />
+            <Textarea rows={2} value={local.hero?.subtitulo||''} onChange={e => set('hero.subtitulo',e.target.value)} />
             <div className="grid grid-cols-2 gap-4">
               {lbl('CTA principal — texto')}
-              <input className={inp} value={local.hero?.ctaTexto||''} onChange={e => set('hero.ctaTexto',e.target.value)} placeholder="Comenzar prueba gratis" />
+              <Input value={local.hero?.ctaTexto||''} onChange={e => set('hero.ctaTexto',e.target.value)} placeholder="Comenzar prueba gratis" />
               {lbl('CTA principal — URL')}
-              <input className={inp} value={local.hero?.ctaUrl||''} onChange={e => set('hero.ctaUrl',e.target.value)} placeholder="#planes" />
+              <Input value={local.hero?.ctaUrl||''} onChange={e => set('hero.ctaUrl',e.target.value)} placeholder="#planes" />
               {lbl('CTA secundario — texto')}
-              <input className={inp} value={local.hero?.ctaTexto2||''} onChange={e => set('hero.ctaTexto2',e.target.value)} placeholder="Ver demo en vivo" />
+              <Input value={local.hero?.ctaTexto2||''} onChange={e => set('hero.ctaTexto2',e.target.value)} placeholder="Ver demo en vivo" />
               {lbl('CTA secundario — URL')}
-              <input className={inp} value={local.hero?.ctaUrl2||''} onChange={e => set('hero.ctaUrl2',e.target.value)} placeholder="#demo" />
+              <Input value={local.hero?.ctaUrl2||''} onChange={e => set('hero.ctaUrl2',e.target.value)} placeholder="#demo" />
             </div>
             {lbl('URL de imagen hero')}
-            <input className={inp} value={local.hero?.imagenUrl||''} onChange={e => set('hero.imagenUrl',e.target.value)} placeholder="https://…/hero.png" />
+            <Input value={local.hero?.imagenUrl||''} onChange={e => set('hero.imagenUrl',e.target.value)} placeholder="https://…/hero.png" />
             {local.hero?.imagenUrl && (
-              <div className="rounded-xl overflow-hidden border border-white/8 max-h-40">
+              <div className="rounded-xl overflow-hidden border border-[var(--border)] max-h-40">
                 <img src={local.hero.imagenUrl} alt="hero preview" className="w-full h-40 object-cover" onError={e => e.target.style.display='none'} />
               </div>
             )}
@@ -162,16 +157,16 @@ export default function TabLanding({ landing, guardarLanding, planes, toast }) {
       {section === 'caracteristicas' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-[12px] text-[#5f6f80]">Funcionalidades destacadas que aparecerán en el sitio web</p>
+            <p className="text-[12px] text-[var(--text-muted)]">Funcionalidades destacadas que aparecerán en el sitio web</p>
             <Btn variant="primary" size="sm" onClick={openNewFeat}><Plus size={13}/>Agregar</Btn>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {(local.caracteristicas||[]).map(c => (
-              <div key={c.id} className="bg-[#161d28] border border-white/8 rounded-xl p-4 flex gap-3 group">
+              <div key={c.id} className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 flex gap-3 group">
                 <div className="text-2xl shrink-0">{c.icono}</div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-[13px] text-[#e8edf2] mb-0.5">{c.titulo}</div>
-                  <div className="text-[12px] text-[#5f6f80] line-clamp-2">{c.descripcion}</div>
+                  <div className="font-semibold text-[13px] text-[var(--text-primary)] mb-0.5">{c.titulo}</div>
+                  <div className="text-[12px] text-[var(--text-muted)] line-clamp-2">{c.descripcion}</div>
                 </div>
                 <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                   <Btn variant="ghost" size="icon" onClick={() => openEditFeat(c)}><Edit2 size={12}/></Btn>
@@ -188,13 +183,13 @@ export default function TabLanding({ landing, guardarLanding, planes, toast }) {
             </>}>
             <div className="space-y-3">
               <Field label="Ícono (emoji)">
-                <input className={inp} value={featForm.icono||''} onChange={e => setFeatForm(p=>({...p,icono:e.target.value}))} placeholder="📦" />
+                <Input value={featForm.icono||''} onChange={e => setFeatForm(p=>({...p,icono:e.target.value}))} placeholder="📦" />
               </Field>
               <Field label="Título *">
-                <input className={inp} value={featForm.titulo||''} onChange={e => setFeatForm(p=>({...p,titulo:e.target.value}))} />
+                <Input value={featForm.titulo||''} onChange={e => setFeatForm(p=>({...p,titulo:e.target.value}))} />
               </Field>
               <Field label="Descripción">
-                <textarea rows={2} className={`${inp} resize-y`} value={featForm.descripcion||''} onChange={e => setFeatForm(p=>({...p,descripcion:e.target.value}))} />
+                <Textarea rows={2} value={featForm.descripcion||''} onChange={e => setFeatForm(p=>({...p,descripcion:e.target.value}))} />
               </Field>
             </div>
           </Modal>
@@ -216,16 +211,16 @@ export default function TabLanding({ landing, guardarLanding, planes, toast }) {
                 <div key={f.key}>
                   {lbl(f.key.charAt(0).toUpperCase()+f.key.slice(1))}
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5f6f80]">{f.icon}</span>
-                    <input className={`${inp} pl-8`} value={local.contacto?.[f.key]||''} onChange={e => set(`contacto.${f.key}`,e.target.value)} placeholder={f.placeholder} />
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">{f.icon}</span>
+                    <Input className="pl-8" value={local.contacto?.[f.key]||''} onChange={e => set(`contacto.${f.key}`,e.target.value)} placeholder={f.placeholder} />
                   </div>
                 </div>
               ))}
-              <div className="pt-2 border-t border-white/6">
+              <div className="pt-2 border-t border-[var(--border)]">
                 {lbl('Email de soporte (uso interno)', 'No se publica en el sitio web. Es el contacto técnico que usa el sistema — por ejemplo, ante Google/Mozilla si detectan mal uso del envío de notificaciones push.')}
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5f6f80]"><Mail size={13}/></span>
-                  <input className={`${inp} pl-8`} value={local.contacto?.emailSoporte||''} onChange={e => set('contacto.emailSoporte',e.target.value)} placeholder="soporte@tudominio.com" />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"><Mail size={13}/></span>
+                  <Input className="pl-8" value={local.contacto?.emailSoporte||''} onChange={e => set('contacto.emailSoporte',e.target.value)} placeholder="soporte@tudominio.com" />
                 </div>
               </div>
             </div>
@@ -243,8 +238,8 @@ export default function TabLanding({ landing, guardarLanding, planes, toast }) {
                 <div key={r.key}>
                   {lbl(r.label)}
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5f6f80]">{r.icon}</span>
-                    <input className={`${inp} pl-8`} value={local.redesSociales?.[r.key]||''} onChange={e => set(`redesSociales.${r.key}`,e.target.value)} placeholder="https://…" />
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">{r.icon}</span>
+                    <Input className="pl-8" value={local.redesSociales?.[r.key]||''} onChange={e => set(`redesSociales.${r.key}`,e.target.value)} placeholder="https://…" />
                   </div>
                 </div>
               ))}
@@ -260,38 +255,38 @@ export default function TabLanding({ landing, guardarLanding, planes, toast }) {
             <CardHeader title="SEO y metadatos" />
             <div className="space-y-3">
               {lbl('Meta título', 'Aparece en la pestaña del navegador y en Google')}
-              <input className={inp} value={local.seo?.titulo||''} onChange={e => set('seo.titulo',e.target.value)} />
+              <Input value={local.seo?.titulo||''} onChange={e => set('seo.titulo',e.target.value)} />
               {lbl('Meta descripción', 'Texto que aparece bajo el título en los resultados de búsqueda (160 chars)')}
-              <textarea rows={3} className={`${inp} resize-y`} value={local.seo?.descripcion||''} onChange={e => set('seo.descripcion',e.target.value)} />
-              <div className="text-[11px] text-[#5f6f80] text-right">{(local.seo?.descripcion||'').length}/160</div>
+              <Textarea rows={3} value={local.seo?.descripcion||''} onChange={e => set('seo.descripcion',e.target.value)} />
+              <div className="text-[11px] text-[var(--text-muted)] text-right">{(local.seo?.descripcion||'').length}/160</div>
               {lbl('Keywords', 'Separadas por coma')}
-              <textarea rows={2} className={`${inp} resize-y`} value={local.seo?.keywords||''} onChange={e => set('seo.keywords',e.target.value)} />
+              <Textarea rows={2} value={local.seo?.keywords||''} onChange={e => set('seo.keywords',e.target.value)} />
             </div>
           </Card>
           <Card>
             <CardHeader title="Footer y configuración general" />
             <div className="space-y-3">
               {lbl('Texto legal del footer')}
-              <textarea rows={2} className={`${inp} resize-y`} value={local.footer?.textoLegal||''} onChange={e => set('footer.textoLegal',e.target.value)} />
+              <Textarea rows={2} value={local.footer?.textoLegal||''} onChange={e => set('footer.textoLegal',e.target.value)} />
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[13px] text-[#e8edf2]">Mostrar precios públicamente</div>
-                  <div className="text-[11px] text-[#5f6f80]">Tabla de precios visible en el sitio</div>
+                  <div className="text-[13px] text-[var(--text-primary)]">Mostrar precios públicamente</div>
+                  <div className="text-[11px] text-[var(--text-muted)]">Tabla de precios visible en el sitio</div>
                 </div>
                 <Toggle value={!!local.footer?.mostrarPrecios} onChange={v => set('footer.mostrarPrecios',v)} />
               </div>
               {lbl('Moneda pública')}
-              <select className={inp} value={local.footer?.moneda||'USD'} onChange={e => set('footer.moneda',e.target.value)}>
+              <Select value={local.footer?.moneda||'USD'} onChange={e => set('footer.moneda',e.target.value)}>
                 <option>USD</option><option>PEN</option><option>EUR</option>
-              </select>
+              </Select>
               {lbl('Días de prueba gratuita')}
-              <input type="number" min="0" className={inp} value={local.footer?.probarGratisDias||14} onChange={e => set('footer.probarGratisDias',parseInt(e.target.value)||0)} />
+              <Input type="number" min="0" value={local.footer?.probarGratisDias||14} onChange={e => set('footer.probarGratisDias',parseInt(e.target.value)||0)} />
             </div>
           </Card>
         </div>
       )}
 
-      <div className="flex justify-end pt-2 border-t border-white/6">
+      <div className="flex justify-end pt-2 border-t border-[var(--border)]">
         <Btn variant="primary" onClick={save}><Save size={14}/>Guardar configuración de landing</Btn>
       </div>
     </div>

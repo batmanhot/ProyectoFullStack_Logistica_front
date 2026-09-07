@@ -1,0 +1,313 @@
+﻿import { useMemo, useState } from 'react'
+import {
+  Bell, CheckCheck, CheckCircle, Eye, ArrowRight
+} from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { formatDate, formatCurrency, vencimientoMasUrgentePorProducto } from '../utils/helpers'
+import { TIPOS, TIPOS_CHOFER, generarAlertas, generarAlertasChofer } from '../utils/alertas'
+import { Badge, Btn, Modal } from '../components/ui/index'
+import { useApp } from '../store/AppContext'
+import { useProductosList } from '../queries/productos.queries'
+import { useOrdenesCompraList } from '../queries/ordenes-compra.queries'
+import { useCategoriasList } from '../queries/categorias.queries'
+import { useAlmacenesList } from '../queries/almacenes.queries'
+import { useLotesList } from '../queries/lotes.queries'
+import { useRutasList } from '../queries/rutas.queries'
+
+// ════════════════════════════════════════════════════════
+export default function Alertas() {
+  const { sesion } = useApp()
+  const esChofer = sesion?.rol?.codigo === 'chofer'
+
+  // El Chofer no tiene permiso a inventario/OC/almacenes — esas 5 consultas le
+  // devuelven 403 (lista vacía) y generarAlertas() nunca encontraría nada real.
+  // Para su rol se usan alertas de SUS rutas en vez de las de inventario.
+  const { data: productos  = [] } = useProductosList({ enabled: !esChofer })
+  const { data: ordenes    = [] } = useOrdenesCompraList({ enabled: !esChofer })
+  const { data: categorias = [] } = useCategoriasList({ enabled: !esChofer })
+  const { data: almacenes  = [] } = useAlmacenesList({ enabled: !esChofer })
+  const { data: lotes      = [] } = useLotesList(undefined, { enabled: !esChofer })
+  const { data: rutasRaw   = [] } = useRutasList()
+  const config        = null   // sin config de empresa; diasAlertaVencimiento usa default 30
+  const simboloMoneda = 'S/'
+  const navigate = useNavigate()
+  const [filtroTipo, setFiltroTipo] = useState('all')
+
+  const [verAlerta,  setVerAlerta]  = useState(null)
+  const [leidas,     setLeidas]     = useState(() => {
+    try { return JSON.parse(localStorage.getItem('sp_alertas_leidas') || '[]') } catch { return [] }
+  })
+
+  const vencPorProducto = useMemo(() => vencimientoMasUrgentePorProducto(lotes), [lotes])
+
+  const rutasPropias = useMemo(() =>
+    rutasRaw.filter(r => r.transportistaId === sesion?.transportistaId)
+  , [rutasRaw, sesion?.transportistaId])
+
+  const TIPOS_ACTIVOS = esChofer ? TIPOS_CHOFER : TIPOS
+
+  const alertas = useMemo(() =>
+    esChofer
+      ? generarAlertasChofer(rutasPropias)
+      : generarAlertas(productos, ordenes, vencPorProducto, config, categorias, almacenes, simboloMoneda)
+  , [esChofer, rutasPropias, productos, ordenes, vencPorProducto, config, categorias, almacenes, simboloMoneda])
+
+  const filtered = useMemo(() =>
+    filtroTipo === 'all' ? alertas : alertas.filter(a => a.tipo === filtroTipo)
+  , [alertas, filtroTipo])
+
+  const noLeidas = alertas.filter(a => !leidas.includes(a.titulo)).length
+
+  function marcarLeida(titulo) {
+    const n = [...new Set([...leidas, titulo])]
+    setLeidas(n); localStorage.setItem('sp_alertas_leidas', JSON.stringify(n))
+  }
+  function marcarTodas() {
+    const n = alertas.map(a => a.titulo)
+    setLeidas(n); localStorage.setItem('sp_alertas_leidas', JSON.stringify(n))
+  }
+
+  const conteos = useMemo(() => {
+    const c = { all: alertas.length }
+    Object.keys(TIPOS_ACTIVOS).forEach(t => { c[t] = alertas.filter(a => a.tipo === t).length })
+    return c
+  }, [alertas, TIPOS_ACTIVOS])
+
+  return (
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
+
+      {/* KPIs por tipo */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
+        {[['Todas', 'all', Bell], ...Object.entries(TIPOS_ACTIVOS).map(([k,v]) => [v.label, k, v.icon])].map(([label, key]) => {
+          const count  = key === 'all' ? conteos.all : (conteos[key] || 0)
+          const activo = filtroTipo === key
+          const meta   = key !== 'all' ? TIPOS_ACTIVOS[key] : null
+          return (
+            <button key={key} onClick={() => setFiltroTipo(key)}
+              className="relative text-left p-3.5 sm:p-4 rounded-xl border transition-all overflow-hidden"
+              style={{
+                background:  activo ? 'rgba(0,200,150,0.08)' : 'var(--bg-card)',
+                borderColor: activo ? '#00c896' : 'var(--border)',
+              }}>
+              <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl"
+                style={{ background: activo ? '#00c896' : 'transparent' }}/>
+              <div className="flex items-center justify-between mb-2">
+                {count > 0 && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${meta?.bg || 'bg-red-500/15'} ${meta?.txt || 'text-red-400'}`}>
+                    {count}
+                  </span>
+                )}
+              </div>
+              <div className="text-[28px] font-semibold text-[#e8edf2]">{count}</div>
+              <div className="text-[10px] sm:text-[11px] text-[#5f6f80] mt-0.5 leading-tight">{label}</div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Lista de alertas */}
+      <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">
+              Centro de Alertas
+            </span>
+            {noLeidas > 0 && (
+              <span className="text-[11px] bg-red-500/15 text-red-400 px-2 py-0.5 rounded-full font-semibold">
+                {noLeidas} no leídas
+              </span>
+            )}
+          </div>
+          {noLeidas > 0 && (
+            <Btn variant="ghost" size="sm" onClick={marcarTodas}>
+              <CheckCheck size={13}/> Marcar todas leídas
+            </Btn>
+          )}
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-4">
+            <CheckCircle size={48} className="text-green-400 opacity-40"/>
+            <div className="text-center">
+              <p className="text-[14px] font-medium text-[#9ba8b6] mb-1">Sin alertas activas</p>
+              <p className="text-[12px] text-[#5f6f80]">{esChofer ? 'Tus rutas están al día.' : 'Todo el inventario está en orden.'}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {filtered.map((alerta, i) => {
+              const meta   = TIPOS_ACTIVOS[alerta.tipo]
+              const Icon   = meta?.icon || Bell
+              const esLeida = leidas.includes(alerta.titulo)
+              const color  = alerta.prioridad === 1 ? { bg:'bg-red-500/4', border:'border-red-500/20', hborder:'hover:border-red-500/40', dot:'bg-red-400' }
+                           : alerta.prioridad === 2 ? { bg:'bg-amber-500/4', border:'border-amber-500/20', hborder:'hover:border-amber-500/35', dot:'bg-amber-400' }
+                           : { bg:'bg-blue-500/3', border:'border-blue-500/15', hborder:'hover:border-blue-500/30', dot:'bg-blue-400' }
+              return (
+                <div key={i}
+                  onClick={() => { setVerAlerta(alerta); marcarLeida(alerta.titulo) }}
+                  className={`flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer group ${
+                    esLeida ? 'bg-transparent border-white/4 opacity-45'
+                    : `${color.bg} ${color.border} ${color.hborder}`
+                  }`}>
+
+                  {/* Ícono */}
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${meta?.bg}`}>
+                    <Icon size={16} className={meta?.txt}/>
+                  </div>
+
+                  {/* Texto */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-0.5">
+                      <span className="font-medium text-[#e8edf2] text-[13px] leading-snug">{alerta.titulo}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {!esLeida && <div className={`w-2 h-2 rounded-full shrink-0 ${color.dot}`}/>}
+                        <Badge variant={meta?.color || 'neutral'}>{meta?.label}</Badge>
+                      </div>
+                    </div>
+                    <div className="text-[12px] text-[#9ba8b6]">{alerta.detalle}</div>
+                    {alerta.fecha && (
+                      <div className="text-[11px] text-[#5f6f80] mt-1">{formatDate(alerta.fecha)}</div>
+                    )}
+                  </div>
+
+                  {/* Flecha — indica que hay más info */}
+                  <div className="opacity-0 group-hover:opacity-100 transition-all shrink-0 mt-1">
+                    <Eye size={14} className="text-[#5f6f80]"/>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Modal detalle alerta */}
+      {verAlerta && (
+        <ModalDetalleAlerta
+          alerta={verAlerta}
+          simboloMoneda={simboloMoneda}
+          navigate={navigate}
+          onClose={() => setVerAlerta(null)}
+          onMarcarLeida={() => { marcarLeida(verAlerta.titulo); setVerAlerta(null) }}
+        />
+
+      )}
+    </div>
+  )
+}
+
+// ════════════════════════════════════════════════════════
+// MODAL DETALLE ALERTA
+// ════════════════════════════════════════════════════════
+function ModalDetalleAlerta({ alerta, simboloMoneda, navigate, onClose, onMarcarLeida }) {
+
+  const meta  = TIPOS[alerta.tipo] || TIPOS_CHOFER[alerta.tipo]
+  const Icon  = meta?.icon || Bell
+
+  return (
+    <Modal open title="Detalle de Alerta" onClose={onClose} size="sm"
+      footer={
+        <div className="flex justify-between w-full">
+          <Btn variant="ghost" size="sm" onClick={onMarcarLeida}>
+            <CheckCheck size={13}/> Marcar leída
+          </Btn>
+          <Btn variant="secondary" onClick={onClose}>Cerrar</Btn>
+        </div>
+      }>
+
+      {/* Cabecera tipo */}
+      <div className={`flex items-center gap-3 px-4 py-3 rounded-xl ${meta?.bg} mb-4`}>
+        <div className={`w-10 h-10 rounded-xl ${meta?.bg} flex items-center justify-center shrink-0`}>
+          <Icon size={20} className={meta?.txt}/>
+        </div>
+        <div>
+          <div className={`text-[11px] font-bold uppercase tracking-[0.06em] ${meta?.txt}`}>{meta?.label}</div>
+          <div className="text-[14px] font-semibold text-[#e8edf2] leading-snug">{alerta.titulo}</div>
+        </div>
+      </div>
+
+      {/* Detalles del producto/OC */}
+      <div className="flex flex-col gap-2 mb-4">
+        {alerta.rutaNumero && (
+          <div className="bg-[#1a2230] rounded-lg px-3 py-2.5">
+            <div className="text-[10px] text-[#5f6f80] uppercase tracking-wide mb-0.5">Ruta</div>
+            <div className="text-[12px] font-semibold text-[#00c896] font-mono">{alerta.rutaNumero}</div>
+          </div>
+        )}
+        {alerta.sku && (
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              ['SKU',          alerta.sku],
+              ['Categoría',    alerta.categoria],
+              ['Almacén',      alerta.almacen],
+              ['Stock actual', `${alerta.stock} ${alerta.unidad}`],
+              alerta.stockMin != null ? ['Stock mínimo', `${alerta.stockMin} ${alerta.unidad}`] : null,
+              alerta.stockMax != null && alerta.stockMax > 0 ? ['Stock máximo', `${alerta.stockMax} ${alerta.unidad}`] : null,
+            ].filter(Boolean).map(([k, v]) => (
+              <div key={k} className="bg-[#1a2230] rounded-lg px-3 py-2.5">
+                <div className="text-[10px] text-[#5f6f80] uppercase tracking-wide mb-0.5">{k}</div>
+                <div className="text-[12px] font-semibold text-[#e8edf2]">{v}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {alerta.fechaVencimiento && (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-[#1a2230] rounded-lg px-3 py-2.5">
+              <div className="text-[10px] text-[#5f6f80] uppercase tracking-wide mb-0.5">Fecha vencimiento</div>
+              <div className="text-[12px] font-semibold text-amber-400">{formatDate(alerta.fechaVencimiento)}</div>
+            </div>
+            <div className="bg-[#1a2230] rounded-lg px-3 py-2.5">
+              <div className="text-[10px] text-[#5f6f80] uppercase tracking-wide mb-0.5">Días restantes</div>
+              <div className={`text-[12px] font-semibold ${alerta.diasVencimiento < 0 ? 'text-red-400' : 'text-amber-400'}`}>
+                {alerta.diasVencimiento < 0
+                  ? `Vencido hace ${Math.abs(alerta.diasVencimiento)} días`
+                  : `${alerta.diasVencimiento} días`}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {alerta.ocNumero && (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-[#1a2230] rounded-lg px-3 py-2.5">
+              <div className="text-[10px] text-[#5f6f80] uppercase tracking-wide mb-0.5">Número OC</div>
+              <div className="text-[12px] font-semibold text-[#00c896] font-mono">{alerta.ocNumero}</div>
+            </div>
+            <div className="bg-[#1a2230] rounded-lg px-3 py-2.5">
+              <div className="text-[10px] text-[#5f6f80] uppercase tracking-wide mb-0.5">Total</div>
+              <div className="text-[12px] font-semibold text-[#e8edf2]">{formatCurrency(alerta.ocTotal, simboloMoneda)}</div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Descripción completa */}
+      <div className="bg-[#1a2230] rounded-xl px-4 py-3 mb-4">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide mb-1.5">Descripción</div>
+        <p className="text-[13px] text-[#9ba8b6] leading-relaxed">{alerta.detalle}</p>
+      </div>
+
+      {/* Acción recomendada */}
+      {alerta.accion && (
+        <div 
+          onClick={() => {
+            if (alerta.accionPath) {
+              navigate(alerta.accionPath)
+              onClose()
+            }
+          }}
+          className="flex items-center justify-between px-4 py-3 bg-[#00c896]/8 border border-[#00c896]/20 rounded-xl cursor-pointer hover:bg-[#00c896]/15 hover:border-[#00c896]/40 transition-all group/action"
+        >
+          <div>
+            <div className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-wide mb-0.5 group-hover/action:text-[#00c896] transition-colors">Acción recomendada</div>
+            <div className="text-[13px] font-medium text-[#e8edf2]">{alerta.accion}</div>
+          </div>
+          <ArrowRight size={16} className="text-[#00c896] shrink-0 group-hover/action:translate-x-1 transition-transform"/>
+        </div>
+      )}
+
+    </Modal>
+  )
+}

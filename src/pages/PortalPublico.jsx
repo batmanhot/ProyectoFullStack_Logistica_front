@@ -18,7 +18,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Globe, Package, Plus, X, CheckCircle, Clock, Search, Download,
          Truck, ChevronDown, ChevronUp, ShoppingCart } from 'lucide-react'
 import { formatCurrency, decodeJwtPayload } from '../utils/helpers'
-import { imprimirPedidoPortal } from '../utils/pdfTemplates'
+import { armarHtmlPedidoPortal } from '../utils/pdfTemplates'
+import { ModalVistaPreviaDocumento } from '../components/ui/index'
 import { api, tokenManager } from '../services/api'
 
 const IGV = 0.18
@@ -155,6 +156,7 @@ export default function PortalPublico() {
   const [pedidoEnviado, setPedidoEnviado] = useState(null)
   const [errorMsg,   setErrorMsg]  = useState('')
   const [expandedId, setExpandedId]= useState(null)
+  const [preview,    setPreview]   = useState(null) // { titulo, html, numeroDocumento } | null
 
   // ── Cargar datos del portal desde la API ─────────
   const cargarDatos = useCallback(async () => {
@@ -203,12 +205,13 @@ export default function PortalPublico() {
   const total    = +(subtotal + igvMonto).toFixed(2)
 
   function descargarPedidoPDF(pedido) {
-    imprimirPedidoPortal({
+    const html = armarHtmlPedidoPortal({
       pedido,
       productos,
       cliente: { razonSocial: cliente?.nombre },
       config:  { empresa: cliente?.empresaNombre, simboloMoneda: 'S/' },
     })
+    setPreview({ titulo: `Pedido — ${pedido.numero}`, html, numeroDocumento: pedido.numero })
   }
 
   function addItem()      { setItems(p=>[...p, { prodId:'', qty:1 }]) }
@@ -531,6 +534,14 @@ export default function PortalPublico() {
       <div className="text-center py-4 text-[10px] text-white/20 border-t border-white/6">
         Portal de pedidos{cliente?.empresaNombre ? ` · ${cliente.empresaNombre}` : ''} · Powered by StockPro
       </div>
+
+      <ModalVistaPreviaDocumento
+        open={!!preview}
+        onClose={() => setPreview(null)}
+        titulo={preview?.titulo}
+        html={preview?.html}
+        numeroDocumento={preview?.numeroDocumento}
+      />
     </div>
   )
 }

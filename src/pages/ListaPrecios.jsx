@@ -21,6 +21,11 @@ const simboloMoneda = 'S/'
 
 export default function ListaPrecios() {
   const { sesion, toast } = useApp()
+  // Auditoría 2026-09-04: definir precios/descuentos es política comercial
+  // de gestión — Ejecutivo Comercial conserva solo lectura (para cotizar en
+  // Proformas). Ver GestionGuard/@SoloRoles en listas-precios.controller.ts,
+  // que es quien realmente lo hace cumplir.
+  const esGestion = sesion?.rol?.permisos?.includes('*') || sesion?.rol?.codigo === 'gerente-operaciones'
 
   const { data: productos  = [] } = useProductosList()
   const { data: categorias = [] } = useCategoriasList()
@@ -110,8 +115,13 @@ export default function ListaPrecios() {
           ))}
         </div>
         <div className="flex gap-2">
-          {lista && <Btn variant="ghost" size="sm" onClick={() => { setEditando(lista); setModal(true) }}><Edit2 size={12}/> Editar lista</Btn>}
-          {lista && <Btn variant="ghost" size="sm" onClick={() => duplicarLista(lista)}><Copy size={12}/> Duplicar</Btn>}
+          {lista && esGestion && <Btn variant="ghost" size="sm" onClick={() => { setEditando(lista); setModal(true) }}><Edit2 size={12}/> Editar lista</Btn>}
+          {lista && esGestion && <Btn variant="ghost" size="sm" onClick={() => duplicarLista(lista)}><Copy size={12}/> Duplicar</Btn>}
+          {lista && esGestion && (
+            <Btn variant="ghost" size="sm" className="text-red-400 hover:text-red-300" onClick={() => setConfirmDel(lista.id)}>
+              <Trash2 size={12}/> Eliminar
+            </Btn>
+          )}
           {lista && (
             <Btn variant="ghost" size="sm" onClick={async () => {
               await exportarListaPreciosXLSX(lista, productos, categorias, simboloMoneda, p => Number(p.precioCompra || 0))
@@ -122,7 +132,7 @@ export default function ListaPrecios() {
               await exportarListaPreciosPDF(lista, productos, categorias, simboloMoneda, p => Number(p.precioCompra || 0), sesion?.nombre)
             }}><FileText size={13}/> PDF</Btn>
           )}
-          <Btn variant="primary" size="sm" onClick={() => { setEditando(null); setModal(true) }}><Plus size={13}/> Nueva lista</Btn>
+          {esGestion && <Btn variant="primary" size="sm" onClick={() => { setEditando(null); setModal(true) }}><Plus size={13}/> Nueva lista</Btn>}
         </div>
       </div>
 
@@ -157,7 +167,7 @@ export default function ListaPrecios() {
                 <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5f6f80] pointer-events-none"/>
                 <Input className="pl-7" placeholder="Buscar SKU o producto..." value={busq} onChange={e => setBusq(e.target.value)}/>
               </div>
-              <Select className="w-auto" value={filtCat} onChange={e => setFiltCat(e.target.value)}>
+              <Select style={{ width: 190 }} value={filtCat} onChange={e => setFiltCat(e.target.value)}>
                 <option value="">Todas las categorías</option>
                 {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
               </Select>
@@ -195,10 +205,12 @@ export default function ListaPrecios() {
                           {formatCurrency(precio, simboloMoneda)}
                         </span>
                         {tieneEspecial && <span className="text-[9px] bg-amber-500/15 text-amber-400 px-1.5 py-0.5 rounded">especial</span>}
-                        <button onClick={() => setEditPrecio({ productoId: prod.id, listaId: lista?.id })}
-                          className="text-[#5f6f80] hover:text-[#00c896] transition-colors p-0.5 rounded">
-                          <Edit2 size={11}/>
-                        </button>
+                        {esGestion && (
+                          <button onClick={() => setEditPrecio({ productoId: prod.id, listaId: lista?.id })}
+                            className="text-[#5f6f80] hover:text-[#00c896] transition-colors p-0.5 rounded">
+                            <Edit2 size={11}/>
+                          </button>
+                        )}
                       </div>
                     )
                   }, stopPropagation: true },
@@ -214,7 +226,7 @@ export default function ListaPrecios() {
                   } },
                 { key: 'ajuste', header: 'Ajuste', stopPropagation: true, render: prod => {
                     const tieneEspecial = lista?.precios?.[prod.id] !== undefined
-                    return tieneEspecial && (
+                    return tieneEspecial && esGestion && (
                       <button className="text-[10px] text-[#5f6f80] hover:text-red-400 transition-colors"
                         onClick={() => resetPrecioEspecial(prod.id)}
                         title="Restaurar precio de lista">
@@ -225,7 +237,9 @@ export default function ListaPrecios() {
               ]}
             />
             <div className="mt-3 text-[11px] text-[#5f6f80]">
-              Haz clic en el ícono de edición para ajustar el precio de un producto en esta lista. Enter para guardar, Esc para cancelar.
+              {esGestion
+                ? 'Haz clic en el ícono de edición para ajustar el precio de un producto en esta lista. Enter para guardar, Esc para cancelar.'
+                : 'Estos son los precios vigentes de la lista — definir o ajustar precios es una acción de Gerente de Operaciones/Admin/Propietario.'}
             </div>
           </div>
         </>
@@ -252,7 +266,8 @@ export default function ListaPrecios() {
 
       <ModalLista open={modal} onClose={() => setModal(false)} editando={editando} onSave={saveLista}/>
       <ConfirmDialog open={!!confirmDel} onClose={() => setConfirmDel(null)} onConfirm={() => deleteLista(confirmDel)}
-        danger title="Eliminar lista" message="¿Eliminar esta lista de precios?"/>
+        danger title="Eliminar lista"
+        message="¿Eliminar esta lista de precios? Los clientes que la tengan asignada por defecto quedarán sin lista asignada. Esta acción no se puede deshacer."/>
     </div>
   )
 }
@@ -287,14 +302,20 @@ function ModalLista({ open, onClose, editando, onSave }) {
         </Select>
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Descuento % (sobre precio base)">
+        <Field label="Descuento %">
           <Input type="number" value={form.descuento} onChange={e => setForm(p => ({ ...p, descuento: +e.target.value, markup: +e.target.value > 0 ? 0 : p.markup }))} min="0" max="100" step="0.5"/>
         </Field>
-        <Field label="Markup % (sobre costo)">
+        <Field label="Markup %">
           <Input type="number" value={form.markup} onChange={e => setForm(p => ({ ...p, markup: +e.target.value, descuento: +e.target.value > 0 ? 0 : p.descuento }))} min="0" step="0.5"/>
         </Field>
       </div>
-      <Alert variant="info">Son mutuamente excluyentes: al activar uno se desactiva el otro. El descuento aplica sobre el precio base del catálogo; el markup aplica sobre el costo unitario (solo si el producto tiene costo registrado). Puedes además editar precios específicos por producto en la tabla.</Alert>
+      <Alert variant="info">
+        <div className="flex flex-col gap-1.5">
+          <div><strong>Descuento %</strong> — se resta al precio de venta base del catálogo. Ej: precio S/100 con 10% de descuento → S/90.</div>
+          <div><strong>Markup %</strong> — se suma al costo del producto, no al precio de venta (solo funciona si el producto tiene costo registrado). Ej: costo S/50 con 20% de markup → S/60.</div>
+          <div className="text-[11px] opacity-80">Son excluyentes entre sí — activar uno desactiva el otro. Deja ambos en 0 para usar el precio base tal cual. También puedes fijar un precio especial por producto individual desde la tabla de la lista.</div>
+        </div>
+      </Alert>
       <label className="flex items-center gap-2 cursor-pointer text-[13px] text-[#9ba8b6]">
         <input type="checkbox" checked={form.activa} onChange={e => f('activa', e.target.checked)} className="accent-[#00c896]"/>
         Lista activa

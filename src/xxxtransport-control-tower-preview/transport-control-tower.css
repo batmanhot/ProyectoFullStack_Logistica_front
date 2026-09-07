@@ -1,0 +1,19 @@
+/* Breakpoints locales del benchmark. Mantienen la composición operacional
+   predecible aun cuando la maqueta se cargue como una entrada independiente. */
+.tct-sidebar { display: none; }
+.tct-sidebar.tct-sidebar-open { display: block; }
+
+@media (min-width: 1180px) {
+  .tct-layout { grid-template-columns: 248px minmax(0, 1fr) !important; }
+  .tct-sidebar { display: block !important; position: sticky !important; top: 73px; height: calc(100vh - 73px); overflow-y: auto; }
+  .tct-menu-trigger { display: none !important; }
+  .tct-header-context { display: flex !important; }
+  .tct-main { padding: 2.5rem 2.5rem 3.5rem; }
+  .tct-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+  .tct-hero { grid-template-columns: minmax(0, 1.58fr) minmax(350px, .72fr) !important; }
+  .tct-analytics { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+}
+
+@media (min-width: 1600px) {
+  .tct-main { padding-left: 3rem; padding-right: 3rem; }
+}

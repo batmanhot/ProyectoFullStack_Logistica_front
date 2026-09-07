@@ -90,9 +90,10 @@ export function useRegistrarCombustible() {
   })
 }
 
-export function useFlotaAlertas() {
+export function useFlotaAlertas({ enabled = true } = {}) {
   return useQuery({
     queryKey: [KEY, 'alertas'],
     queryFn:  () => api.get('/flota/alertas').then(r => r.data ?? []),
+    enabled,
   })
 }

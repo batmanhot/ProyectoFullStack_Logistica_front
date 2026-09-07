@@ -3,13 +3,14 @@ import api from '../services/api'
 
 const KEY = 'sunat'
 
-export function useSunatDocumentos(filtros = {}) {
+export function useSunatDocumentos({ estado, enabled = true } = {}) {
   const params = new URLSearchParams()
-  if (filtros.estado) params.set('estado', filtros.estado)
+  if (estado) params.set('estado', estado)
   const qs = params.toString()
   return useQuery({
-    queryKey: [KEY, 'documentos', filtros],
+    queryKey: [KEY, 'documentos', { estado }],
     queryFn:  () => api.get(`/sunat/documentos${qs ? `?${qs}` : ''}`).then(r => r.data ?? []),
+    enabled,
   })
 }
 

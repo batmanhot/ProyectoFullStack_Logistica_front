@@ -44,17 +44,17 @@ export function Modal({ open, onClose, title, size = 'md', children, footer, zIn
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className={`animate-modal-in bg-[#161d28] border border-white/10 rounded-2xl w-full ${widths[size]} max-h-[92vh] flex flex-col shadow-2xl outline-none`}
+        className={`animate-modal-in bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full ${widths[size]} max-h-[92vh] flex flex-col shadow-[var(--shadow-modal)] outline-none`}
       >
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/8 shrink-0">
-          <span className="text-[15px] font-semibold text-[#e8edf2]">{title}</span>
-          <button onClick={onClose} aria-label="Cerrar" className="p-1.5 rounded-lg text-[#5f6f80] hover:text-[#e8edf2] hover:bg-white/5 transition-colors">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border)] shrink-0">
+          <span className="text-[15px] font-semibold text-[var(--text-primary)]">{title}</span>
+          <button onClick={onClose} aria-label="Cerrar" className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors">
             <X size={16} />
           </button>
         </div>
-        <div className="px-6 py-6 overflow-y-auto flex-1 flex flex-col gap-4">{children}</div>
+        <div className="px-6 py-6 overflow-y-auto flex-1 flex flex-col gap-4 text-[var(--text-primary)]">{children}</div>
         {footer && (
-          <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-white/8 shrink-0">
+          <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[var(--border)] shrink-0">
             {footer}
           </div>
         )}
@@ -77,18 +77,18 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, message, danger
         aria-modal="true"
         aria-label={title || 'Confirmar'}
         tabIndex={-1}
-        className="animate-modal-in bg-[#161d28] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl flex flex-col outline-none"
+        className="animate-modal-in bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-[var(--shadow-modal)] flex flex-col outline-none"
       >
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/8">
-          <span className="text-[15px] font-semibold text-[#e8edf2]">{title || 'Confirmar'}</span>
-          <button onClick={onClose} aria-label="Cerrar" className="p-1.5 rounded-lg text-[#5f6f80] hover:text-[#e8edf2] hover:bg-white/5 transition-colors">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
+          <span className="text-[15px] font-semibold text-[var(--text-primary)]">{title || 'Confirmar'}</span>
+          <button onClick={onClose} aria-label="Cerrar" className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-colors">
             <X size={16} />
           </button>
         </div>
         <div className="px-6 py-6">
-          <p className="text-sm text-[#9ba8b6] leading-relaxed">{message}</p>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{message}</p>
         </div>
-        <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-white/8">
+        <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[var(--border)]">
           <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
           <Btn variant={danger ? 'danger' : 'primary'} onClick={() => { onConfirm(); onClose() }}>
             {danger ? 'Eliminar' : 'Confirmar'}
@@ -154,9 +154,9 @@ export function EmptyState({ icon, title, description, action }) {
 
 /* ── Button ──────────────────────────────────────────── */
 const BTN_VARIANTS = {
-  primary:   'bg-[#00c896] text-[#082e1e] border border-[#00c896] hover:bg-[#009e76] hover:border-[#009e76]',
-  secondary: 'bg-[#1a2230] text-[#e8edf2] border border-white/14 hover:bg-white/5',
-  ghost:     'bg-transparent text-[#9ba8b6] border border-transparent hover:bg-white/5 hover:text-[#e8edf2]',
+  primary:   'bg-[var(--accent)] text-[var(--accent-text)] border border-[var(--accent)] hover:bg-[var(--accent-dark)] hover:border-[var(--accent-dark)]',
+  secondary: 'bg-[var(--bg-input)] text-[var(--text-primary)] border border-[var(--border)] hover:bg-[var(--bg-muted)]',
+  ghost:     'bg-transparent text-[var(--text-secondary)] border border-transparent hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]',
   danger:    'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20',
 }
 
@@ -208,8 +208,8 @@ const BADGE_STYLES = {
   warning: 'bg-amber-500/10  text-amber-400',
   danger:  'bg-red-500/10    text-red-400',
   info:    'bg-blue-500/10   text-blue-400',
-  neutral: 'bg-white/7       text-[#9ba8b6]',
-  teal:    'bg-[#00c896]/10  text-[#00c896]',
+  neutral: 'bg-[var(--bg-muted)] text-[var(--text-secondary)]',
+  teal:    'bg-[var(--accent-dim)] text-[var(--accent)]',
 }
 
 export function Badge({ variant = 'neutral', children, className = '' }) {
@@ -250,7 +250,7 @@ export function EstadoLogisticoBadge({ estado }) {
 export function Spinner({ size = 20 }) {
   return (
     <div className="flex items-center justify-center py-10">
-      <div className="animate-spin-slow rounded-full border-2 border-white/10 border-t-[#00c896]"
+      <div className="animate-spin-slow rounded-full border-2 border-white/10 border-t-[var(--accent)]"
         style={{ width: size, height: size }} />
     </div>
   )
@@ -269,11 +269,11 @@ export function Toggle({ value, onChange, label }) {
           onChange={() => onChange(!value)}
           className="peer absolute inset-0 z-10 opacity-0 cursor-pointer"
         />
-        <span className={`pointer-events-none absolute inset-0 rounded-full border transition-all duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-[#00c896]/40 peer-focus-visible:ring-offset-1 peer-focus-visible:ring-offset-[#0f141c] ${value ? 'bg-[#00c896] border-[#00c896]' : 'bg-[#1a2230] border-white/14'}`}>
+        <span className={`pointer-events-none absolute inset-0 rounded-full border transition-all duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--accent)]/40 peer-focus-visible:ring-offset-1 peer-focus-visible:ring-offset-[var(--bg-base)] ${value ? 'bg-[var(--accent)] border-[var(--accent)]' : 'bg-[var(--bg-muted)] border-[var(--border)]'}`}>
           <span className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200 ${value ? 'translate-x-4' : 'translate-x-0'}`} />
         </span>
       </span>
-      {label && <span className="text-[13px] text-[#9ba8b6]">{label}</span>}
+      {label && <span className="text-[13px] text-[var(--text-secondary)]">{label}</span>}
     </label>
   )
 }
@@ -282,16 +282,16 @@ export function Toggle({ value, onChange, label }) {
 export function Field({ label, hint, error, children }) {
   return (
     <div className="flex flex-col gap-1.5">
-      {label && <label className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide">{label}</label>}
+      {label && <label className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">{label}</label>}
       {children}
-      {hint  && <span className="text-[11px] text-[#5f6f80] leading-snug">{hint}</span>}
+      {hint  && <span className="text-[11px] text-[var(--text-muted)] leading-snug">{hint}</span>}
       {error && <span className="text-[11px] text-red-400">{error}</span>}
     </div>
   )
 }
 
 /* ── Input / Select / Textarea ───────────────────────── */
-const INPUT_BASE = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] placeholder-[#5f6f80] outline-none transition-all duration-150 focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20 font-[inherit]'
+const INPUT_BASE = 'w-full px-3 py-2 bg-[var(--bg-input)] border border-[var(--border)] rounded-lg text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 font-[inherit]'
 
 export function Input(props) {
   return <input {...props} className={`${INPUT_BASE} ${props.className || ''}`} />
@@ -312,7 +312,7 @@ export function Textarea(props) {
 /* ── Card ────────────────────────────────────────────── */
 export function Card({ children, className = '' }) {
   return (
-    <div className={`bg-[#161d28] border border-white/8 rounded-xl p-5 ${className}`}>
+    <div className={`bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5 ${className}`}>
       {children}
     </div>
   )
@@ -321,7 +321,7 @@ export function Card({ children, className = '' }) {
 export function CardHeader({ title, children }) {
   return (
     <div className="flex items-center justify-between mb-4">
-      <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">{title}</span>
+      <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-[0.06em]">{title}</span>
       <div className="flex items-center gap-2">{children}</div>
     </div>
   )
@@ -387,6 +387,7 @@ export function KpiCard({ label, value, sub, accentColor, icon, mono, onClick })
 
 export { DataTable, Pager } from './DataTable'
 export { LineaTiempo } from './LineaTiempo'
+export { ModalVistaPreviaDocumento } from './ModalVistaPreviaDocumento'
 
 export { default as DireccionInput } from './DireccionInput'
 

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { AppProvider, useApp } from './store/AppContext'
 import Sidebar from './components/layout/Sidebar'
 import { ToastContainer } from './components/ui/index'
 import { AlertTriangle, X } from 'lucide-react'
 import { useConfiguracion } from './queries/configuracion.queries'
+import HelpButton from './components/layout/HelpButton'
 
 // ── Lazy imports de páginas ─────────────────────────────
 const Login           = lazy(() => import('./pages/Login'))
@@ -55,12 +56,17 @@ const ContabilidadReportes = lazy(() => import('./pages/ContabilidadReportes'))
 const TrazabilidadPedidos  = lazy(() => import('./pages/TrazabilidadPedidos'))
 const ColaSincronizacion   = lazy(() => import('./pages/ColaSincronizacion'))
 const AdminSaaS            = lazy(() => import('./pages/AdminSaaS'))
+const AdminSaaSV2          = lazy(() => import('./pages/AdminSaaSV2'))
 const LandingPage          = lazy(() => import('./pages/LandingPage'))
+const Ayuda                = lazy(() => import('./pages/Ayuda'))
+const Oportunidades        = lazy(() => import('./pages/Oportunidades'))
+const Proyectos            = lazy(() => import('./pages/Proyectos'))
+const ReportesProyecto     = lazy(() => import('./pages/ReportesProyecto'))
 
 // ── Títulos de página ───────────────────────────────────
 const PAGE_TITLES = {
   '/':               'Dashboard',
-  '/inventario':     'Inventario',
+  '/inventario':     'Productos',
   '/entradas':       'Entradas de Stock',
   '/salidas':        'Salidas de Stock',
   '/ajustes':        'Ajustes de Inventario',
@@ -69,7 +75,7 @@ const PAGE_TITLES = {
   '/ordenes':        'Órdenes de Compra',
   '/cotizaciones':   'Cotizaciones a Proveedores',
   '/movimientos':    'Historial de Movimientos',
-  '/reportes':       'Reportes y Análisis',
+  '/reportes':       'Análisis de Inventario',
   '/vencimientos':   'Control de Vencimientos',
   '/reorden':        'Punto de Reorden',
   '/kardex':         'Kardex por Producto',
@@ -77,26 +83,26 @@ const PAGE_TITLES = {
   '/inv-fisico':     'Inventario Físico',
   '/prevision':      'Previsión de Demanda',
 
-  '/portal-prov-b2b':'Portal Proveedores B2B',
+  '/portal-prov-b2b':'Portal de Proveedores',
   '/clientes':       'Clientes',
   '/despachos':      'Gestión de Despachos',
   '/transportes':    'Gestión de Transportes',
-  '/auditoria':      'Auditoría del Sistema',
+  '/auditoria':      'Bitácora',
   '/panel-auditoria': 'Panel de Auditoría',
   '/incidencias':    'Registro de Incidencias',
   '/flota':          'Flota y Mantenimiento',
   '/financiero':     'Dashboard Financiero — P&L',
   '/cxc':            'Cuentas por Cobrar',
-  '/proformas':      'Proformas y Cotizaciones de Venta',
+  '/proformas':      'Proformas',
   '/mapa-almacen':   'Mapa Visual de Almacén',
-  '/lotes-series':   'Trazabilidad de Lotes y Series',
-  '/empaque':        'Módulo de Empaque y Packing',
+  '/lotes-series':   'Lotes por Producto',
+  '/empaque':        'Empaque',
   '/lista-precios':  'Listas de Precios',
   '/kpis':           'KPIs Operativos — Fill Rate · OTIF · Perfect Order',
-  '/sunat':          'Integración SUNAT / Facturación Electrónica',
+  '/sunat':          'Guías de Remisión',
   '/portal-pedidos':      'Portal de Pedidos para Clientes',
   '/contabilidad':        'Reportes Contables',
-  '/trazabilidad':        'Trazabilidad de Pedidos y OC',
+  '/trazabilidad':        'Estado de Pedidos y Órdenes de Compra',
   '/cola-sync':           'Cola de Sincronización',
   '/pedidos-internos':'Pedidos Internos',
   '/proveedores':    'Proveedores',
@@ -106,6 +112,10 @@ const PAGE_TITLES = {
   '/admin-saas':     'Administración SaaS — Negocios, Planes y Facturación',
   '/superadmin':     'Panel de Administración',
   '/landing':        'StockPro — Sistema Logístico SaaS',
+  '/ayuda':          'Centro de Ayuda',
+  '/oportunidades':  'Oportunidades — Seguimiento Comercial',
+  '/proyectos':       'Proyectos y CDR',
+  '/reportes-proyecto': 'Consumo por Proyecto',
 }
 
 // ── Error Boundary ──────────────────────────────────────
@@ -146,10 +156,19 @@ function PageLoader() {
 
 
 function PlanVencidoScreen({ negocio }) {
-  const { logout } = useApp()
+  const { sesion, logout } = useApp()
+  const navigate = useNavigate()
   const dias = negocio?.fechaVencimiento
     ? Math.floor((new Date(negocio.fechaVencimiento) - new Date()) / 86400000)
     : null
+
+  // Mismo fix que el logout del Sidebar: sin esto, cerrar sesión acá caía
+  // en la landing pública en vez de volver directo al login de este tenant.
+  function handleLogout() {
+    const empresaCodigo = sesion?.empresaCodigo
+    logout()
+    navigate(empresaCodigo ? `/app/${empresaCodigo}` : '/login', { replace: true })
+  }
 
   return (
     <div className="flex flex-col items-center justify-center flex-1 h-screen bg-[#0e1117] gap-6 p-8 text-center">
@@ -175,7 +194,7 @@ function PlanVencidoScreen({ negocio }) {
         )}
       </div>
       <button
-        onClick={logout}
+        onClick={handleLogout}
         className="px-5 py-2.5 bg-[#1e2835] border border-white/8 text-[#e8edf2] text-[13px] font-medium rounded-lg hover:bg-[#263040] transition-colors">
         Cerrar sesión
       </button>
@@ -225,11 +244,15 @@ function PlanVencimientoBanner({ empresaId }) {
 
 function PageHeader() {
   const location = useLocation()
-  const title = PAGE_TITLES[location.pathname] || 'StockPro'
+  // Las sub-rutas de /ayuda (ej. /ayuda/modulos/entradas) no tienen entrada
+  // exacta en PAGE_TITLES -- todas caen al mismo título de sección.
+  const title = PAGE_TITLES[location.pathname]
+    || (location.pathname.startsWith('/ayuda') ? 'Centro de Ayuda' : 'StockPro')
 
   return (
-    <div className="h-[52px] flex items-center px-6 border-b border-white/8 bg-[#141920] shrink-0">
+    <div className="h-[52px] flex items-center justify-between px-6 border-b border-white/8 bg-[#141920] shrink-0">
       <h1 className="text-[16px] font-semibold text-[#e8edf2]">{title}</h1>
+      <HelpButton pathname={location.pathname} />
     </div>
   )
 }
@@ -258,7 +281,7 @@ function SuperAdminLayout() {
 const MOBILE_BP = 768
 
 function AppLayout() {
-  const { sesion } = useApp()
+  const { sesion, loading } = useApp()
   const location = useLocation()
   const { data: configApiBloqueo } = useConfiguracion({ enabled: !!sesion?.empresaId })
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < MOBILE_BP)
@@ -326,6 +349,26 @@ function AppLayout() {
           <Routes>
             <Route path="/app/:orgId" element={<Login />} />
           </Routes>
+        </Suspense>
+        <ToastContainer />
+      </ErrorBoundary>
+    )
+  }
+
+  // SuperAdmin V2 — panel aislado en construcción (ver pages/AdminSaaSV2/),
+  // no comparte layout ni componentes con el panel clásico de abajo. Se
+  // intercepta ANTES para que ni siquiera pase por SuperAdminLayout.
+  if (location.pathname.startsWith('/admin-saas-v2')) {
+    // Esperar a que termine de restaurar la sesión desde localStorage (efecto
+    // async en AppContext) antes de decidir — si se redirige mientras
+    // `loading` sigue true, el cambio de URL a /superadmin queda fijo aunque
+    // la sesión sí exista y aparezca un instante después.
+    if (loading) return null
+    if (!sesion || sesion.rol?.codigo !== 'saas_admin') return <Navigate to="/superadmin" replace />
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<PageLoader />}>
+          <AdminSaaSV2 />
         </Suspense>
         <ToastContainer />
       </ErrorBoundary>
@@ -425,6 +468,10 @@ function AppLayout() {
             <Route path="/configuracion"  element={<Configuracion />} />
             <Route path="/admin-saas"     element={sesion?.rol?.codigo === 'saas_admin' ? <AdminSaaS /> : <Navigate to="/" replace />} />
             <Route path="/landing"        element={<LandingPage />} />
+            <Route path="/ayuda/*"        element={<Ayuda />} />
+            <Route path="/oportunidades"  element={<Oportunidades />} />
+            <Route path="/proyectos"      element={<Proyectos />} />
+            <Route path="/reportes-proyecto" element={<ReportesProyecto />} />
             <Route path="*"               element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

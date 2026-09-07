@@ -9,6 +9,8 @@ import { fechaHoyISO } from '../../utils/helpers'
 import { Btn, Input, Select, DataTable } from '../../components/ui'
 import { useAreasInternasList } from '../../queries/areas-internas.queries'
 import { useAlmacenesList } from '../../queries/almacenes.queries'
+import { useProyectosList } from '../../queries/proyectos.queries'
+import { useEmpresaPDFConfig } from '../../queries/configuracion.queries'
 import {
   usePedidosInternosList,
   usePedidosInternosProductos,
@@ -44,6 +46,8 @@ export default function PedidosInternos() {
   const { data: areasRaw        = [] }            = useAreasInternasList({ incluirInactivas: true })
   const { data: productos       = [] }            = usePedidosInternosProductos()
   const { data: almacenes       = [] }            = useAlmacenesList()
+  const { data: proyectos       = [] }            = useProyectosList()
+  const pdfConfig = useEmpresaPDFConfig()
 
   const areas = useMemo(() => areasRaw.map(a => ({ ...a, activo: a.activo !== false })), [areasRaw])
 
@@ -90,11 +94,19 @@ export default function PedidosInternos() {
     return data
   }, [pedidosInternos, filtEstado, filtArea, busqueda, areas, esSolicitante, areaDelUsuario])
 
-  const pedidosListos = useMemo(() =>
-    esSolicitante
-      ? pedidosInternos.filter(p => p.areaId === areaDelUsuario && p.estado === 'ENTREGADO' && !p.reciboConfirmado)
-      : []
-  , [pedidosInternos, esSolicitante, areaDelUsuario])
+  // Una sola cola de "listos para recojo" — quién la ve depende del rol, qué
+  // acción tiene cada fila depende de si el pedido es de uno mismo:
+  //   - No-admin: solo ve SUS propios pedidos (usuarioSolicitaId === yo).
+  //   - Admin/Almacén: ve la cola completa (todas las áreas), para no
+  //     depender de filtrar manualmente por Estado=Entregado cada vez.
+  // "Confirmar recibo" es una acción de IDENTIDAD, no de rol — quien pidió el
+  // material es quien certifica que lo recogió, así sea Admin/Almacenero
+  // pidiendo insumos para un proyecto propio — por eso cada fila decide su
+  // botón según usuarioSolicitaId, no según el rol de quien mira la lista.
+  const pedidosPorRecoger = useMemo(() => {
+    const listos = pedidosInternos.filter(p => p.estado === 'ENTREGADO' && !p.reciboConfirmado)
+    return esAdmin ? listos : listos.filter(p => p.usuarioSolicitaId === sesion?.id)
+  }, [pedidosInternos, esAdmin, sesion?.id])
 
   async function handleModalSave(action) {
     let res
@@ -125,6 +137,11 @@ export default function PedidosInternos() {
       res = await entregarPI.mutateAsync(action.id)
       if (res?.error) return res
       // showAviso handles its own close
+    } else if (action.type === 'confirmar') {
+      res = await reciboPI.mutateAsync(action.id)
+      if (res?.error) return res
+      setModalDet(null)
+      toast('Recibo confirmado', 'success')
     }
     return res
   }
@@ -156,7 +173,7 @@ export default function PedidosInternos() {
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">
 
-      {pedidosListos.length > 0 && (
+      {pedidosPorRecoger.length > 0 && (
         <div className="bg-[#00c896]/10 border border-[#00c896]/30 rounded-xl px-5 py-4 flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-[#00c896]/20 flex items-center justify-center shrink-0">
@@ -164,24 +181,40 @@ export default function PedidosInternos() {
             </div>
             <div>
               <div className="text-[14px] font-semibold text-white">
-                {pedidosListos.length === 1 ? 'Tu pedido está listo para recojo' : `${pedidosListos.length} pedidos están listos para recojo`}
+                {pedidosPorRecoger.length === 1 ? '1 pedido está listo para recojo' : `${pedidosPorRecoger.length} pedidos están listos para recojo`}
               </div>
-              <div className="text-[11px] text-white/40 mt-0.5">Acércate al almacén en horario de oficina</div>
+              <div className="text-[11px] text-white/40 mt-0.5">
+                {esAdmin ? 'Confirma los tuyos o revisa el detalle de los que esperan otras áreas' : 'Acércate al almacén en horario de oficina'}
+              </div>
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            {pedidosListos.map(p => (
-              <div key={p.id} className="flex items-center justify-between bg-[#00c896]/5 rounded-lg px-4 py-2.5">
-                <div>
-                  <span className="text-[13px] font-mono font-medium text-white/80">{p.numero}</span>
-                  <span className="text-[11px] text-white/35 ml-2">{p.items?.length} producto(s)</span>
+            {pedidosPorRecoger.map(p => {
+              const esMio = p.usuarioSolicitaId === sesion?.id
+              const area  = areas.find(a => a.id === p.areaId)
+              return (
+                <div key={p.id} className="flex items-center justify-between bg-[#00c896]/5 rounded-lg px-4 py-2.5">
+                  <div>
+                    <span className="text-[13px] font-mono font-medium text-white/80">{p.numero}</span>
+                    <span className="text-[11px] text-white/35 ml-2">
+                      {esAdmin && `${area?.nombre || p.areaId} · `}{p.items?.length} producto(s)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setModalDet(p)}
+                      className="flex items-center gap-1.5 text-[11px] font-semibold text-white/40 hover:text-white/70 transition-colors">
+                      <Eye size={12}/> Ver detalle
+                    </button>
+                    {esMio && (
+                      <button onClick={() => confirmarRecibo(p.id)}
+                        className="flex items-center gap-1.5 text-[11px] font-semibold text-[#00c896] hover:text-[#009e76] transition-colors">
+                        <Check size={12}/> Confirmar recibo
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <button onClick={() => confirmarRecibo(p.id)}
-                  className="flex items-center gap-1.5 text-[11px] font-semibold text-[#00c896] hover:text-[#009e76] transition-colors">
-                  <Check size={12}/> Confirmar recibo
-                </button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
@@ -216,12 +249,12 @@ export default function PedidosInternos() {
               placeholder="Buscar por número o área..."
               value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <Select className="w-auto" value={filtEstado} onChange={e => setFiltEstado(e.target.value)}>
+          <Select style={{ width: 170 }} value={filtEstado} onChange={e => setFiltEstado(e.target.value)}>
             <option value="">Todos los estados</option>
             {ESTADOS_LISTA.map(s => <option key={s} value={s}>{ESTADOS[s]?.label || s}</option>)}
           </Select>
           {!esSolicitante && (
-            <Select className="w-auto" value={filtArea} onChange={e => setFiltArea(e.target.value)}>
+            <Select style={{ width: 170 }} value={filtArea} onChange={e => setFiltArea(e.target.value)}>
               <option value="">Todas las áreas</option>
               {areas.filter(a => a.activo !== false).map(a => (
                 <option key={a.id} value={a.id}>{a.nombre}</option>
@@ -305,7 +338,7 @@ export default function PedidosInternos() {
       {modalNuevo && (
         <ModalPedido
           pedido={null} onClose={() => setModalNuevo(false)} onSave={handleModalSave}
-          areas={areas} productos={productos} almacenes={almacenes}
+          areas={areas} productos={productos} almacenes={almacenes} proyectos={proyectos}
           sesion={sesion} areaFija={esSolicitante ? areaDelUsuario : undefined}
           saving={saving}
         />
@@ -313,7 +346,7 @@ export default function PedidosInternos() {
       {modalEditar && (
         <ModalPedido
           pedido={modalEditar} onClose={() => setModalEditar(null)} onSave={handleModalSave}
-          areas={areas} productos={productos} almacenes={almacenes}
+          areas={areas} productos={productos} almacenes={almacenes} proyectos={proyectos}
           sesion={sesion} areaFija={esSolicitante ? areaDelUsuario : undefined}
           saving={saving}
         />
@@ -328,10 +361,13 @@ export default function PedidosInternos() {
       {modalDet && (
         <ModalDetalle
           pedido={modalDet} onClose={() => setModalDet(null)} onSave={handleModalSave}
-          areas={areas} productos={productos} almacenes={almacenes}
+          areas={areas} productos={productos} almacenes={almacenes} proyectos={proyectos}
+          pdfConfig={pdfConfig}
           esAdmin={esAdmin}
           picking={pickingPI.isPending}
           entregando={entregarPI.isPending}
+          puedeConfirmarRecibo={modalDet.usuarioSolicitaId === sesion?.id}
+          confirmando={reciboPI.isPending}
         />
       )}
     </div>

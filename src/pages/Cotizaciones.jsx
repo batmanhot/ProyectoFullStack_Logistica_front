@@ -3,9 +3,9 @@ import { Plus, Search, Eye, Edit2, CheckCircle, FileText, X, Download } from 'lu
 
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy } from '../utils/helpers'
-import { Modal, Badge, Btn, Field, Input, Select, Textarea, DataTable } from '../components/ui/index'
+import { Modal, Badge, Btn, Field, Input, Select, Textarea, DataTable, ModalVistaPreviaDocumento } from '../components/ui/index'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
-import { imprimirRFQ, armarHtmlRFQ } from '../utils/pdfTemplates'
+import { armarHtmlRFQ } from '../utils/pdfTemplates'
 import { exportarCotizacionesXLSX } from '../utils/exportXLSX'
 import { exportarCotizacionesPDF } from '../utils/exportPDF'
 import { useCotizacionesList, useCrearCotizacion, useActualizarCotizacion, useAgregarRespuesta, useMarcarGanadora } from '../queries/cotizaciones.queries'
@@ -40,6 +40,7 @@ export default function Cotizaciones() {
   const [editando,  setEditando]  = useState(null)
   const [detalle,   setDetalle]   = useState(null)
   const [shareRFQ,  setShareRFQ]  = useState(null)
+  const [preview,   setPreview]   = useState(null) // { titulo, html, numeroDocumento } | null
   const [provDestId, setProvDestId] = useState('')
   const [filtEst,   setFiltEst]   = useState('')
   const [busqueda,  setBusqueda]  = useState('')
@@ -259,7 +260,11 @@ export default function Cotizaciones() {
               tipo="Solicitud de Cotización"
               numero={shareRFQ.numero}
               onClose={() => setShareRFQ(null)}
-              onPrint={() => imprimirRFQ({ cotiz: shareRFQ, productos, config: pdfConfig })}
+              onPrint={() => setPreview({
+                titulo: `Solicitud de Cotización — ${shareRFQ.numero}`,
+                html: armarHtmlRFQ({ cotiz: shareRFQ, productos, config: pdfConfig }),
+                numeroDocumento: shareRFQ.numero,
+              })}
               getHtml={() => armarHtmlRFQ({ cotiz: shareRFQ, productos, config: pdfConfig })}
               asunto={`Solicitud de Cotización ${shareRFQ.numero}`}
               empresaNombre={pdfConfig.empresa}
@@ -291,6 +296,14 @@ export default function Cotizaciones() {
           onMarcarGanadora={resp => handleMarcarGanadora(detalle, resp)}
         />
       )}
+
+      <ModalVistaPreviaDocumento
+        open={!!preview}
+        onClose={() => setPreview(null)}
+        titulo={preview?.titulo}
+        html={preview?.html}
+        numeroDocumento={preview?.numeroDocumento}
+      />
     </div>
   )
 }

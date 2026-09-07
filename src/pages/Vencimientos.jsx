@@ -179,7 +179,7 @@ export default function Vencimientos() {
             {filtroRango !== 'all' && <span className="ml-2 text-[#00c896]">— {RANGOS.find(r => r.key === filtroRango)?.label}</span>}
           </span>
           <div className="flex gap-2 items-center">
-            <Select className="w-auto" value={filtCat} onChange={e => setFiltCat(e.target.value)}>
+            <Select style={{ width: 190 }} value={filtCat} onChange={e => setFiltCat(e.target.value)}>
               <option value="">Todas las categorías</option>
               {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </Select>
@@ -199,11 +199,11 @@ export default function Vencimientos() {
             <Input className="pl-8" placeholder="Buscar producto o SKU..."
               value={filtProd} onChange={e => setFiltProd(e.target.value)}/>
           </div>
-          <Select className="w-auto" value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
+          <Select style={{ width: 190 }} value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
             <option value="">Todos los almacenes</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
           </Select>
-          <Select className="w-auto" value={filtEstado} onChange={e => setFiltEstado(e.target.value)}>
+          <Select style={{ width: 170 }} value={filtEstado} onChange={e => setFiltEstado(e.target.value)}>
             <option value="">Todos los estados</option>
             {RANGOS.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
           </Select>

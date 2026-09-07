@@ -3,10 +3,10 @@ import { Plus, Search, CheckCircle, X, Eye, ShoppingCart, FileText, MessageCircl
 import { useApp } from '../store/AppContext'
 import { usePlanLimits } from '../hooks/usePlanLimits'
 import { formatCurrency, formatDate } from '../utils/helpers'
-import { Modal, EstadoOCBadge, EstadoLogisticoBadge, Badge, Btn, Field, Input, Select, Textarea, DataTable } from '../components/ui/index'
+import { Modal, EstadoOCBadge, EstadoLogisticoBadge, Badge, Btn, Field, Input, Select, Textarea, DataTable, ModalVistaPreviaDocumento } from '../components/ui/index'
 import { ModalRecepcionParcial } from '../components/ui/ModalRecepcionParcial'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
-import { imprimirOC, armarHtmlOC } from '../utils/pdfTemplates'
+import { armarHtmlOC } from '../utils/pdfTemplates'
 import { useEmpresaPDFConfig } from '../queries/configuracion.queries'
 import {
   useOrdenesCompraList, useCrearOrdenCompra, useActualizarOrdenCompra, useRecibirOrdenCompra,
@@ -56,6 +56,7 @@ export default function Ordenes() {
   const [detalle,  setDetalle]  = useState(null)
   const [recepcion,setRecepcion]= useState(null)
   const [shareOC,  setShareOC]  = useState(null)
+  const [preview,  setPreview]  = useState(null) // { titulo, html, numeroDocumento } | null
   const [filtEst,  setFiltEst]  = useState('')
   const [filtProv, setFiltProv] = useState('')
   const [busqueda, setBusqueda] = useState('')
@@ -319,7 +320,11 @@ export default function Ordenes() {
             tipo="Orden de Compra"
             numero={shareOC.numero}
             onClose={() => setShareOC(null)}
-            onPrint={() => imprimirOC({ oc: shareOC, proveedor: provMap.get(shareOC.proveedorId), productos, config: pdfConfig })}
+            onPrint={() => setPreview({
+              titulo: `Orden de Compra — ${shareOC.numero}`,
+              html: armarHtmlOC({ oc: shareOC, proveedor: provMap.get(shareOC.proveedorId), productos, config: pdfConfig }),
+              numeroDocumento: shareOC.numero,
+            })}
             getHtml={() => armarHtmlOC({ oc: shareOC, proveedor: provMap.get(shareOC.proveedorId), productos, config: pdfConfig })}
             asunto={`Orden de Compra ${shareOC.numero}`}
             empresaNombre={pdfConfig.empresa}
@@ -337,6 +342,14 @@ export default function Ordenes() {
         <ModalRecepcionParcial oc={recepcion} productos={productos}
           simboloMoneda={simboloMoneda} onClose={() => setRecepcion(null)} onConfirm={confirmarRecepcion}/>
       )}
+
+      <ModalVistaPreviaDocumento
+        open={!!preview}
+        onClose={() => setPreview(null)}
+        titulo={preview?.titulo}
+        html={preview?.html}
+        numeroDocumento={preview?.numeroDocumento}
+      />
     </div>
   )
 }

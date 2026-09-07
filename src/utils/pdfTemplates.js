@@ -421,7 +421,11 @@ ${des.observaciones ? `<div class="notas"><strong>Observaciones:</strong> ${des.
 // ════════════════════════════════════════════════════════
 // PICKING LIST — Documento para almacenero
 // ════════════════════════════════════════════════════════
-export function imprimirPickingList({ des, cliente, productos, almacen, config, sesion }) {
+export function imprimirPickingList(args) {
+  imprimirConIframe(armarHtmlPickingList(args))
+}
+
+export function armarHtmlPickingList({ des, cliente, productos, almacen, config, sesion }) {
   const emp = config?.empresa  || 'Mi Empresa S.A.C.'
   const ruc = config?.ruc       || ''
 
@@ -540,13 +544,17 @@ table.picking tbody td{padding:10px 10px;vertical-align:middle}
 
 </body></html>`
 
-  imprimirConIframe(html)
+  return html
 }
 
 // ════════════════════════════════════════════════════════
 // HOJA DE REPARTO — Manifiesto de entrega para el transportista
 // ════════════════════════════════════════════════════════
-export function imprimirHojaReparto({ ruta, despachos, clientes, transportista, config }) {
+export function imprimirHojaReparto(args) {
+  imprimirConIframe(armarHtmlHojaReparto(args))
+}
+
+export function armarHtmlHojaReparto({ ruta, despachos, clientes, transportista, config }) {
   const emp = config?.empresa || 'Mi Empresa S.A.C.'
   const ruc = config?.ruc      || ''
   const s   = config?.simboloMoneda || 'S/'
@@ -643,7 +651,7 @@ table.reparto tbody td{padding:9px 8px;vertical-align:top}
 
 </body></html>`
 
-  imprimirConIframe(html)
+  return html
 }
 
 // ════════════════════════════════════════════════════════
@@ -755,6 +763,201 @@ ${doc.notas ? `<div class="notas"><strong>Notas y condiciones:</strong> ${doc.no
   return html
 }
 
+// ════════════════════════════════════════════════════════
+// VALE DE SALIDA — Comprobante de entrega de un Pedido Interno
+// (Gestión de Pedidos por Proyecto, Fase 5). Sin numeración propia por
+// decisión del cliente: reusa el número del Pedido Interno (PI-00001) como
+// única referencia — no hay secuencia ni contador aparte que mantener.
+// ════════════════════════════════════════════════════════
+export function imprimirValeSalida(args) {
+  imprimirConIframe(armarHtmlValeSalida(args))
+}
+
+export function armarHtmlValeSalida({ pedido, area, proyecto, productos, config }) {
+  const emp = config?.empresa    || 'Mi Empresa S.A.C.'
+  const ruc = config?.ruc         || ''
+  const tel = config?.telefono    || ''
+  const dir = config?.direccion   || ''
+
+  const filas = (pedido.items || []).map(item => {
+    const p = productos.find(x => x.id === item.productoId)
+    return `<tr>
+      <td>${p?.sku || '—'}</td>
+      <td><strong>${p?.nombre || item.productoId}</strong></td>
+      <td class="r">${item.cantidad}</td>
+      <td class="r">${item.unidadMedida || p?.unidadMedida || '—'}</td>
+      <td>${item.notas || ''}</td>
+    </tr>`
+  }).join('')
+
+  const html = `<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="UTF-8"><title>Vale de Salida ${pedido.numero}</title>
+<style>${CSS}
+.proyecto-banner{background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:12px 16px;margin-bottom:16px}
+.proyecto-banner .stitle{color:#9a3412}
+</style>
+</head><body>
+
+<div class="header">
+  <div>
+    <h1>${emp}</h1>
+    <div class="sub">${ruc ? `RUC: ${ruc}` : ''}${dir ? ` &nbsp;&middot;&nbsp; ${dir}` : ''}</div>
+    <div class="sub">${tel}</div>
+  </div>
+  <div class="doc-right">
+    <div class="doc-tipo">Vale de Salida</div>
+    <div class="doc-num">${pedido.numero}</div>
+    <span class="badge verde">ENTREGADO</span>
+    <div style="font-size:11px;color:#888;margin-top:6px">Fecha de entrega: <strong>${formatDate(pedido.fechaEntrega) || '—'}</strong></div>
+  </div>
+</div>
+
+<div class="grid2">
+  <div>
+    <div class="stitle">Área Solicitante</div>
+    <div class="fl"><label>Área</label><span>${area?.nombre || pedido.areaId || '—'}</span></div>
+    <div class="fl"><label>Código</label><span>${area?.codigo || '—'}</span></div>
+    <div class="fl"><label>Solicitado por</label><span>${pedido.usuarioSolicita?.nombre || '—'}</span></div>
+    <div class="fl"><label>Entregado por</label><span>${pedido.usuarioEntrega?.nombre || '—'}</span></div>
+  </div>
+  ${proyecto ? `
+  <div class="proyecto-banner">
+    <div class="stitle">Proyecto / CDR</div>
+    <div class="fl"><label>Proyecto</label><span><strong>${proyecto.codigo} — ${proyecto.nombre}</strong></span></div>
+    <div class="fl"><label>CDR</label><span>${proyecto.cdr ? `${proyecto.cdr.codigo} — ${proyecto.cdr.nombre}` : '—'}</span></div>
+    <div class="fl"><label>Cliente</label><span>${proyecto.cliente?.razonSocial || '—'}</span></div>
+  </div>` : `
+  <div>
+    <div class="stitle">Proyecto / CDR</div>
+    <div class="fl"><span style="color:#888">Sin proyecto asignado</span></div>
+  </div>`}
+</div>
+
+<div class="stitle">Materiales Entregados</div>
+<table>
+  <thead><tr>
+    <th style="width:75px">SKU</th><th>Descripción</th>
+    <th class="r" style="width:80px">Cantidad</th>
+    <th class="r" style="width:80px">Unidad</th>
+    <th>Observaciones</th>
+  </tr></thead>
+  <tbody>${filas}</tbody>
+</table>
+
+${pedido.notasSolicitud ? `<div class="notas"><strong>Notas de la solicitud:</strong> ${pedido.notasSolicitud}</div>` : ''}
+
+<div class="aviso" style="margin-top:20px">
+  <b>Este vale acredita la salida física de los materiales indicados.</b>
+  No reemplaza ningún comprobante tributario — es un control interno de consumo por proyecto/CDR.
+</div>
+
+<div class="firmas" style="margin-top:40px">
+  <div class="firma">Entregado por (Almacén)<br/><br/><br/>________________________________<br/><span style="font-size:9px">Nombre y firma</span></div>
+  <div class="firma" style="visibility:hidden"></div>
+  <div class="firma">Recibido conforme (Área / Proyecto)<br/><br/><br/>________________________________<br/><span style="font-size:9px">Nombre, firma y fecha</span></div>
+</div>
+
+<div class="footer">
+  <span>Vale de salida generado por StockPro &nbsp;&middot;&nbsp; ${new Date().toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit',year:'numeric'})}</span>
+  <span>${emp} &nbsp;&middot;&nbsp; Ref. ${pedido.numero}</span>
+</div>
+</body></html>`
+
+  return html
+}
+
+// ════════════════════════════════════════════════════════
+// PEDIDO INTERNO — Nota de Despacho Interno (NDI)
+// ════════════════════════════════════════════════════════
+const BADGE_NDI = {
+  BORRADOR:'ambar', ENVIADO:'azul', APROBADO:'verde',
+  PICKING:'ambar', ENTREGADO:'verde', RECHAZADO:'rojo',
+}
+
+export function imprimirNotaDespachoInterno(args) {
+  imprimirConIframe(armarHtmlNotaDespachoInterno(args))
+}
+
+export function armarHtmlNotaDespachoInterno({ pedido, area, almacen, productos, estadoLabel, config }) {
+  const emp = config?.empresa  || 'Mi Empresa S.A.C.'
+  const ruc = config?.ruc       || ''
+  const tel = config?.telefono  || ''
+  const dir = config?.direccion || ''
+  const cls = BADGE_NDI[pedido.estado] || 'ambar'
+
+  const filas = (pedido.items || []).map(item => {
+    const p = productos.find(x => x.id === item.productoId)
+    return `<tr>
+      <td>${p?.sku || '—'}</td>
+      <td><strong>${p?.nombre || item.productoId}</strong></td>
+      <td class="r">${item.cantidad}</td>
+      <td class="r">${item.unidadMedida || p?.unidadMedida || '—'}</td>
+      <td>${item.notas || ''}</td>
+    </tr>`
+  }).join('')
+
+  return `<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="UTF-8"><title>Nota de Despacho Interno ${pedido.numero}</title>
+<style>${CSS}</style>
+</head><body>
+
+<div class="header">
+  <div>
+    <h1>${emp}</h1>
+    <div class="sub">${ruc ? `RUC: ${ruc}` : ''}${dir ? ` &nbsp;&middot;&nbsp; ${dir}` : ''}</div>
+    <div class="sub">${tel}</div>
+  </div>
+  <div class="doc-right">
+    <div class="doc-tipo">Nota de Despacho Interno</div>
+    <div class="doc-num">${pedido.numero}</div>
+    <span class="badge ${cls}">${estadoLabel || pedido.estado}</span>
+    <div style="font-size:11px;color:#888;margin-top:6px">Prioridad: <strong>${pedido.prioridad || '—'}</strong></div>
+  </div>
+</div>
+
+<div class="grid2">
+  <div>
+    <div class="stitle">Área Solicitante</div>
+    <div class="fl"><label>Área</label><span>${area?.nombre || pedido.areaId || '—'}</span></div>
+    <div class="fl"><label>Código</label><span>${area?.codigo || '—'}</span></div>
+    <div class="fl"><label>Solicitado por</label><span>${pedido.usuarioSolicita?.nombre || '—'}</span></div>
+    <div class="fl"><label>Fecha requerida</label><span>${formatDate(pedido.fechaRequerida) || '—'}</span></div>
+  </div>
+  <div>
+    <div class="stitle">Almacén de Despacho</div>
+    <div class="fl"><label>Almacén</label><span>${almacen?.nombre || pedido.almacenId || '—'}</span></div>
+    <div class="fl"><label>Fecha de entrega</label><span>${formatDate(pedido.fechaEntrega) || 'Pendiente'}</span></div>
+  </div>
+</div>
+
+<div class="stitle">Productos Solicitados</div>
+<table>
+  <thead><tr>
+    <th style="width:75px">SKU</th><th>Descripción</th>
+    <th class="r" style="width:80px">Cantidad</th>
+    <th class="r" style="width:80px">Unidad</th>
+    <th>Observaciones</th>
+  </tr></thead>
+  <tbody>${filas}</tbody>
+</table>
+
+${pedido.notasSolicitud ? `<div class="notas"><strong>Notas de la solicitud:</strong> ${pedido.notasSolicitud}</div>` : ''}
+
+<div class="firmas" style="margin-top:40px">
+  <div class="firma">Solicitante<br/><br/><br/>________________________________<br/><span style="font-size:9px">Nombre y firma</span></div>
+  <div class="firma" style="visibility:hidden"></div>
+  <div class="firma">Almacenero / Entrega<br/><br/><br/>________________________________<br/><span style="font-size:9px">Nombre y firma</span></div>
+</div>
+
+<div class="footer">
+  <span>Nota de Despacho Interno generada por StockPro &nbsp;&middot;&nbsp; ${new Date().toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit',year:'numeric'})}</span>
+  <span>${emp} &nbsp;&middot;&nbsp; Ref. ${pedido.numero}</span>
+</div>
+</body></html>`
+}
+
 /** Descarga un PDF (base64, ver EmailService.generarPdfBase64) como archivo real en el dispositivo. */
 export function descargarPdfBase64(base64, nombreArchivo) {
   const binario = atob(base64)
@@ -788,7 +991,11 @@ const ESTADO_PEDIDO = {
  * emisora (decodificados del JWT) — no hay RUC/dirección/teléfono propios ni
  * del cliente. Los campos ausentes caen a '—' igual que en el resto de plantillas.
  */
-export function imprimirPedidoPortal({ pedido, cliente, productos, config }) {
+export function imprimirPedidoPortal(args) {
+  imprimirConIframe(armarHtmlPedidoPortal(args))
+}
+
+export function armarHtmlPedidoPortal({ pedido, cliente, productos, config }) {
   const s    = config?.simboloMoneda || 'S/'
   const emp  = config?.empresa        || 'Mi Empresa S.A.C.'
   const ruc  = config?.ruc             || ''
@@ -876,5 +1083,5 @@ ${pedido.motivoRechazo ? `<div class="notas" style="background:#fef2f2;border-le
 </div>
 </body></html>`
 
-  imprimirConIframe(html)
+  return html
 }

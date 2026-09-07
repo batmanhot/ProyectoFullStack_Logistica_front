@@ -3,13 +3,14 @@ import api from '../services/api'
 
 const KEY = 'pedidos-portal'
 
-export function usePedidosPortalList(filtros = {}) {
+export function usePedidosPortalList({ estado, enabled = true } = {}) {
   const params = new URLSearchParams()
-  if (filtros.estado) params.set('estado', filtros.estado)
+  if (estado) params.set('estado', estado)
   const qs = params.toString()
   return useQuery({
-    queryKey: [KEY, filtros],
+    queryKey: [KEY, { estado }],
     queryFn:  () => api.get(`/pedidos-portal${qs ? `?${qs}` : ''}`).then(r => r.data ?? []),
+    enabled,
   })
 }
 

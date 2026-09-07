@@ -94,4 +94,5 @@ describe('ModalUsuario', () => {
     // sin tocar el password, sigue siendo válido (edición no exige cambiarlo)
     expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled()
   })
+
 })

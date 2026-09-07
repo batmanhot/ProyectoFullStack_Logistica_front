@@ -1,16 +1,22 @@
 import { useState } from 'react'
-import { Package, Printer, Layers, CheckCircle, PackageCheck, X } from 'lucide-react'
+import { Package, Printer, Layers, CheckCircle, PackageCheck, FileOutput, X } from 'lucide-react'
 import { formatDateTime } from '../../utils/helpers'
-import { LineaTiempo } from '../../components/ui/index'
+import { LineaTiempo, ModalVistaPreviaDocumento } from '../../components/ui/index'
+import { armarHtmlValeSalida, armarHtmlNotaDespachoInterno } from '../../utils/pdfTemplates'
 import { ESTADOS, flujoTimeline, pasosTrazabilidad } from './constants'
 import { Badge } from './Badge'
 
 // ── Modal Detalle / Entrega ─────────────────────────────────
-export function ModalDetalle({ pedido, onClose, onSave, areas, productos, almacenes, esAdmin, picking, entregando }) {
+export function ModalDetalle({ pedido, onClose, onSave, areas, productos, almacenes, proyectos = [], pdfConfig, esAdmin, picking, entregando, puedeConfirmarRecibo, confirmando }) {
   const [error,      setError]      = useState('')
   const [showAviso,  setShowAviso]  = useState(false)
+  const [preview,    setPreview]    = useState(null) // { titulo, html, numeroDocumento } | null
   const area    = areas.find(a => a.id === pedido.areaId)
   const almacen = almacenes.find(a => a.id === pedido.almacenId)
+  // El pedido trae `proyecto` con solo id/codigo/nombre (ver findAll/findOne del
+  // backend) — para el Vale de Salida necesitamos CDR/cliente también, así que
+  // buscamos la versión completa en la lista de proyectos ya cargada.
+  const proyectoCompleto = pedido.proyectoId ? proyectos.find(p => p.id === pedido.proyectoId) : null
   const ePI     = ESTADOS[pedido.estado] || ESTADOS.BORRADOR
 
   async function handlePicking() {
@@ -22,62 +28,19 @@ export function ModalDetalle({ pedido, onClose, onSave, areas, productos, almace
     if (res?.error) { setError(res.error); return }
     setShowAviso(true)
   }
+  async function handleConfirmarRecibo() {
+    const res = await onSave({ type: 'confirmar', id: pedido.id })
+    if (res?.error) { setError(res.error); return }
+  }
+
+  function handleValeSalida() {
+    const html = armarHtmlValeSalida({ pedido, area, proyecto: proyectoCompleto, productos, config: pdfConfig })
+    setPreview({ titulo: `Vale de Salida — ${pedido.numero}`, html, numeroDocumento: `Vale-${pedido.numero}` })
+  }
 
   function handlePrint() {
-    const win = window.open('', '_blank', 'width=800,height=600')
-    const items = (pedido.items || []).map(it => {
-      const prod = productos.find(p => p.id === it.productoId)
-      return `<tr>
-        <td style="padding:8px;border:1px solid #ddd">${prod?.sku||'—'}</td>
-        <td style="padding:8px;border:1px solid #ddd">${prod?.nombre||it.productoId}</td>
-        <td style="padding:8px;border:1px solid #ddd;text-align:center">${it.cantidad}</td>
-        <td style="padding:8px;border:1px solid #ddd;text-align:center">${it.unidadMedida||prod?.unidadMedida||'—'}</td>
-        <td style="padding:8px;border:1px solid #ddd">${it.notas||''}</td>
-      </tr>`
-    }).join('')
-
-    win.document.write(`<!DOCTYPE html><html><head>
-      <title>Nota de Despacho Interno — ${pedido.numero}</title>
-      <style>body{font-family:Arial,sans-serif;margin:30px;color:#222}
-      h1{font-size:18px;margin:0}h2{font-size:14px;color:#555}
-      table{width:100%;border-collapse:collapse;margin-top:16px}
-      th{background:#f0f0f0;padding:8px;border:1px solid #ddd;font-size:12px;text-align:left}
-      td{font-size:12px}
-      .info{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0;font-size:12px}
-      .info div{background:#f8f8f8;padding:10px;border-radius:4px}
-      .label{font-size:10px;color:#888;text-transform:uppercase;margin-bottom:2px}
-      .footer{margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:40px}
-      .firma{border-top:1px solid #999;padding-top:8px;text-align:center;font-size:11px;color:#555}
-      </style></head><body>
-      <div style="display:flex;justify-content:space-between;align-items:start;border-bottom:2px solid #333;padding-bottom:12px">
-        <div><h1>NOTA DE DESPACHO INTERNO</h1><h2>${pedido.numero}</h2></div>
-        <div style="text-align:right;font-size:11px;color:#555">
-          Estado: <b>${ePI.label}</b><br/>
-          Fecha: ${pedido.fecha||pedido.createdAt||''}<br/>
-          Prioridad: ${pedido.prioridad}
-        </div>
-      </div>
-      <div class="info">
-        <div><div class="label">Área Solicitante</div><b>${area?.nombre||pedido.areaId}</b><br/>${area?.codigo||''}</div>
-        <div><div class="label">Almacén de Despacho</div><b>${almacen?.nombre||pedido.almacenId}</b></div>
-        <div><div class="label">Fecha Requerida</div><b>${pedido.fechaRequerida||'—'}</b></div>
-        <div><div class="label">Fecha de Entrega</div><b>${pedido.fechaEntrega||'Pendiente'}</b></div>
-      </div>
-      ${pedido.notasSolicitud ? `<div style="font-size:12px;margin-bottom:8px"><b>Notas:</b> ${pedido.notasSolicitud}</div>` : ''}
-      <table>
-        <thead><tr>
-          <th>SKU</th><th>Producto</th><th style="text-align:center">Cantidad</th>
-          <th style="text-align:center">Unidad</th><th>Observaciones</th>
-        </tr></thead>
-        <tbody>${items}</tbody>
-      </table>
-      <div class="footer">
-        <div class="firma">Solicitante<br/><br/>_________________________</div>
-        <div class="firma">Almacenero / Entrega<br/><br/>_________________________</div>
-      </div>
-      </body></html>`)
-    win.document.close()
-    win.print()
+    const html = armarHtmlNotaDespachoInterno({ pedido, area, almacen, productos, estadoLabel: ePI.label, config: pdfConfig })
+    setPreview({ titulo: `Nota de Despacho Interno — ${pedido.numero}`, html, numeroDocumento: `NDI-${pedido.numero}` })
   }
 
   return (
@@ -104,8 +67,16 @@ export function ModalDetalle({ pedido, onClose, onSave, areas, productos, almace
               <div className="text-white/80 font-medium">{almacen?.nombre || pedido.almacenId}</div>
             </div>
             <div className="bg-white/3 rounded-lg p-3">
+              <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">Proyecto</div>
+              <div className="text-white/80 font-medium">{pedido.proyecto ? `${pedido.proyecto.codigo} — ${pedido.proyecto.nombre}` : 'Sin proyecto asignado'}</div>
+            </div>
+            <div className="bg-white/3 rounded-lg p-3">
               <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">Fecha requerida</div>
               <div className="text-white/80 font-medium">{pedido.fechaRequerida?.split('T')[0] || '—'}</div>
+            </div>
+            <div className="bg-white/3 rounded-lg p-3">
+              <div className="text-white/35 text-[10px] uppercase tracking-wide mb-0.5">Solicitado por</div>
+              <div className="text-white/80 font-medium">{pedido.usuarioSolicita?.nombre || '—'}</div>
             </div>
           </div>
 
@@ -162,10 +133,18 @@ export function ModalDetalle({ pedido, onClose, onSave, areas, productos, almace
         </div>
 
         <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-white/8">
-          <button onClick={handlePrint}
-            className="flex items-center gap-1.5 text-[12px] text-white/40 hover:text-white/70 transition-colors">
-            <Printer size={13}/> Imprimir NDI
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={handlePrint}
+              className="flex items-center gap-1.5 text-[12px] text-white/40 hover:text-white/70 transition-colors">
+              <Printer size={13}/> Imprimir NDI
+            </button>
+            {pedido.estado === 'ENTREGADO' && (
+              <button onClick={handleValeSalida}
+                className="flex items-center gap-1.5 text-[12px] text-[#00c896]/70 hover:text-[#00c896] transition-colors">
+                <FileOutput size={13}/> Vale de Salida
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="px-4 py-2 text-[13px] text-white/50 hover:text-white/80 transition-colors">Cerrar</button>
             {pedido.estado === 'APROBADO' && esAdmin && (
@@ -178,6 +157,12 @@ export function ModalDetalle({ pedido, onClose, onSave, areas, productos, almace
               <button disabled={entregando} onClick={handleEntregar}
                 className="flex items-center gap-1.5 px-4 py-2 bg-[#00c896] hover:bg-[#009e76] text-[#082e1e] text-[13px] font-semibold rounded-lg transition-colors disabled:opacity-50">
                 <CheckCircle size={14}/> {entregando ? 'Procesando...' : 'Marcar Entregado'}
+              </button>
+            )}
+            {pedido.estado === 'ENTREGADO' && !pedido.reciboConfirmado && puedeConfirmarRecibo && (
+              <button disabled={confirmando} onClick={handleConfirmarRecibo}
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#00c896] hover:bg-[#009e76] text-[#082e1e] text-[13px] font-semibold rounded-lg transition-colors disabled:opacity-50">
+                <PackageCheck size={14}/> {confirmando ? 'Procesando...' : 'Confirmar recibo'}
               </button>
             )}
           </div>
@@ -229,6 +214,14 @@ export function ModalDetalle({ pedido, onClose, onSave, areas, productos, almace
           </div>
         </div>
       )}
+
+      <ModalVistaPreviaDocumento
+        open={!!preview}
+        onClose={() => setPreview(null)}
+        titulo={preview?.titulo}
+        html={preview?.html}
+        numeroDocumento={preview?.numeroDocumento}
+      />
     </div>
   )
 }

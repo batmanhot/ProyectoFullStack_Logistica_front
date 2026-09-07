@@ -4,7 +4,11 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { formatDate, formatCurrency, vencimientoMasUrgentePorProducto } from '../utils/helpers'
-import { TIPOS, TIPOS_CHOFER, generarAlertas, generarAlertasChofer } from '../utils/alertas'
+import {
+  TIPOS, TIPOS_CHOFER, TIPOS_EJECUTIVO_COMERCIAL, TIPOS_COORDINADOR_TRANSPORTE, TIPOS_CONTABLE,
+  generarAlertas, generarAlertasChofer, generarAlertasEjecutivoComercial,
+  generarAlertasCoordinadorTransporte, generarAlertasContable,
+} from '../utils/alertas'
 import { Badge, Btn, Modal } from '../components/ui/index'
 import { useApp } from '../store/AppContext'
 import { useProductosList } from '../queries/productos.queries'
@@ -13,21 +17,49 @@ import { useCategoriasList } from '../queries/categorias.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
 import { useLotesList } from '../queries/lotes.queries'
 import { useRutasList } from '../queries/rutas.queries'
+import { useCxCList } from '../queries/cuentas-por-cobrar.queries'
+import { useProformasList } from '../queries/proformas.queries'
+import { useOportunidadesList } from '../queries/oportunidades.queries'
+import { usePedidosPortalList } from '../queries/pedidos-portal.queries'
+import { useFlotaAlertas } from '../queries/flota.queries'
+import { useSunatDocumentos } from '../queries/sunat.queries'
+import { useCotizacionesList } from '../queries/cotizaciones.queries'
 
 // ════════════════════════════════════════════════════════
 export default function Alertas() {
   const { sesion } = useApp()
-  const esChofer = sesion?.rol?.codigo === 'chofer'
+  const rolCodigo = sesion?.rol?.codigo
+  const esChofer = rolCodigo === 'chofer'
+  const esEjecutivoComercial = rolCodigo === 'ejecutivo-comercial'
+  const esCoordinadorTransporte = rolCodigo === 'coordinador-transporte'
+  const esContable = rolCodigo === 'contable-finanzas'
+  // Analista de Compras y Gerente de Operaciones usan el generador genérico
+  // (tienen inventario/ordenes/categorias/almacenes), pero les falta el tipo
+  // "RFQ sin respuesta" — se les suma como parámetro opcional, no ameritan
+  // un generador propio como los 4 roles de arriba (ver utils/alertas.js).
+  const esRolConCotizaciones = rolCodigo === 'analista-compras' || rolCodigo === 'gerente-operaciones'
+  const esRolEspecial = esChofer || esEjecutivoComercial || esCoordinadorTransporte || esContable
 
-  // El Chofer no tiene permiso a inventario/OC/almacenes — esas 5 consultas le
-  // devuelven 403 (lista vacía) y generarAlertas() nunca encontraría nada real.
-  // Para su rol se usan alertas de SUS rutas en vez de las de inventario.
-  const { data: productos  = [] } = useProductosList({ enabled: !esChofer })
-  const { data: ordenes    = [] } = useOrdenesCompraList({ enabled: !esChofer })
-  const { data: categorias = [] } = useCategoriasList({ enabled: !esChofer })
-  const { data: almacenes  = [] } = useAlmacenesList({ enabled: !esChofer })
-  const { data: lotes      = [] } = useLotesList(undefined, { enabled: !esChofer })
-  const { data: rutasRaw   = [] } = useRutasList()
+  // Cada rol de la lista de abajo tiene un hueco real de permisos contra el
+  // generador genérico de inventario (Chofer: sin inventario/OC/almacenes;
+  // Ejecutivo Comercial: sin ordenes/categorias/lotes-series; Coordinador de
+  // Transporte y Contable/Finanzas: sin NINGUNO de los permisos que el
+  // genérico necesita) — esas consultas les devuelven 403 (lista vacía) y
+  // generarAlertas() nunca encontraría nada real. Cada uno usa su propio
+  // generador en vez del de inventario (ver utils/alertas.js).
+  const { data: productos  = [] } = useProductosList({ enabled: !esRolEspecial })
+  const { data: ordenes    = [] } = useOrdenesCompraList({ enabled: !esRolEspecial })
+  const { data: categorias = [] } = useCategoriasList({ enabled: !esRolEspecial })
+  const { data: almacenes  = [] } = useAlmacenesList({ enabled: !esRolEspecial })
+  const { data: lotes      = [] } = useLotesList(undefined, { enabled: !esRolEspecial })
+  const { data: rutasRaw   = [] } = useRutasList({ enabled: esChofer || esCoordinadorTransporte })
+  const { data: cxc            = [] } = useCxCList({ enabled: esEjecutivoComercial || esContable })
+  const { data: proformas      = [] } = useProformasList({ enabled: esEjecutivoComercial })
+  const { data: oportunidades  = [] } = useOportunidadesList({ enabled: esEjecutivoComercial })
+  const { data: pedidosPortal  = [] } = usePedidosPortalList({ enabled: esEjecutivoComercial })
+  const { data: flotaAlertas   = [] } = useFlotaAlertas({ enabled: esCoordinadorTransporte })
+  const { data: guias          = [] } = useSunatDocumentos({ enabled: esContable })
+  const { data: cotizaciones   = [] } = useCotizacionesList({ enabled: esRolConCotizaciones })
   const config        = null   // sin config de empresa; diasAlertaVencimiento usa default 30
   const simboloMoneda = 'S/'
   const navigate = useNavigate()
@@ -40,17 +72,25 @@ export default function Alertas() {
 
   const vencPorProducto = useMemo(() => vencimientoMasUrgentePorProducto(lotes), [lotes])
 
+  // Chofer ve solo SUS rutas; Coordinador de Transporte ve las de toda la
+  // empresa (gestiona el equipo completo, no un vehículo propio).
   const rutasPropias = useMemo(() =>
     rutasRaw.filter(r => r.transportistaId === sesion?.transportistaId)
   , [rutasRaw, sesion?.transportistaId])
 
-  const TIPOS_ACTIVOS = esChofer ? TIPOS_CHOFER : TIPOS
+  const TIPOS_ACTIVOS = esChofer ? TIPOS_CHOFER
+    : esEjecutivoComercial ? TIPOS_EJECUTIVO_COMERCIAL
+    : esCoordinadorTransporte ? TIPOS_COORDINADOR_TRANSPORTE
+    : esContable ? TIPOS_CONTABLE
+    : TIPOS
 
-  const alertas = useMemo(() =>
-    esChofer
-      ? generarAlertasChofer(rutasPropias)
-      : generarAlertas(productos, ordenes, vencPorProducto, config, categorias, almacenes, simboloMoneda)
-  , [esChofer, rutasPropias, productos, ordenes, vencPorProducto, config, categorias, almacenes, simboloMoneda])
+  const alertas = useMemo(() => {
+    if (esChofer) return generarAlertasChofer(rutasPropias)
+    if (esEjecutivoComercial) return generarAlertasEjecutivoComercial(cxc, proformas, oportunidades, pedidosPortal, simboloMoneda)
+    if (esCoordinadorTransporte) return generarAlertasCoordinadorTransporte(rutasRaw, flotaAlertas)
+    if (esContable) return generarAlertasContable(cxc, guias, simboloMoneda)
+    return generarAlertas(productos, ordenes, vencPorProducto, config, categorias, almacenes, simboloMoneda, cotizaciones)
+  }, [esChofer, esEjecutivoComercial, esCoordinadorTransporte, esContable, rutasPropias, rutasRaw, flotaAlertas, cxc, guias, proformas, oportunidades, pedidosPortal, productos, ordenes, vencPorProducto, config, categorias, almacenes, cotizaciones, simboloMoneda])
 
   const filtered = useMemo(() =>
     filtroTipo === 'all' ? alertas : alertas.filter(a => a.tipo === filtroTipo)
@@ -130,7 +170,13 @@ export default function Alertas() {
             <CheckCircle size={48} className="text-green-400 opacity-40"/>
             <div className="text-center">
               <p className="text-[14px] font-medium text-[#9ba8b6] mb-1">Sin alertas activas</p>
-              <p className="text-[12px] text-[#5f6f80]">{esChofer ? 'Tus rutas están al día.' : 'Todo el inventario está en orden.'}</p>
+              <p className="text-[12px] text-[#5f6f80]">
+                {esChofer ? 'Tus rutas están al día.'
+                  : esEjecutivoComercial ? 'Tu cartera está al día.'
+                  : esCoordinadorTransporte ? 'Rutas y flota están al día.'
+                  : esContable ? 'Cobranza y guías de remisión están al día.'
+                  : 'Todo el inventario está en orden.'}
+              </p>
             </div>
           </div>
         ) : (
@@ -201,7 +247,8 @@ export default function Alertas() {
 // ════════════════════════════════════════════════════════
 function ModalDetalleAlerta({ alerta, simboloMoneda, navigate, onClose, onMarcarLeida }) {
 
-  const meta  = TIPOS[alerta.tipo] || TIPOS_CHOFER[alerta.tipo]
+  const meta  = TIPOS[alerta.tipo] || TIPOS_CHOFER[alerta.tipo] || TIPOS_EJECUTIVO_COMERCIAL[alerta.tipo]
+    || TIPOS_COORDINADOR_TRANSPORTE[alerta.tipo] || TIPOS_CONTABLE[alerta.tipo]
   const Icon  = meta?.icon || Bell
 
   return (

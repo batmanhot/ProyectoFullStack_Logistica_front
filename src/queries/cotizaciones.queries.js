@@ -7,7 +7,7 @@ const KEYS = {
   one:  (id) => ['cotizaciones', id],
 }
 
-export function useCotizacionesList({ estado } = {}) {
+export function useCotizacionesList({ estado, enabled = true } = {}) {
   return useQuery({
     queryKey: KEYS.list({ estado }),
     queryFn: async () => {
@@ -18,6 +18,7 @@ export function useCotizacionesList({ estado } = {}) {
       if (r.error) throw new Error(r.error)
       return r.data ?? []
     },
+    enabled,
   })
 }
 

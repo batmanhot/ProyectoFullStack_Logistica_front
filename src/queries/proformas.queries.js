@@ -7,7 +7,7 @@ const KEYS = {
   one:  (id) => ['proformas', id],
 }
 
-export function useProformasList({ clienteId, estado } = {}) {
+export function useProformasList({ clienteId, estado, enabled = true } = {}) {
   return useQuery({
     queryKey: KEYS.list({ clienteId, estado }),
     queryFn: async () => {
@@ -19,6 +19,7 @@ export function useProformasList({ clienteId, estado } = {}) {
       if (r.error) throw new Error(r.error)
       return r.data ?? []
     },
+    enabled,
   })
 }
 

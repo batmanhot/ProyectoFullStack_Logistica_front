@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Bell, Plus, Clock, CheckCircle, Edit2, Trash2, Save } from 'lucide-react'
+import { Bell, Plus, Clock, CheckCircle, Edit2, Trash2, Save, Send, History } from 'lucide-react'
 import {
   Modal, ConfirmDialog, EmptyState, Badge, Btn,
-  Field, TableWrap, Th, Td, Alert, Toggle,
+  Field, TableWrap, Th, Td, Alert, Toggle, Input, Textarea,
 } from '../../components/ui/index'
+import { useHistorialAlertasEnvios, useEnviarAlertasPendientes } from '../../queries/admin.queries'
 
 // ══════════════════════════════════════════════════════════
 // TAB: ALERTAS DE VENCIMIENTO
@@ -14,6 +15,17 @@ export default function TabAlertas({ alertas, vencimientos, crearAlerta, actuali
   const [form, setForm]         = useState({})
   const [confirmDel, setConfirmDel] = useState(null)
   const CANALES = ['email', 'sistema', 'whatsapp', 'sms']
+
+  const { data: envios = [] } = useHistorialAlertasEnvios()
+  const enviarPendientes = useEnviarAlertasPendientes()
+
+  async function handleEnviarAhora() {
+    const res = await enviarPendientes.mutateAsync()
+    if (res?.error) { toast(res.error, 'error'); return }
+    const { enviados = 0, fallidos = 0, omitidos = 0 } = res?.data ?? {}
+    if (enviados === 0 && fallidos === 0) toast(`Nada pendiente de enviar (${omitidos} ya estaban al día o sin regla de email aplicable)`, 'info')
+    else toast(`Envío completado: ${enviados} enviado(s)${fallidos ? `, ${fallidos} fallido(s)` : ''}`, fallidos ? 'warning' : 'success')
+  }
 
   function openNew() {
     setEditItem(null)
@@ -52,7 +64,6 @@ export default function TabAlertas({ alertas, vencimientos, crearAlerta, actuali
     })
   }
 
-  const inp = 'w-full px-3 py-2 bg-[#1e2835] border border-white/8 rounded-lg text-[13px] text-[#e8edf2] placeholder-[#5f6f80] outline-none focus:border-[#00c896] focus:ring-2 focus:ring-[#00c896]/20'
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   return (
@@ -61,8 +72,8 @@ export default function TabAlertas({ alertas, vencimientos, crearAlerta, actuali
       <div>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-[15px] font-semibold text-[#e8edf2]">Reglas de Alerta</h2>
-            <p className="text-[12px] text-[#5f6f80] mt-0.5">Define cuándo y cómo se notifica a los clientes sobre el vencimiento de su plan</p>
+            <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Reglas de Alerta</h2>
+            <p className="text-[12px] text-[var(--text-muted)] mt-0.5">Define cuándo y cómo se notifica a los clientes sobre el vencimiento de su plan</p>
           </div>
           <Btn variant="primary" onClick={openNew}><Plus size={14}/>Nueva regla</Btn>
         </div>
@@ -72,19 +83,19 @@ export default function TabAlertas({ alertas, vencimientos, crearAlerta, actuali
           : (
             <div className="space-y-2">
               {[...alertas].sort((a,b) => a.diasAntes - b.diasAntes).map(a => (
-                <div key={a.id} className={`flex items-start gap-4 p-4 bg-[#161d28] rounded-xl border transition-all ${a.activa ? 'border-white/8' : 'border-white/4 opacity-60'}`}>
+                <div key={a.id} className={`flex items-start gap-4 p-4 bg-[var(--bg-card)] rounded-xl border transition-all ${a.activa ? 'border-[var(--border)]' : 'border-[var(--border)]/40 opacity-60'}`}>
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-[13px] ${a.diasAntes <= 7 ? 'bg-red-500/15 text-red-400' : a.diasAntes <= 15 ? 'bg-yellow-500/15 text-yellow-400' : 'bg-blue-500/15 text-blue-400'}`}>
                     {a.diasAntes}d
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[13px] font-semibold text-[#e8edf2]">{a.asunto}</span>
+                      <span className="text-[13px] font-semibold text-[var(--text-primary)]">{a.asunto}</span>
                       <Badge variant={a.activa ? 'success' : 'neutral'}>{a.activa ? 'Activa' : 'Inactiva'}</Badge>
                     </div>
-                    <p className="text-[12px] text-[#5f6f80] truncate">{a.mensaje}</p>
+                    <p className="text-[12px] text-[var(--text-muted)] truncate">{a.mensaje}</p>
                     <div className="flex items-center gap-1.5 mt-2">
                       {(a.canales||[]).map(c => (
-                        <span key={c} className="text-[11px] px-2 py-0.5 rounded-full bg-white/6 text-[#9ba8b6]">{c}</span>
+                        <span key={c} className="text-[11px] px-2 py-0.5 rounded-full bg-white/6 text-[var(--text-secondary)]">{c}</span>
                       ))}
                     </div>
                   </div>
@@ -102,11 +113,17 @@ export default function TabAlertas({ alertas, vencimientos, crearAlerta, actuali
 
       {/* Vencimientos próximos */}
       <div>
-        <div className="flex items-center gap-2 mb-4">
-          <Clock size={15} className="text-[#00c896]" />
-          <h3 className="text-[14px] font-semibold text-[#e8edf2]">Vencimientos próximos (≤30 días)</h3>
-          <Badge variant={vencimientos.length > 0 ? 'warning' : 'success'}>{vencimientos.length}</Badge>
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <Clock size={15} className="text-[var(--accent)]" />
+            <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">Vencimientos próximos (≤30 días)</h3>
+            <Badge variant={vencimientos.length > 0 ? 'warning' : 'success'}>{vencimientos.length}</Badge>
+          </div>
+          <Btn variant="secondary" onClick={handleEnviarAhora} disabled={enviarPendientes.isPending}>
+            <Send size={13}/>{enviarPendientes.isPending ? 'Enviando…' : 'Enviar alertas ahora'}
+          </Btn>
         </div>
+        <p className="text-[11px] text-[var(--text-muted)] -mt-2 mb-3">Corre automáticamente todos los días a las 8am. Este botón fuerza el envío ahora, sin duplicar correos ya enviados en este ciclo.</p>
         {vencimientos.length === 0 ? (
           <Alert variant="success">No hay vencimientos próximos en los próximos 30 días.</Alert>
         ) : (
@@ -118,7 +135,7 @@ export default function TabAlertas({ alertas, vencimientos, crearAlerta, actuali
               {vencimientos.map(v => (
                 <tr key={v.empresaId} className="border-t border-white/5 hover:bg-white/2">
                   <Td>
-                    <div className="font-medium text-[#e8edf2]">{v.nombre}</div>
+                    <div className="font-medium text-[var(--text-primary)]">{v.nombre}</div>
                   </Td>
                   <Td muted>{v.codigo}</Td>
                   <Td muted>{v.fechaVencimiento ? String(v.fechaVencimiento).slice(0, 10) : '—'}</Td>
@@ -130,9 +147,41 @@ export default function TabAlertas({ alertas, vencimientos, crearAlerta, actuali
                   <Td>
                     {v.reglaAplicable
                       ? <span className="text-[11px] px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded-full">{v.reglaAplicable.asunto}</span>
-                      : <span className="text-[11px] text-[#5f6f80]">—</span>
+                      : <span className="text-[11px] text-[var(--text-muted)]">—</span>
                     }
                   </Td>
+                </tr>
+              ))}
+            </tbody>
+          </TableWrap>
+        )}
+      </div>
+
+      {/* Historial de envíos reales */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <History size={15} className="text-[var(--accent)]" />
+          <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">Historial de envíos</h3>
+          <Badge variant="neutral">{envios.length}</Badge>
+        </div>
+        {envios.length === 0 ? (
+          <Alert variant="info">Todavía no se envió ninguna alerta. Corren solas cada mañana, o usa "Enviar alertas ahora" arriba.</Alert>
+        ) : (
+          <TableWrap>
+            <thead>
+              <tr><Th>Empresa</Th><Th>Regla</Th><Th>Canal</Th><Th>Estado</Th><Th>Fecha</Th></tr>
+            </thead>
+            <tbody>
+              {envios.map(e => (
+                <tr key={e.id} className="border-t border-white/5 hover:bg-white/2">
+                  <Td><div className="font-medium text-[var(--text-primary)]">{e.empresa?.nombre}</div></Td>
+                  <Td muted>{e.regla?.asunto}</Td>
+                  <Td muted>{e.canal}</Td>
+                  <Td>
+                    <Badge variant={e.estado === 'enviado' ? 'success' : 'danger'}>{e.estado}</Badge>
+                    {e.estado === 'fallido' && e.error && <div className="text-[11px] text-red-400/70 mt-1 max-w-[280px] truncate" title={e.error}>{e.error}</div>}
+                  </Td>
+                  <Td muted>{e.enviadoAt ? String(e.enviadoAt).slice(0, 16).replace('T', ' ') : '—'}</Td>
                 </tr>
               ))}
             </tbody>
@@ -148,7 +197,7 @@ export default function TabAlertas({ alertas, vencimientos, crearAlerta, actuali
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Field label="Días antes del vencimiento">
-              <input type="number" min="1" max="365" className={inp} value={form.diasAntes||7} onChange={e => f('diasAntes',parseInt(e.target.value)||1)} />
+              <Input type="number" min="1" max="365" value={form.diasAntes||7} onChange={e => f('diasAntes',parseInt(e.target.value)||1)} />
             </Field>
             <Field label="Estado">
               <div className="flex items-center h-9">
@@ -157,19 +206,19 @@ export default function TabAlertas({ alertas, vencimientos, crearAlerta, actuali
             </Field>
           </div>
           <Field label="Asunto del mensaje *">
-            <input className={inp} value={form.asunto||''} onChange={e => f('asunto',e.target.value)} placeholder="¡Plan próximo a vencer!" />
+            <Input value={form.asunto||''} onChange={e => f('asunto',e.target.value)} placeholder="¡Plan próximo a vencer!" />
           </Field>
           <Field label="Mensaje" hint="Variables: {plan} = nombre del plan, {dias} = días restantes, {empresa} = nombre del negocio">
-            <textarea rows={3} className={`${inp} resize-y`} value={form.mensaje||''} onChange={e => f('mensaje',e.target.value)} placeholder="Tu plan {plan} vence en {dias} días…" />
+            <Textarea rows={3} value={form.mensaje||''} onChange={e => f('mensaje',e.target.value)} placeholder="Tu plan {plan} vence en {dias} días…" />
           </Field>
-          <Field label="Canales de notificación">
+          <Field label="Canales de notificación" hint="Solo 'email' se envía de verdad hoy (SMTP configurado). 'sistema', 'whatsapp' y 'sms' quedan guardados como intención, pero no se simula ni se dispara ningún envío por esos medios.">
             <div className="flex flex-wrap gap-2 mt-1">
               {CANALES.map(c => {
                 const active = (form.canales||[]).includes(c)
                 return (
                   <button key={c} type="button" onClick={() => toggleCanal(c)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-all ${active ? 'bg-[#00c896]/15 border-[#00c896]/40 text-[#00c896]' : 'bg-[#1a2230] border-white/8 text-[#5f6f80] hover:text-[#e8edf2]'}`}>
-                    {active && <CheckCircle size={12}/>}{c}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-all ${active ? 'bg-[var(--accent-dim)] border-[var(--accent)]/40 text-[var(--accent)]' : 'bg-[var(--bg-muted)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
+                    {active && <CheckCircle size={12}/>}{c}{c !== 'email' && <span className="opacity-50">*</span>}
                   </button>
                 )
               })}

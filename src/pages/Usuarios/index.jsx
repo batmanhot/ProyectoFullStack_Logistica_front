@@ -69,6 +69,13 @@ export default function Usuarios() {
       ...(rolId                            ? { rolId }                   : {}),
       ...(data.areaId                      ? { areaId: data.areaId }     : {}),
       ...(data.transportistaId             ? { transportistaId: data.transportistaId } : {}),
+      // A diferencia de areaId/transportistaId (siempre obligatorios cuando
+      // aplican), la meta es opcional a propósito. Vacío en edición manda
+      // `null` explícito para poder quitar una meta ya configurada (el DTO
+      // de alta no acepta null — ahí no hay nada que "quitar" todavía).
+      ...(data.rol === 'ejecutivo-comercial' && (data.metaVentasMensual !== '' && data.metaVentasMensual != null)
+        ? { metaVentasMensual: Number(data.metaVentasMensual) }
+        : editando && data.rol === 'ejecutivo-comercial' ? { metaVentasMensual: null } : {}),
       ...(editando                         ? { activo: data.activo }     : { email: data.email }),
     }
     const res = editando

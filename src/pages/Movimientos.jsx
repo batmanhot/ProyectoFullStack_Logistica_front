@@ -106,11 +106,11 @@ export default function Movimientos() {
             <Input className="pl-8" placeholder="Buscar producto, SKU, doc, motivo..."
               value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
           </div>
-          <Select className="w-auto" value={filtTipo} onChange={e => setFiltTipo(e.target.value)}>
+          <Select style={{ width: 170 }} value={filtTipo} onChange={e => setFiltTipo(e.target.value)}>
             <option value="">Todos los tipos</option>
             {['ENTRADA', 'SALIDA', 'AJUSTE', 'TRANSFERENCIA', 'DEVOLUCION'].map(t => <option key={t}>{t}</option>)}
           </Select>
-          <Select className="w-auto" value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
+          <Select style={{ width: 190 }} value={filtAlm} onChange={e => setFiltAlm(e.target.value)}>
             <option value="">Todos los almacenes</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
           </Select>

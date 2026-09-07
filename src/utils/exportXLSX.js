@@ -653,3 +653,30 @@ export async function exportarFinancieroXLSX(plMensual, kpis, simboloMoneda) {
     nombreArchivo: 'estado_resultados_mensual',
   })
 }
+
+// Gestión de Pedidos por Proyecto — Fase 4 (2026-09-04). `filas` = el array
+// plano que devuelve GET /proyectos/reporte-consumo (cada una ya trae
+// proyecto/cdr/área embebidos). Sirve tal cual como respaldo de cobro a la
+// minera — por eso incluye pedido de origen y costo unitario real.
+export async function exportarReporteConsumoProyectoXLSX(filas, simboloMoneda) {
+  const valorTotal = filas.reduce((s, f) => s + Number(f.cantidad) * Number(f.costoUnitario || 0), 0)
+  await exportarExcel({
+    titulo: 'Consumo por Proyecto',
+    cabeceras: ['Fecha','Pedido','Proyecto','CDR','Cliente','Área','SKU','Producto','Cantidad','Costo Unit.','Valor'],
+    filas: filas.map(f => [
+      (f.fecha || '').split('T')[0],
+      f.pedidoInterno?.numero || '—',
+      f.proyecto ? `${f.proyecto.codigo} — ${f.proyecto.nombre}` : 'Sin proyecto asignado',
+      f.proyecto?.cdr?.nombre || '—',
+      f.proyecto?.cliente?.razonSocial || '—',
+      f.pedidoInterno?.area?.nombre || '—',
+      f.producto?.sku || '—',
+      f.producto?.nombre || '—',
+      Number(f.cantidad),
+      +Number(f.costoUnitario || 0).toFixed(2),
+      +(Number(f.cantidad) * Number(f.costoUnitario || 0)).toFixed(2),
+    ]),
+    totales: ['TOTAL','','','','','','',`${filas.length} movimientos`,'','', +valorTotal.toFixed(2)],
+    nombreArchivo: 'consumo_por_proyecto',
+  })
+}

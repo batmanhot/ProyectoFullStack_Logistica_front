@@ -22,11 +22,15 @@ export function usePublicPlanes() {
 
 // ── Normalizadores (exportados para testing) ─────────────
 export function normNegocio(n) {
+  const admin = n.usuarios?.[0] || n.admin || n.usuarioAdminInicial || {}
   return {
     ...n,
     empresaId:    n.codigo,
     fechaRegistro: n.createdAt ? n.createdAt.slice(0, 10) : '',
     fechaVencimiento: n.fechaVencimiento ? n.fechaVencimiento.slice(0, 10) : '',
+    adminNombre:  n.adminNombre ?? admin.nombre ?? '',
+    adminEmail:   n.adminEmail ?? admin.email ?? '',
+    usuarios:     n.usuarios ?? [],
   }
 }
 
@@ -55,6 +59,15 @@ export function normRenovacion(r) {
 // ── Negocios ─────────────────────────────────────────────
 const NK = ['admin', 'negocios']
 
+function asArrayResponse(payload) {
+  if (Array.isArray(payload)) return payload
+  if (payload && typeof payload === 'object') {
+    if (Array.isArray(payload.data)) return payload.data
+    if (Array.isArray(payload.items)) return payload.items
+  }
+  return []
+}
+
 export function useNegociosList(filtros = {}) {
   const p = new URLSearchParams()
   if (filtros.estado) p.set('estado', filtros.estado)
@@ -62,7 +75,20 @@ export function useNegociosList(filtros = {}) {
   const qs = p.toString()
   return useQuery({
     queryKey: [...NK, filtros],
-    queryFn:  () => api.get(`/admin/negocios${qs ? `?${qs}` : ''}`, OPTS).then(r => (r.data ?? []).map(normNegocio)),
+    placeholderData: (prev) => prev ?? [],
+    queryFn: async () => {
+      const res = await api.get(`/admin/negocios${qs ? `?${qs}` : ''}`, OPTS)
+      return asArrayResponse(res.data ?? []).map(normNegocio)
+    },
+  })
+}
+
+/** Detalle enriquecido de un negocio puntual (incluye _count.usuarios y ultimoAcceso — findAll no los trae). */
+export function useNegocio(id) {
+  return useQuery({
+    queryKey: [...NK, id],
+    queryFn:  () => api.get(`/admin/negocios/${id}`, OPTS).then(r => normNegocio(r.data ?? {})),
+    enabled:  !!id,
   })
 }
 
@@ -82,10 +108,20 @@ export function useActualizarNegocio() {
   })
 }
 
+/** "Cancelar negocio" — soft, reversible (re-editando el negocio se puede reactivar). */
 export function useEliminarNegocio() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: id => api.delete(`/admin/negocios/${id}`, OPTS),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: NK }),
+  })
+}
+
+/** "Eliminar definitivamente" — protegido, exige repetir el nombre exacto del negocio. */
+export function useArchivarNegocio() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, confirmacionNombre }) => api.post(`/admin/negocios/${id}/archivar`, { confirmacionNombre }, OPTS),
     onSuccess:  () => qc.invalidateQueries({ queryKey: NK }),
   })
 }
@@ -197,6 +233,26 @@ export function useEliminarAlerta() {
   })
 }
 
+// Historial de envíos reales (2026-09-04) — para que el panel muestre que
+// de verdad se mandó algo, no solo la lista de "quién debería recibir algo".
+const EK = ['admin', 'alertas-envios']
+
+export function useHistorialAlertasEnvios() {
+  return useQuery({
+    queryKey: EK,
+    queryFn:  () => api.get('/admin/alertas/envios', OPTS).then(r => r.data ?? []),
+  })
+}
+
+/** Dispara el envío ahora mismo, sin esperar al cron de las 8am. */
+export function useEnviarAlertasPendientes() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.post('/admin/alertas/enviar-pendientes', {}, OPTS),
+    onSuccess:  () => { qc.invalidateQueries({ queryKey: EK }); qc.invalidateQueries({ queryKey: VK }) },
+  })
+}
+
 // ── Landing Page ─────────────────────────────────────────
 const LK = ['admin', 'landing']
 
@@ -212,5 +268,15 @@ export function useGuardarLanding() {
   return useMutation({
     mutationFn: landingObj => api.put('/admin/landing', { data: landingObj }, OPTS),
     onSuccess:  () => qc.invalidateQueries({ queryKey: LK }),
+  })
+}
+
+// ── Auditoría de plataforma (2026-09-04) ─────────────────
+// Quién hizo qué desde el panel de SuperAdmin — antes no quedaba ningún
+// rastro. La llena PlatformAuditInterceptor en el backend automáticamente.
+export function useAuditoriaPlataforma(limite = 15) {
+  return useQuery({
+    queryKey: ['admin', 'auditoria', limite],
+    queryFn:  () => api.get(`/admin/auditoria?limite=${limite}`, OPTS).then(r => r.data ?? []),
   })
 }
