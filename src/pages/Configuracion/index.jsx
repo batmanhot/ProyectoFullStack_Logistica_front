@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Save } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
-import * as storage from '../../services/storage'
 import { Btn } from '../../components/ui/index'
 import { TabCategorias, TabAlmacenes } from '../Maestros'
 import { useConfiguracion, usePatchConfiguracion, useLimpiarOperativos, useRestaurarDemo } from '../../queries/configuracion.queries'
@@ -12,17 +11,31 @@ import { useProductosList, useCrearProducto, useActualizarProducto } from '../..
 import { TABS } from './constants'
 import TabAreasInternas from './TabAreasInternas'
 import TabEmpresa from './TabEmpresa'
-import TabSistema from './TabSistema'
 import TabValorizacion from './TabValorizacion'
 import TabAlertas from './TabAlertas'
 import TabImportarDatos from './TabImportarDatos'
 import TabDatosReset from './TabDatosReset'
 
+// El backend (GET /configuracion) es la única fuente. `form` es solo el buffer
+// de edición de los campos de texto de la empresa; el resto se persiste al
+// instante en su propio control.
+function apiToForm(c) {
+  return {
+    empresa:             c?.nombre    ?? '',
+    ruc:                 c?.ruc       ?? '',
+    telefono:            c?.telefono  ?? '',
+    direccion:           c?.direccion ?? '',
+    email:               c?.email     ?? '',
+    formulaValorizacion: c?.formulaValorizacion ?? 'PMP',
+    alertaVencimiento:   c?.alertaVencimiento ?? true,
+    modoDesarrollo:      c?.modoDesarrollo ?? false,
+  }
+}
+
 export default function Configuracion() {
   const { toast, sesion } = useApp()
   const tenantId = sesion?.empresaId || 'desconocido'
-  const [form, setForm]           = useState(() => storage.getConfig().data || {})
-  const [tab, setTab]             = useState('empresa')
+  const [tab, setTab] = useState('empresa')
 
   const { data: configApi }  = useConfiguracion()
   const patchConfiguracion   = usePatchConfiguracion()
@@ -36,47 +49,53 @@ export default function Configuracion() {
   const crearProducto        = useCrearProducto()
   const actualizarProducto   = useActualizarProducto()
 
-  // Cuando los datos del backend llegan, sobreescribir los campos de empresa en el form
+  const [form, setForm] = useState(() => apiToForm(null))
+
+  // Rehidratar el buffer cuando llegan/cambian los datos del backend.
   useEffect(() => {
-    if (!configApi) return
-    setForm(prev => ({
-      ...prev,
-      empresa:   configApi.nombre    ?? prev.empresa,
-      ruc:       configApi.ruc       ?? prev.ruc,
-      contacto:  configApi.contacto  ?? prev.contacto,
-      email:     configApi.email     ?? prev.email,
-      telefono:  configApi.telefono  ?? prev.telefono,
-      direccion: configApi.direccion ?? prev.direccion,
-      modoDesarrollo: configApi.modoDesarrollo ?? prev.modoDesarrollo,
-    }))
+    if (configApi) setForm(apiToForm(configApi))
   }, [configApi])
+
   const [confirmReset, setConfirmReset]     = useState(false)
   const [confirmLimpiar, setConfirmLimpiar] = useState(false)
 
-  async function saveConfig(cfg) {
-    // Campos de empresa → backend; el resto → localStorage
+  const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+  // Campos de texto de la empresa → botón "Guardar Configuración".
+  async function guardarEmpresa() {
     const res = await patchConfiguracion.mutateAsync({
-      nombre:    cfg.empresa,
-      ruc:       cfg.ruc,
-      contacto:  cfg.contacto,
-      email:     cfg.email,
-      telefono:  cfg.telefono,
-      direccion: cfg.direccion,
+      nombre:    form.empresa,
+      ruc:       form.ruc,
+      email:     form.email,
+      telefono:  form.telefono,
+      direccion: form.direccion,
     })
     if (res?.error) { toast(res.error, 'error'); return }
-    storage.saveConfig(cfg)
     toast('Configuración guardada', 'success')
   }
 
-  const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
+  // Método de valorización → se guarda al instante (aplica al Kardex valorizado).
+  async function guardarFormula(id) {
+    if (id === form.formulaValorizacion) return
+    f('formulaValorizacion', id)
+    const res = await patchConfiguracion.mutateAsync({ formulaValorizacion: id })
+    if (res?.error) { toast(res.error, 'error'); f('formulaValorizacion', form.formulaValorizacion); return }
+    toast(`Método de valorización: ${id}`, 'success')
+  }
 
-  // Switch persistido directo en backend (no espera al botón "Guardar
-  // Configuración" general) — controla si el Login muestra las tarjetas de
-  // acceso rápido para esta empresa (solo tiene efecto si origen='demo').
+  // Alertas de vencimiento → se guarda al instante.
+  async function toggleAlertaVencimiento(v) {
+    f('alertaVencimiento', v)
+    const res = await patchConfiguracion.mutateAsync({ alertaVencimiento: v })
+    if (res?.error) { toast(res.error, 'error'); f('alertaVencimiento', !v); return }
+    toast(v ? 'Alertas de vencimiento activadas' : 'Alertas de vencimiento desactivadas', 'success')
+  }
+
+  // Switch de accesos rápidos demo en el Login.
   async function toggleModoDesarrollo(v) {
     f('modoDesarrollo', v)
     const res = await patchConfiguracion.mutateAsync({ modoDesarrollo: v })
-    if (res?.error) { toast(res.error, 'error'); return }
+    if (res?.error) { toast(res.error, 'error'); f('modoDesarrollo', !v); return }
     toast(v ? 'Modo desarrollo activado' : 'Modo desarrollo desactivado', 'success')
   }
 
@@ -108,28 +127,13 @@ export default function Configuracion() {
         ))}
       </div>
 
-      {/* ── Empresa ─────────────────────────────────── */}
-      {tab === 'empresa' && <TabEmpresa form={form} f={f} tenantId={tenantId} sesion={sesion} />}
-
-      {/* ── Sistema ─────────────────────────────────── */}
-      {tab === 'sistema' && <TabSistema form={form} f={f} />}
-
-      {/* ── Valorización ─────────────────────────────── */}
-      {tab === 'valorizacion' && <TabValorizacion form={form} f={f} />}
-
-      {/* ── Alertas ─────────────────────────────────── */}
-      {tab === 'alertas' && <TabAlertas form={form} f={f} />}
-
-      {/* ── Áreas Internas ──────────────────────────── */}
+      {tab === 'empresa'       && <TabEmpresa form={form} f={f} tenantId={tenantId} sesion={sesion} />}
+      {tab === 'valorizacion'  && <TabValorizacion form={form} onChange={guardarFormula} />}
+      {tab === 'alertas'       && <TabAlertas form={form} onChange={toggleAlertaVencimiento} />}
       {tab === 'areas-internas' && <TabAreasInternas toast={toast} />}
+      {tab === 'categorias'    && <TabCategorias />}
+      {tab === 'almacenes'     && <TabAlmacenes />}
 
-      {/* ── Categorías ──────────────────────────────── */}
-      {tab === 'categorias' && <TabCategorias />}
-
-      {/* ── Almacenes ───────────────────────────────── */}
-      {tab === 'almacenes' && <TabAlmacenes />}
-
-      {/* ── Importar Datos ───────────────────────────── */}
       {tab === 'importar' && (
         <TabImportarDatos
           cats={cats} alms={alms} provs={provs} prods={prods}
@@ -138,23 +142,21 @@ export default function Configuracion() {
         />
       )}
 
-      {/* ── Datos / Reset ────────────────────────────── */}
       {tab === 'datos' && (
         <TabDatosReset
           tenantId={tenantId} sesion={sesion} configApi={configApi}
-          form={form} setForm={setForm}
+          form={form}
           toggleModoDesarrollo={toggleModoDesarrollo}
-          saveConfig={saveConfig}
           confirmReset={confirmReset} setConfirmReset={setConfirmReset}
           confirmLimpiar={confirmLimpiar} setConfirmLimpiar={setConfirmLimpiar}
           handleReset={handleReset} handleLimpiar={handleLimpiar}
         />
       )}
 
-      {/* Botón guardar */}
-      {tab !== 'datos' && tab !== 'importar' && tab !== 'areas-internas' && tab !== 'categorias' && tab !== 'almacenes' && (
+      {/* Botón guardar — solo el tab Empresa tiene campos que se editan en buffer */}
+      {tab === 'empresa' && (
         <div className="flex justify-end">
-          <Btn variant="primary" size="lg" onClick={() => saveConfig(form)}>
+          <Btn variant="primary" size="lg" onClick={guardarEmpresa} disabled={patchConfiguracion.isPending}>
             <Save size={15} /> Guardar Configuración
           </Btn>
         </div>

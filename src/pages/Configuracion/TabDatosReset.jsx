@@ -1,11 +1,11 @@
-import { Save, RefreshCw, Trash2 } from 'lucide-react'
-import { ConfirmDialog, Field, Btn, Toggle } from '../../components/ui/index'
-import { SI, SEL } from './constants'
+import { RefreshCw, Trash2 } from 'lucide-react'
+import { ConfirmDialog, Btn, Toggle } from '../../components/ui/index'
+import { APP_VERSION } from '../../config/constants'
 
 export default function TabDatosReset({
   tenantId, sesion, configApi,
-  form, setForm,
-  toggleModoDesarrollo, saveConfig,
+  form,
+  toggleModoDesarrollo,
   confirmReset, setConfirmReset,
   confirmLimpiar, setConfirmLimpiar,
   handleReset, handleLimpiar,
@@ -49,58 +49,21 @@ export default function TabDatosReset({
         </Btn>
       </div>
 
+      {/* ── Información del sistema (solo lectura) ── */}
       <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-4">Información del Sistema</div>
-
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3.5">
-            <Field label="Versión del Sistema">
-              <div className={`${SI} flex items-center justify-between opacity-70 cursor-not-allowed select-none`}>
-                <span>{form.version || 'StockPro v2.0'}</span>
-                <span className="text-[11px] text-[#5f6f80] shrink-0 ml-2">desde AdminSaaS</span>
-              </div>
-            </Field>
-            <Field label="Modo / Entorno">
-              <div className="flex gap-2">
-                <select
-                  className={SEL}
-                  value={form.modoSistema || 'Maqueta — localStorage'}
-                  onChange={e => setForm(p => ({ ...p, modoSistema: e.target.value }))}
-                >
-                  <option value="Maqueta — localStorage">Maqueta — localStorage</option>
-                  <option value="Desarrollo — API local">Desarrollo — API local</option>
-                  <option value="Staging — API test">Staging — API test</option>
-                  <option value="Producción — API live">Producción — API live</option>
-                </select>
-                <Btn variant="primary" onClick={() => saveConfig({ modoSistema: form.modoSistema })}>
-                  <Save size={13}/>
-                </Btn>
-              </div>
-            </Field>
-          </div>
-
-          {/* Info de solo lectura */}
-          <div className="bg-[#1a2230] rounded-xl overflow-hidden border border-white/6">
-            {[
-              ['Organización (tenant)', tenantId],
-              ['Plan',                 sesion?.plan || 'starter'],
-              ['Empresa activa',        form.empresa],
-              ['Fórmula activa',        form.formulaValorizacion],
-              ['Moneda',                `${form.simboloMoneda} (${form.moneda})`],
-              ['Versión',               form.version || 'StockPro v2.0'],
-              ['Modo / Entorno',        form.modoSistema || 'Maqueta — localStorage'],
-            ].map(([k, v]) => (
-              <div key={k} className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 last:border-0 text-[13px]">
-                <span className="text-[#9ba8b6]">{k}</span>
-                <span className="font-medium text-[#e8edf2]">{v}</span>
-              </div>
-            ))}
-          </div>
-
-          <p className="text-[11px] text-[#5f6f80] leading-relaxed">
-            La <strong>versión</strong> se establece desde la sección <strong>AdminSaaS → Negocios</strong> y se refleja automáticamente en la barra lateral y en el encabezado de login.
-            El <strong>modo/entorno</strong> es una etiqueta informativa local — guárdala con el botón de la derecha.
-          </p>
+        <div className="bg-[#1a2230] rounded-xl overflow-hidden border border-white/6">
+          {[
+            ['Organización (tenant)', tenantId],
+            ['Plan',                  sesion?.plan || 'starter'],
+            ['Empresa activa',        form.empresa || configApi?.nombre || '—'],
+            ['Versión',               APP_VERSION],
+          ].map(([k, v]) => (
+            <div key={k} className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 last:border-0 text-[13px]">
+              <span className="text-[#9ba8b6]">{k}</span>
+              <span className="font-medium text-[#e8edf2]">{v}</span>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -112,9 +75,11 @@ export default function TabDatosReset({
             <div className="text-[14px] font-medium text-[#e8edf2] mb-0.5">Accesos rápidos en el Login</div>
             <div className="text-[12px] text-[#5f6f80] leading-relaxed max-w-lg">
               Con esto activo, la pantalla de Login muestra tarjetas para entrar directo como cualquiera de los
-              usuarios de prueba de esta empresa (uno por rol), sin escribir email ni contraseña. Solo tiene
+              usuarios de prueba de esta empresa (uno por rol), sin escribir email ni contraseña.
+              En entornos que no son de producción (desarrollo local, demo, staging) las tarjetas se muestran
+              siempre, sin importar este switch; en producción este switch es el que las habilita, y solo tiene
               efecto en empresas de origen demo{configApi?.origen && configApi.origen !== 'demo' && (
-                <span className="text-amber-400"> — esta empresa no lo es, así que el switch no tendrá efecto visible</span>
+                <span className="text-amber-400"> — esta empresa no lo es, así que en producción el switch no tendrá efecto visible</span>
               )} — desactívalo antes de usar el sistema con datos reales.
             </div>
           </div>

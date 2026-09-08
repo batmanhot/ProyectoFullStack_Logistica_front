@@ -521,9 +521,9 @@ export async function exportarAjustesPDF(ajustes, productos, almacenes, simboloM
   guardar(doc, 'reporte_ajustes')
 }
 
-export async function exportarKardexPDF(lineasKardex, producto, simboloMoneda, empresa) {
+export async function exportarKardexPDF(lineasKardex, producto, simboloMoneda, empresa, formulaValorizacion = 'PMP') {
   const titulo = `Kardex — ${producto?.nombre || ''}`
-  const cabeceras = ['N°','Fecha','Tipo','Documento','Motivo','Entrada','Salida','Saldo','Costo Unit.','Valor Acum.']
+  const cabeceras = ['N°','Fecha','Tipo','Documento','Motivo','Entrada','Salida','Saldo',`Costo Unit. (${formulaValorizacion})`,'Valorización']
 
   const rows = lineasKardex.map((l, i) => [
     i + 1, l.fecha, l.tipo, l.documento||'—', l.motivo?.slice(0,18)||'—',

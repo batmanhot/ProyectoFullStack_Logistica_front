@@ -11,6 +11,7 @@ import { useOrdenesCompraList } from '../../queries/ordenes-compra.queries'
 import { useCategoriasList } from '../../queries/categorias.queries'
 import { useAlmacenesList } from '../../queries/almacenes.queries'
 import { useLotesList } from '../../queries/lotes.queries'
+import { useConfiguracion } from '../../queries/configuracion.queries'
 
 function ActivarNotificaciones() {
   const { toast } = useApp()
@@ -79,12 +80,14 @@ export default function AlertasTab({ simboloMoneda }) {
   const { data: categorias = [] } = useCategoriasList()
   const { data: almacenes  = [] } = useAlmacenesList()
   const { data: lotes      = [] } = useLotesList(undefined, { enabled: true })
+  const { data: configApi } = useConfiguracion()
+  const alertaVencimiento = configApi?.alertaVencimiento !== false
 
   const vencPorProducto = useMemo(() => vencimientoMasUrgentePorProducto(lotes), [lotes])
 
   const alertas = useMemo(() =>
-    generarAlertas(productos, ordenes, vencPorProducto, null, categorias, almacenes, simboloMoneda)
-  , [productos, ordenes, vencPorProducto, categorias, almacenes, simboloMoneda])
+    generarAlertas(productos, ordenes, vencPorProducto, { alertaVencimiento }, categorias, almacenes, simboloMoneda)
+  , [productos, ordenes, vencPorProducto, alertaVencimiento, categorias, almacenes, simboloMoneda])
 
   return (
     <div className="flex flex-col gap-3">

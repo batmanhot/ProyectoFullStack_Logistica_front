@@ -37,24 +37,11 @@ export default function TabEmpresa({ form, f, tenantId, sesion }) {
           <input type="email" className={SI} value={form.email || ''} onChange={e => f('email', e.target.value)} placeholder="contacto@empresa.pe" />
         </Field>
 
-        <div className="mt-2 pt-4 border-t border-white/8">
-          <div className="text-[11px] font-bold text-[#5f6f80] uppercase tracking-[0.08em] mb-3">Alertas automáticas</div>
-          <div className="grid grid-cols-2 gap-3.5">
-            <Field label="WhatsApp responsable (con código país)">
-              <input className={SI} value={form.whatsappResponsable||''} onChange={e=>f('whatsappResponsable',e.target.value)} placeholder="51999888777"/>
-            </Field>
-            <Field label="Email responsable de alertas">
-              <input type="email" className={SI} value={form.emailResponsable||''} onChange={e=>f('emailResponsable',e.target.value)} placeholder="compras@empresa.pe"/>
-            </Field>
-          </div>
-          <label className="flex items-center gap-2.5 cursor-pointer mt-3 px-3.5 py-3 bg-[#1a2230] rounded-xl border border-white/7 hover:border-white/12 transition-colors">
-            <input type="checkbox" checked={!!form.alertasAutoWhatsApp} onChange={e=>f('alertasAutoWhatsApp',e.target.checked)} className="accent-[#00c896] w-4 h-4"/>
-            <div>
-              <div className="text-[13px] font-medium text-[#e8edf2]">Activar alertas automáticas por WhatsApp</div>
-              <div className="text-[11px] text-[#5f6f80] mt-0.5">Cuando haya stock agotado o crítico, el sistema abrirá WhatsApp con el mensaje pre-llenado al número del responsable.</div>
-            </div>
-          </label>
-        </div>
+        <p className="text-[11px] text-[#5f6f80] leading-relaxed mt-1">
+          Estos datos se usan únicamente como encabezado de los documentos que genera el sistema
+          (guías, órdenes de compra, cotizaciones, proformas, hoja de reparto, vale de salida) y en los
+          reportes de Contabilidad. La gestión de la cuenta (plan, vencimiento, estado) vive en el panel de administración.
+        </p>
       </div>
     </div>
   )

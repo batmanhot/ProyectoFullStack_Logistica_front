@@ -327,8 +327,10 @@ export default function Login({ adminMode = false }) {
                 )}
               </div>
 
-              {/* Acceso rápido — solo empresas demo con el switch de Configuración activo */}
-              {empresa.modoDesarrollo && empresa.usuariosDemo?.length > 0 && (
+              {/* Acceso rápido — el backend solo envía usuariosDemo cuando corresponde
+                  (cualquier entorno que no sea producción, o en prod: empresa demo
+                  con el switch de Configuración activo). */}
+              {empresa.usuariosDemo?.length > 0 && (
                 <div className="mb-4 rounded-2xl p-5 border border-amber-500/25" style={{ background: 'rgba(245,158,11,0.08)' }}>
                   <div className="flex items-center gap-1.5 mb-1">
                     <Wrench size={13} className="text-amber-400"/>

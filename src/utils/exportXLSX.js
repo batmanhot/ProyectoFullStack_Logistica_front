@@ -444,10 +444,10 @@ export async function exportarAjustesXLSX(ajustes, productos, almacenes, simbolo
   })
 }
 
-export async function exportarKardexXLSX(lineasKardex, producto, simboloMoneda) {
+export async function exportarKardexXLSX(lineasKardex, producto, simboloMoneda, formulaValorizacion = 'PMP') {
   await exportarExcel({
     titulo: `Kardex — ${producto?.nombre || ''}`,
-    cabeceras: ['N°','Fecha','Tipo','Documento','Motivo','Entrada','Salida','Saldo','Costo Unit.','Valor Acum.'],
+    cabeceras: ['N°','Fecha','Tipo','Documento','Motivo','Entrada','Salida','Saldo',`Costo Unit. (${formulaValorizacion})`,'Valorización'],
     filas: lineasKardex.map((l, i) => [
       i + 1, l.fecha, l.tipo, l.documento||'—', l.motivo||'—',
       l.entrada || 0, l.salida || 0, l.saldo,

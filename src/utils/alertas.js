@@ -1,5 +1,6 @@
 import { AlertTriangle, Clock, TrendingDown, ShoppingCart, Package, PlayCircle, Flag, DollarSign, FileText, Target, Globe, Wrench, FileWarning } from 'lucide-react'
 import { formatDate, formatTime, formatCurrency, diasParaVencer, estadoStock } from './helpers'
+import { STOCK } from '../config/constants'
 
 export const TIPOS = {
   stock_agotado: { label:'Agotado',       color:'danger',  icon:Package,       bg:'bg-red-500/15',    txt:'text-red-400'   },
@@ -61,7 +62,10 @@ const DIAS_GRE_SIN_ENVIAR = 2 // GRE generada (PENDIENTE) sin enviar a SUNAT en 
 
 export function generarAlertas(productos, ordenes, vencPorProducto, config, categorias, almacenes, simboloMoneda, cotizaciones = []) {
   const alertas = []
-  const diasAlerta = config?.diasAlertaVencimiento || 30
+  const diasAlerta = STOCK.DIAS_ALERTA_VENCIMIENTO
+  // Configuración → Alertas: las de vencimiento son opcionales (default ON);
+  // las de stock mínimo son siempre activas.
+  const alertaVencimiento = config?.alertaVencimiento !== false
 
   productos.forEach(p => {
     if (p.activo === false) return
@@ -96,7 +100,7 @@ export function generarAlertas(productos, ordenes, vencPorProducto, config, cate
     }
 
     const fechaVencimiento = vencPorProducto[p.id]
-    if (fechaVencimiento) {
+    if (alertaVencimiento && fechaVencimiento) {
       const dias = diasParaVencer(fechaVencimiento)
       if (dias !== null && dias < 0) {
         alertas.push({ ...base, tipo:'vencimiento', prioridad:1,

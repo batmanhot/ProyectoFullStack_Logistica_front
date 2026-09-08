@@ -1,7 +1,7 @@
 import { Badge } from '../../components/ui/index'
 import { FORMULAS_VALORIZACION } from '../../utils/valorizacion'
 
-export default function TabValorizacion({ form, f }) {
+export default function TabValorizacion({ form, onChange }) {
   return (
     <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
       <div className="flex items-center justify-between mb-3">
@@ -10,15 +10,16 @@ export default function TabValorizacion({ form, f }) {
       </div>
 
       <div className="flex items-start gap-2.5 px-4 py-3 rounded-lg border border-blue-500/25 bg-blue-500/10 text-blue-300 text-[13px] mb-4 leading-snug">
-        <span>El método seleccionado se aplica a <b>todas las salidas</b> y al cálculo del valor del stock en dashboards y reportes.
-        En Perú, el método más usado y aceptado por SUNAT es el <b>PMP</b>.</span>
+        <span>El método seleccionado se aplica hoy al <b>Kardex valorizado</b> (costo de salida y valor del saldo por movimiento).
+        Dashboards y otros reportes se irán migrando al motor de capas de costo.
+        En Perú, el método más usado y aceptado por SUNAT es el <b>PMP</b>. El cambio se guarda al instante.</span>
       </div>
 
       <div className="flex flex-col gap-3">
         {FORMULAS_VALORIZACION.map(formula => {
           const activo = form.formulaValorizacion === formula.id
           return (
-            <div key={formula.id} onClick={() => f('formulaValorizacion', formula.id)}
+            <div key={formula.id} onClick={() => onChange(formula.id)}
               className={`rounded-xl p-5 cursor-pointer transition-all border ${activo ? 'bg-[#00c896]/10 border-[#00c896]' : 'bg-[#1a2230] border-white/8 hover:border-white/20'}`}>
               <div className="flex items-center gap-3 mb-2">
                 {/* Radio */}

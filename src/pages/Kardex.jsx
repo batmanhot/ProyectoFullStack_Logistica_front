@@ -7,6 +7,7 @@ import { Badge, Btn, EmptyState, Input, DataTable } from '../components/ui/index
 import { useKardex } from '../queries/movimientos.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useCategoriasList } from '../queries/categorias.queries'
+import { useConfiguracion } from '../queries/configuracion.queries'
 import { exportarKardexXLSX } from '../utils/exportXLSX'
 import { exportarKardexPDF } from '../utils/exportPDF'
 
@@ -21,10 +22,11 @@ const TIPO_META = {
 export default function Kardex() {
   const { sesion } = useApp()
   const simboloMoneda    = 'S/'
-  const formulaValorizacion = 'Precio Compra'
 
   const { data: productos  = [] } = useProductosList()
   const { data: categorias = [] } = useCategoriasList()
+  const { data: configApi } = useConfiguracion()
+  const formulaValorizacion = configApi?.formulaValorizacion || 'PMP'
 
   const [productoId, setProductoId] = useState('')
   const [busqueda,   setBusqueda]   = useState('')
@@ -72,49 +74,38 @@ export default function Kardex() {
     setDropOpen(false)
   }
 
-  // Procesamos el kardex: el backend ya devuelve líneas en orden.
-  // Cada línea puede tener: { fecha, tipo, documento, motivo, entrada, salida, saldo, costoUnit, valorAcum }
-  // o puede ser un movimiento raw: { tipo, cantidad, direccion, ... }
+  // El backend devuelve el kardex ya valorizado según Empresa.formulaValorizacion:
+  // { ...mov, delta, saldoAcumulado, costoValorizado, valorMovimiento, saldoValor, costoPromedioSaldo }
   const lineasKardex = useMemo(() => {
     if (!productoId || !kardexRaw.length) return []
-    // Si el backend devuelve kardex procesado (tiene campo saldo), usarlo directamente
-    if ('saldo' in (kardexRaw[0] || {})) {
-      return kardexRaw.map(l => ({
-        ...l,
-        valorAcum: Math.round(Number(l.saldo || 0) * Number(l.costoUnit || l.costoUnitario || 0) * 100) / 100,
-      }))
-    }
-    // Si devuelve movimientos raw, construir el kardex con saldo acumulado
-    let saldo = 0
     return kardexRaw.map(m => {
-      const esEntrada = m.tipo === 'ENTRADA' || (m.tipo === 'AJUSTE' && m.direccion === 'incremento')
-      const esSalida  = m.tipo === 'SALIDA'  || (m.tipo === 'AJUSTE' && m.direccion === 'decremento')
-      const entrada   = esEntrada ? Number(m.cantidad || 0) : 0
-      const salida    = esSalida  ? Number(m.cantidad || 0) : 0
-      saldo += entrada - salida
-      const costoUnit = Number(m.costoUnitario || 0)
+      const delta = Number(m.delta ?? 0)
       return {
-        fecha:     m.fecha || m.createdAt,
-        tipo:      m.tipo,
-        documento: m.documento,
-        motivo:    m.motivo,
-        entrada,
-        salida,
-        saldo,
-        costoUnit,
-        valorAcum: Math.round(saldo * costoUnit * 100) / 100,
+        fecha:      m.fecha || m.createdAt,
+        tipo:       m.tipo,
+        documento:  m.documento,
+        motivo:     m.motivo,
+        entrada:    delta > 0 ? delta : 0,
+        salida:     delta < 0 ? -delta : 0,
+        saldo:      Number(m.saldoAcumulado ?? 0),
+        costoUnit:  Number(m.costoValorizado ?? m.costoUnitario ?? 0),
+        valorMovimiento: Number(m.valorMovimiento ?? 0),
+        // "Valorización": valor del stock restante tras esta línea, con la fórmula configurada
+        valorAcum:  Number(m.saldoValor ?? 0),
+        costoPromedioSaldo: Number(m.costoPromedioSaldo ?? 0),
       }
     })
   }, [kardexRaw, productoId])
 
   const resumen = useMemo(() => {
     if (!prod || !lineasKardex.length) return null
+    const ultima = lineasKardex[lineasKardex.length - 1]
     const totalEntradas = lineasKardex.reduce((s, l) => s + (l.entrada || 0), 0)
     const totalSalidas  = lineasKardex.reduce((s, l) => s + (l.salida  || 0), 0)
-    const stockActual   = lineasKardex[lineasKardex.length - 1]?.saldo || 0
-    const costoUnit     = lineasKardex[lineasKardex.length - 1]?.costoUnit || Number(prod.precioCompra || 0)
-    const valorAct      = stockActual * costoUnit
-    return { totalEntradas, totalSalidas, stockActual, valorAct, pmp: costoUnit }
+    const stockActual   = ultima?.saldo || 0
+    const valorAct      = ultima?.valorAcum || 0
+    const pmp           = ultima?.costoPromedioSaldo || Number(prod.precioCompra || 0)
+    return { totalEntradas, totalSalidas, stockActual, valorAct, pmp }
   }, [prod, lineasKardex])
 
   const catNombre = id => categorias.find(c => c.id === id)?.nombre || '—'
@@ -165,8 +156,8 @@ export default function Kardex() {
             </div>
             <div className="flex items-center gap-2">
               <Badge variant={prod.estado === 'Activo' ? 'success' : 'neutral'}>{prod.estado || 'Activo'}</Badge>
-              <Btn variant="ghost" size="sm" onClick={() => exportarKardexXLSX(lineasKardex, prod, simboloMoneda)} disabled={!lineasKardex.length}><Download size={13}/> Excel</Btn>
-              <Btn variant="ghost" size="sm" onClick={() => exportarKardexPDF(lineasKardex, prod, simboloMoneda, sesion?.nombre)} disabled={!lineasKardex.length}><FileText size={13}/> PDF</Btn>
+              <Btn variant="ghost" size="sm" onClick={() => exportarKardexXLSX(lineasKardex, prod, simboloMoneda, formulaValorizacion)} disabled={!lineasKardex.length}><Download size={13}/> Excel</Btn>
+              <Btn variant="ghost" size="sm" onClick={() => exportarKardexPDF(lineasKardex, prod, simboloMoneda, sesion?.nombre, formulaValorizacion)} disabled={!lineasKardex.length}><FileText size={13}/> PDF</Btn>
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -189,8 +180,9 @@ export default function Kardex() {
       {productoId && (
         <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">
+            <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] flex items-center gap-2">
               Movimientos del Kardex · <span className="text-[#00c896]">{lineasKardex.length} registros</span>
+              <Badge variant="teal">Valorización: {formulaValorizacion}</Badge>
             </span>
             <div className="flex gap-2 items-center">
               <span className="text-[11px] text-[#5f6f80]">Desde</span>
@@ -220,8 +212,8 @@ export default function Kardex() {
               { key:'entrada', header:'Entrada', align:'right', render: l => <span className="font-mono font-semibold text-green-400">{(l.entrada || 0) > 0 ? `+${l.entrada}` : '—'}</span> },
               { key:'salida', header:'Salida', align:'right', render: l => <span className="font-mono font-semibold text-red-400">{(l.salida || 0) > 0 ? `-${l.salida}` : '—'}</span> },
               { key:'saldo', header:'Saldo', align:'right', render: l => <span className="font-mono font-bold text-[#e8edf2]">{l.saldo}</span> },
-              { key:'costoUnit', header:'Costo Unit.', align:'right', render: l => <span className="font-mono text-[#9ba8b6]">{formatCurrency(Number(l.costoUnit || 0), simboloMoneda)}</span> },
-              { key:'valorAcum', header:'Valor Acum.', align:'right', render: l => <span className="font-mono text-[#00c896] font-semibold">{formatCurrency(l.valorAcum || 0, simboloMoneda)}</span> },
+              { key:'costoUnit', header:`Costo Unit. (${formulaValorizacion})`, align:'right', render: l => <span className="font-mono text-[#9ba8b6]">{formatCurrency(Number(l.costoUnit || 0), simboloMoneda)}</span> },
+              { key:'valorAcum', header:'Valorización', align:'right', render: l => <span className="font-mono text-[#00c896] font-semibold">{formatCurrency(l.valorAcum || 0, simboloMoneda)}</span> },
             ]}
           />
         </div>

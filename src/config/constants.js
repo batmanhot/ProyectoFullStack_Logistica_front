@@ -5,6 +5,10 @@
  * Modificar aquí impacta a todo el sistema sin necesidad de buscar en múltiples archivos.
  */
 
+// ── Versión de la app ─────────────────────────────────────
+// Etiqueta mostrada en Configuración → Datos / Reset. Subir a mano en cada release.
+export const APP_VERSION = 'StockPro v2.0'
+
 // ── Inventario ────────────────────────────────────────────
 export const STOCK = {
   // Multiplicador sobre stockMinimo para considerar stock "Bajo" (antes hardcoded a 1.5)

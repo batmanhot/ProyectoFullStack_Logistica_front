@@ -11,6 +11,7 @@ import {
 } from '../utils/alertas'
 import { Badge, Btn, Modal } from '../components/ui/index'
 import { useApp } from '../store/AppContext'
+import { useConfiguracion } from '../queries/configuracion.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useOrdenesCompraList } from '../queries/ordenes-compra.queries'
 import { useCategoriasList } from '../queries/categorias.queries'
@@ -60,7 +61,8 @@ export default function Alertas() {
   const { data: flotaAlertas   = [] } = useFlotaAlertas({ enabled: esCoordinadorTransporte })
   const { data: guias          = [] } = useSunatDocumentos({ enabled: esContable })
   const { data: cotizaciones   = [] } = useCotizacionesList({ enabled: esRolConCotizaciones })
-  const config        = null   // sin config de empresa; diasAlertaVencimiento usa default 30
+  const { data: configApi } = useConfiguracion()
+  const alertaVencimiento = configApi?.alertaVencimiento !== false
   const simboloMoneda = 'S/'
   const navigate = useNavigate()
   const [filtroTipo, setFiltroTipo] = useState('all')
@@ -89,8 +91,8 @@ export default function Alertas() {
     if (esEjecutivoComercial) return generarAlertasEjecutivoComercial(cxc, proformas, oportunidades, pedidosPortal, simboloMoneda)
     if (esCoordinadorTransporte) return generarAlertasCoordinadorTransporte(rutasRaw, flotaAlertas)
     if (esContable) return generarAlertasContable(cxc, guias, simboloMoneda)
-    return generarAlertas(productos, ordenes, vencPorProducto, config, categorias, almacenes, simboloMoneda, cotizaciones)
-  }, [esChofer, esEjecutivoComercial, esCoordinadorTransporte, esContable, rutasPropias, rutasRaw, flotaAlertas, cxc, guias, proformas, oportunidades, pedidosPortal, productos, ordenes, vencPorProducto, config, categorias, almacenes, cotizaciones, simboloMoneda])
+    return generarAlertas(productos, ordenes, vencPorProducto, { alertaVencimiento }, categorias, almacenes, simboloMoneda, cotizaciones)
+  }, [esChofer, esEjecutivoComercial, esCoordinadorTransporte, esContable, rutasPropias, rutasRaw, flotaAlertas, cxc, guias, proformas, oportunidades, pedidosPortal, productos, ordenes, vencPorProducto, alertaVencimiento, categorias, almacenes, cotizaciones, simboloMoneda])
 
   const filtered = useMemo(() =>
     filtroTipo === 'all' ? alertas : alertas.filter(a => a.tipo === filtroTipo)

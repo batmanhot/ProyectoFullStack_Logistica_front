@@ -3,7 +3,7 @@ import api from '../services/api'
 
 const KEY = 'configuracion'
 
-/** Datos de la empresa: nombre, ruc, contacto, email, telefono, direccion, plan, fechaVencimiento, estado, limites. */
+/** Datos de la empresa: nombre, ruc, contacto, email, telefono, direccion, plan, fechaVencimiento, estado, limites, formulaValorizacion, alertaVencimiento, modoDesarrollo. */
 export function useConfiguracion({ enabled = true } = {}) {
   return useQuery({
     queryKey: [KEY],
