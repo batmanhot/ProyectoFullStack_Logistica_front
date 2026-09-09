@@ -271,6 +271,24 @@ export function useGuardarLanding() {
   })
 }
 
+// ── Configuración de plataforma (singleton) ──────────────
+const PCK = ['admin', 'plataforma-config']
+
+export function usePlataformaConfig() {
+  return useQuery({
+    queryKey: PCK,
+    queryFn:  () => api.get('/admin/plataforma-config', OPTS).then(r => r.data ?? null),
+  })
+}
+
+export function useGuardarPlataformaConfig() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: campos => api.put('/admin/plataforma-config', campos, OPTS),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: PCK }),
+  })
+}
+
 // ── Auditoría de plataforma (2026-09-04) ─────────────────
 // Quién hizo qué desde el panel de SuperAdmin — antes no quedaba ningún
 // rastro. La llena PlatformAuditInterceptor en el backend automáticamente.

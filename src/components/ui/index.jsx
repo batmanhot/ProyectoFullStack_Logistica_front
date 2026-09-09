@@ -257,17 +257,18 @@ export function Spinner({ size = 20 }) {
 }
 
 /* ── Toggle ──────────────────────────────────────────── */
-export function Toggle({ value, onChange, label }) {
+export function Toggle({ value, onChange, label, disabled = false }) {
   return (
-    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+    <label className={`flex items-center gap-2.5 select-none ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
       <span className="relative inline-flex w-9 h-5 shrink-0">
         <input
           type="checkbox"
           role="switch"
           aria-checked={!!value}
           checked={!!value}
-          onChange={() => onChange(!value)}
-          className="peer absolute inset-0 z-10 opacity-0 cursor-pointer"
+          disabled={disabled}
+          onChange={() => { if (!disabled) onChange(!value) }}
+          className={`peer absolute inset-0 z-10 opacity-0 ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
         />
         <span className={`pointer-events-none absolute inset-0 rounded-full border transition-all duration-200 peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--accent)]/40 peer-focus-visible:ring-offset-1 peer-focus-visible:ring-offset-[var(--bg-base)] ${value ? 'bg-[var(--accent)] border-[var(--accent)]' : 'bg-[var(--bg-muted)] border-[var(--border)]'}`}>
           <span className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200 ${value ? 'translate-x-4' : 'translate-x-0'}`} />

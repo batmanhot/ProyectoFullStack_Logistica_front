@@ -1,11 +1,10 @@
 import { RefreshCw, Trash2 } from 'lucide-react'
-import { ConfirmDialog, Btn, Toggle } from '../../components/ui/index'
+import { ConfirmDialog, Btn } from '../../components/ui/index'
 import { APP_VERSION } from '../../config/constants'
 
 export default function TabDatosReset({
   tenantId, sesion, configApi,
   form,
-  toggleModoDesarrollo,
   confirmReset, setConfirmReset,
   confirmLimpiar, setConfirmLimpiar,
   handleReset, handleLimpiar,
@@ -64,26 +63,6 @@ export default function TabDatosReset({
               <span className="font-medium text-[#e8edf2]">{v}</span>
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* ── Modo Desarrollo: accesos rápidos en el Login ── */}
-      <div className="bg-[#161d28] border border-amber-500/25 rounded-xl p-5">
-        <div className="text-[11px] font-semibold text-amber-400 uppercase tracking-[0.06em] mb-3">Modo Desarrollo</div>
-        <div className="flex items-center justify-between gap-4 px-4 py-3.5 bg-[#1a2230] rounded-xl">
-          <div>
-            <div className="text-[14px] font-medium text-[#e8edf2] mb-0.5">Accesos rápidos en el Login</div>
-            <div className="text-[12px] text-[#5f6f80] leading-relaxed max-w-lg">
-              Con esto activo, la pantalla de Login muestra tarjetas para entrar directo como cualquiera de los
-              usuarios de prueba de esta empresa (uno por rol), sin escribir email ni contraseña.
-              En entornos que no son de producción (desarrollo local, demo, staging) las tarjetas se muestran
-              siempre, sin importar este switch; en producción este switch es el que las habilita, y solo tiene
-              efecto en empresas de origen demo{configApi?.origen && configApi.origen !== 'demo' && (
-                <span className="text-amber-400"> — esta empresa no lo es, así que en producción el switch no tendrá efecto visible</span>
-              )} — desactívalo antes de usar el sistema con datos reales.
-            </div>
-          </div>
-          <Toggle value={!!form.modoDesarrollo} onChange={toggleModoDesarrollo} />
         </div>
       </div>
 

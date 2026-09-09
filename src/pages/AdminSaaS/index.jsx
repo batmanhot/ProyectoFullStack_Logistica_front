@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LayoutDashboard, Building2, CreditCard, RefreshCw, SlidersHorizontal, Bell, Globe } from 'lucide-react'
+import { LayoutDashboard, Building2, CreditCard, RefreshCw, SlidersHorizontal, Bell, Globe, Settings } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { tokenManager } from '../../services/api'
 import {
@@ -17,6 +17,7 @@ import TabRenovaciones from './TabRenovaciones'
 import TabLimites from './TabLimites'
 import TabAlertas from './TabAlertas'
 import TabLanding from './TabLanding'
+import TabAjustes from './TabAjustes'
 import { AdminSidebarNav, PageHead } from './ui/Chrome'
 
 // ══════════════════════════════════════════════════════════
@@ -60,10 +61,11 @@ export default function AdminSaaS() {
     limites:      { label:'Límites del Plan',       icon: SlidersHorizontal, count: null,               title:'Límites del Plan',         description:'Módulos y topes de uso habilitados por cada plan.' },
     alertas:      { label:'Alertas de Vencimiento', icon: Bell,              count: alertas.length,     title:'Alertas de Vencimiento',   description:'Reglas de notificación y envíos reales a negocios por vencer.' },
     landing:      { label:'Landing Page',           icon: Globe,             count: null,               title:'Landing Page',             description:'Contenido público del sitio de marketing.' },
+    ajustes:      { label:'Ajustes',                icon: Settings,          count: null,               title:'Ajustes de Plataforma',    description:'Flags operativos que afectan a todos los negocios de esta instalación.' },
   }
 
   const NAV_GROUPS = [
-    { label:'Plataforma',   items:['dashboard', 'negocios'] },
+    { label:'Plataforma',   items:['dashboard', 'negocios', 'ajustes'] },
     { label:'Comercial',    items:['planes', 'limites', 'renovaciones'] },
     { label:'Comunicación', items:['alertas', 'landing'] },
   ].map(group => ({
@@ -87,6 +89,7 @@ export default function AdminSaaS() {
         {tab === 'limites'      && <TabLimites      planes={planes} actualizarPlan={actualizarPlan} toast={toast} />}
         {tab === 'alertas'      && <TabAlertas      alertas={alertas} vencimientos={vencimientos} crearAlerta={crearAlerta} actualizarAlerta={actualizarAlerta} eliminarAlerta={eliminarAlerta} toast={toast} />}
         {tab === 'landing'      && <TabLanding      landing={landing} guardarLanding={guardarLanding} planes={planes} toast={toast} />}
+        {tab === 'ajustes'      && <TabAjustes      toast={toast} />}
       </div>
     </div>
   )

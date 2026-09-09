@@ -28,7 +28,6 @@ function apiToForm(c) {
     email:               c?.email     ?? '',
     formulaValorizacion: c?.formulaValorizacion ?? 'PMP',
     alertaVencimiento:   c?.alertaVencimiento ?? true,
-    modoDesarrollo:      c?.modoDesarrollo ?? false,
   }
 }
 
@@ -91,14 +90,6 @@ export default function Configuracion() {
     toast(v ? 'Alertas de vencimiento activadas' : 'Alertas de vencimiento desactivadas', 'success')
   }
 
-  // Switch de accesos rápidos demo en el Login.
-  async function toggleModoDesarrollo(v) {
-    f('modoDesarrollo', v)
-    const res = await patchConfiguracion.mutateAsync({ modoDesarrollo: v })
-    if (res?.error) { toast(res.error, 'error'); f('modoDesarrollo', !v); return }
-    toast(v ? 'Modo desarrollo activado' : 'Modo desarrollo desactivado', 'success')
-  }
-
   async function handleReset() {
     const res = await restaurarDemo.mutateAsync()
     if (res?.error) { toast(res.error, 'error'); return }
@@ -146,7 +137,6 @@ export default function Configuracion() {
         <TabDatosReset
           tenantId={tenantId} sesion={sesion} configApi={configApi}
           form={form}
-          toggleModoDesarrollo={toggleModoDesarrollo}
           confirmReset={confirmReset} setConfirmReset={setConfirmReset}
           confirmLimpiar={confirmLimpiar} setConfirmLimpiar={setConfirmLimpiar}
           handleReset={handleReset} handleLimpiar={handleLimpiar}
