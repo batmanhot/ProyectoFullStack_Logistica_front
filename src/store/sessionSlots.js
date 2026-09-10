@@ -1,18 +1,21 @@
-// Dos slots de sesión independientes en localStorage.
+// Slots de sesión: SuperAdmin y tenant no se pisan, y cada PESTAÑA de tenant
+// tiene su propia sesión de negocio.
 //
-// El PlatformAdmin (SuperAdmin) y el usuario de un tenant NO deben pisarse:
-// antes ambos escribían la misma clave 'sp_session' y el último login ganaba.
-// Efecto visible en el deploy: abrir el SuperAdmin en una pestaña y un negocio
-// en otra (o un reload por PWA autoUpdate) hacía que el SuperAdmin, al
-// recargar, leyera la sesión del tenant y "se saliera". Los TOKENS ya estaban
-// separados (sp_admin_* vs sp_*, ver services/api.js) — faltaba separar el
-// objeto de sesión que decide qué app renderizar.
+// - SuperAdmin (identidad única de plataforma) → objeto de sesión en
+//   localStorage['sp_session_admin'], se comparte entre pestañas. Su refresh
+//   token vive en la cookie httpOnly `sp_admin_rt`.
+// - Tenant → objeto de sesión en sessionStorage['sp_session'] (POR PESTAÑA) +
+//   sessionStorage['sp_tab_empresa'] con el id de la empresa de esa pestaña.
+//   El refresh token vive en la cookie httpOnly `sp_rt_<empresaId>` (una por
+//   negocio). Así, Acme en una pestaña y DL Norte en otra conviven: cada F5
+//   restaura la empresa de esa pestaña, no "la última que logueó".
 //
-// Ahora cada identidad tiene su propia clave y al montar se restaura la que
-// corresponde a la URL de esa pestaña.
+// Antes todo compartía localStorage['sp_session'] + una sola cookie `sp_rt`, y
+// el último login ganaba en todo el navegador.
 
-export const SESSION_KEY_TENANT = 'sp_session'        // sin cambios: no desloguea a los tenants ya logueados
-export const SESSION_KEY_ADMIN = 'sp_session_admin'
+export const SESSION_KEY_TENANT = 'sp_session'        // ahora en sessionStorage (por pestaña)
+export const SESSION_KEY_ADMIN = 'sp_session_admin'   // en localStorage (identidad única)
+export const TAB_EMPRESA_KEY = 'sp_tab_empresa'       // sessionStorage: empresa de ESTA pestaña
 
 /** true si la ruta pertenece al espacio del SuperAdmin / Admin SaaS. */
 export function esRutaSuperAdmin(pathname = '') {
@@ -31,4 +34,13 @@ export function slotParaSesion(sesion) {
 /** Clave de storage a restaurar al montar, según la URL actual de la pestaña. */
 export function slotParaRuta(pathname) {
   return esRutaSuperAdmin(pathname) ? SESSION_KEY_ADMIN : SESSION_KEY_TENANT
+}
+
+/**
+ * Storage donde vive el OBJETO de sesión de una identidad:
+ *  - admin  → localStorage  (se comparte entre pestañas)
+ *  - tenant → sessionStorage (aislado por pestaña: cada negocio, lo suyo)
+ */
+export function almacenDeSesion(esAdmin) {
+  return esAdmin ? localStorage : sessionStorage
 }

@@ -7,6 +7,7 @@ import {
   esRutaSuperAdmin,
   slotParaSesion,
   slotParaRuta,
+  almacenDeSesion,
 } from './sessionSlots'
 
 const initialState = {
@@ -58,14 +59,20 @@ export function AppProvider({ children }) {
   useEffect(() => {
     // #5 (2026-09-10): el access token vive en memoria y se perdió al recargar.
     // Se recupera con /auth/refresh (cookie httpOnly). El objeto de sesión
-    // (rol, permisos, nombre — NO secretos) sigue en localStorage para pintar
-    // la UI al instante, pero la sesión solo es "real" si el refresh anda.
+    // (rol, permisos, nombre — NO secretos) se guarda para pintar la UI al
+    // instante — admin en localStorage, tenant en sessionStorage (una sesión de
+    // negocio POR PESTAÑA) —, pero solo es "real" si el refresh anda.
     if (_bootstrapIniciado) return
     _bootstrapIniciado = true
     ;(async () => {
       try {
+        // Migración multi-pestaña: la sesión de tenant se mudó de localStorage a
+        // sessionStorage. Limpia el rastro viejo (una vez) para no confundir.
+        try { localStorage.removeItem(SESSION_KEY_TENANT) } catch { /* noop */ }
+
         const enRutaAdmin = esRutaSuperAdmin(window.location.pathname)
-        const stored = localStorage.getItem(slotParaRuta(window.location.pathname))
+        const almacen = almacenDeSesion(enRutaAdmin)
+        const stored = almacen.getItem(slotParaRuta(window.location.pathname))
         if (stored) {
           const sesionGuardada = JSON.parse(stored)
           const esAdmin = sesionGuardada?.rol?.codigo === 'saas_admin'
@@ -87,10 +94,8 @@ export function AppProvider({ children }) {
             // "no autorizado" (cookie ausente/revocada). Si fue un problema
             // pasajero, se conserva: se recupera en la próxima recarga.
             if (!boot.transient) {
-              localStorage.removeItem(slotParaSesion(sesionGuardada))
+              almacen.removeItem(slotParaSesion(sesionGuardada))
             }
-          } else if (!enRutaAdmin && esAdmin) {
-            localStorage.removeItem(SESSION_KEY_TENANT)
           }
         }
       } catch {
@@ -127,10 +132,13 @@ export function AppProvider({ children }) {
   // La página Login.jsx llama a api.buscarEmpresa + api.login directamente
   // y luego llama a esta función solo para persistir la sesión en el context.
   const setSesion = useCallback((sesion) => {
-    // Escribe en el slot de la identidad (admin vs tenant). No toca el otro
-    // slot a propósito: son independientes para permitir SuperAdmin + tenant
-    // abiertos a la vez en pestañas distintas.
-    localStorage.setItem(slotParaSesion(sesion), JSON.stringify(sesion))
+    // Escribe en el slot de la identidad: admin → localStorage (compartido entre
+    // pestañas), tenant → sessionStorage (una sesión de negocio por pestaña, no
+    // se pisan Acme y DL Norte). api.login() ya guardó `sp_tab_empresa`; se
+    // reafirma acá porque el context es la fuente de verdad de la app.
+    const esAdmin = sesion?.rol?.codigo === 'saas_admin'
+    almacenDeSesion(esAdmin).setItem(slotParaSesion(sesion), JSON.stringify(sesion))
+    if (!esAdmin && sesion?.empresaId) tokenManager.setTabEmpresa(sesion.empresaId)
     dispatch({ type: 'SET_SESION', payload: sesion })
   }, [])
 
@@ -140,8 +148,8 @@ export function AppProvider({ children }) {
       api.logoutAdmin()
       localStorage.removeItem(SESSION_KEY_ADMIN)
     } else {
-      api.logout()
-      localStorage.removeItem(SESSION_KEY_TENANT)
+      api.logout() // también limpia `sp_tab_empresa`
+      sessionStorage.removeItem(SESSION_KEY_TENANT)
     }
     dispatch({ type: 'SET_SESION', payload: null })
   }, [state.sesion])

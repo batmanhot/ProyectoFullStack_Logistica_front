@@ -24,6 +24,11 @@ const ACCION_POR_METODO = { POST: 'CREATE', PUT: 'UPDATE', PATCH: 'UPDATE', DELE
 // pestañas) — mejor que localStorage; el token de link sigue siendo JS-visible.
 const PORTAL_TOKEN_KEY  = 'sp_portal_token'
 const PORTAL_PROVEEDOR_TOKEN_KEY = 'sp_portal_proveedor_token'
+// Empresa de ESTA pestaña. El refresh token del tenant va en la cookie httpOnly
+// `sp_rt_<empresaId>` (una por negocio) — la pestaña tiene que decirle al
+// backend a qué empresa pertenece para que lea la cookie correcta. sessionStorage
+// = por pestaña: Acme y DL Norte conviven en el mismo navegador.
+const TAB_EMPRESA_KEY = 'sp_tab_empresa'
 
 let _access = null       // access token del tenant (en memoria)
 let _adminAccess = null   // access token del SuperAdmin (en memoria)
@@ -35,6 +40,12 @@ export const tokenManager = {
   setAccess:    (access) => { _access = access || null },
   clearTokens:  () => { _access = null },
   getRefresh:   () => null, // el refresh está en cookie httpOnly
+
+  // Empresa de la pestaña (para elegir la cookie `sp_rt_<empresaId>` correcta)
+  getTabEmpresa: () => { try { return sessionStorage.getItem(TAB_EMPRESA_KEY) } catch { return null } },
+  setTabEmpresa: (id) => {
+    try { id ? sessionStorage.setItem(TAB_EMPRESA_KEY, id) : sessionStorage.removeItem(TAB_EMPRESA_KEY) } catch { /* storage bloqueado */ }
+  },
 
   // Platform Admin (sesión separada, nunca se mezcla con tenant)
   getAdminAccess:   () => _adminAccess,
@@ -68,9 +79,14 @@ export const tokenManager = {
 //   - ok:false + transient:false → no hay sesión / revocada (401/403) → destruir sesión.
 //   - ok:false + transient:true  → throttle (429), error 5xx o red caída → NO destruir
 //     la sesión: es un problema pasajero, se reintenta.
-async function _refreshCore(path, guardar) {
+async function _refreshCore(path, guardar, body) {
   try {
-    const res = await fetch(`${BASE_URL}${path}`, { method: 'POST', credentials: 'include' })
+    const init = { method: 'POST', credentials: 'include' }
+    if (body) {
+      init.headers = { 'Content-Type': 'application/json' }
+      init.body = JSON.stringify(body)
+    }
+    const res = await fetch(`${BASE_URL}${path}`, init)
     if (!res.ok) {
       const transient = res.status === 429 || res.status >= 500 || res.status === 0
       return { ok: false, data: null, transient }
@@ -94,9 +110,18 @@ const _refreshEnVuelo = { tenant: null, admin: null }
 
 function _refresh(kind) {
   if (!_refreshEnVuelo[kind]) {
-    const path    = kind === 'admin' ? '/admin/auth/refresh' : '/auth/refresh'
-    const guardar = kind === 'admin' ? tokenManager.setAdminAccess : tokenManager.setAccess
-    _refreshEnVuelo[kind] = _refreshCore(path, guardar).finally(() => { _refreshEnVuelo[kind] = null })
+    if (kind === 'admin') {
+      _refreshEnVuelo.admin = _refreshCore('/admin/auth/refresh', tokenManager.setAdminAccess)
+        .finally(() => { _refreshEnVuelo.admin = null })
+    } else {
+      // El backend necesita saber a qué empresa pertenece esta pestaña para leer
+      // la cookie `sp_rt_<empresaId>` correcta. Sin empresa en la pestaña no hay
+      // sesión que recuperar (fallo definitivo, no transitorio).
+      const empresaId = tokenManager.getTabEmpresa()
+      if (!empresaId) return Promise.resolve({ ok: false, data: null, transient: false })
+      _refreshEnVuelo.tenant = _refreshCore('/auth/refresh', tokenManager.setAccess, { empresaId })
+        .finally(() => { _refreshEnVuelo.tenant = null })
+    }
   }
   return _refreshEnVuelo[kind]
 }
@@ -252,7 +277,10 @@ export const api = {
   // una cookie httpOnly; en el body solo viene el access token (→ memoria).
   async login(empresaId, email, password) {
     const res = await _request('POST', '/auth/login', { empresaId, email, password }, { skipAuth: true })
-    if (res.data?.accessToken) tokenManager.setAccess(res.data.accessToken)
+    if (res.data?.accessToken) {
+      tokenManager.setAccess(res.data.accessToken)
+      tokenManager.setTabEmpresa(empresaId) // esta pestaña = este negocio
+    }
     return res
   },
 
@@ -260,7 +288,10 @@ export const api = {
   // el backend igual valida que la empresa sea demo y tenga el switch activo.
   async demoLogin(empresaId, usuarioId) {
     const res = await _request('POST', '/auth/demo-login', { empresaId, usuarioId }, { skipAuth: true })
-    if (res.data?.accessToken) tokenManager.setAccess(res.data.accessToken)
+    if (res.data?.accessToken) {
+      tokenManager.setAccess(res.data.accessToken)
+      tokenManager.setTabEmpresa(empresaId)
+    }
     return res
   },
 
@@ -281,6 +312,7 @@ export const api = {
   async logout() {
     try { await _request('POST', '/auth/logout', null, {}) } catch { /* la cookie se limpia igual abajo */ }
     tokenManager.clearTokens()
+    tokenManager.setTabEmpresa(null)
   },
 
   async logoutAdmin() {
