@@ -1,27 +1,27 @@
-import { Plus, Shield, Lock, Key, Edit2, Trash2, CheckSquare, Square } from 'lucide-react'
-import { Btn } from '../../components/ui/index'
-import { MODULOS_GRUPOS, TODOS_MODULOS, ROLES_BASE_META } from './constants'
+import { Shield, Key, CheckSquare, Square, Info } from 'lucide-react'
+import { MODULOS_GRUPOS, TODOS_MODULOS } from './constants'
 
 // ════════════════════════════════════════════════════════
-// TAB ROLES Y PERMISOS
+// TAB ROLES Y PERMISOS  ·  SOLO LECTURA
 // ════════════════════════════════════════════════════════
-export default function TabRoles({
-  roles, usuarios, getRolCode, setEditandoRol, setModalRol, setConfirmDelRol,
-}) {
+// TODOS los roles vienen del catálogo del SuperAdmin (`GET /roles` ya solo
+// devuelve `empresaId null`). El negocio no crea, edita ni elimina roles —
+// solo los consulta y los asigna a usuarios. Para un rol a medida, lo
+// solicita al administrador de la plataforma.
+export default function TabRoles({ roles, usuarios, getRolCode }) {
   return (
     <>
-      <div className="flex items-center justify-between">
-        <p className="text-[13px] text-[#9ba8b6]">
-          Define qué módulos puede ver y usar cada rol. Los roles base no se pueden eliminar.
-        </p>
-        <Btn variant="primary" size="sm" onClick={() => { setEditandoRol(null); setModalRol(true) }}>
-          <Plus size={13}/> Nuevo Rol
-        </Btn>
+      <div className="flex items-start gap-2 px-4 py-3 bg-[#161d28] border border-white/8 rounded-xl text-[12px] text-[#9ba8b6]">
+        <Info size={14} className="mt-0.5 shrink-0 text-[#00c896]"/>
+        <span>
+          Estos son los roles disponibles para tus usuarios y los módulos que concede cada uno.
+          El catálogo lo administra la plataforma — si necesitas un rol a medida, solicítalo al
+          administrador de la plataforma.
+        </span>
       </div>
 
       <div className="flex flex-col gap-4">
         {Object.entries(roles).map(([codigo, rol]) => {
-          const esBase      = !!ROLES_BASE_META[codigo]
           const usuariosRol = usuarios.filter(u => getRolCode(u) === codigo)
           const esAdmin     = rol.permisos?.includes('*')
           const activos     = rol.permisos || []
@@ -35,14 +35,7 @@ export default function TabRoles({
                     <Shield size={16} style={{ color: rol.color||'#5f6f80' }}/>
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-[#e8edf2]">{rol.label}</span>
-                      {esBase && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-[#5f6f80] flex items-center gap-1">
-                          <Lock size={8}/> Base
-                        </span>
-                      )}
-                    </div>
+                    <span className="font-semibold text-[#e8edf2]">{rol.label}</span>
                     <div className="text-[11px] text-[#5f6f80] mt-0.5">{rol.desc}</div>
                   </div>
                 </div>
@@ -54,18 +47,6 @@ export default function TabRoles({
                     ? <span className="text-[11px] font-semibold text-amber-400 flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10"><Key size={10}/>Acceso total</span>
                     : <span className="text-[11px] text-[#5f6f80]">{activos.length}/{TODOS_MODULOS.length} módulos</span>
                   }
-                  <div className="flex gap-1">
-                    <Btn variant="ghost" size="sm"
-                      onClick={() => { setEditandoRol({ id: rol.id, codigo, ...rol }); setModalRol(true) }}>
-                      <Edit2 size={12}/> Editar
-                    </Btn>
-                    {!esBase && (
-                      <Btn variant="ghost" size="sm" className="text-red-400 hover:text-red-300"
-                        onClick={() => setConfirmDelRol(codigo)}>
-                        <Trash2 size={12}/>
-                      </Btn>
-                    )}
-                  </div>
                 </div>
               </div>
 

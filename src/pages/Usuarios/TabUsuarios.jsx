@@ -1,7 +1,11 @@
-import { Plus, Edit2, Trash2, Users, Key } from 'lucide-react'
+import { Plus, Edit2, Trash2, Users, Key, Lock } from 'lucide-react'
 import { formatDate } from '../../utils/helpers'
 import { Badge, Btn, DataTable } from '../../components/ui/index'
 import { TODOS_MODULOS } from './constants'
+
+// Propietario y Admin del Negocio los gestiona el administrador de la
+// plataforma (docs/GOBIERNO-PLATAFORMA.md regla 3) — desde acá son solo lectura.
+const GESTIONADOS_POR_PLATAFORMA = ['owner', 'admin']
 
 // ════════════════════════════════════════════════════════
 // TAB USUARIOS
@@ -10,6 +14,7 @@ export default function TabUsuarios({
   usuarios, sesion, roles, getRolCode, rolColor, rolLabel,
   planLimits, setModal, setEditando, setConfirmDel,
 }) {
+  const esDePlataforma = u => GESTIONADOS_POR_PLATAFORMA.includes(getRolCode(u))
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -52,7 +57,7 @@ export default function TabUsuarios({
         <DataTable
           rows={usuarios}
           rowKey={u => u.id}
-          onRowClick={u => { setEditando(u); setModal(true) }}
+          onRowClick={u => { if (!esDePlataforma(u)) { setEditando(u); setModal(true) } }}
           emptyIcon={Users}
           emptyTitle="Sin usuarios"
           emptyDescription="Agrega el primer usuario."
@@ -106,17 +111,23 @@ export default function TabUsuarios({
             { key: 'estado', header: 'Estado', render: u => <Badge variant={u.activo ? 'success' : 'neutral'}>{u.activo ? 'Activo' : 'Inactivo'}</Badge> },
             { key: 'creado', header: 'Creado', render: u => <span className="font-mono text-[12px] text-[#9ba8b6]">{formatDate(u.createdAt)}</span> },
             { key: 'acciones', header: 'Acciones', stopPropagation: true, render: u => (
-                <div className="flex gap-1">
-                  <Btn variant="ghost" size="icon" title="Editar" onClick={() => { setEditando(u); setModal(true) }}>
-                    <Edit2 size={13}/>
-                  </Btn>
-                  {u.id !== sesion?.id && (
-                    <Btn variant="ghost" size="icon" title="Eliminar" className="text-red-400 hover:text-red-300"
-                      onClick={() => setConfirmDel(u.id)}>
-                      <Trash2 size={13}/>
+                esDePlataforma(u) ? (
+                  <span className="text-[11px] text-[#5f6f80] flex items-center gap-1" title="Propietario / Administrador del Negocio — lo gestiona el administrador de la plataforma">
+                    <Lock size={11}/> Plataforma
+                  </span>
+                ) : (
+                  <div className="flex gap-1">
+                    <Btn variant="ghost" size="icon" title="Editar" onClick={() => { setEditando(u); setModal(true) }}>
+                      <Edit2 size={13}/>
                     </Btn>
-                  )}
-                </div>
+                    {u.id !== sesion?.id && (
+                      <Btn variant="ghost" size="icon" title="Eliminar" className="text-red-400 hover:text-red-300"
+                        onClick={() => setConfirmDel(u.id)}>
+                        <Trash2 size={13}/>
+                      </Btn>
+                    )}
+                  </div>
+                )
               ) },
           ]}
         />
