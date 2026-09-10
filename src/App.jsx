@@ -286,7 +286,7 @@ function SuperAdminLayout() {
 const MOBILE_BP = 768
 
 function AppLayout() {
-  const { sesion } = useApp()
+  const { sesion, loading } = useApp()
   const location = useLocation()
   const { data: configApiBloqueo } = useConfiguracion({ enabled: !!sesion?.empresaId })
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < MOBILE_BP)
@@ -358,6 +358,16 @@ function AppLayout() {
         <ToastContainer />
       </ErrorBoundary>
     )
+  }
+
+  // #5 (2026-09-10): la restauración de sesión al recargar es asíncrona — llama
+  // a /auth/refresh (que usa la cookie httpOnly) para recuperar el access token
+  // que vive en memoria. Mientras resuelve NO se decide app-vs-landing: sin
+  // esto, cada F5 parpadeaba la landing (o dejaba al usuario deslogueado si el
+  // render de "!sesion" ganaba la carrera). Rutas públicas (portal, /app/:orgId)
+  // ya retornaron arriba, así que este loader solo afecta a quien tiene sesión.
+  if (loading) {
+    return <PageLoader />
   }
 
   // SuperAdmin: layout exclusivo sin datos de empresa
