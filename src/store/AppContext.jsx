@@ -51,30 +51,37 @@ export function AppProvider({ children }) {
   // reload (manual o por PWA autoUpdate) mantiene cada pestaña en su identidad.
   // Los tokens ya viven en pares separados (tokenManager, ver api.js).
   useEffect(() => {
-    try {
-      const enRutaAdmin = esRutaSuperAdmin(window.location.pathname)
-      const stored = localStorage.getItem(slotParaRuta(window.location.pathname))
-      if (stored) {
-        const sesionGuardada = JSON.parse(stored)
-        const esAdmin = sesionGuardada?.rol?.codigo === 'saas_admin'
-        // El slot y la identidad tienen que coincidir. Descarta datos viejos de
-        // antes de separar los slots (una sesión saas_admin que quedó en la
-        // clave de tenant, o al revés) sin dispararlos en el contexto.
-        if (esAdmin === enRutaAdmin) {
-          const access = esAdmin ? tokenManager.getAdminAccess() : tokenManager.getAccess()
-          if (access && !tokenManager.isExpired(access)) {
-            dispatch({ type: 'SET_SESION', payload: sesionGuardada })
-            return
+    // #5 (2026-09-10): el access token vive en memoria y se perdió al recargar.
+    // Se recupera con /auth/refresh (cookie httpOnly). El objeto de sesión
+    // (rol, permisos, nombre — NO secretos) sigue en localStorage para pintar
+    // la UI al instante, pero la sesión solo es "real" si el refresh anda.
+    let cancelado = false
+    ;(async () => {
+      try {
+        const enRutaAdmin = esRutaSuperAdmin(window.location.pathname)
+        const stored = localStorage.getItem(slotParaRuta(window.location.pathname))
+        if (stored) {
+          const sesionGuardada = JSON.parse(stored)
+          const esAdmin = sesionGuardada?.rol?.codigo === 'saas_admin'
+          if (esAdmin === enRutaAdmin) {
+            const boot = esAdmin ? await api.bootstrapAdmin() : await api.bootstrapTenant()
+            if (cancelado) return
+            if (boot) {
+              dispatch({ type: 'SET_SESION', payload: sesionGuardada })
+              return
+            }
+            // Refresh falló → la sesión guardada ya no vale.
+            localStorage.removeItem(slotParaSesion(sesionGuardada))
+          } else if (!enRutaAdmin && esAdmin) {
+            localStorage.removeItem(SESSION_KEY_TENANT)
           }
-        } else if (!enRutaAdmin && esAdmin) {
-          // Limpieza puntual: sesión de SuperAdmin abandonada en el slot de tenant.
-          localStorage.removeItem(SESSION_KEY_TENANT)
         }
+      } catch {
+        /* storage bloqueado / JSON inválido / red — se arranca sin sesión */
       }
-    } catch {
-      /* storage bloqueado o JSON inválido — se arranca sin sesión */
-    }
-    dispatch({ type: 'SET_LOADING', payload: false })
+      if (!cancelado) dispatch({ type: 'SET_LOADING', payload: false })
+    })()
+    return () => { cancelado = true }
   }, [])
 
   const toast = useCallback((mensaje, tipo = 'info', duracion = 3500) => {

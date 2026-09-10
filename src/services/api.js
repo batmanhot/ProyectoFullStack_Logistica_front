@@ -15,49 +15,41 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 const METODOS_MUTANTES = ['POST', 'PUT', 'PATCH', 'DELETE']
 const ACCION_POR_METODO = { POST: 'CREATE', PUT: 'UPDATE', PATCH: 'UPDATE', DELETE: 'DELETE' }
 
-// ── Claves de storage ────────────────────────────────────────
-const TOKEN_KEY         = 'sp_access_token'
-const REFRESH_KEY       = 'sp_refresh_token'
-const ADMIN_TOKEN_KEY   = 'sp_admin_access_token'
-const ADMIN_REFRESH_KEY = 'sp_admin_refresh_token'
+// ── Tokens (#5, 2026-09-10) ──────────────────────────────────
+// El REFRESH token vive en una cookie httpOnly que pone el backend — el JS
+// no lo ve, un XSS no lo puede robar. El ACCESS token (corto, 15 min) vive
+// SOLO EN MEMORIA (variable de módulo): se pierde al recargar la pestaña, y
+// se recupera al arrancar llamando a /auth/refresh (que usa la cookie).
+// Portal: sessionStorage (se borra al cerrar la pestaña, no se comparte entre
+// pestañas) — mejor que localStorage; el token de link sigue siendo JS-visible.
 const PORTAL_TOKEN_KEY  = 'sp_portal_token'
 const PORTAL_PROVEEDOR_TOKEN_KEY = 'sp_portal_proveedor_token'
 
+let _access = null       // access token del tenant (en memoria)
+let _adminAccess = null   // access token del SuperAdmin (en memoria)
+
 export const tokenManager = {
   // Tenant
-  getAccess:    () => localStorage.getItem(TOKEN_KEY),
-  getRefresh:   () => localStorage.getItem(REFRESH_KEY),
-  setTokens:    (access, refresh) => {
-    localStorage.setItem(TOKEN_KEY, access)
-    if (refresh) localStorage.setItem(REFRESH_KEY, refresh)
-  },
-  clearTokens:  () => {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(REFRESH_KEY)
-  },
+  getAccess:    () => _access,
+  setTokens:    (access) => { _access = access || null },
+  setAccess:    (access) => { _access = access || null },
+  clearTokens:  () => { _access = null },
+  getRefresh:   () => null, // el refresh está en cookie httpOnly
 
   // Platform Admin (sesión separada, nunca se mezcla con tenant)
-  getAdminAccess:   () => localStorage.getItem(ADMIN_TOKEN_KEY),
-  getAdminRefresh:  () => localStorage.getItem(ADMIN_REFRESH_KEY),
-  setAdminTokens:   (access, refresh) => {
-    localStorage.setItem(ADMIN_TOKEN_KEY, access)
-    if (refresh) localStorage.setItem(ADMIN_REFRESH_KEY, refresh)
-  },
-  clearAdminTokens: () => {
-    localStorage.removeItem(ADMIN_TOKEN_KEY)
-    localStorage.removeItem(ADMIN_REFRESH_KEY)
-  },
+  getAdminAccess:   () => _adminAccess,
+  setAdminTokens:   (access) => { _adminAccess = access || null },
+  setAdminAccess:   (access) => { _adminAccess = access || null },
+  clearAdminTokens: () => { _adminAccess = null },
+  getAdminRefresh:  () => null,
 
-  // Portal cliente (token único; soporta header Bearer o ?token= en query)
-  getPortal:   () => localStorage.getItem(PORTAL_TOKEN_KEY),
-  setPortal:   (token) => localStorage.setItem(PORTAL_TOKEN_KEY, token),
-  clearPortal: () => localStorage.removeItem(PORTAL_TOKEN_KEY),
-
-  // Portal proveedor B2B (mismo patrón, slot de storage propio para no
-  // pisar una sesión de portal cliente abierta en el mismo navegador)
-  getPortalProveedor:   () => localStorage.getItem(PORTAL_PROVEEDOR_TOKEN_KEY),
-  setPortalProveedor:   (token) => localStorage.setItem(PORTAL_PROVEEDOR_TOKEN_KEY, token),
-  clearPortalProveedor: () => localStorage.removeItem(PORTAL_PROVEEDOR_TOKEN_KEY),
+  // Portal cliente / proveedor — token único de link, en sessionStorage
+  getPortal:   () => sessionStorage.getItem(PORTAL_TOKEN_KEY),
+  setPortal:   (token) => sessionStorage.setItem(PORTAL_TOKEN_KEY, token),
+  clearPortal: () => sessionStorage.removeItem(PORTAL_TOKEN_KEY),
+  getPortalProveedor:   () => sessionStorage.getItem(PORTAL_PROVEEDOR_TOKEN_KEY),
+  setPortalProveedor:   (token) => sessionStorage.setItem(PORTAL_PROVEEDOR_TOKEN_KEY, token),
+  clearPortalProveedor: () => sessionStorage.removeItem(PORTAL_PROVEEDOR_TOKEN_KEY),
 
   isExpired: (token) => {
     try {
@@ -68,41 +60,26 @@ export const tokenManager = {
 }
 
 // ── Refresh interno ──────────────────────────────────────────
-async function _refreshTenant() {
-  const refresh = tokenManager.getRefresh()
-  if (!refresh) return false
+// El refresh token va en una cookie httpOnly (path-scoped). Se manda con
+// `credentials: 'include'`, sin body. La respuesta trae el access token nuevo
+// (en memoria) y los datos del usuario/admin.
+async function _refreshCore(path, guardar) {
   try {
-    const res = await fetch(`${BASE_URL}/auth/refresh`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ refreshToken: refresh }),
-    })
-    if (!res.ok) return false
+    const res = await fetch(`${BASE_URL}${path}`, { method: 'POST', credentials: 'include' })
+    if (!res.ok) return null
     const json = await res.json()
-    const tokens = json.data || json
-    if (!tokens?.accessToken) return false
-    // Rotación: guardar el refreshToken nuevo que emite el backend
-    tokenManager.setTokens(tokens.accessToken, tokens.refreshToken || null)
-    return true
-  } catch { return false }
+    const data = json.data || json
+    if (!data?.accessToken) return null
+    guardar(data.accessToken)
+    return data
+  } catch { return null }
 }
 
+async function _refreshTenant() {
+  return !!(await _refreshCore('/auth/refresh', tokenManager.setAccess))
+}
 async function _refreshAdmin() {
-  const refresh = tokenManager.getAdminRefresh()
-  if (!refresh) return false
-  try {
-    const res = await fetch(`${BASE_URL}/admin/auth/refresh`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ refreshToken: refresh }),
-    })
-    if (!res.ok) return false
-    const json = await res.json()
-    const tokens = json.data || json
-    if (!tokens?.accessToken) return false
-    tokenManager.setAdminTokens(tokens.accessToken, tokens.refreshToken || null)
-    return true
-  } catch { return false }
+  return !!(await _refreshCore('/admin/auth/refresh', tokenManager.setAdminAccess))
 }
 
 // ── Núcleo HTTP ───────────────────────────────────────────────
@@ -139,7 +116,10 @@ async function _request(method, endpoint, data = null, opts = {}) {
     if (access) headers['Authorization'] = `Bearer ${access}`
   }
 
-  const config = { method, headers }
+  // credentials: 'include' → manda la cookie httpOnly del refresh token en
+  // /auth/* y /admin/auth/*. En el resto es inofensivo (no hay cookie con ese
+  // path). Requiere CORS con Allow-Credentials + origin exacto (ya configurado).
+  const config = { method, headers, credentials: 'include' }
   if (data !== null) config.body = JSON.stringify(data)
 
   try {
@@ -230,12 +210,11 @@ export const api = {
   buscarEmpresa: (codigo) =>
     _request('GET', `/empresas/${codigo}`, null, { skipAuth: true }),
 
-  // Paso 2: autenticar usuario del tenant
+  // Paso 2: autenticar usuario del tenant. El backend pone el refresh token en
+  // una cookie httpOnly; en el body solo viene el access token (→ memoria).
   async login(empresaId, email, password) {
     const res = await _request('POST', '/auth/login', { empresaId, email, password }, { skipAuth: true })
-    if (res.data?.accessToken) {
-      tokenManager.setTokens(res.data.accessToken, res.data.refreshToken)
-    }
+    if (res.data?.accessToken) tokenManager.setAccess(res.data.accessToken)
     return res
   },
 
@@ -243,26 +222,30 @@ export const api = {
   // el backend igual valida que la empresa sea demo y tenga el switch activo.
   async demoLogin(empresaId, usuarioId) {
     const res = await _request('POST', '/auth/demo-login', { empresaId, usuarioId }, { skipAuth: true })
-    if (res.data?.accessToken) {
-      tokenManager.setTokens(res.data.accessToken, res.data.refreshToken)
-    }
+    if (res.data?.accessToken) tokenManager.setAccess(res.data.accessToken)
     return res
   },
 
   // Login Platform Admin (sesión separada, Fase 7d)
   async loginAdmin(email, password) {
     const res = await _request('POST', '/admin/auth/login', { email, password }, { skipAuth: true })
-    if (res.data?.accessToken) {
-      tokenManager.setAdminTokens(res.data.accessToken, res.data.refreshToken)
-    }
+    if (res.data?.accessToken) tokenManager.setAdminAccess(res.data.accessToken)
     return res
   },
 
-  logout() {
+  // Al arrancar la app: el access token vive en memoria y se perdió al recargar.
+  // Se recupera con /auth/refresh (usa la cookie httpOnly). Devuelve los datos
+  // del usuario si hay sesión válida, o null.
+  bootstrapTenant: () => _refreshCore('/auth/refresh', tokenManager.setAccess),
+  bootstrapAdmin:  () => _refreshCore('/admin/auth/refresh', tokenManager.setAdminAccess),
+
+  async logout() {
+    try { await _request('POST', '/auth/logout', null, {}) } catch { /* la cookie se limpia igual abajo */ }
     tokenManager.clearTokens()
   },
 
-  logoutAdmin() {
+  async logoutAdmin() {
+    try { await _request('POST', '/admin/auth/logout', null, {}) } catch { /* idem */ }
     tokenManager.clearAdminTokens()
   },
 }

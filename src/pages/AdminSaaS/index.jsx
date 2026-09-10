@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useApp } from '../../store/AppContext'
-import { tokenManager } from '../../services/api'
+import api, { tokenManager } from '../../services/api'
 import {
   useNegociosList, useCrearNegocio, useActualizarNegocio, useEliminarNegocio, useArchivarNegocio,
   usePlanesAdminList, useCrearPlan, useActualizarPlan, useEliminarPlan,
@@ -41,6 +41,20 @@ export default function AdminSaaS() {
   const tab = TABS_VALIDOS.has(tabParam) ? tabParam : 'dashboard'
   const setTab = (id) => navigate(`/admin-saas/${id}`)
   const [adminLogged, setAdminLogged] = useState(() => !!tokenManager.getAdminAccess())
+  // El access token del SuperAdmin vive en memoria (#5) — al recargar se
+  // recupera con /admin/auth/refresh (cookie httpOnly). Mientras verifica, no
+  // se muestra el login para no parpadear.
+  const [verificandoSesion, setVerificandoSesion] = useState(!tokenManager.getAdminAccess())
+  useEffect(() => {
+    if (tokenManager.getAdminAccess()) return
+    let vivo = true
+    api.bootstrapAdmin().then((r) => {
+      if (!vivo) return
+      if (r) setAdminLogged(true)
+      setVerificandoSesion(false)
+    })
+    return () => { vivo = false }
+  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── hooks API ──────────────────────────────────────────
   const { data: negociosRaw = [] } = useNegociosList()
@@ -65,6 +79,7 @@ export default function AdminSaaS() {
   const eliminarAlerta    = useEliminarAlerta()
   const guardarLanding    = useGuardarLanding()
 
+  if (verificandoSesion) return <div className="p-10 text-center text-[13px] text-[#5f6f80]">Verificando sesión…</div>
   if (!adminLogged) return <AdminLoginGate onLogin={() => setAdminLogged(true)} />
 
   // Título + descripción por sección. La navegación vive en el sidebar oficial
