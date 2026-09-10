@@ -12,6 +12,7 @@ import { TABS } from './constants'
 import TabAreasInternas from './TabAreasInternas'
 import TabEmpresa from './TabEmpresa'
 import TabValorizacion from './TabValorizacion'
+import TabAprobaciones from './TabAprobaciones'
 import TabAlertas from './TabAlertas'
 import TabImportarDatos from './TabImportarDatos'
 import TabDatosReset from './TabDatosReset'
@@ -120,6 +121,7 @@ export default function Configuracion() {
 
       {tab === 'empresa'       && <TabEmpresa form={form} f={f} tenantId={tenantId} sesion={sesion} />}
       {tab === 'valorizacion'  && <TabValorizacion form={form} onChange={guardarFormula} />}
+      {tab === 'aprobaciones'  && <TabAprobaciones />}
       {tab === 'alertas'       && <TabAlertas form={form} onChange={toggleAlertaVencimiento} />}
       {tab === 'areas-internas' && <TabAreasInternas toast={toast} />}
       {tab === 'categorias'    && <TabCategorias />}
