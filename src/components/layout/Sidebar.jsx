@@ -1,17 +1,35 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useMemo, useState, useRef, useEffect } from 'react'
-import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, ShieldCheck, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Globe, Target, Zap, Palette, Check, RefreshCw, Crown, Bug, HelpCircle, Filter} from 'lucide-react'
+import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, ShieldCheck, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Globe, Target, Zap, Palette, Check, RefreshCw, Bug, HelpCircle, Filter, DatabaseBackup, ScrollText, CreditCard, Receipt} from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { useTheme } from '../../hooks/useTheme'
-import { estadoStock, diasParaVencer } from '../../utils/helpers'
 import { PLAN_META } from '../../config/constants'
 import StorageWidget from '../ui/StorageWidget'
 import OfflineBanner from '../ui/OfflineBanner'
 
 const ROLES_LABEL = { saas_admin:'Super Admin', owner:'Propietario', admin:'Administrador', supervisor:'Supervisor', almacenero:'Almacenero', solicitante:'Solicitante', chofer:'Chofer' }
 
+// Panel del SuperAdmin integrado al sidebar oficial (antes era un sidebar
+// interno aparte en pages/AdminSaaS/). Las rutas /admin-saas/<tab> las resuelve
+// SuperAdminLayout en App.jsx.
 const NAV_SAAS_ADMIN = [
-  { label:'Administración SaaS', path:'/admin-saas', icon:Crown, modulo:'admin', color:'#f59e0b' },
+  { divider:true, label:'PLATAFORMA' },
+  { label:'Dashboard',         path:'/admin-saas/dashboard',       icon:LayoutDashboard,   color:'#3b82f6' },
+  { label:'Negocios',          path:'/admin-saas/negocios',        icon:Building2,          color:'#f59e0b' },
+  { label:'Alertas',           path:'/admin-saas/alertas',         icon:Bell,              color:'#ef4444' },
+  { label:'Monitor en Vivo',   path:'/admin-saas/monitor',         icon:Activity,          color:'#22c55e' },
+  { label:'Backups',           path:'/admin-saas/backups',         icon:DatabaseBackup,    color:'#8b5cf6' },
+  { label:'Auditoría',         path:'/admin-saas/auditoria',       icon:ScrollText,        color:'#06b6d4' },
+  { label:'Administradores',   path:'/admin-saas/platform-admins', icon:ShieldCheck,       color:'#6366f1' },
+  { label:'Roles del sistema', path:'/admin-saas/roles',           icon:Shield,            color:'#a855f7' },
+  { label:'Ajustes',           path:'/admin-saas/ajustes',         icon:Settings,          color:'#94a3b8' },
+  { divider:true, label:'COMERCIAL' },
+  { label:'Planes y Precios',  path:'/admin-saas/planes',          icon:CreditCard,        color:'#0ea5e9' },
+  { label:'Límites del Plan',  path:'/admin-saas/limites',         icon:SlidersHorizontal, color:'#6366f1' },
+  { label:'Suscripciones',     path:'/admin-saas/suscripciones',   icon:RefreshCw,         color:'#00c896' },
+  { label:'Facturación',       path:'/admin-saas/facturacion',     icon:Receipt,           color:'#3b82f6' },
+  { divider:true, label:'SITIO PÚBLICO' },
+  { label:'Landing Page',      path:'/admin-saas/landing',         icon:Globe,             color:'#10b981' },
 ]
 
 // La agrupación por secciones (los `divider`) se repite, a mano, en
@@ -195,7 +213,6 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   // Badges: en 0 mientras los módulos no estén migrados a TanStack Query
   const stockCritico  = 0
-  const alertasVenc   = 0
   const totalAlertas  = 0
   const pedidosBadge  = 0
 

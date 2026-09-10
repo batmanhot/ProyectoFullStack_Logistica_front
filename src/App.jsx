@@ -56,7 +56,6 @@ const ContabilidadReportes = lazy(() => import('./pages/ContabilidadReportes'))
 const TrazabilidadPedidos  = lazy(() => import('./pages/TrazabilidadPedidos'))
 const ColaSincronizacion   = lazy(() => import('./pages/ColaSincronizacion'))
 const AdminSaaS            = lazy(() => import('./pages/AdminSaaS'))
-const AdminSaaSV2          = lazy(() => import('./pages/AdminSaaSV2'))
 const LandingPage          = lazy(() => import('./pages/LandingPage'))
 const Ayuda                = lazy(() => import('./pages/Ayuda'))
 const Oportunidades        = lazy(() => import('./pages/Oportunidades'))
@@ -247,7 +246,9 @@ function PageHeader() {
   // Las sub-rutas de /ayuda (ej. /ayuda/modulos/entradas) no tienen entrada
   // exacta en PAGE_TITLES -- todas caen al mismo título de sección.
   const title = PAGE_TITLES[location.pathname]
-    || (location.pathname.startsWith('/ayuda') ? 'Centro de Ayuda' : 'StockPro')
+    || (location.pathname.startsWith('/ayuda') ? 'Centro de Ayuda'
+      : location.pathname.startsWith('/admin-saas') ? 'Panel de Administración'
+      : 'StockPro')
 
   return (
     <div className="h-[52px] flex items-center justify-between px-6 border-b border-white/8 bg-[#141920] shrink-0">
@@ -258,16 +259,20 @@ function PageHeader() {
 }
 
 // ── SuperAdminLayout ────────────────────────────────────
+// El sidebar oficial (Sidebar) muestra la navegación del panel para el rol
+// saas_admin (NAV_SAAS_ADMIN). Cada sección es una ruta /admin-saas/<tab>.
 function SuperAdminLayout() {
+  const [collapsed, setCollapsed] = useState(() => window.innerWidth < 768)
   return (
     <div className="flex w-full h-screen overflow-hidden bg-[#0e1117]">
-      <Sidebar collapsed={false} onToggle={() => {}} />
+      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(p => !p)} />
       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
         <PageHeader />
         <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>
             <Routes>
-              <Route path="*" element={<AdminSaaS />} />
+              <Route path="/admin-saas/:tab" element={<AdminSaaS />} />
+              <Route path="*" element={<Navigate to="/admin-saas/dashboard" replace />} />
             </Routes>
           </Suspense>
         </ErrorBoundary>
@@ -281,7 +286,7 @@ function SuperAdminLayout() {
 const MOBILE_BP = 768
 
 function AppLayout() {
-  const { sesion, loading } = useApp()
+  const { sesion } = useApp()
   const location = useLocation()
   const { data: configApiBloqueo } = useConfiguracion({ enabled: !!sesion?.empresaId })
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < MOBILE_BP)
@@ -349,26 +354,6 @@ function AppLayout() {
           <Routes>
             <Route path="/app/:orgId" element={<Login />} />
           </Routes>
-        </Suspense>
-        <ToastContainer />
-      </ErrorBoundary>
-    )
-  }
-
-  // SuperAdmin V2 — panel aislado en construcción (ver pages/AdminSaaSV2/),
-  // no comparte layout ni componentes con el panel clásico de abajo. Se
-  // intercepta ANTES para que ni siquiera pase por SuperAdminLayout.
-  if (location.pathname.startsWith('/admin-saas-v2')) {
-    // Esperar a que termine de restaurar la sesión desde localStorage (efecto
-    // async en AppContext) antes de decidir — si se redirige mientras
-    // `loading` sigue true, el cambio de URL a /superadmin queda fijo aunque
-    // la sesión sí exista y aparezca un instante después.
-    if (loading) return null
-    if (!sesion || sesion.rol?.codigo !== 'saas_admin') return <Navigate to="/superadmin" replace />
-    return (
-      <ErrorBoundary>
-        <Suspense fallback={<PageLoader />}>
-          <AdminSaaSV2 />
         </Suspense>
         <ToastContainer />
       </ErrorBoundary>
