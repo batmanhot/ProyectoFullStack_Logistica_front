@@ -48,9 +48,6 @@ export default defineConfig(({ mode }) => {
   // accidente: el pipeline debe habilitarla explícitamente y protegerla con
   // autenticación/autorización de plataforma antes de conectar datos reales.
   const buildInputs = { app: resolve(process.cwd(), 'index.html') }
-  if (env.VITE_INCLUDE_SUPERADMIN_PREVIEW === 'true') {
-    buildInputs['superadmin-v2'] = resolve(process.cwd(), 'superadmin-v2.html')
-  }
   if (env.VITE_INCLUDE_RRHH_PREVIEW === 'true') {
     buildInputs['rrhh-afiliacion'] = resolve(process.cwd(), 'rrhh-afiliacion.html')
   }

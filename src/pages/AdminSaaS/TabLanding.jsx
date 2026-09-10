@@ -12,16 +12,16 @@ import { uid, LANDING_INIT } from './constants'
 // ══════════════════════════════════════════════════════════
 // TAB: LANDING PAGE CONFIG
 // ══════════════════════════════════════════════════════════
-export default function TabLanding({ landing, guardarLanding, planes, toast }) {
+export default function TabLanding({ landing, guardarLanding, toast }) {
   const [section, setSection] = useState('sitio')
-  const [local, setLocal]     = useState(() => JSON.parse(JSON.stringify(landing ?? LANDING_INIT)))
+  const [local, setLocal]     = useState(() => structuredClone(landing ?? LANDING_INIT))
   const [featModal, setFeatModal] = useState(false)
   const [editFeat, setEditFeat]   = useState(null)
   const [featForm, setFeatForm]   = useState({})
 
   const set = (path, value) => {
     setLocal(prev => {
-      const copy = JSON.parse(JSON.stringify(prev))
+      const copy = structuredClone(prev)
       const keys = path.split('.')
       let obj = copy
       for (let i = 0; i < keys.length - 1; i++) obj = obj[keys[i]]
@@ -30,8 +30,11 @@ export default function TabLanding({ landing, guardarLanding, planes, toast }) {
     })
   }
 
+  // Re-sincroniza el borrador cuando el servidor devuelve una versión nueva
+  // (p. ej. tras guardar). Sync deliberado de prop→estado editable.
   useEffect(() => {
-    if (landing) setLocal(JSON.parse(JSON.stringify(landing)))
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (landing) setLocal(structuredClone(landing))
   }, [landing])
 
   async function save() {

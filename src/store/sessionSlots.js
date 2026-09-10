@@ -19,7 +19,7 @@ export function esRutaSuperAdmin(pathname = '') {
   return (
     pathname === '/superadmin' ||
     pathname.startsWith('/superadmin/') ||
-    pathname.startsWith('/admin-saas') // cubre /admin-saas y /admin-saas-v2
+    pathname.startsWith('/admin-saas')
   )
 }
 

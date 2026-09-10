@@ -18,8 +18,7 @@ describe('sessionSlots', () => {
       expect(esRutaSuperAdmin('/superadmin')).toBe(true)
       expect(esRutaSuperAdmin('/superadmin/negocios')).toBe(true)
       expect(esRutaSuperAdmin('/admin-saas')).toBe(true)
-      expect(esRutaSuperAdmin('/admin-saas-v2')).toBe(true)
-      expect(esRutaSuperAdmin('/admin-saas-v2/planes')).toBe(true)
+      expect(esRutaSuperAdmin('/admin-saas/planes')).toBe(true)
     })
 
     it('el resto de la app NO es ruta de SuperAdmin', () => {
@@ -45,7 +44,7 @@ describe('sessionSlots', () => {
   describe('slotParaRuta', () => {
     it('elige el slot por la URL de la pestaña, no por la última sesión escrita', () => {
       expect(slotParaRuta('/superadmin')).toBe(SESSION_KEY_ADMIN)
-      expect(slotParaRuta('/admin-saas-v2')).toBe(SESSION_KEY_ADMIN)
+      expect(slotParaRuta('/admin-saas')).toBe(SESSION_KEY_ADMIN)
       expect(slotParaRuta('/')).toBe(SESSION_KEY_TENANT)
       expect(slotParaRuta('/app/carbolec')).toBe(SESSION_KEY_TENANT)
       expect(slotParaRuta('/despachos')).toBe(SESSION_KEY_TENANT)
