@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { Eye, EyeOff, LogIn, Shield, Building2, ArrowLeft, ChevronRight, Crown, Wrench } from 'lucide-react'
+import { Eye, EyeOff, LogIn, Building2, ArrowLeft, ChevronRight, Crown, Wrench } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import api from '../services/api'
 import { useTheme } from '../hooks/useTheme'
@@ -242,8 +242,11 @@ export default function Login({ adminMode = false }) {
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
             {adminMode ? (
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: ac }}>
-                <Crown size={28} color="rgba(0,0,0,0.7)" strokeWidth={2.5} />
+              <div className="relative mb-3">
+                <img src="/logo.webp" alt="StockPro" className="w-20 h-20 object-contain" />
+                <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-lg flex items-center justify-center ring-2 ring-black/40" style={{ background: ac }}>
+                  <Crown size={15} color="rgba(0,0,0,0.7)" strokeWidth={2.5} />
+                </div>
               </div>
             ) : (
               <img src="/logo.webp" alt="StockPro" className="w-24 h-24 object-contain mb-3" />

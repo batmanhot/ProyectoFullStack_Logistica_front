@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Shield, LogIn } from 'lucide-react'
+import { Crown, LogIn } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { api } from '../../services/api'
 import { Field, Btn, Input } from '../../components/ui/index'
@@ -25,8 +25,11 @@ export default function AdminLoginGate({ onLogin }) {
     <div className="flex flex-col flex-1 items-center justify-center bg-[var(--bg-base)] p-6">
       <div className="w-full max-w-sm bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-8 shadow-[var(--shadow-modal)]">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-[var(--accent-dim)] flex items-center justify-center">
-            <Shield size={20} className="text-[var(--accent)]" />
+          <div className="relative shrink-0">
+            <img src="/logo.webp" alt="StockPro" className="w-10 h-10 object-contain" />
+            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md bg-[var(--accent)] flex items-center justify-center ring-2 ring-[var(--bg-card)]">
+              <Crown size={11} color="rgba(0,0,0,0.7)" strokeWidth={2.5} />
+            </div>
           </div>
           <div>
             <div className="text-[15px] font-bold text-[var(--text-primary)]">Admin SaaS</div>
