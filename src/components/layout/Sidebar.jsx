@@ -6,6 +6,7 @@ import { useTheme } from '../../hooks/useTheme'
 import { PLAN_META } from '../../config/constants'
 import StorageWidget from '../ui/StorageWidget'
 import OfflineBanner from '../ui/OfflineBanner'
+import ModalMiPerfil from './ModalMiPerfil'
 
 const ROLES_LABEL = { saas_admin:'Super Admin', owner:'Propietario', admin:'Administrador', supervisor:'Supervisor', almacenero:'Almacenero', solicitante:'Solicitante', chofer:'Chofer' }
 
@@ -181,6 +182,7 @@ export default function Sidebar({ collapsed, onToggle }) {
   const { sesion, logout, tienePermiso } = useApp()
   const navigate = useNavigate()
   const planMeta = PLAN_META[sesion?.plan]
+  const [perfilOpen, setPerfilOpen] = useState(false)
 
   function handleLogout() {
     // logout() limpia la sesión (y con ella sesion.empresaCodigo) — hay que
@@ -228,6 +230,7 @@ export default function Sidebar({ collapsed, onToggle }) {
   }, [sesion, tienePermiso])
 
   return (
+    <>
     <aside
       className={`flex flex-col border-r border-white/7 transition-all duration-250 shrink-0 overflow-y-auto z-10 ${collapsed ? 'w-15' : 'w-63'}`}
       style={{ background: 'var(--bg-sidebar)' }}>
@@ -381,7 +384,8 @@ export default function Sidebar({ collapsed, onToggle }) {
                   </button>
                 </div>
 
-                <button type="button" className="w-full flex items-center gap-2 px-2.5 py-2 text-left transition-colors"
+                <button type="button" onClick={() => setPerfilOpen(true)}
+                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left transition-colors hover:bg-white/5"
                   style={{ color: 'var(--sidebar-fg)', background: 'rgba(0,0,0,0.015)', borderTop: '1px solid var(--border)' }}>
                   <div className="w-4 h-4 flex items-center justify-center" style={{ color: 'var(--sidebar-fg-muted)' }}>
                     <Settings size={14} strokeWidth={2}/>
@@ -394,5 +398,8 @@ export default function Sidebar({ collapsed, onToggle }) {
         </div>
       )}
     </aside>
+
+    <ModalMiPerfil open={perfilOpen} onClose={() => setPerfilOpen(false)} />
+    </>
   )
 }
