@@ -1,4 +1,6 @@
-import { CheckCircle, Star } from 'lucide-react'
+import { CheckCircle, Star, LifeBuoy } from 'lucide-react'
+
+const SOPORTE_LABEL = { email: 'Soporte por email', prioritario: 'Soporte prioritario', '24/7': 'Soporte 24/7 dedicado' }
 
 export function PlanCard({ plan, ciclo, primary, navigate, whatsapp }) {
   const precio = ciclo === 'anual' ? plan.precioAnual : plan.precioMensual
@@ -71,7 +73,7 @@ export function PlanCard({ plan, ciclo, primary, navigate, whatsapp }) {
         )}
       </div>
 
-      <ul className="flex flex-col gap-2.5 mb-5 flex-1">
+      <ul className="flex flex-col gap-2.5 mb-4 flex-1">
         {(plan.caracteristicas || []).map((c, i) => (
           <li key={i} className="flex items-start gap-2.5 text-[13px] text-[#9ba8b6]">
             <CheckCircle size={14} className="shrink-0 mt-0.5" style={{ color: plan.color }}/>
@@ -79,6 +81,11 @@ export function PlanCard({ plan, ciclo, primary, navigate, whatsapp }) {
           </li>
         ))}
       </ul>
+
+      <div className="flex items-center gap-2 mb-5 pt-3 border-t border-white/6 text-[12px] font-medium text-[#9ba8b6]">
+        <LifeBuoy size={13} className="shrink-0" style={{ color: plan.color }}/>
+        {SOPORTE_LABEL[plan.soporte] || SOPORTE_LABEL.email}
+      </div>
 
       {esTrial ? (
         <button
