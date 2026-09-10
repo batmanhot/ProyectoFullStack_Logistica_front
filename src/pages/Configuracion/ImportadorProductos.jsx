@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { Upload, FileSpreadsheet, CheckCircle, XCircle, AlertTriangle, Download } from 'lucide-react'
-import * as XLSX from 'xlsx'
 import { ConfirmDialog, Btn } from '../../components/ui/index'
+import { descargarPlantillaExcel, leerFilasExcel } from '../../utils/plantillaExcel'
 
 // Importador de PRODUCTOS — flujo original (parseo y alta fila por fila en el
 // cliente). Los datos maestros (clientes, proveedores, etc.) usan
@@ -11,42 +11,38 @@ export default function ImportadorProductos({ cats, alms, provs, prods, crearPro
   const [confirmImport, setConfirmImport] = useState(false)
   const fileInputRef = useRef(null)
 
-  function descargarPlantilla() {
-    const filas = [
-      ['SKU *','Nombre *','Descripción','Categoría','Unidad Medida',
-       'Stock Actual','Stock Mínimo','Stock Máximo','Almacén','Proveedor',
-       'Precio Venta','Tiene Vencimiento (Si/No)','Fecha Vencimiento (AAAA-MM-DD)'],
-      ['PROD-001','Ejemplo Producto 1','Descripción opcional',
-       cats[0]?.nombre||'Categoría 1','UND',0,5,100,
-       alms[0]?.nombre||'Almacén Central',provs[0]?.razonSocial||'',99.90,'No',''],
-      ['PROD-002','Ejemplo con Vencimiento','Producto perecedero',
-       cats[0]?.nombre||'Categoría 1','KG',0,10,200,
-       alms[0]?.nombre||'Almacén Central','',25.00,'Si','2026-12-31'],
-    ]
-    const ws = XLSX.utils.aoa_to_sheet(filas)
-    ws['!cols'] = [10,30,35,20,14,12,12,12,22,25,12,24,26].map(wch=>({wch}))
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Productos')
-    XLSX.writeFile(wb, 'plantilla_productos.xlsx')
+  async function descargarPlantilla() {
+    await descargarPlantillaExcel({
+      nombreHoja: 'Productos',
+      nombreArchivo: 'plantilla_productos',
+      columnas: [
+        'SKU *','Nombre *','Descripción','Categoría','Unidad Medida',
+        'Stock Actual','Stock Mínimo','Stock Máximo','Almacén','Proveedor',
+        'Precio Venta','Tiene Vencimiento (Si/No)','Fecha Vencimiento (AAAA-MM-DD)',
+      ],
+      filas: [
+        ['PROD-001','Ejemplo Producto 1','Descripción opcional',
+         cats[0]?.nombre||'Categoría 1','UND',0,5,100,
+         alms[0]?.nombre||'Almacén Central',provs[0]?.razonSocial||'',99.90,'No',''],
+        ['PROD-002','Ejemplo con Vencimiento','Producto perecedero',
+         cats[0]?.nombre||'Categoría 1','KG',0,10,200,
+         alms[0]?.nombre||'Almacén Central','',25.00,'Si','2026-12-31'],
+      ],
+    })
     toast('Plantilla descargada', 'success')
   }
 
-  function handleArchivoImport(e) {
+  async function handleArchivoImport(e) {
     const file = e.target.files[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      try {
-        const wb   = XLSX.read(ev.target.result, { type: 'binary' })
-        const ws   = wb.Sheets[wb.SheetNames[0]]
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
-        if (rows.length < 2) { toast('El archivo no tiene datos', 'error'); return }
+    try {
+      const rows = await leerFilasExcel(file)
+      if (rows.length < 2) { toast('El archivo no tiene datos', 'error'); return }
 
-        const exist = prods
+      const exist = prods
 
-        const parsed = rows.slice(1)
-          .filter(r => r.some(c => String(c).trim() !== ''))
-          .map((row, idx) => {
+      const parsed = rows.slice(1)
+        .map((row, idx) => {
             const sku        = String(row[0]||'').trim()
             const nombre     = String(row[1]||'').trim()
             const descripcion= String(row[2]||'').trim()
@@ -86,16 +82,14 @@ export default function ImportadorProductos({ cats, alms, provs, prods, crearPro
               fechaVencimiento: tieneVenc ? fechaVenc : null,
               activo: true,
             }
-          })
+        })
 
-        setFilasImport(parsed)
-        if (fileInputRef.current) fileInputRef.current.value = ''
-        toast(`${parsed.length} fila(s) detectadas — revisa la vista previa`, 'info')
-      } catch {
-        toast('Error al leer el archivo. Usa la plantilla descargada.', 'error')
-      }
+      setFilasImport(parsed)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      toast(`${parsed.length} fila(s) detectadas — revisa la vista previa`, 'info')
+    } catch {
+      toast('Error al leer el archivo. Usa la plantilla descargada.', 'error')
     }
-    reader.readAsBinaryString(file)
   }
 
   async function ejecutarImport() {
@@ -159,7 +153,7 @@ export default function ImportadorProductos({ cats, alms, provs, prods, crearPro
       <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-2">Paso 2 — Subir archivo</div>
         <p className="text-[13px] text-[#9ba8b6] mb-4">Selecciona el archivo Excel (.xlsx) o CSV con tus productos.</p>
-        <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv"
+        <input ref={fileInputRef} type="file" accept=".xlsx,.csv"
           className="hidden" onChange={handleArchivoImport} />
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -168,7 +162,7 @@ export default function ImportadorProductos({ cats, alms, provs, prods, crearPro
           <FileSpreadsheet size={28} className="shrink-0 group-hover:scale-110 transition-transform"/>
           <div className="text-left">
             <p className="text-[13px] font-medium">Haz clic para seleccionar un archivo</p>
-            <p className="text-[11px] text-[#5f6f80] mt-0.5">Formatos aceptados: .xlsx, .xls, .csv</p>
+            <p className="text-[11px] text-[#5f6f80] mt-0.5">Formatos aceptados: .xlsx, .csv</p>
           </div>
         </button>
       </div>

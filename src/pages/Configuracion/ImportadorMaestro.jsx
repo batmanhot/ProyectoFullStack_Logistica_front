@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { Upload, FileSpreadsheet, CheckCircle, XCircle, AlertTriangle, Download } from 'lucide-react'
-import * as XLSX from 'xlsx'
 import { ConfirmDialog, Btn, Spinner } from '../../components/ui/index'
 import { obtenerPlantillaImport, usePrevisualizarImport, useConfirmarImport } from '../../queries/importacion.queries'
+import { descargarPlantillaExcel, leerFilasExcel } from '../../utils/plantillaExcel'
 
 // Importador genérico de datos maestros (clientes, proveedores, categorías,
 // almacenes). El Excel se parsea acá; la validación y el upsert (transaccional,
@@ -24,46 +24,48 @@ export default function ImportadorMaestro({ entidad, label, toast }) {
       .catch(() => toast('No se pudo cargar la plantilla', 'error'))
   }, [entidad])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  function descargarPlantilla() {
+  async function descargarPlantilla() {
     if (!plantilla) return
-    const aoa = [plantilla.columnas, ...(plantilla.ejemplos || [])]
-    const ws = XLSX.utils.aoa_to_sheet(aoa)
-    ws['!cols'] = plantilla.columnas.map(c => ({ wch: Math.max(14, String(c).length + 4) }))
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, (plantilla.label || label).slice(0, 31))
-    XLSX.writeFile(wb, `plantilla_${entidad}.xlsx`)
+    await descargarPlantillaExcel({
+      nombreHoja: plantilla.label || label,
+      nombreArchivo: `plantilla_${entidad}`,
+      columnas: plantilla.columnas,
+      filas: plantilla.ejemplos || [],
+    })
     toast('Plantilla descargada', 'success')
   }
 
-  function handleArchivo(e) {
+  async function handleArchivo(e) {
     const file = e.target.files[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = async (ev) => {
-      try {
-        const wb   = XLSX.read(ev.target.result, { type: 'binary' })
-        const ws   = wb.Sheets[wb.SheetNames[0]]
-        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' }) // objetos por encabezado
-        const limpias = rows
-          .map(row => {
-            const o = {}
-            for (const col of plantilla.columnas) o[col] = row[col] ?? ''
-            return o
-          })
-          .filter(o => Object.values(o).some(v => String(v).trim() !== ''))
-        if (fileInputRef.current) fileInputRef.current.value = ''
-        if (!limpias.length) { toast('El archivo no tiene filas con datos', 'error'); return }
+    try {
+      const rows = await leerFilasExcel(file)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      if (rows.length < 2) { toast('El archivo no tiene filas con datos', 'error'); return }
 
-        const res = await previsualizar.mutateAsync({ entidad, filas: limpias })
-        if (res?.error) { toast(res.error, 'error'); return }
-        setRawFilas(limpias)
-        setPreview(res.data)
-        toast(`${res.data.resumen.total} fila(s) analizadas — revisa la vista previa`, 'info')
-      } catch {
-        toast('Error al leer el archivo. Usa la plantilla descargada.', 'error')
-      }
+      // Re-keyeo por encabezado (tolera columnas en otro orden que la plantilla).
+      const headers = rows[0].map(h => String(h).trim())
+      const idxDe = col => headers.findIndex(h => h.toLowerCase() === String(col).toLowerCase())
+      const limpias = rows.slice(1)
+        .map(row => {
+          const o = {}
+          for (const col of plantilla.columnas) {
+            const i = idxDe(col)
+            o[col] = i >= 0 ? (row[i] ?? '') : ''
+          }
+          return o
+        })
+        .filter(o => Object.values(o).some(v => String(v).trim() !== ''))
+      if (!limpias.length) { toast('El archivo no tiene filas con datos', 'error'); return }
+
+      const res = await previsualizar.mutateAsync({ entidad, filas: limpias })
+      if (res?.error) { toast(res.error, 'error'); return }
+      setRawFilas(limpias)
+      setPreview(res.data)
+      toast(`${res.data.resumen.total} fila(s) analizadas — revisa la vista previa`, 'info')
+    } catch {
+      toast('Error al leer el archivo. Usa la plantilla descargada.', 'error')
     }
-    reader.readAsBinaryString(file)
   }
 
   async function ejecutar() {
@@ -109,7 +111,7 @@ export default function ImportadorMaestro({ entidad, label, toast }) {
       <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
         <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em] mb-2">Paso 2 — Subir archivo</div>
         <p className="text-[13px] text-[#9ba8b6] mb-4">Selecciona el archivo Excel (.xlsx) o CSV.</p>
-        <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleArchivo} />
+        <input ref={fileInputRef} type="file" accept=".xlsx,.csv" className="hidden" onChange={handleArchivo} />
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={previsualizar.isPending}
@@ -118,7 +120,7 @@ export default function ImportadorMaestro({ entidad, label, toast }) {
           <FileSpreadsheet size={28} className="shrink-0 group-hover:scale-110 transition-transform"/>
           <div className="text-left">
             <p className="text-[13px] font-medium">{previsualizar.isPending ? 'Analizando…' : 'Haz clic para seleccionar un archivo'}</p>
-            <p className="text-[11px] text-[#5f6f80] mt-0.5">Formatos aceptados: .xlsx, .xls, .csv</p>
+            <p className="text-[11px] text-[#5f6f80] mt-0.5">Formatos aceptados: .xlsx, .csv</p>
           </div>
         </button>
       </div>

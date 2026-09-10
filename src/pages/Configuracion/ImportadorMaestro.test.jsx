@@ -22,20 +22,14 @@ vi.mock('../../queries/importacion.queries', () => ({
   useConfirmarImport: () => ({ mutateAsync: confirmarMock, isPending: false }),
 }))
 
-vi.mock('xlsx', () => ({
-  read: vi.fn(() => ({ SheetNames: ['S'], Sheets: { S: {} } })),
-  utils: {
-    sheet_to_json: vi.fn(() => [{ 'Razón Social': 'ACME', RUC: '20512345678' }]),
-    aoa_to_sheet: vi.fn(() => ({})),
-    book_new: vi.fn(() => ({})),
-    book_append_sheet: vi.fn(),
-  },
-  writeFile: vi.fn(),
+// `leerFilasExcel` devuelve string[][] (fila 0 = encabezados).
+vi.mock('../../utils/plantillaExcel', () => ({
+  descargarPlantillaExcel: vi.fn(() => Promise.resolve()),
+  leerFilasExcel: vi.fn(() => Promise.resolve([
+    ['Razón Social', 'RUC'],
+    ['ACME', '20512345678'],
+  ])),
 }))
-
-class FakeFileReader {
-  readAsBinaryString() { this.onload({ target: { result: 'binario' } }) }
-}
 
 import ImportadorMaestro from './ImportadorMaestro'
 
@@ -44,7 +38,6 @@ describe('ImportadorMaestro', () => {
     previsualizarMock.mockReset()
     confirmarMock.mockReset()
     toast.mockReset()
-    vi.stubGlobal('FileReader', FakeFileReader)
   })
 
   it('carga la plantilla y muestra las columnas obligatorias', async () => {
