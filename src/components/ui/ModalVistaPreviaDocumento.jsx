@@ -60,6 +60,11 @@ export function ModalVistaPreviaDocumento({ open, onClose, titulo, html, numeroD
           title={titulo || 'Vista previa'}
           srcDoc={html}
           onLoad={() => setCargado(true)}
+          // Seguridad: el HTML interpola datos de negocio sin escapar. Sin
+          // `allow-scripts` no ejecuta JS (ni `<script>` ni `on*=`); con
+          // `allow-same-origin` + `allow-modals` el botón Imprimir sigue
+          // funcionando (win.print() desde el padre).
+          sandbox="allow-same-origin allow-modals"
           className="w-full h-full border-0"
         />
       </div>

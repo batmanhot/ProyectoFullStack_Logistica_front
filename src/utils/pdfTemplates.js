@@ -64,6 +64,11 @@ function imprimirConIframe(html) {
   const frame = document.createElement('iframe')
   frame.id = '__stockpro_print_frame'
   frame.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;visibility:hidden'
+  // Seguridad: el HTML del documento interpola datos de negocio (nombres,
+  // notas, direcciones) sin escapar. Con `sandbox` sin `allow-scripts`, nada
+  // de eso ejecuta JS aunque contenga `<script>` o `<img onerror=...>` — el
+  // padre igual puede llamar a print() por `allow-same-origin` + `allow-modals`.
+  frame.setAttribute('sandbox', 'allow-same-origin allow-modals')
   document.body.appendChild(frame)
 
   const doc = frame.contentDocument || frame.contentWindow.document
