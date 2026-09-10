@@ -20,7 +20,7 @@ import { Globe, Package, Plus, X, CheckCircle, Clock, Search, Download,
 import { formatCurrency, decodeJwtPayload } from '../utils/helpers'
 import { armarHtmlPedidoPortal } from '../utils/pdfTemplates'
 import { ModalVistaPreviaDocumento } from '../components/ui/index'
-import { api, tokenManager } from '../services/api'
+import { api } from '../services/api'
 
 const IGV = 0.18
 
@@ -170,26 +170,28 @@ export default function PortalPublico() {
     setHistorial(ped.data ?? [])
   }, [])
 
-  // ── Decodificar token JWT y bootstrapear la sesión de portal
+  // ── Canjear el token de la URL por la cookie httpOnly + cargar datos
   useEffect(() => {
     if (!token) { navigate('/'); return }
 
-    try {
-      const payload = decodeJwtPayload(token)
-      // payload===null cubre tanto el token antiguo (btoa, sin 3 partes) como cualquier JWT inválido.
-      if (!payload || payload.scope !== 'portal_cliente') { navigate('/'); return }
+    const payload = decodeJwtPayload(token)
+    // payload===null cubre tanto el token antiguo (btoa, sin 3 partes) como cualquier JWT inválido.
+    if (!payload || payload.scope !== 'portal_cliente') { navigate('/'); return }
 
-      tokenManager.setPortal(token)
-      setCliente({
-        id: payload.sub,
-        nombre: payload.clienteNombre || 'Cliente',
-        empresaNombre: payload.empresaNombre || '',
-      })
+    setCliente({
+      id: payload.sub,
+      nombre: payload.clienteNombre || 'Cliente',
+      empresaNombre: payload.empresaNombre || '',
+    })
 
-      cargarDatos().finally(() => setCargando(false))
-    } catch {
-      navigate('/')
-    }
+    ;(async () => {
+      // /portal/session valida el token y deja la credencial en una cookie
+      // httpOnly — el JS del portal ya no la persiste (residual de #5).
+      const s = await api.portalSession(token)
+      if (s.error) { navigate('/'); return }
+      await cargarDatos()
+      setCargando(false)
+    })().catch(() => navigate('/'))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 

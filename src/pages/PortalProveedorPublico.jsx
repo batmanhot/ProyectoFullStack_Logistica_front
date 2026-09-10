@@ -19,7 +19,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Globe, FileText, CheckCircle, Send, ArrowLeft,
          ChevronDown, ChevronUp, Clock, XCircle, Truck } from 'lucide-react'
 import { formatDate, formatCurrency, decodeJwtPayload } from '../utils/helpers'
-import { api, tokenManager } from '../services/api'
+import { api } from '../services/api'
 
 const ESTADO_OC = {
   PENDIENTE: { label:'Pendiente',  variant:'warning', icon:'⏳' },
@@ -62,17 +62,18 @@ export default function PortalProveedorPublico() {
   useEffect(() => {
     if (!token) { navigate('/'); return }
 
-    try {
-      const payload = decodeJwtPayload(token)
-      if (!payload || payload.scope !== 'portal_proveedor') { navigate('/'); return }
+    const payload = decodeJwtPayload(token)
+    if (!payload || payload.scope !== 'portal_proveedor') { navigate('/'); return }
 
-      tokenManager.setPortalProveedor(token)
-      setProveedor({ id: payload.sub, nombre: payload.proveedorNombre || 'Proveedor' })
+    setProveedor({ id: payload.sub, nombre: payload.proveedorNombre || 'Proveedor' })
 
-      cargarDatos().finally(() => setCargando(false))
-    } catch {
-      navigate('/')
-    }
+    ;(async () => {
+      // /portal-proveedor/session valida el token y lo deja en cookie httpOnly.
+      const s = await api.portalProveedorSession(token)
+      if (s.error) { navigate('/'); return }
+      await cargarDatos()
+      setCargando(false)
+    })().catch(() => navigate('/'))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 

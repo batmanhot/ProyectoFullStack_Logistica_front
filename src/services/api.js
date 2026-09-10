@@ -20,18 +20,20 @@ const ACCION_POR_METODO = { POST: 'CREATE', PUT: 'UPDATE', PATCH: 'UPDATE', DELE
 // no lo ve, un XSS no lo puede robar. El ACCESS token (corto, 15 min) vive
 // SOLO EN MEMORIA (variable de módulo): se pierde al recargar la pestaña, y
 // se recupera al arrancar llamando a /auth/refresh (que usa la cookie).
-// Portal: sessionStorage (se borra al cerrar la pestaña, no se comparte entre
-// pestañas) — mejor que localStorage; el token de link sigue siendo JS-visible.
-const PORTAL_TOKEN_KEY  = 'sp_portal_token'
-const PORTAL_PROVEEDOR_TOKEN_KEY = 'sp_portal_proveedor_token'
+// Portal: el token de link se canjea en /portal/session por una cookie httpOnly
+// (`sp_portal_rt` / `sp_portal_prov_rt`) y NO se persiste en JS. Se guarda una
+// copia SOLO EN MEMORIA para la carga de página actual (fast-path del header
+// Bearer); al recargar se re-canjea desde el token de la URL /portal/:token.
 // Empresa de ESTA pestaña. El refresh token del tenant va en la cookie httpOnly
 // `sp_rt_<empresaId>` (una por negocio) — la pestaña tiene que decirle al
 // backend a qué empresa pertenece para que lea la cookie correcta. sessionStorage
 // = por pestaña: Acme y DL Norte conviven en el mismo navegador.
 const TAB_EMPRESA_KEY = 'sp_tab_empresa'
 
-let _access = null       // access token del tenant (en memoria)
-let _adminAccess = null   // access token del SuperAdmin (en memoria)
+let _access = null        // access token del tenant (en memoria)
+let _adminAccess = null    // access token del SuperAdmin (en memoria)
+let _portal = null         // token de link del portal cliente (en memoria, no se persiste)
+let _portalProv = null     // token de link del portal proveedor (en memoria, no se persiste)
 
 export const tokenManager = {
   // Tenant
@@ -54,13 +56,14 @@ export const tokenManager = {
   clearAdminTokens: () => { _adminAccess = null },
   getAdminRefresh:  () => null,
 
-  // Portal cliente / proveedor — token único de link, en sessionStorage
-  getPortal:   () => sessionStorage.getItem(PORTAL_TOKEN_KEY),
-  setPortal:   (token) => sessionStorage.setItem(PORTAL_TOKEN_KEY, token),
-  clearPortal: () => sessionStorage.removeItem(PORTAL_TOKEN_KEY),
-  getPortalProveedor:   () => sessionStorage.getItem(PORTAL_PROVEEDOR_TOKEN_KEY),
-  setPortalProveedor:   (token) => sessionStorage.setItem(PORTAL_PROVEEDOR_TOKEN_KEY, token),
-  clearPortalProveedor: () => sessionStorage.removeItem(PORTAL_PROVEEDOR_TOKEN_KEY),
+  // Portal cliente / proveedor — token de link SOLO EN MEMORIA. La credencial
+  // persistente es la cookie httpOnly que pone /portal(-proveedor)/session.
+  getPortal:   () => _portal,
+  setPortal:   (token) => { _portal = token || null },
+  clearPortal: () => { _portal = null },
+  getPortalProveedor:   () => _portalProv,
+  setPortalProveedor:   (token) => { _portalProv = token || null },
+  clearPortalProveedor: () => { _portalProv = null },
 
   isExpired: (token) => {
     try {
@@ -318,6 +321,21 @@ export const api = {
   async logoutAdmin() {
     try { await _request('POST', '/admin/auth/logout', null, {}) } catch { /* idem */ }
     tokenManager.clearAdminTokens()
+  },
+
+  // Portal cliente / proveedor: canjea el token de link (viene en la URL
+  // /portal/:token) por una cookie httpOnly. Se llama en cada carga del portal
+  // (idempotente). El token NO se persiste en JS; queda una copia en memoria
+  // para el fast-path del header Bearer durante esta carga.
+  async portalSession(token) {
+    const res = await _request('POST', '/portal/session', { token }, { skipAuth: true })
+    if (!res.error) tokenManager.setPortal(token)
+    return res
+  },
+  async portalProveedorSession(token) {
+    const res = await _request('POST', '/portal-proveedor/session', { token }, { skipAuth: true })
+    if (!res.error) tokenManager.setPortalProveedor(token)
+    return res
   },
 }
 
