@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { getFieldControl } from '../../test/test-utils'
 import ModalUsuario from './ModalUsuario'
@@ -14,6 +14,7 @@ vi.mock('../../queries/transportistas.queries', () => ({
 
 const ROLES = {
   almacenero: { label: 'Operario de Almacén', permisos: ['inventario'] },
+  owner: { label: 'Propietario', permisos: ['*'] },
   admin: { label: 'Administrador', permisos: ['*'] },
   solicitante: { label: 'Solicitante', permisos: ['pedidos-internos'] },
 }
@@ -58,11 +59,20 @@ describe('ModalUsuario', () => {
     )
   })
 
-  it('rol admin (permisos *) muestra "Acceso completo a todos los módulos"', async () => {
-    const user = userEvent.setup()
+  it('no ofrece Propietario ni Administrador del Negocio en el selector de rol (regla 3)', () => {
     setup()
+    const select = getFieldControl('Rol *')
 
-    await user.selectOptions(getFieldControl('Rol *'), 'admin')
+    expect(within(select).queryByRole('option', { name: /Propietario/ })).toBeNull()
+    expect(within(select).queryByRole('option', { name: /Administrador/ })).toBeNull()
+    expect(within(select).getByRole('option', { name: /Operario de Almacén/ })).toBeInTheDocument()
+  })
+
+  it('un rol con permisos "*" muestra "Acceso completo a todos los módulos"', async () => {
+    const user = userEvent.setup()
+    setup({ roles: { ...ROLES, 'super-op': { label: 'Superoperador', permisos: ['*'] } } })
+
+    await user.selectOptions(getFieldControl('Rol *'), 'super-op')
 
     expect(screen.getByText(/Acceso completo a todos los módulos/)).toBeInTheDocument()
   })

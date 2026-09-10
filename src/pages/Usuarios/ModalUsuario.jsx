@@ -11,7 +11,7 @@ import { MODULOS_GRUPOS } from './constants'
 export default function ModalUsuario({ open, onClose, editando, onSave, sesionId, roles }) {
   const { data: areas = [] } = useAreasInternasList()
   const { data: transportistas = [] } = useTransportistasList()
-  const init = { nombre:'', email:'', password:'', rol:'almacenero', areaId:'', transportistaId:'', metaVentasMensual:'', activo:true }
+  const init = { nombre:'', email:'', password:'', rol:'almacenero', areaId:'', transportistaId:'', metaVentasMensual:'', telefono:'', documento:'', cargo:'', activo:true }
   const [form,     setForm]     = useState(init)
   const [showPass, setShowPass] = useState(false)
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
@@ -74,11 +74,27 @@ export default function ModalUsuario({ open, onClose, editando, onSave, sesionId
         </Field>
       </div>
 
+      <div className="grid grid-cols-3 gap-3.5">
+        <Field label="Teléfono">
+          <Input value={form.telefono || ''} onChange={e => f('telefono', e.target.value)} placeholder="+51 999 888 777"/>
+        </Field>
+        <Field label="Documento (DNI/CE)">
+          <Input value={form.documento || ''} onChange={e => f('documento', e.target.value)} placeholder="12345678"/>
+        </Field>
+        <Field label="Cargo">
+          <Input value={form.cargo || ''} onChange={e => f('cargo', e.target.value)} placeholder="Jefe de Almacén"/>
+        </Field>
+      </div>
+
       <Field label="Rol *">
         <Select value={form.rol} onChange={e => f('rol', e.target.value)}>
-          {Object.entries(roles).map(([codigo, r]) => (
-            <option key={codigo} value={codigo}>{r.label}{r.desc ? ` — ${r.desc}` : ''}</option>
-          ))}
+          {/* Propietario (owner) y Administrador del Negocio (admin) los asigna
+              el administrador de la plataforma — no aparecen acá (regla 3). */}
+          {Object.entries(roles)
+            .filter(([codigo]) => codigo !== 'owner' && codigo !== 'admin')
+            .map(([codigo, r]) => (
+              <option key={codigo} value={codigo}>{r.label}{r.desc ? ` — ${r.desc}` : ''}</option>
+            ))}
         </Select>
       </Field>
 

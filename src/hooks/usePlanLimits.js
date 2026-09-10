@@ -45,7 +45,9 @@ export function usePlanLimits() {
     return {
       plan,
       limites,
-      usuarios:    verificarLimite((usuarios    || []).length, limites.maxUsuarios,    'usuarios'),
+      // Solo cuentas ACTIVAS ocupan cupo (docs/GOBIERNO-PLATAFORMA.md regla 3/5) —
+      // mismo criterio que el enforcement del backend.
+      usuarios:    verificarLimite((usuarios || []).filter(u => u.activo !== false).length, limites.maxUsuarios, 'usuarios'),
       productos:   verificarLimite((productos   || []).length, limites.maxProductos,   'productos'),
       almacenes:   verificarLimite((almacenes   || []).filter(a => a.activo !== false).length, limites.maxAlmacenes,   'almacenes'),
       proveedores: verificarLimite((proveedores || []).length, limites.maxProveedores, 'proveedores'),

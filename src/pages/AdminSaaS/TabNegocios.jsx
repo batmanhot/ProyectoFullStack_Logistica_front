@@ -1,23 +1,31 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import {
   Building2, Plus, Edit2, Trash2, Ban, Search, Save, Eye, EyeOff,
-  AlertTriangle, Clock, CheckCircle, Link2, Users, LogIn,
+  AlertTriangle, Clock, CheckCircle, Link2, Users, LogIn, Radar,
 } from 'lucide-react'
 import { differenceInDays, format, addDays } from 'date-fns'
 import {
   Modal, ConfirmDialog, EmptyState, Badge, Btn,
-  Field, TableWrap, Th, Td, KpiCard, Input, Select, Textarea, Alert,
+  Field, TableWrap, Th, Td, KpiCard, Input, Select, Textarea, Alert, Toggle,
 } from '../../components/ui/index'
 import { useNegocio } from '../../queries/admin.queries'
+import ModalVista360 from './ModalVista360'
 import { estadoEfectivo, ESTADO_BADGE, ESTADO_LABEL } from './constants'
 
 const ESTADOS_FILTRO = ['activo', 'trial', 'por_vencer', 'gracia', 'suspendido', 'vencido', 'cancelado', 'archivado']
+
+// El modal de alta/edición es largo — se parte en 3 secciones navegables.
+const SECCIONES = [
+  { id: 'datos',    label: 'Datos del negocio' },
+  { id: 'gobierno', label: 'Propietario y Admin' },
+  { id: 'plan',     label: 'Suscripción' },
+]
 
 // ══════════════════════════════════════════════════════════
 // TAB: NEGOCIOS
 // ══════════════════════════════════════════════════════════
 export default function TabNegocios({ negocios, crearNegocio, actualizarNegocio, eliminarNegocio, archivarNegocio, planes, toast }) {
-  const negocioList = Array.isArray(negocios) ? negocios : []
+  const negocioList = useMemo(() => (Array.isArray(negocios) ? negocios : []), [negocios])
 
   const [search, setSearch]     = useState('')
   const [filtroEstado, setFE]   = useState('todos')
@@ -26,12 +34,42 @@ export default function TabNegocios({ negocios, crearNegocio, actualizarNegocio,
   const [editItem, setEditItem] = useState(null)
   const [form, setForm]         = useState({})
   const [showPass, setShowPass] = useState(false)
+  const [tab, setTab]           = useState('datos')      // sección visible del modal (form largo → 3 pestañas)
+  const [adminAbierto, setAdminAbierto] = useState(false) // el bloque Admin del Negocio (opcional) arranca colapsado
   const [confirmDel, setConfirmDel] = useState(null)
   const [archivarItem, setArchivarItem] = useState(null) // negocio en flujo de "Eliminar definitivamente"
   const [confirmarNombre, setConfirmarNombre] = useState('')
+  const [vista360Id, setVista360Id] = useState(null)
 
   // Detalle enriquecido (usuarios/límite, último acceso) — findAll no lo trae, solo findOne.
   const { data: detalleUso } = useNegocio(editItem?.id)
+
+  // La fila de la lista puede venir con datos viejos/incompletos del negocio o
+  // de sus usuarios de gobierno. El detalle (findOne) es la fuente autoritativa:
+  // en cuanto llega (y en cada refetch), rellena el form — pero NUNCA pisa un
+  // campo que el SuperAdmin ya tocó (touchedRef).
+  const touchedRef = useRef(new Set())
+  useEffect(() => {
+    if (!modalOpen || !editItem || !detalleUso || detalleUso.id !== editItem.id) return
+    const t = touchedRef.current
+    const pick = k => (t.has(k) ? undefined : (detalleUso[k] ?? '')) // undefined → conservar prev
+    setForm(prev => {
+      const next = { ...prev }
+      for (const k of [
+        'nombre', 'nombreCorto', 'ruc', 'contacto', 'email', 'telefono', 'plan', 'estado', 'notas',
+        'ownerNombre', 'ownerEmail', 'ownerTelefono', 'ownerDocumento', 'ownerCargo',
+        'adminNombre', 'adminEmail', 'adminTelefono', 'adminDocumento', 'adminCargo',
+      ]) {
+        const v = pick(k)
+        if (v !== undefined) next[k] = v
+      }
+      if (!t.has('ownerActivo')) next.ownerActivo = detalleUso.ownerActivo ?? true
+      if (!t.has('adminActivo')) next.adminActivo = detalleUso.adminActivo ?? true
+      next.ownerExiste = detalleUso.ownerExiste ?? prev.ownerExiste
+      next.adminExiste = detalleUso.adminExiste ?? prev.adminExiste
+      return next
+    })
+  }, [detalleUso, modalOpen, editItem])
 
   // Todo derivado de estadoEfectivo (lo que manda el backend, ver
   // NegociosService.calcularEstadoEfectivo) — antes esto mezclaba `estado`
@@ -73,39 +111,66 @@ export default function TabNegocios({ negocios, crearNegocio, actualizarNegocio,
   }
 
   function openNew() {
+    touchedRef.current = new Set()
+    setTab('datos')
+    setAdminAbierto(false)
     setEditItem(null)
-    setForm({ nombre:'', nombreCorto:'', ruc:'', contacto:'', email:'', telefono:'', plan:'trial', estado:'trial', fechaVencimiento:format(addDays(new Date(), 30), 'yyyy-MM-dd'), empresaId:'', notas:'', adminNombre:'', adminEmail:'', adminPassword:'' })
+    setForm({ nombre:'', nombreCorto:'', ruc:'', contacto:'', email:'', telefono:'', plan:'trial', estado:'trial', fechaVencimiento:format(addDays(new Date(), 30), 'yyyy-MM-dd'), empresaId:'', notas:'',
+      ownerNombre:'', ownerEmail:'', ownerPassword:'', ownerTelefono:'', ownerDocumento:'', ownerCargo:'', ownerActivo:true,
+      adminNombre:'', adminEmail:'', adminPassword:'', adminTelefono:'', adminDocumento:'', adminCargo:'', adminActivo:true })
     setModal(true)
   }
 
   function openEdit(item) {
-    const admin = item?.usuarios?.[0] || item?.admin || item?.usuarioAdminInicial || {}
+    touchedRef.current = new Set()
+    setTab('datos')
+    setAdminAbierto(false)
     setEditItem(item)
     setForm({
       ...item,
-      adminNombre: item?.adminNombre ?? admin.nombre ?? '',
-      adminEmail: item?.adminEmail ?? admin.email ?? '',
-      adminPassword: '',
+      ownerNombre: item?.ownerNombre ?? '', ownerEmail: item?.ownerEmail ?? '', ownerPassword: '',
+      ownerTelefono: item?.ownerTelefono ?? '', ownerDocumento: item?.ownerDocumento ?? '', ownerCargo: item?.ownerCargo ?? '',
+      ownerActivo: item?.ownerActivo ?? true,
+      adminNombre: item?.adminNombre ?? '', adminEmail: item?.adminEmail ?? '', adminPassword: '',
+      adminTelefono: item?.adminTelefono ?? '', adminDocumento: item?.adminDocumento ?? '', adminCargo: item?.adminCargo ?? '',
+      adminActivo: item?.adminActivo ?? true,
     })
     setModal(true)
   }
 
-  function generarPasswordTemporal() {
+  function generarPasswordTemporal(campo) {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%'
-    const length = 12
     let password = ''
-    for (let i = 0; i < length; i++) {
-      password += chars[Math.floor(Math.random() * chars.length)]
-    }
-    setForm(prev => ({ ...prev, adminPassword: password }))
+    for (let i = 0; i < 12; i++) password += chars[Math.floor(Math.random() * chars.length)]
+    setForm(prev => ({ ...prev, [campo]: password }))
     setShowPass(true)
     return password
   }
 
   async function save() {
-    if (!form.nombre?.trim()) { toast('El nombre es requerido', 'error'); return }
-    if (!form.empresaId?.trim()) { toast('El ID de empresa es requerido', 'error'); return }
+    // Cada validación salta a la pestaña donde está el campo con problema.
+    if (!form.nombre?.trim()) { setTab('datos'); toast('El nombre es requerido', 'error'); return }
+    if (!form.empresaId?.trim()) { setTab('datos'); toast('El ID de empresa es requerido', 'error'); return }
+    // El Administrador del Negocio (admin) es opcional pero, si se toca, van los 3 campos.
+    const tocaAdmin = !!(form.adminNombre?.trim() || form.adminEmail?.trim() || form.adminPassword)
+    if (tocaAdmin && !editItem) {
+      if (!form.adminNombre?.trim() || !form.adminEmail?.trim() || (form.adminPassword?.length ?? 0) < 8) {
+        setTab('gobierno'); setAdminAbierto(true)
+        toast('Para registrar el Administrador del Negocio: nombre, email y contraseña (mín. 8).', 'error'); return
+      }
+    }
+
     if (editItem) {
+      // El bloque Admin del Negocio solo se envía si YA existe (se está editando)
+      // o si se cargaron sus credenciales ahora (se lo está creando). Si está
+      // vacío y no existe, no se manda nada de admin — evita "faltan datos del admin".
+      const editaAdmin = form.adminExiste || !!(form.adminNombre?.trim() || form.adminEmail?.trim() || form.adminPassword)
+      if (editaAdmin && !form.adminExiste) {
+        if (!form.adminNombre?.trim() || !form.adminEmail?.trim() || (form.adminPassword?.length ?? 0) < 8) {
+          setTab('gobierno'); setAdminAbierto(true)
+          toast('Para registrar el Administrador del Negocio: nombre, email y contraseña (mín. 8).', 'error'); return
+        }
+      }
       const res = await actualizarNegocio.mutateAsync({
         id: editItem.id,
         nombre: form.nombre,
@@ -118,17 +183,40 @@ export default function TabNegocios({ negocios, crearNegocio, actualizarNegocio,
         estado: form.estado,
         fechaVencimiento: form.fechaVencimiento || undefined,
         notas: form.notas,
-        adminNombre: form.adminNombre || undefined,
-        adminEmail: form.adminEmail || undefined,
-        adminPassword: form.adminPassword || undefined,
+        ownerNombre: form.ownerNombre || undefined,
+        ownerEmail: form.ownerEmail || undefined,
+        ownerPassword: form.ownerPassword || undefined,
+        ownerTelefono: form.ownerTelefono || undefined,
+        ownerDocumento: form.ownerDocumento || undefined,
+        ownerCargo: form.ownerCargo || undefined,
+        ...(form.ownerExiste && { ownerActivo: form.ownerActivo }),
+        ...(editaAdmin && {
+          adminNombre: form.adminNombre || undefined,
+          adminEmail: form.adminEmail || undefined,
+          adminPassword: form.adminPassword || undefined,
+          adminTelefono: form.adminTelefono || undefined,
+          adminDocumento: form.adminDocumento || undefined,
+          adminCargo: form.adminCargo || undefined,
+          ...(form.adminExiste && { adminActivo: form.adminActivo }),
+        }),
       })
       if (res?.error) { toast(res.error, 'error'); return }
       toast('Negocio actualizado', 'success')
     } else {
-      if (!form.adminNombre?.trim()) { toast('El nombre del admin es requerido', 'error'); return }
-      if (!form.adminEmail?.trim())  { toast('El email del admin es requerido', 'error');  return }
-      if ((form.adminPassword?.length ?? 0) < 8) { toast('La contraseña del admin debe tener al menos 8 caracteres', 'error'); return }
-      const res = await crearNegocio.mutateAsync({ codigo: form.empresaId, nombre: form.nombre, nombreCorto: form.nombreCorto, ruc: form.ruc, contacto: form.contacto, email: form.email, telefono: form.telefono, plan: form.plan, estado: form.estado, fechaVencimiento: form.fechaVencimiento || undefined, notas: form.notas, adminNombre: form.adminNombre, adminEmail: form.adminEmail, adminPassword: form.adminPassword })
+      if (!form.ownerNombre?.trim()) { setTab('gobierno'); toast('El nombre del Propietario es requerido', 'error'); return }
+      if (!form.ownerEmail?.trim())  { setTab('gobierno'); toast('El email del Propietario es requerido', 'error');  return }
+      if ((form.ownerPassword?.length ?? 0) < 8) { setTab('gobierno'); toast('La contraseña del Propietario debe tener al menos 8 caracteres', 'error'); return }
+      const res = await crearNegocio.mutateAsync({
+        codigo: form.empresaId, nombre: form.nombre, nombreCorto: form.nombreCorto, ruc: form.ruc,
+        contacto: form.contacto, email: form.email, telefono: form.telefono, plan: form.plan, estado: form.estado,
+        fechaVencimiento: form.fechaVencimiento || undefined, notas: form.notas,
+        ownerNombre: form.ownerNombre, ownerEmail: form.ownerEmail, ownerPassword: form.ownerPassword,
+        ownerTelefono: form.ownerTelefono || undefined, ownerDocumento: form.ownerDocumento || undefined, ownerCargo: form.ownerCargo || undefined,
+        ...(tocaAdmin && {
+          adminNombre: form.adminNombre, adminEmail: form.adminEmail, adminPassword: form.adminPassword,
+          adminTelefono: form.adminTelefono || undefined, adminDocumento: form.adminDocumento || undefined, adminCargo: form.adminCargo || undefined,
+        }),
+      })
       if (res?.error) { toast(res.error, 'error'); return }
       toast('Negocio registrado correctamente', 'success')
     }
@@ -151,7 +239,19 @@ export default function TabNegocios({ negocios, crearNegocio, actualizarNegocio,
     setConfirmarNombre('')
   }
 
-  const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
+  const f = (k, v) => { touchedRef.current.add(k); setForm(p => ({ ...p, [k]: v })) }
+
+  // El bloque "Administrador del Negocio" es opcional — se muestra solo si el
+  // negocio ya tiene uno, si se cargaron sus datos, o si el usuario lo abre.
+  const mostrarAdmin = adminAbierto
+    || !!(form.adminExiste || form.adminNombre?.trim() || form.adminEmail?.trim() || form.adminPassword)
+
+  // "Quitar" el bloque Admin: solo cuando aún no existe uno guardado — limpia
+  // lo tipeado para que no se envíe nada de admin y lo vuelve a colapsar.
+  function quitarAdmin() {
+    for (const k of ['adminNombre', 'adminEmail', 'adminPassword', 'adminTelefono', 'adminDocumento', 'adminCargo']) f(k, '')
+    setAdminAbierto(false)
+  }
 
   const kpis = [
     { label:'Total registrados', value:stats.total,    color:'#3b82f6', icon:<Building2 size={32}/> },
@@ -245,6 +345,7 @@ export default function TabNegocios({ negocios, crearNegocio, actualizarNegocio,
                     </Td>
                     <Td>
                       <div className="flex items-center gap-1 justify-end">
+                        <Btn variant="ghost" size="sm" onClick={() => setVista360Id(n.id)} title="Resumen consolidado del negocio"><Radar size={13}/>Vista 360°</Btn>
                         <Btn variant="ghost" size="icon" onClick={() => openEdit(n)} title="Editar"><Edit2 size={13}/></Btn>
                         {estadoEfectivo(n) !== 'cancelado' && estadoEfectivo(n) !== 'archivado' && (
                           <Btn variant="ghost" size="icon" onClick={() => setConfirmDel(n)} title="Cancelar negocio (reversible)"><Ban size={13}/></Btn>
@@ -266,8 +367,28 @@ export default function TabNegocios({ negocios, crearNegocio, actualizarNegocio,
       <Modal open={modalOpen} onClose={() => setModal(false)} title={editItem ? 'Editar Negocio' : 'Registrar Nuevo Negocio'} size="lg"
         footer={<>
           <Btn variant="secondary" onClick={() => setModal(false)}>Cancelar</Btn>
-          <Btn variant="primary" onClick={save}><Save size={14}/>{editItem ? 'Guardar cambios' : 'Registrar negocio'}</Btn>
+          <Btn variant="primary" onClick={save} disabled={crearNegocio.isPending || actualizarNegocio.isPending}><Save size={14}/>{editItem ? 'Guardar cambios' : 'Registrar negocio'}</Btn>
         </>}>
+        {/* El formulario es largo — se parte en 3 secciones navegables. */}
+        <div className="flex gap-1 border-b border-[var(--border)] shrink-0">
+          {SECCIONES.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setTab(s.id)}
+              className={`px-3.5 py-2 text-[12px] font-semibold -mb-px border-b-2 transition-colors ${
+                tab === s.id
+                  ? 'border-[var(--accent)] text-[var(--text-primary)]'
+                  : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Sección 1 · Datos del negocio ── */}
+        {tab === 'datos' && (
         <div className="grid grid-cols-2 gap-4">
           <Field label="Nombre del negocio *" className="col-span-2">
             <Input className="col-span-2" value={form.nombre||''} onChange={e => f('nombre',e.target.value)} placeholder="Empresa XYZ S.A.C." />
@@ -299,27 +420,92 @@ export default function TabNegocios({ negocios, crearNegocio, actualizarNegocio,
               </div>
             )}
           </Field>
-          <div className="col-span-2 border border-[var(--border)] rounded-xl p-3 bg-[var(--bg-muted)]">
+        </div>
+        )}
+
+        {/* ── Sección 2 · Propietario y Administrador ── */}
+        {tab === 'gobierno' && (
+        <div className="flex flex-col gap-4">
+          {/* Propietario (Owner) — obligatorio (docs/GOBIERNO-PLATAFORMA.md regla 3) */}
+          <div className="border border-[var(--accent)]/25 rounded-xl p-3 bg-[var(--accent-dim)]">
             <div className="flex items-center justify-between gap-3 mb-3">
-              <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">Acceso del administrador</div>
+              <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">
+                Propietario del negocio (Owner){!editItem && ' *'}
+              </div>
               {editItem && (
-                <button type="button" onClick={() => generarPasswordTemporal()} className="px-2.5 py-1.5 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent-dim)] text-[11px] font-semibold text-[var(--accent)] hover:bg-[var(--accent-dim)] hover:brightness-110 transition-colors">
+                <button type="button" onClick={() => generarPasswordTemporal('ownerPassword')} className="px-2.5 py-1.5 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent-dim)] text-[11px] font-semibold text-[var(--accent)] hover:brightness-110 transition-colors">
                   Reiniciar contraseña
                 </button>
               )}
             </div>
-
             <div className="grid grid-cols-2 gap-4">
-              <Field label={editItem ? 'Nombre del administrador' : 'Nombre del administrador *'}>
-                <Input value={form.adminNombre||''} onChange={e => f('adminNombre',e.target.value)} placeholder="Juan Pérez" />
+              <Field label={editItem ? 'Nombre del Propietario' : 'Nombre del Propietario *'}>
+                <Input value={form.ownerNombre||''} onChange={e => f('ownerNombre',e.target.value)} placeholder="Juan Pérez" />
               </Field>
-              <Field label={editItem ? 'Email del administrador' : 'Email del administrador *'}>
+              <Field label={editItem ? 'Email del Propietario' : 'Email del Propietario *'}>
+                <Input type="email" value={form.ownerEmail||''} onChange={e => f('ownerEmail',e.target.value)} placeholder="dueno@empresa.com" />
+              </Field>
+            </div>
+            <div className="mt-4">
+              <Field label={editItem ? 'Nueva contraseña (opcional)' : 'Contraseña inicial (mín. 8 caracteres) *'}>
+                <div className="relative">
+                  <Input type={showPass?'text':'password'} className="pr-10" value={form.ownerPassword||''} onChange={e => f('ownerPassword',e.target.value)} placeholder={editItem ? 'Dejar vacío para conservar la actual' : '••••••••'} />
+                  <button type="button" onClick={() => setShowPass(p=>!p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                    {showPass ? <EyeOff size={14}/> : <Eye size={14}/>}
+                  </button>
+                </div>
+              </Field>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <Field label="Teléfono"><Input value={form.ownerTelefono||''} onChange={e => f('ownerTelefono',e.target.value)} placeholder="+51 999 888 777" /></Field>
+              <Field label="Documento (DNI/CE)"><Input value={form.ownerDocumento||''} onChange={e => f('ownerDocumento',e.target.value)} placeholder="12345678" /></Field>
+              <Field label="Cargo"><Input value={form.ownerCargo||''} onChange={e => f('ownerCargo',e.target.value)} placeholder="Gerente General" /></Field>
+            </div>
+            {editItem && (
+              <label className="flex items-center gap-2.5 mt-3 cursor-pointer select-none">
+                <Toggle value={form.ownerActivo !== false} onChange={v => f('ownerActivo', v)} />
+                <span className="text-[12px] text-[var(--text-secondary)]">Cuenta activa — puede iniciar sesión en el sistema (ocupa un cupo del plan)</span>
+              </label>
+            )}
+          </div>
+
+          {/* Administrador del Negocio (Admin Tenant) — opcional, colapsado por defecto */}
+          {!mostrarAdmin ? (
+            <button
+              type="button"
+              onClick={() => setAdminAbierto(true)}
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-dashed border-[var(--border)] text-[12px] font-semibold text-[var(--text-secondary)] hover:border-[var(--accent)]/40 hover:text-[var(--text-primary)] transition-colors"
+            >
+              <Plus size={14}/> Añadir Administrador del Negocio (opcional)
+            </button>
+          ) : (
+          <div className="border border-[var(--border)] rounded-xl p-3 bg-[var(--bg-muted)]">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">Administrador del Negocio (opcional)</div>
+              <div className="flex items-center gap-2">
+                {editItem && (form.adminNombre || form.adminEmail) && (
+                  <button type="button" onClick={() => generarPasswordTemporal('adminPassword')} className="px-2.5 py-1.5 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent-dim)] text-[11px] font-semibold text-[var(--accent)] hover:brightness-110 transition-colors">
+                    Reiniciar contraseña
+                  </button>
+                )}
+                {!form.adminExiste && (
+                  <button type="button" onClick={quitarAdmin} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-red-400 transition-colors">
+                    Quitar
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="text-[11px] text-[var(--text-muted)] mb-3">Segundo usuario de gobierno del negocio. Déjalo vacío si no aplica.</div>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Nombre del administrador">
+                <Input value={form.adminNombre||''} onChange={e => f('adminNombre',e.target.value)} placeholder="María Gómez" />
+              </Field>
+              <Field label="Email del administrador">
                 <Input type="email" value={form.adminEmail||''} onChange={e => f('adminEmail',e.target.value)} placeholder="admin@empresa.com" />
               </Field>
             </div>
-
             <div className="mt-4">
-              <Field label={editItem ? 'Nueva contraseña (opcional)' : 'Contraseña inicial (mín. 8 caracteres) *'}>
+              <Field label={editItem ? 'Nueva contraseña (opcional)' : 'Contraseña (mín. 8 caracteres)'}>
                 <div className="relative">
                   <Input type={showPass?'text':'password'} className="pr-10" value={form.adminPassword||''} onChange={e => f('adminPassword',e.target.value)} placeholder={editItem ? 'Dejar vacío para conservar la actual' : '••••••••'} />
                   <button type="button" onClick={() => setShowPass(p=>!p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
@@ -328,7 +514,25 @@ export default function TabNegocios({ negocios, crearNegocio, actualizarNegocio,
                 </div>
               </Field>
             </div>
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <Field label="Teléfono"><Input value={form.adminTelefono||''} onChange={e => f('adminTelefono',e.target.value)} placeholder="+51 999 888 777" /></Field>
+              <Field label="Documento (DNI/CE)"><Input value={form.adminDocumento||''} onChange={e => f('adminDocumento',e.target.value)} placeholder="12345678" /></Field>
+              <Field label="Cargo"><Input value={form.adminCargo||''} onChange={e => f('adminCargo',e.target.value)} placeholder="Jefe de Almacén" /></Field>
+            </div>
+            {editItem && form.adminExiste && (
+              <label className="flex items-center gap-2.5 mt-3 cursor-pointer select-none">
+                <Toggle value={form.adminActivo !== false} onChange={v => f('adminActivo', v)} />
+                <span className="text-[12px] text-[var(--text-secondary)]">Cuenta activa — puede iniciar sesión en el sistema (ocupa un cupo del plan)</span>
+              </label>
+            )}
           </div>
+          )}
+        </div>
+        )}
+
+        {/* ── Sección 3 · Suscripción ── */}
+        {tab === 'plan' && (
+        <div className="grid grid-cols-2 gap-4">
           <Field label="Plan contratado">
             <Select value={form.plan||'trial'} onChange={e => {
               const selectedPlan = planes.find(p => p.id === e.target.value)
@@ -389,6 +593,7 @@ export default function TabNegocios({ negocios, crearNegocio, actualizarNegocio,
             </Field>
           </div>
         </div>
+        )}
       </Modal>
 
       <ConfirmDialog open={!!confirmDel} onClose={() => setConfirmDel(null)} onConfirm={() => remove(confirmDel?.id)}
@@ -412,6 +617,8 @@ export default function TabNegocios({ negocios, crearNegocio, actualizarNegocio,
           <Input value={confirmarNombre} onChange={e => setConfirmarNombre(e.target.value)} placeholder={archivarItem?.nombre}/>
         </Field>
       </Modal>
+
+      <ModalVista360 negocioId={vista360Id} onClose={() => setVista360Id(null)} />
     </div>
   )
 }
