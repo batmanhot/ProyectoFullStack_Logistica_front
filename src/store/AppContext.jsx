@@ -15,6 +15,11 @@ const initialState = {
   toasts:  [],
 }
 
+// La restauración de sesión corre UNA vez por carga de página. React StrictMode
+// (dev) monta el efecto dos veces; sin este candado se disparaban dos secuencias
+// de bootstrap (→ dos POST /auth/refresh) en cada recarga.
+let _bootstrapIniciado = false
+
 function reducer(state, action) {
   switch (action.type) {
     case 'SET_SESION':    return { ...state, sesion: action.payload, loading: false }
@@ -55,7 +60,8 @@ export function AppProvider({ children }) {
     // Se recupera con /auth/refresh (cookie httpOnly). El objeto de sesión
     // (rol, permisos, nombre — NO secretos) sigue en localStorage para pintar
     // la UI al instante, pero la sesión solo es "real" si el refresh anda.
-    let cancelado = false
+    if (_bootstrapIniciado) return
+    _bootstrapIniciado = true
     ;(async () => {
       try {
         const enRutaAdmin = esRutaSuperAdmin(window.location.pathname)
@@ -64,24 +70,34 @@ export function AppProvider({ children }) {
           const sesionGuardada = JSON.parse(stored)
           const esAdmin = sesionGuardada?.rol?.codigo === 'saas_admin'
           if (esAdmin === enRutaAdmin) {
-            const boot = esAdmin ? await api.bootstrapAdmin() : await api.bootstrapTenant()
-            if (cancelado) return
-            if (boot) {
+            const pedirBoot = () => (esAdmin ? api.bootstrapAdmin() : api.bootstrapTenant())
+            let boot = await pedirBoot()
+            // 429 (throttle) / 5xx / red caída: se reintenta con backoff antes de
+            // rendirse. El lock single-flight de api.js impide que esto multiplique
+            // peticiones. Un F5 rápido y repetido ya no tira al usuario a la landing.
+            for (let intento = 1; !boot.ok && boot.transient && intento <= 3; intento++) {
+              await new Promise((r) => setTimeout(r, 400 * intento))
+              boot = await pedirBoot()
+            }
+            if (boot.ok) {
               dispatch({ type: 'SET_SESION', payload: sesionGuardada })
               return
             }
-            // Refresh falló → la sesión guardada ya no vale.
-            localStorage.removeItem(slotParaSesion(sesionGuardada))
+            // Solo se descarta la sesión guardada si el backend respondió
+            // "no autorizado" (cookie ausente/revocada). Si fue un problema
+            // pasajero, se conserva: se recupera en la próxima recarga.
+            if (!boot.transient) {
+              localStorage.removeItem(slotParaSesion(sesionGuardada))
+            }
           } else if (!enRutaAdmin && esAdmin) {
             localStorage.removeItem(SESSION_KEY_TENANT)
           }
         }
       } catch {
-        /* storage bloqueado / JSON inválido / red — se arranca sin sesión */
+        /* storage bloqueado / JSON inválido — se arranca sin sesión */
       }
-      if (!cancelado) dispatch({ type: 'SET_LOADING', payload: false })
+      dispatch({ type: 'SET_LOADING', payload: false })
     })()
-    return () => { cancelado = true }
   }, [])
 
   const toast = useCallback((mensaje, tipo = 'info', duracion = 3500) => {

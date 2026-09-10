@@ -63,24 +63,46 @@ export const tokenManager = {
 // El refresh token va en una cookie httpOnly (path-scoped). Se manda con
 // `credentials: 'include'`, sin body. La respuesta trae el access token nuevo
 // (en memoria) y los datos del usuario/admin.
+//
+// Devuelve SIEMPRE un objeto { ok, data, transient }:
+//   - ok:false + transient:false → no hay sesión / revocada (401/403) → destruir sesión.
+//   - ok:false + transient:true  → throttle (429), error 5xx o red caída → NO destruir
+//     la sesión: es un problema pasajero, se reintenta.
 async function _refreshCore(path, guardar) {
   try {
     const res = await fetch(`${BASE_URL}${path}`, { method: 'POST', credentials: 'include' })
-    if (!res.ok) return null
+    if (!res.ok) {
+      const transient = res.status === 429 || res.status >= 500 || res.status === 0
+      return { ok: false, data: null, transient }
+    }
     const json = await res.json()
     const data = json.data || json
-    if (!data?.accessToken) return null
+    if (!data?.accessToken) return { ok: false, data: null, transient: false }
     guardar(data.accessToken)
-    return data
-  } catch { return null }
+    return { ok: true, data, transient: false }
+  } catch {
+    // fetch rechaza → servidor caído / sin red / CORS → pasajero
+    return { ok: false, data: null, transient: true }
+  }
 }
 
-async function _refreshTenant() {
-  return !!(await _refreshCore('/auth/refresh', tokenManager.setAccess))
+// Lock single-flight: TODOS los que piden refresh a la vez (StrictMode que
+// monta el efecto 2 veces en dev, la ráfaga de queries que dan 401 al arrancar,
+// el bootstrap) comparten UNA sola petición en vuelo. Sin esto, una recarga
+// disparaba 20-30 POST /auth/refresh y reventaba el rate-limit del endpoint.
+const _refreshEnVuelo = { tenant: null, admin: null }
+
+function _refresh(kind) {
+  if (!_refreshEnVuelo[kind]) {
+    const path    = kind === 'admin' ? '/admin/auth/refresh' : '/auth/refresh'
+    const guardar = kind === 'admin' ? tokenManager.setAdminAccess : tokenManager.setAccess
+    _refreshEnVuelo[kind] = _refreshCore(path, guardar).finally(() => { _refreshEnVuelo[kind] = null })
+  }
+  return _refreshEnVuelo[kind]
 }
-async function _refreshAdmin() {
-  return !!(await _refreshCore('/admin/auth/refresh', tokenManager.setAdminAccess))
-}
+
+const _refreshTenant = () => _refresh('tenant')
+const _refreshAdmin  = () => _refresh('admin')
 
 // ── Núcleo HTTP ───────────────────────────────────────────────
 async function _request(method, endpoint, data = null, opts = {}) {
@@ -105,10 +127,20 @@ async function _request(method, endpoint, data = null, opts = {}) {
     const esPortal   = authType === 'portal' || authType === 'portal-proveedor'
 
     if (access && tokenManager.isExpired(access) && !intentoRefresh && !esPortal) {
-      const refreshed = await refreshFn()
-      if (!refreshed) {
-        authType === 'admin' ? tokenManager.clearAdminTokens() : tokenManager.clearTokens()
-        return { data: null, error: 'Sesión expirada. Por favor inicia sesión nuevamente.', status: 401 }
+      const r = await refreshFn()
+      if (!r.ok) {
+        // Solo se destruye la sesión si el refresh dijo "no autorizado".
+        // Si fue throttle/5xx/red, se deja intacta: se recupera en el próximo intento.
+        if (!r.transient) {
+          authType === 'admin' ? tokenManager.clearAdminTokens() : tokenManager.clearTokens()
+        }
+        return {
+          data: null,
+          error: r.transient
+            ? 'No se pudo renovar la sesión (servidor ocupado). Reintenta en unos segundos.'
+            : 'Sesión expirada. Por favor inicia sesión nuevamente.',
+          status: 401,
+        }
       }
       access = authType === 'admin' ? tokenManager.getAdminAccess() : tokenManager.getAccess()
     }
@@ -127,10 +159,16 @@ async function _request(method, endpoint, data = null, opts = {}) {
 
     if (res.status === 401 && !intentoRefresh && !skipAuth && authType !== 'portal' && authType !== 'portal-proveedor') {
       const refreshFn = authType === 'admin' ? _refreshAdmin : _refreshTenant
-      const refreshed = await refreshFn()
-      if (refreshed) return _request(method, endpoint, data, { ...opts, intentoRefresh: true })
-      authType === 'admin' ? tokenManager.clearAdminTokens() : tokenManager.clearTokens()
-      return { data: null, error: 'Sesión expirada.', status: 401 }
+      const r = await refreshFn()
+      if (r.ok) return _request(method, endpoint, data, { ...opts, intentoRefresh: true })
+      if (!r.transient) {
+        authType === 'admin' ? tokenManager.clearAdminTokens() : tokenManager.clearTokens()
+      }
+      return {
+        data: null,
+        error: r.transient ? 'Sin conexión con el servidor de sesión.' : 'Sesión expirada.',
+        status: 401,
+      }
     }
 
     if (res.status === 204) return { data: null, error: null, status: 204 }
@@ -234,10 +272,11 @@ export const api = {
   },
 
   // Al arrancar la app: el access token vive en memoria y se perdió al recargar.
-  // Se recupera con /auth/refresh (usa la cookie httpOnly). Devuelve los datos
-  // del usuario si hay sesión válida, o null.
-  bootstrapTenant: () => _refreshCore('/auth/refresh', tokenManager.setAccess),
-  bootstrapAdmin:  () => _refreshCore('/admin/auth/refresh', tokenManager.setAdminAccess),
+  // Se recupera con /auth/refresh (usa la cookie httpOnly). Comparte el lock
+  // single-flight con el resto de refreshes. Devuelve { ok, data, transient }:
+  // ok:false + transient:true → problema pasajero, NO destruir la sesión guardada.
+  bootstrapTenant: () => _refreshTenant(),
+  bootstrapAdmin:  () => _refreshAdmin(),
 
   async logout() {
     try { await _request('POST', '/auth/logout', null, {}) } catch { /* la cookie se limpia igual abajo */ }

@@ -50,7 +50,7 @@ export default function AdminSaaS() {
     let vivo = true
     api.bootstrapAdmin().then((r) => {
       if (!vivo) return
-      if (r) setAdminLogged(true)
+      if (r.ok) setAdminLogged(true)
       setVerificandoSesion(false)
     })
     return () => { vivo = false }
