@@ -161,36 +161,19 @@ function SidebarThemeButton({ collapsed }) {
 }
 
 function SidebarHelpLink({ collapsed }) {
-  // Se mantienen AMBAS opciones a propósito mientras se termina de probar
-  // el nuevo Centro de Ayuda (/ayuda) -- el manual.html viejo no se retira
-  // todavía. Cuando el nuevo Centro de Ayuda quede validado, borrar este
-  // bloque completo (el <a> de abajo) y dejar solo el NavLink a /ayuda.
   return (
-    <>
-      <a
-        href="/manual.html"
-        target="_blank"
-        rel="noopener noreferrer"
-        title="Manual de Usuario (versión anterior)"
-        className={`flex items-center gap-3 mx-2 my-0.5 rounded-lg transition-all duration-150 no-underline overflow-hidden whitespace-nowrap hover:bg-white/5
-          ${collapsed ? 'px-0 justify-center h-10' : 'px-3 py-2'}`}
-        style={{ color: 'var(--sidebar-fg-nav)' }}>
-        <FileText size={16} className="shrink-0" style={{ opacity: 0.85 }}/>
-        {!collapsed && <span className="flex-1 text-[13.5px] font-medium">Manual de Usuario</span>}
-      </a>
-      <NavLink
-        to="/ayuda"
-        title="Centro de Ayuda"
-        className={({ isActive }) => `flex items-center gap-3 mx-2 my-0.5 rounded-lg transition-all duration-150 no-underline overflow-hidden whitespace-nowrap
-          ${collapsed ? 'px-0 justify-center h-10' : 'px-3 py-2'}
-          ${isActive ? '' : 'hover:bg-white/5'}`}
-        style={({ isActive }) => isActive
-          ? { background: 'var(--accent-dim)', color: 'var(--accent)' }
-          : { color: 'var(--sidebar-fg-nav)' }}>
-        <HelpCircle size={16} className="shrink-0" style={{ opacity: 0.85 }}/>
-        {!collapsed && <span className="flex-1 text-[13.5px] font-medium">Centro de Ayuda</span>}
-      </NavLink>
-    </>
+    <NavLink
+      to="/ayuda"
+      title="Centro de Ayuda"
+      className={({ isActive }) => `flex items-center gap-3 mx-2 my-0.5 rounded-lg transition-all duration-150 no-underline overflow-hidden whitespace-nowrap
+        ${collapsed ? 'px-0 justify-center h-10' : 'px-3 py-2'}
+        ${isActive ? '' : 'hover:bg-white/5'}`}
+      style={({ isActive }) => isActive
+        ? { background: 'var(--accent-dim)', color: 'var(--accent)' }
+        : { color: 'var(--sidebar-fg-nav)' }}>
+      <HelpCircle size={16} className="shrink-0" style={{ opacity: 0.85 }}/>
+      {!collapsed && <span className="flex-1 text-[13.5px] font-medium">Centro de Ayuda</span>}
+    </NavLink>
   )
 }
 
