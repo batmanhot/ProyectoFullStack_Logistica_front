@@ -8,7 +8,7 @@ import { exportarProformasXLSX } from '../utils/exportXLSX'
 import { exportarProformasPDF } from '../utils/exportPDF'
 import {
   useProformasList, useCrearProforma, useActualizarProforma, useEliminarProforma,
-  useConvertirProformaDespacho,
+  useConvertirProformaDespacho, useAceptarProforma,
 } from '../queries/proformas.queries'
 import { useClientesList } from '../queries/clientes.queries'
 import { useProductosList } from '../queries/productos.queries'
@@ -50,6 +50,7 @@ export default function Proformas() {
 
   const crearProforma     = useCrearProforma()
   const actualizarProforma = useActualizarProforma()
+  const aceptarProforma   = useAceptarProforma()
   const eliminarProforma  = useEliminarProforma()
   const convertirDespacho = useConvertirProformaDespacho()
   const generarPdf        = useGenerarPdf()
@@ -158,7 +159,7 @@ export default function Proformas() {
   }
 
   async function marcarAceptada(doc) {
-    const res = await actualizarProforma.mutateAsync({ id: doc.id, estado: 'ACEPTADA' })
+    const res = await aceptarProforma.mutateAsync(doc.id)
     if (res?.error) { toast(res.error, 'error'); return }
     toast('Proforma aceptada', 'success')
   }
@@ -472,7 +473,9 @@ function ModalDetalle({ doc, clientes, productos, simboloMoneda, pdfConfig, envi
 }
 
 // Estados válidos para actualizar (UpdateProformaDto excluye BORRADOR)
-const ESTADOS_EDIT = ['ENVIADA', 'ACEPTADA', 'RECHAZADA', 'VENCIDA']
+// ACEPTADA no está: se marca con la acción "Marcar aceptada" (aprobación
+// configurable, Configuración → Aprobaciones), no desde el dropdown de edición.
+const ESTADOS_EDIT = ['ENVIADA', 'RECHAZADA', 'VENCIDA']
 
 // Precio de un producto según la lista elegida — sin lista, cae al precio de venta y,
 // si tampoco hay, al costo (mejor sugerir el costo que un precio en S/0.00 en una cotización).

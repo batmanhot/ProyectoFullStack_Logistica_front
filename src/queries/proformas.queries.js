@@ -67,6 +67,18 @@ export function useActualizarProforma() {
   })
 }
 
+/** Aceptar una proforma ENVIADA — es una aprobación configurable (Configuración → Aprobaciones). */
+export function useAceptarProforma() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => api.post(`/proformas/${id}/aceptar`, {}),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: KEYS.all() })
+      qc.invalidateQueries({ queryKey: KEYS.one(id) })
+    },
+  })
+}
+
 export function useEliminarProforma() {
   const qc = useQueryClient()
   return useMutation({
