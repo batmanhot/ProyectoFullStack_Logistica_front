@@ -2,10 +2,11 @@ import { useState, useMemo } from 'react'
 import { Plus, Search, RotateCcw, ArrowDownToLine, ArrowUpFromLine, Eye, XCircle, X, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
-import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, DataTable } from '../components/ui/index'
+import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, DataTable, StockHint } from '../components/ui/index'
 import { useMovimientosList, useCrearMovimiento } from '../queries/movimientos.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
+import { useStockPorAlmacen } from '../hooks/useStockPorAlmacen'
 import { useProveedoresList } from '../queries/proveedores.queries'
 import { useClientesList } from '../queries/clientes.queries'
 import { exportarDevolucionesXLSX } from '../utils/exportXLSX'
@@ -287,10 +288,16 @@ function ModalDevolucion({ open, onClose, onSave, productos, almacenes, proveedo
     })
   }
 
+  const stock              = useStockPorAlmacen(open)
   const motivos           = form.tipoDev === 'CLIENTE' ? MOTIVOS_CLI : MOTIVOS_PROV
   const productosActivos  = productos.filter(p => p.estado === 'Activo' || p.activo !== false)
   const totalCosto        = (+form.cantidad || 0) * (+form.costoUnitario || 0)
   const esCli             = form.tipoDev === 'CLIENTE'
+  const almSel  = almacenes.find(a => a.id === form.almacenId)
+  const prodSel = productos.find(p => p.id === form.productoId)
+  const dispSel = form.productoId
+    ? (form.almacenId ? stock.enAlmacen(form.almacenId, form.productoId) : stock.global(form.productoId))
+    : null
 
   return (
     <Modal open={open} onClose={onClose} title="Nueva Devolución" size="md"
@@ -333,8 +340,15 @@ function ModalDevolucion({ open, onClose, onSave, productos, almacenes, proveedo
       <Field label="Producto *" error={err.productoId}>
         <Select value={form.productoId} onChange={e => f('productoId', e.target.value)}>
           <option value="">Seleccionar producto...</option>
-          {productosActivos.map(p => <option key={p.id} value={p.id}>{p.sku} — {p.nombre}</option>)}
+          {productosActivos.map(p => (
+            <option key={p.id} value={p.id}>
+              {p.sku} — {p.nombre}{form.almacenId ? ` · ${stock.enAlmacen(form.almacenId, p.id)} disp.` : ''}
+            </option>
+          ))}
         </Select>
+        <StockHint disponible={dispSel} unidad={prodSel?.unidadMedida}
+          requerido={!esCli ? form.cantidad : undefined}
+          contexto={almSel?.nombre || 'todos los almacenes'}/>
       </Field>
 
       <div className="grid grid-cols-2 gap-3">

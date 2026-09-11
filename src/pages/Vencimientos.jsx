@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { AlertTriangle, CheckCircle, Package, Eye, XCircle, Calendar, Hash, DollarSign, Layers, Info, Clock, Download, FileText, X, Search } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, diasParaVencer, fechaHoy, generarNumDoc, vencimientoMasUrgentePorProducto } from '../utils/helpers'
@@ -41,9 +42,14 @@ export default function Vencimientos() {
   // El vencimiento vive en LoteProducto, no en Producto — ver vencimientoMasUrgentePorProducto.
   const vencPorProducto = useMemo(() => vencimientoMasUrgentePorProducto(lotes), [lotes])
 
+  // Enlace desde Torre de Control ("N por vencer" de un almacén). Se lee
+  // una sola vez al montar — no hay un solo rango que equivalga a "≤30
+  // días" acá (son dos: 'critico' 0–15 y 'urgente' 16–30), así que solo se
+  // aplica el filtro de almacén; el usuario elige el rango en pantalla.
+  const [searchParams] = useSearchParams()
   const [filtroRango, setFiltroRango] = useState('all')
   const [filtCat,     setFiltCat]     = useState('')
-  const [filtAlm,     setFiltAlm]     = useState('')
+  const [filtAlm,     setFiltAlm]     = useState(() => searchParams.get('almacen') || '')
   const [filtEstado,  setFiltEstado]  = useState('')
   const [filtProd,    setFiltProd]    = useState('')
   const [verProd,     setVerProd]     = useState(null)
@@ -380,7 +386,7 @@ function ModalDetalleVencimiento({ prod, onClose, onBaja }) {
       {lotes.length > 0 && (
         <div>
           <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.05em] mb-2">Lotes registrados ({lotes.length})</div>
-          <div className="overflow-x-auto rounded-xl border border-white/8">
+          <div className="overflow-x-auto rounded-xl border border-white/8 shrink-0">
             <table className="w-full border-collapse text-[12px]">
               <thead><tr>
                 {['N° Lote','F. Vencimiento','Cantidad original'].map(h => (

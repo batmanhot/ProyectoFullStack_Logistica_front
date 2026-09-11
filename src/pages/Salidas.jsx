@@ -2,10 +2,11 @@ import { useState, useMemo } from 'react'
 import { Plus, Search, ArrowUpFromLine, Eye, XCircle, DollarSign, Calendar, TrendingDown, ShoppingBag, X, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
-import { Modal, ConfirmDialog, Btn, Field, Input, Select, DataTable } from '../components/ui/index'
+import { Modal, ConfirmDialog, Btn, Field, Input, Select, DataTable, StockHint } from '../components/ui/index'
 import { useMovimientosList, useCrearMovimiento } from '../queries/movimientos.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
+import { useStockPorAlmacen } from '../hooks/useStockPorAlmacen'
 import { MOTIVOS_SALIDA } from '../config/constants'
 import { exportarSalidasXLSX } from '../utils/exportXLSX'
 import { exportarSalidasPDF } from '../utils/exportPDF'
@@ -271,7 +272,13 @@ function ModalSalida({ open, onClose, onSave, productos, almacenes, simboloMoned
     })
   }
 
+  const stock = useStockPorAlmacen(open)
   const productosActivos = productos.filter(p => p.estado === 'Activo' || p.activo !== false)
+  const almSel  = almacenes.find(a => a.id === form.almacenId)
+  const prodSel = productos.find(p => p.id === form.productoId)
+  const dispSel = form.productoId
+    ? (form.almacenId ? stock.enAlmacen(form.almacenId, form.productoId) : stock.global(form.productoId))
+    : null
   const totalCosto = (+form.cantidad || 0) * (+form.costoUnitario || 0)
   const motivos    = (typeof MOTIVOS_SALIDA !== 'undefined' ? MOTIVOS_SALIDA : null) || ['Despacho','Venta','Merma','Consumo interno','Otro']
 
@@ -294,8 +301,14 @@ function ModalSalida({ open, onClose, onSave, productos, almacenes, simboloMoned
       <Field label="Producto *" error={err.productoId}>
         <Select value={form.productoId} onChange={e => f('productoId', e.target.value)}>
           <option value="">Seleccionar producto...</option>
-          {productosActivos.map(p => <option key={p.id} value={p.id}>{p.sku} — {p.nombre}</option>)}
+          {productosActivos.map(p => (
+            <option key={p.id} value={p.id}>
+              {p.sku} — {p.nombre}{form.almacenId ? ` · ${stock.enAlmacen(form.almacenId, p.id)} disp.` : ''}
+            </option>
+          ))}
         </Select>
+        <StockHint disponible={dispSel} unidad={prodSel?.unidadMedida} requerido={form.cantidad}
+          contexto={almSel?.nombre || 'todos los almacenes'}/>
       </Field>
 
       <Field label="Almacén origen *" error={err.almacenId}>

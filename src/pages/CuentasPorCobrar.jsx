@@ -326,7 +326,7 @@ function ModalHistorialPagos({ doc, simboloMoneda, onClose }) {
           ) : pagos.length === 0 ? (
             <EmptyState icon={DollarSign} title="Sin pagos registrados" description="Todavía no se registró ningún abono para este documento."/>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-white/8">
+            <div className="overflow-x-auto rounded-xl border border-white/8 shrink-0">
               <table className="w-full border-collapse text-[12px]">
                 <thead><tr>
                   {['Fecha', 'Monto', 'Método', 'Notas'].map(h => (

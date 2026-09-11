@@ -764,7 +764,7 @@ export default function Oportunidades() {
         {rendimientoPorVendedor.length === 0 ? (
           <p className="text-[12px] text-[#5f6f80]">Sin datos todavía.</p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-white/8">
+          <div className="overflow-x-auto rounded-xl border border-white/8 shrink-0">
             <table className="w-full border-collapse text-[13px]">
               <thead>
                 <tr>

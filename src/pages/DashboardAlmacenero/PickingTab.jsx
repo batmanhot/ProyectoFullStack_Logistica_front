@@ -33,7 +33,7 @@ function LineaPickingCard({ linea, onConfirmar, confirmando }) {
 
       {!lineaCompleta && (
         <div className="flex items-center gap-2">
-          <input type="number" min="0" max={Number(linea.cantidadRequerida)} step="0.01"
+          <input type="number" min="0" max={Number(linea.cantidadRequerida)} step="1"
             aria-label={`Cantidad pickeada de ${linea.producto?.nombre || 'producto'}`}
             className="flex-1 px-3 py-3 bg-[#1e2835] border border-white/10 rounded-lg text-[16px] text-[#e8edf2] outline-none focus:border-[#00c896] font-mono text-center"
             value={cantidad}

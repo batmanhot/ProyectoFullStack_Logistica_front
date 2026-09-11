@@ -9,12 +9,16 @@ const PRODUCTOS = [
 ]
 const CLIENTES = [{ id: 'c1', razonSocial: 'Cliente Uno', activo: true, direccion: 'Av. Test 123' }]
 const ALMACENES = [{ id: 'a1', nombre: 'Almacén Principal' }]
+// El selector de producto filtra por stock DEL ALMACÉN elegido, no por el global.
+const INVENTARIO = [
+  { id: 'inv1', productoId: 'p1', almacenId: 'a1', ubicacionId: null, cantidad: 10, cantidadReservada: 0 },
+]
 
 describe('ModalNuevoPedido', () => {
   function setup(props = {}) {
     const onSave = vi.fn()
     const onClose = vi.fn()
-    render(
+    const { rerender } = render(
       <ModalNuevoPedido
         open
         onClose={onClose}
@@ -22,11 +26,12 @@ describe('ModalNuevoPedido', () => {
         productos={PRODUCTOS}
         clientes={CLIENTES}
         almacenes={ALMACENES}
+        inventario={INVENTARIO}
         simboloMoneda="S/"
         {...props}
       />,
     )
-    return { onSave, onClose }
+    return { onSave, onClose, rerender }
   }
 
   it('Registrar Pedido está deshabilitado sin cliente ni items', () => {
@@ -60,6 +65,61 @@ describe('ModalNuevoPedido', () => {
     // "Total: " y el monto son nodos de texto hermanos sin <span> propio
     expect(screen.getByText((_, el) => el?.textContent === 'Total: S/ 70.80')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Registrar Pedido/ })).toBeEnabled()
+  })
+
+  it('el selector muestra el stock DEL almacén elegido, no el global', async () => {
+    setup({
+      almacenes: [{ id: 'a1', nombre: 'Principal' }, { id: 'a2', nombre: 'Huancayo' }],
+      inventario: [
+        { id: 'i1', productoId: 'p1', almacenId: 'a1', ubicacionId: null, cantidad: 10, cantidadReservada: 0 },
+      ],
+    })
+    // Almacén por defecto = a1 (tiene 10) → el producto aparece con "Stock: 10".
+    expect(screen.getByRole('option', { name: /SKU1 — Producto Uno \(Stock: 10 UN\)/ })).toBeInTheDocument()
+  })
+
+  it('bloquea agregar más cantidad que la disponible en el almacén', async () => {
+    const user = userEvent.setup()
+    setup()
+    await user.selectOptions(getFieldControl('Cliente *'), 'c1')
+    await user.selectOptions(getFieldControl('Producto'), 'p1')
+    await user.clear(getFieldControl('Cantidad'))
+    await user.type(getFieldControl('Cantidad'), '15') // solo hay 10
+    await user.click(screen.getByRole('button', { name: /Agregar/ }))
+
+    expect(screen.getByText(/Solo hay 10/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Registrar Pedido/ })).toBeDisabled()
+  })
+
+  it('no borra los items agregados si `almacenes` recibe una nueva referencia (refetch en segundo plano)', async () => {
+    const user = userEvent.setup()
+    const { rerender } = setup()
+
+    await user.selectOptions(getFieldControl('Cliente *'), 'c1')
+    await user.selectOptions(getFieldControl('Producto'), 'p1')
+    await user.clear(getFieldControl('Cantidad'))
+    await user.type(getFieldControl('Cantidad'), '2')
+    await user.click(screen.getByRole('button', { name: /Agregar/ }))
+    expect(screen.getByRole('button', { name: /Registrar Pedido/ })).toBeEnabled()
+
+    // Mismo contenido, OBJETO nuevo — como devolvería un refetch de React Query
+    // aunque los almacenes no hayan cambiado. El modal sigue open=true.
+    rerender(
+      <ModalNuevoPedido
+        open
+        onClose={() => {}}
+        onSave={() => {}}
+        productos={PRODUCTOS}
+        clientes={CLIENTES}
+        almacenes={[...ALMACENES]}
+        inventario={INVENTARIO}
+        simboloMoneda="S/"
+      />,
+    )
+
+    // El item agregado (y el total calculado) deben seguir ahí.
+    expect(screen.getByRole('button', { name: /Registrar Pedido/ })).toBeEnabled()
+    expect(screen.getAllByText('S/ 40.00').length).toBeGreaterThanOrEqual(1)
   })
 
   it('al confirmar, llama a onSave con el shape esperado', async () => {

@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { Plus, Package, Send, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Plus, Package, Send, X, AlertTriangle } from 'lucide-react'
 import { Input, Select, Textarea } from '../../components/ui'
 
 // ── Modal Nuevo / Editar Pedido ─────────────────────────────
-export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacenes, proyectos = [], sesion, areaFija, saving }) {
+export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacenes, inventario = [], proyectos = [], sesion, areaFija, saving }) {
   const esSolicitante = sesion?.rol?.codigo === 'solicitante'
   const [form, setForm] = useState({
     areaId:         pedido?.areaId         || areaFija || '',
@@ -21,6 +21,21 @@ export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacen
   })
   const [error, setError] = useState('')
   const esEdicion = !!pedido?.id
+
+  // Stock disponible por (almacén, producto) — mismo criterio que el backend
+  // valida en Picking/Entrega. El pedido interno SÍ se puede crear sin stock
+  // (es una solicitud), pero mostrarlo evita elegir un almacén sin material.
+  const stockPorAlmacen = useMemo(() => {
+    const m = {}
+    for (const it of inventario) {
+      const key = `${it.almacenId}:${it.productoId}`
+      const cant = Number(it.cantidad || 0)
+      const reserv = it.ubicacionId == null ? Number(it.cantidadReservada || 0) : 0
+      m[key] = (m[key] || 0) + (cant - reserv)
+    }
+    return m
+  }, [inventario])
+  const stockEnAlmacen = (productoId) => stockPorAlmacen[`${form.almacenId}:${productoId}`] || 0
 
   function addItem() {
     setForm(f => ({ ...f, items: [...f.items, { productoId:'', cantidad:1, unidadMedida:'', notas:'' }] }))
@@ -83,6 +98,15 @@ export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacen
 
   const puedeEnviar = !esEdicion || pedido?.estado === 'BORRADOR'
   const productosActivos = productos.filter(p => p.activo !== false && p.estado !== 'Inactivo')
+  // Para el selector: los que tienen stock en el almacén elegido primero.
+  const productosParaPedir = [...productosActivos].sort(
+    (a, b) => stockEnAlmacen(b.id) - stockEnAlmacen(a.id) || String(a.nombre).localeCompare(String(b.nombre)),
+  )
+  const itemsSinStock = esEdicion
+    ? []
+    : form.items.filter(
+        it => it.productoId && Number(it.cantidad) > 0 && stockEnAlmacen(it.productoId) < Number(it.cantidad),
+      )
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -189,11 +213,16 @@ export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacen
                       <Select value={it.productoId}
                         onChange={e => updateItem(i, 'productoId', e.target.value)}>
                         <option value="">Producto...</option>
-                        {productosActivos.map(p => (
-                          <option key={p.id} value={p.id}>{p.nombre}</option>
-                        ))}
+                        {productosParaPedir.map(p => {
+                          const s = stockEnAlmacen(p.id)
+                          return (
+                            <option key={p.id} value={p.id}>
+                              {p.nombre} · {s > 0 ? `${s} disp.` : 'sin stock aquí'}
+                            </option>
+                          )
+                        })}
                       </Select>
-                      <Input type="number" min="0.01" step="0.01" placeholder="Cant."
+                      <Input type="number" min="0.01" step="1" placeholder="Cant."
                         value={it.cantidad}
                         onChange={e => updateItem(i, 'cantidad', Number(e.target.value))}/>
                       <div className="text-[11px] text-white/40 text-center font-mono">
@@ -210,6 +239,14 @@ export function ModalPedido({ pedido, onClose, onSave, areas, productos, almacen
             </div>
             {esEdicion && (
               <p className="text-[11px] text-white/25 mt-2">Los ítems no pueden modificarse después de crear el pedido.</p>
+            )}
+            {itemsSinStock.length > 0 && (
+              <div className="flex items-start gap-2 mt-2 px-3 py-2 bg-amber-500/10 border border-amber-500/25 rounded-lg text-[11.5px] text-amber-300">
+                <AlertTriangle size={13} className="shrink-0 mt-0.5"/>
+                <span>
+                  {itemsSinStock.length === 1 ? 'Un producto no tiene' : `${itemsSinStock.length} productos no tienen`} stock suficiente en {almacenes.find(a => a.id === form.almacenId)?.nombre || 'el almacén elegido'}. Puedes crear el pedido igual, pero no se podrá hacer picking / entrega hasta que llegue stock (o elige otro almacén de despacho).
+                </span>
+              </div>
             )}
           </div>
 

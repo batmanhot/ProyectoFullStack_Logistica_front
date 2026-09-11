@@ -19,10 +19,13 @@ export function useAlmacenesList({ incluirInactivos = false, enabled = true } = 
   })
 }
 
+// El payload puede incluir, además de `nombre`, la ubicación física opcional
+// (direccion, ciudad, region, pais, latitud, longitud, responsable, telefono).
+// El backend ignora campos no declarados (whitelist), así que se pasa tal cual.
 export function useCrearAlmacen() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ nombre }) => api.post('/almacenes', { nombre }),
+    mutationFn: (payload) => api.post('/almacenes', payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all() }),
   })
 }
@@ -30,7 +33,7 @@ export function useCrearAlmacen() {
 export function useActualizarAlmacen() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, nombre, activo }) => api.put(`/almacenes/${id}`, { nombre, activo }),
+    mutationFn: ({ id, ...payload }) => api.put(`/almacenes/${id}`, payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all() }),
   })
 }

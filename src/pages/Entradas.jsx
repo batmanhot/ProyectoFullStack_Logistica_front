@@ -2,10 +2,11 @@ import { useState, useMemo } from 'react'
 import { Plus, Search, ArrowDownToLine, Eye, XCircle, Package, DollarSign, Calendar, TrendingUp, X, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
-import { Modal, ConfirmDialog, Btn, Field, Input, Select, DataTable } from '../components/ui/index'
+import { Modal, ConfirmDialog, Btn, Field, Input, Select, DataTable, StockHint } from '../components/ui/index'
 import { useMovimientosList, useCrearMovimiento } from '../queries/movimientos.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
+import { useStockPorAlmacen } from '../hooks/useStockPorAlmacen'
 import { useProveedoresList } from '../queries/proveedores.queries'
 import { MOTIVOS_ENTRADA } from '../config/constants'
 import { exportarEntradasXLSX } from '../utils/exportXLSX'
@@ -279,7 +280,13 @@ function ModalEntrada({ open, onClose, onSave, productos, almacenes, proveedores
     })
   }
 
+  const stock = useStockPorAlmacen(open)
   const productosActivos = productos.filter(p => p.estado === 'Activo' || p.activo !== false)
+  const almSel  = almacenes.find(a => a.id === form.almacenId)
+  const prodSel = productos.find(p => p.id === form.productoId)
+  const dispSel = form.productoId
+    ? (form.almacenId ? stock.enAlmacen(form.almacenId, form.productoId) : stock.global(form.productoId))
+    : null
   const totalCosto = (+form.cantidad || 0) * (+form.costoUnitario || 0)
 
   return (
@@ -301,8 +308,14 @@ function ModalEntrada({ open, onClose, onSave, productos, almacenes, proveedores
       <Field label="Producto *" error={err.productoId}>
         <Select value={form.productoId} onChange={e => f('productoId', e.target.value)}>
           <option value="">Seleccionar producto...</option>
-          {productosActivos.map(p => <option key={p.id} value={p.id}>{p.sku} — {p.nombre}</option>)}
+          {productosActivos.map(p => (
+            <option key={p.id} value={p.id}>
+              {p.sku} — {p.nombre}{form.almacenId ? ` · ${stock.enAlmacen(form.almacenId, p.id)} disp.` : ''}
+            </option>
+          ))}
         </Select>
+        <StockHint disponible={dispSel} unidad={prodSel?.unidadMedida}
+          contexto={almSel?.nombre || 'todos los almacenes'}/>
       </Field>
 
       <div className="grid grid-cols-2 gap-3">

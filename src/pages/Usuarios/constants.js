@@ -75,6 +75,7 @@ export const MODULOS_GRUPOS = [
       { id:'prevision',       label:'Previsión',              desc:'Proyección de demanda'             },
       { id:'reportes',        label:'Análisis de Inventario', desc:'ABC, rotación, valorizado'         },
       { id:'kpis',            label:'KPIs Operativos',        desc:'Indicadores clave de operaciones'  },
+      { id:'panorama-almacenes', label:'Torre de Control de Almacenes', desc:'Supervisión multi-locación: KPIs consolidados por almacén' },
       { id:'financiero',      label:'Financiero',             desc:'Dashboard financiero'              },
       { id:'reportes-proyecto', label:'Consumo por Proyecto', desc:'Valorización de despachos por proyecto/CDR/área' },
     ]

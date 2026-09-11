@@ -500,7 +500,7 @@ function ModalDetallePedido({ pedido, clientes, productos, almacenes, modoInicia
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-white/8">
+      <div className="overflow-x-auto rounded-xl border border-white/8 shrink-0">
         <table className="w-full border-collapse text-[12px]">
           <thead><tr>
             {['Producto','Cant.','P. Unit.','Subtotal'].map(h=>(

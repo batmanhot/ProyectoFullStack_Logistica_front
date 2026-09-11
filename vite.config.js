@@ -24,8 +24,11 @@ function htmlSocialMeta(siteUrl) {
     '<meta property="og:site_name" content="StockPro" />',
     `<meta property="og:title" content="${title}" />`,
     `<meta property="og:description" content="${desc}" />`,
-    `<meta property="og:url" content="${base}/" />`,
+    // Sin `og:url`: la app es multi-tenant (`/app/<slug>`) y servida como SPA
+    // estática. Dejar que el crawler use la URL realmente compartida en vez de
+    // canonizar todo a la raíz.
     `<meta property="og:image" content="${image}" />`,
+    `<meta property="og:image:secure_url" content="${image}" />`,
     '<meta property="og:image:type" content="image/png" />',
     '<meta property="og:image:width" content="1024" />',
     '<meta property="og:image:height" content="944" />',
@@ -63,7 +66,12 @@ function htmlSecurityHeaders(apiUrl) {
     // proyecto sobre contraste de colores en modo claro.
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: blob:",
+    // Torre de Control de Almacenes (2026-09-11): mapa con Leaflet — la
+    // librería y su CSS van bundleados (sirven de 'self'), solo los TILES del
+    // mapa (imágenes .png) vienen de OpenStreetMap. Sin API key, gratis; si
+    // el uso crece mucho conviene pasar a un proveedor de pago con cuota
+    // propia (Mapbox/MapTiler) en vez de los tile servers públicos de OSM.
+    "img-src 'self' data: blob: https://*.tile.openstreetmap.org",
     `connect-src 'self' ${apiOrigin}`,
     "base-uri 'self'",
     "form-action 'self'",

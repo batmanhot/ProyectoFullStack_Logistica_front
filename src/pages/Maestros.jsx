@@ -176,13 +176,34 @@ export function TabAlmacenes() {
   const [confirmDel, setConfirmDel] = useState(null)
 
   async function handleSave(data) {
+    const num = (v) => (v === '' || v == null || !Number.isFinite(Number(v)) ? null : Number(v))
+    const txt = (v) => (v && String(v).trim() ? String(v).trim() : null)
+    const payload = {
+      nombre:      data.nombre.trim(),
+      activo:      !!data.activo,
+      direccion:   txt(data.direccion),
+      ciudad:      txt(data.ciudad),
+      region:      txt(data.region),
+      pais:        txt(data.pais),
+      responsable: txt(data.responsable),
+      telefono:    txt(data.telefono),
+      latitud:     num(data.latitud),
+      longitud:    num(data.longitud),
+    }
     const res = editando
-      ? await actualizarAlmacen.mutateAsync({ id: editando.id, nombre: data.nombre, activo: data.activo })
-      : await crearAlmacen.mutateAsync({ nombre: data.nombre })
+      ? await actualizarAlmacen.mutateAsync({ id: editando.id, ...payload })
+      : await crearAlmacen.mutateAsync(payload)
     if (res.error) { toast(res.error, 'error'); return }
     setModal(false)
     toast(editando ? 'Almacén actualizado' : 'Almacén creado', 'success')
   }
+
+  // El botón Guardar del modal no se deshabilitaba mientras la mutación
+  // estaba en curso — con un backend lento (o un valor inválido que el
+  // usuario reintenta sin darse cuenta) era fácil clickear varias veces y
+  // terminar con el mismo toast de error apilado N veces. `saving` se pasa
+  // al modal para bloquear el botón y mostrar feedback ("Guardando…").
+  const saving = crearAlmacen.isPending || actualizarAlmacen.isPending
 
   async function handleDel(id) {
     const res = await eliminarAlmacen.mutateAsync(id)
@@ -244,6 +265,14 @@ export function TabAlmacenes() {
                 </div>
 
                 <div className="font-semibold text-[#e8edf2] text-[15px] mb-0.5">{alm.nombre}</div>
+                {(alm.ciudad || alm.direccion) && (
+                  <div className="text-[12px] text-[#5f6f80] leading-snug">
+                    {[alm.ciudad, alm.region].filter(Boolean).join(', ') || alm.direccion}
+                  </div>
+                )}
+                {alm.responsable && (
+                  <div className="text-[11px] text-[#5f6f80] mt-0.5">Responsable: {alm.responsable}</div>
+                )}
 
                 <div className="flex gap-1 mt-3 pt-3 border-t border-white/6 justify-end">
                   <Btn variant="ghost" size="icon" onClick={() => { setEditando(alm); setModal(true) }}>
@@ -260,7 +289,7 @@ export function TabAlmacenes() {
         )}
       </div>
 
-      <ModalAlmacen open={modal} onClose={() => setModal(false)} editando={editando} onSave={handleSave}/>
+      <ModalAlmacen open={modal} onClose={() => setModal(false)} editando={editando} onSave={handleSave} saving={saving}/>
       <ConfirmDialog open={!!confirmDel} onClose={() => setConfirmDel(null)}
         onConfirm={() => handleDel(confirmDel)} danger
         title="Eliminar almacén"
@@ -269,24 +298,80 @@ export function TabAlmacenes() {
   )
 }
 
-function ModalAlmacen({ open, onClose, editando, onSave }) {
-  const init = { nombre: '', activo: true }
+function ModalAlmacen({ open, onClose, editando, onSave, saving }) {
+  const init = {
+    nombre: '', activo: true,
+    direccion: '', ciudad: '', region: '', pais: '',
+    latitud: '', longitud: '', responsable: '', telefono: '',
+  }
   const [form, setForm] = useState(init)
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
-  useEffect(() => { setForm(editando ? { ...init, ...editando } : init) }, [editando, open])
+  // Normaliza a '' los null que llegan de la API (inputs controlados).
+  useEffect(() => {
+    setForm(editando
+      ? Object.fromEntries(Object.keys(init).map(k => [k, editando[k] ?? (k === 'activo' ? true : '')]))
+      : init)
+  }, [editando, open])
+
+  // Feedback inmediato del rango válido — antes solo se enteraban al tocar
+  // Guardar y recibir el 400 del backend (`@Min/@Max` en UpdateAlmacenDto),
+  // y como el botón no se bloqueaba durante el guardado, reintentar el
+  // mismo valor inválido apilaba el mismo toast de error una y otra vez.
+  const latInvalida = form.latitud !== '' && (Number(form.latitud) < -90 || Number(form.latitud) > 90)
+  const lonInvalida = form.longitud !== '' && (Number(form.longitud) < -180 || Number(form.longitud) > 180)
 
   return (
-    <Modal open={open} onClose={onClose} title={editando ? 'Editar Almacén' : 'Nuevo Almacén'} size="sm"
+    <Modal open={open} onClose={onClose} title={editando ? 'Editar Almacén' : 'Nuevo Almacén'} size="md"
       footer={<>
         <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
-        <Btn variant="primary" onClick={() => form.nombre.trim() && onSave(form)} disabled={!form.nombre.trim()}>
-          Guardar
+        <Btn variant="primary" onClick={() => form.nombre.trim() && onSave(form)}
+          disabled={!form.nombre.trim() || latInvalida || lonInvalida || saving}>
+          {saving ? 'Guardando…' : 'Guardar'}
         </Btn>
       </>}>
       <Field label="Nombre *">
         <input className={SI} value={form.nombre} onChange={e => f('nombre', e.target.value)} placeholder="Almacén Principal"/>
       </Field>
-      <label className="flex items-center gap-2 cursor-pointer text-[13px] text-[#9ba8b6]">
+
+      <div className="mt-3 mb-1 text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">
+        Ubicación
+      </div>
+      <p className="text-[11.5px] text-[#5f6f80] mb-2 leading-snug">
+        Alimenta la <span className="text-[#9ba8b6]">Torre de Control de Almacenes</span> — la vista de supervisión multi-locación.
+      </p>
+
+      <Field label="Dirección">
+        <input className={SI} value={form.direccion} onChange={e => f('direccion', e.target.value)} placeholder="Av. Industrial 1234, Parque Industrial"/>
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Ciudad">
+          <input className={SI} value={form.ciudad} onChange={e => f('ciudad', e.target.value)} placeholder="Lima"/>
+        </Field>
+        <Field label="Región / Departamento">
+          <input className={SI} value={form.region} onChange={e => f('region', e.target.value)} placeholder="Lima"/>
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="País">
+          <input className={SI} value={form.pais} onChange={e => f('pais', e.target.value)} placeholder="Perú"/>
+        </Field>
+        <Field label="Teléfono de la locación">
+          <input className={SI} value={form.telefono} onChange={e => f('telefono', e.target.value)} placeholder="(01) 555-1234"/>
+        </Field>
+      </div>
+      <Field label="Responsable de la locación">
+        <input className={SI} value={form.responsable} onChange={e => f('responsable', e.target.value)} placeholder="Nombre del encargado en sitio"/>
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Latitud (opcional)" error={latInvalida ? 'Debe estar entre -90 y 90.' : undefined}>
+          <input className={SI} type="number" step="any" value={form.latitud} onChange={e => f('latitud', e.target.value)} placeholder="-12.0464"/>
+        </Field>
+        <Field label="Longitud (opcional)" error={lonInvalida ? 'Debe estar entre -180 y 180.' : undefined}>
+          <input className={SI} type="number" step="any" value={form.longitud} onChange={e => f('longitud', e.target.value)} placeholder="-77.0428"/>
+        </Field>
+      </div>
+
+      <label className="flex items-center gap-2 cursor-pointer text-[13px] text-[#9ba8b6] mt-3">
         <input type="checkbox" checked={form.activo} onChange={e => f('activo', e.target.checked)} className="accent-[#00c896]"/>
         Almacén activo
       </label>

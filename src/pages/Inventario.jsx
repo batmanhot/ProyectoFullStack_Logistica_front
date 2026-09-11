@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Search, Edit2, Trash2, Eye, Package, AlertTriangle, DollarSign, TrendingDown, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { usePlanLimits } from '../hooks/usePlanLimits'
@@ -7,7 +8,7 @@ import { Modal, ConfirmDialog, StockBadge, Btn, Field, Input, Select, DataTable 
 import { useProductosList, useCrearProducto, useActualizarProducto, useEliminarProducto } from '../queries/productos.queries'
 import { useInventarioList } from '../queries/inventario.queries'
 import { useCategoriasList, useCrearCategoria } from '../queries/categorias.queries'
-import { useAlmacenesList, useCrearAlmacen } from '../queries/almacenes.queries'
+import { useAlmacenesList } from '../queries/almacenes.queries'
 import { useProveedoresList, useCrearProveedor } from '../queries/proveedores.queries'
 import { exportarProductosXLSX } from '../utils/exportXLSX'
 import { exportarProductosPDF } from '../utils/exportPDF'
@@ -34,30 +35,44 @@ export default function Inventario() {
   const actualizarProducto = useActualizarProducto()
   const eliminarProducto  = useEliminarProducto()
   const crearCategoria    = useCrearCategoria()
-  const crearAlmacen      = useCrearAlmacen()
   const crearProveedor    = useCrearProveedor()
 
   // ── Estado local ──────────────────────────────────────
-  const [busqueda,   setBusqueda]   = useState('')
+  // Enlaces desde afuera (p.ej. Torre de Control → "2 críticos" de un
+  // almacén): ?q=<sku o nombre>, ?almacen=<id>, ?stock=critico — se leen
+  // UNA vez al montar (no con useEffect: si el usuario cambia el filtro acá
+  // adentro, no queremos que un `search` viejo lo pise en un re-render).
+  const [searchParams] = useSearchParams()
+  const [busqueda,   setBusqueda]   = useState(() => searchParams.get('q') || '')
   const [filtCat,    setFiltCat]    = useState('')
-  const [filtAlm,    setFiltAlm]    = useState('')
-  const [filtStock,  setFiltStock]  = useState('')
+  const [filtAlm,    setFiltAlm]    = useState(() => searchParams.get('almacen') || '')
+  const [filtStock,  setFiltStock]  = useState(() => searchParams.get('stock') || '')
   const [modalForm,  setModalForm]  = useState(false)
   const [modalDet,   setModalDet]   = useState(null)
   const [editando,   setEditando]   = useState(null)
   const [confirmDel, setConfirmDel] = useState(null)
   const [quickCat,   setQuickCat]   = useState({ open: false, cb: null })
-  const [quickAlm,   setQuickAlm]   = useState({ open: false, cb: null })
   const [quickProv,  setQuickProv]  = useState({ open: false, cb: null })
 
   // ── Enriquecer productos con stockActual ──────────────
-  const { productos, productosPorAlmacen } = useMemo(() => {
+  // `cantidadPorAlmacen` guarda la cantidad POR (almacén, producto) — no
+  // solo si existe una fila (eso ya lo daba `productosPorAlmacen`). La
+  // necesita el filtro "Crítico/Agotado" combinado con un almacén: con solo
+  // el stock GLOBAL (`stockActual`, sumado de todos los almacenes), un
+  // producto sano en total podía estar agotado en un almacén puntual y no
+  // aparecer al filtrar por ese almacén — justo lo que pisa el enlace desde
+  // "Salud de inventario" de Torre de Control (?almacen=X&stock=critico).
+  const { productos, productosPorAlmacen, cantidadPorAlmacen } = useMemo(() => {
     const stockMap = {}
-    const porAlmacen = {}   // almacenId → Set<productoId>
+    const porAlmacen = {}      // almacenId → Set<productoId>
+    const cantPorAlmacen = {}  // almacenId → { productoId: cantidad }
     inventarioRaw.forEach(item => {
       stockMap[item.productoId] = (stockMap[item.productoId] || 0) + Number(item.cantidad || 0)
       if (!porAlmacen[item.almacenId]) porAlmacen[item.almacenId] = new Set()
       porAlmacen[item.almacenId].add(item.productoId)
+      if (!cantPorAlmacen[item.almacenId]) cantPorAlmacen[item.almacenId] = {}
+      cantPorAlmacen[item.almacenId][item.productoId] =
+        (cantPorAlmacen[item.almacenId][item.productoId] || 0) + Number(item.cantidad || 0)
     })
     const enriquecidos = productosRaw.map(p => ({
       ...p,
@@ -65,7 +80,7 @@ export default function Inventario() {
       stockActual: stockMap[p.id] || 0,
       stockMinimo: Number(p.stockMinimo || 0),
     }))
-    return { productos: enriquecidos, productosPorAlmacen: porAlmacen }
+    return { productos: enriquecidos, productosPorAlmacen: porAlmacen, cantidadPorAlmacen: cantPorAlmacen }
   }, [productosRaw, inventarioRaw])
 
   // ── Stock reservado desde inventario (simplificado = 0) ─
@@ -80,9 +95,15 @@ export default function Inventario() {
     }
     if (filtCat) d = d.filter(p => p.categoriaId === filtCat)
     if (filtAlm) d = d.filter(p => productosPorAlmacen[filtAlm]?.has(p.id))
-    if (filtStock === 'critico') d = d.filter(p => { const e = estadoStock(p.stockActual, p.stockMinimo); return e.estado === 'critico' || e.estado === 'agotado' })
+    if (filtStock === 'critico') d = d.filter(p => {
+      // Con almacén elegido, el estado se evalúa CON ESE STOCK (no el
+      // global) — ver comentario en el useMemo de arriba.
+      const cantidad = filtAlm ? (cantidadPorAlmacen[filtAlm]?.[p.id] ?? 0) : p.stockActual
+      const e = estadoStock(cantidad, p.stockMinimo)
+      return e.estado === 'critico' || e.estado === 'agotado'
+    })
     return d
-  }, [productos, busqueda, filtCat, filtAlm, filtStock, productosPorAlmacen])
+  }, [productos, busqueda, filtCat, filtAlm, filtStock, productosPorAlmacen, cantidadPorAlmacen])
 
   const catMap = useMemo(() => new Map(categorias.map(c => [c.id, c.nombre])), [categorias])
   const almMap = useMemo(() => new Map(almacenes.map(a => [a.id, a.nombre])), [almacenes])
@@ -102,14 +123,6 @@ export default function Inventario() {
     if (res.data?.id && quickCat.cb) quickCat.cb(res.data.id)
     setQuickCat({ open: false, cb: null })
     toast('Categoría creada', 'success')
-  }
-  async function handleQuickAlm(nombre) {
-    if (!planLimits.almacenes.permitido) { toast(planLimits.almacenes.mensaje || 'Límite de almacenes alcanzado', 'error'); return }
-    const res = await crearAlmacen.mutateAsync({ nombre: nombre.trim() })
-    if (res.error) { toast(res.error, 'error'); return }
-    if (res.data?.id && quickAlm.cb) quickAlm.cb(res.data.id)
-    setQuickAlm({ open: false, cb: null })
-    toast('Almacén creado', 'success')
   }
   async function handleQuickProv(data) {
     if (!planLimits.proveedores.permitido) { toast(planLimits.proveedores.mensaje || 'Límite de proveedores alcanzado', 'error'); return }
@@ -255,18 +268,33 @@ export default function Inventario() {
               </>
             ) },
             { key:'categoria', header:'Categoría', render: p => <span className="text-[#9ba8b6]">{catMap.get(p.categoriaId) || '—'}</span> },
-            { key:'stock', header:'Stock', align:'right', render: p => <span className="font-mono text-[12px]">{p.stockActual} <span className="text-[#5f6f80] text-[11px]">{p.unidadMedida}</span></span> },
+            // Con un almacén elegido, Stock/Disponible/Valor/Estado muestran
+            // SU cantidad ahí, no la global — si no, con el filtro puesto
+            // seguían mostrando el total de todos los almacenes, lo que
+            // contradecía al propio filtro "Crítico/Agotado" (ver comentario
+            // de `cantidadPorAlmacen` más arriba).
+            { key:'stock', header:'Stock', align:'right', render: p => {
+              const stock = filtAlm ? (cantidadPorAlmacen[filtAlm]?.[p.id] ?? 0) : p.stockActual
+              return <span className="font-mono text-[12px]">{stock} <span className="text-[#5f6f80] text-[11px]">{p.unidadMedida}</span></span>
+            } },
             { key:'disponible', header:'Disponible', align:'right', render: p => {
+              const stock      = filtAlm ? (cantidadPorAlmacen[filtAlm]?.[p.id] ?? 0) : p.stockActual
               const reservado  = stockReservado[p.id] || 0
-              const disponible = Math.max(0, p.stockActual - reservado)
+              const disponible = Math.max(0, stock - reservado)
               const dispColor  = disponible <= 0 ? 'text-red-400 font-bold'
                                : disponible <= p.stockMinimo ? 'text-amber-400 font-semibold'
                                : 'text-[#00c896] font-semibold'
               return <span className={`font-mono text-[12px] ${dispColor}`}>{disponible}</span>
             } },
             { key:'costoUnit', header:'Costo Unit.', align:'right', render: p => <span className="font-mono text-[12px]">{formatCurrency(Number(p.precioCompra || 0), 'S/')}</span> },
-            { key:'valorStock', header:'Valor Stock', align:'right', render: p => <span className="font-mono text-[12px] text-[#00c896] font-semibold">{formatCurrency(Number(p.precioCompra || 0) * p.stockActual, 'S/')}</span> },
-            { key:'estado', header:'Estado', render: p => <StockBadge stockActual={p.stockActual} stockMinimo={p.stockMinimo}/> },
+            { key:'valorStock', header:'Valor Stock', align:'right', render: p => {
+              const stock = filtAlm ? (cantidadPorAlmacen[filtAlm]?.[p.id] ?? 0) : p.stockActual
+              return <span className="font-mono text-[12px] text-[#00c896] font-semibold">{formatCurrency(Number(p.precioCompra || 0) * stock, 'S/')}</span>
+            } },
+            { key:'estado', header:'Estado', render: p => {
+              const stock = filtAlm ? (cantidadPorAlmacen[filtAlm]?.[p.id] ?? 0) : p.stockActual
+              return <StockBadge stockActual={stock} stockMinimo={p.stockMinimo}/>
+            } },
             { key:'acciones', header:'Acciones', stopPropagation: true, render: p => (
               <div className="flex gap-1">
                 <Btn variant="ghost" size="icon" title="Ver detalle"  onClick={() => setModalDet(p)}><Eye   size={13}/></Btn>
@@ -307,17 +335,14 @@ export default function Inventario() {
         onClose={() => setModalForm(false)}
         editando={editando}
         categorias={categorias}
-        almacenes={almacenes}
         proveedores={proveedores}
         onSaved={handleSaved}
         saving={crearProducto.isPending || actualizarProducto.isPending}
         onAddCategoria={cb => setQuickCat({ open: true, cb })}
-        onAddAlmacen={cb => setQuickAlm({ open: true, cb })}
         onAddProveedor={cb => setQuickProv({ open: true, cb })}
       />
 
       <ModalQuickCategoria open={quickCat.open} onClose={() => setQuickCat({ open: false, cb: null })} onSave={handleQuickCat}/>
-      <ModalQuickAlmacen   open={quickAlm.open} onClose={() => setQuickAlm({ open: false, cb: null })} onSave={handleQuickAlm}/>
       <ModalQuickProveedor open={quickProv.open} onClose={() => setQuickProv({ open: false, cb: null })} onSave={handleQuickProv}/>
 
       <ModalDetalle
@@ -369,7 +394,7 @@ function normalizarProducto(p) {
 }
 
 // ── Modal Crear / Editar Producto ─────────────────────────────
-export function ModalProducto({ open, onClose, editando, categorias, almacenes, proveedores, onSaved, saving, onAddCategoria, onAddAlmacen, onAddProveedor }) {
+export function ModalProducto({ open, onClose, editando, categorias, proveedores, onSaved, saving, onAddCategoria, onAddProveedor }) {
   const planLimits = usePlanLimits()
   const [form, setForm] = useState(INIT_PRODUCTO)
   const [err,  setErr]  = useState({})
@@ -427,7 +452,7 @@ export function ModalProducto({ open, onClose, editando, categorias, almacenes, 
         <Input value={form.barcode || ''} onChange={e => f('barcode', e.target.value)} placeholder="EAN13, UPC..."/>
       </Field>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
         <Field label="Categoría *" error={err.categoriaId}>
           <div className="flex gap-1.5">
             <Select className="flex-1" value={form.categoriaId || ''} onChange={e => f('categoriaId', e.target.value)}>
@@ -452,20 +477,6 @@ export function ModalProducto({ open, onClose, editando, categorias, almacenes, 
               disabled={!planLimits.proveedores.permitido}
               className="shrink-0 w-8.5 flex items-center justify-center bg-[#00c896]/10 hover:bg-[#00c896]/20 border border-[#00c896]/30 rounded-lg text-[#00c896] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               onClick={() => onAddProveedor?.(id => f('proveedorId', id))}>
-              <Plus size={13}/>
-            </button>
-          </div>
-        </Field>
-        <Field label="Almacén inicial">
-          <div className="flex gap-1.5">
-            <Select className="flex-1" disabled value="">
-              <option value="">Se asigna en 1ª Entrada</option>
-            </Select>
-            <button type="button"
-              title={!planLimits.almacenes.permitido ? planLimits.almacenes.mensaje : 'Nuevo almacén'}
-              disabled={!planLimits.almacenes.permitido}
-              className="shrink-0 w-8.5 flex items-center justify-center bg-[#00c896]/10 hover:bg-[#00c896]/20 border border-[#00c896]/30 rounded-lg text-[#00c896] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              onClick={() => onAddAlmacen?.(() => {})}>
               <Plus size={13}/>
             </button>
           </div>
@@ -511,17 +522,6 @@ function ModalQuickCategoria({ open, onClose, onSave }) {
     <Modal open={open} onClose={onClose} title="Nueva Categoría" size="sm" zIndex={60}
       footer={<><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn variant="primary" onClick={() => nombre.trim() && onSave(nombre)} disabled={!nombre.trim()}>Crear</Btn></>}>
       <Field label="Nombre *"><Input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Electrónica, Herramientas..." autoFocus/></Field>
-    </Modal>
-  )
-}
-
-function ModalQuickAlmacen({ open, onClose, onSave }) {
-  const [nombre, setNombre] = useState('')
-  useEffect(() => { if (open) setNombre('') }, [open])
-  return (
-    <Modal open={open} onClose={onClose} title="Nuevo Almacén" size="sm" zIndex={60}
-      footer={<><Btn variant="secondary" onClick={onClose}>Cancelar</Btn><Btn variant="primary" onClick={() => nombre.trim() && onSave(nombre)} disabled={!nombre.trim()}>Crear</Btn></>}>
-      <Field label="Nombre *"><Input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Almacén Principal..." autoFocus/></Field>
     </Modal>
   )
 }
@@ -592,7 +592,7 @@ function ModalDetalle({ open, onClose, producto, catNombre, almNombre, inventari
       {stockPorAlmacen.length > 0 && (
         <>
           <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Stock por almacén</div>
-          <div className="overflow-x-auto rounded-xl border border-white/8">
+          <div className="overflow-x-auto rounded-xl border border-white/8 shrink-0">
             <table className="w-full border-collapse text-[12px]">
               <thead><tr>
                 <th className="bg-[#1a2230] px-3 py-2 text-left text-[10px] font-semibold text-[#5f6f80] uppercase border-b border-white/8">Almacén</th>

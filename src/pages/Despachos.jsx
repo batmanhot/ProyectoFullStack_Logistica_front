@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Search, Eye, Truck, Package, CheckCircle, X,
          ClipboardList, ArrowRight, FileText, MapPin, Printer, Download, CreditCard } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
 import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, Textarea, Alert, DataTable, ModalVistaPreviaDocumento } from '../components/ui/index'
-import DireccionInput from '../components/ui/DireccionInput'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
 import { armarHtmlGuia, armarHtmlPickingList } from '../utils/pdfTemplates'
 import {
@@ -76,9 +76,13 @@ export default function Despachos() {
   const [pickingModal,  setPickingModal]  = useState(null)
   const [cxcModal,      setCxcModal]      = useState(null)
   const [previewDoc,    setPreviewDoc]    = useState(null) // { titulo, html, numeroDocumento } | null
+  // Enlace desde Torre de Control ("N pendientes de aprobación" de un
+  // almacén → acá filtrado a ese almacén en estado PEDIDO). Se lee una sola
+  // vez al montar, igual que en Inventario.jsx.
+  const [searchParams]  = useSearchParams()
   const [busqueda,      setBusqueda]      = useState('')
-  const [filtEst,       setFiltEst]       = useState('')
-  const [filtAlm,       setFiltAlm]       = useState('')
+  const [filtEst,       setFiltEst]       = useState(() => searchParams.get('estado') || '')
+  const [filtAlm,       setFiltAlm]       = useState(() => searchParams.get('almacen') || '')
   const [filtDesde,     setFiltDesde]     = useState('')
   const [filtHasta,     setFiltHasta]     = useState('')
   const [sortConfig,    setSortConfig]    = useState({ key:'fecha', direction:'desc' })
@@ -384,6 +388,7 @@ export default function Despachos() {
       <ModalNuevoPedido
         open={modal} onClose={() => setModal(false)} onSave={handleNuevo}
         productos={productos} clientes={clientes} almacenes={almacenes} transportistas={transportistas}
+        inventario={inventario}
         simboloMoneda={simboloMoneda} saving={crearDespacho.isPending}/>
 
       {detalle && (
@@ -500,18 +505,50 @@ export default function Despachos() {
 }
 
 // ── Modal Nuevo Pedido ────────────────────────────────────
-export function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, almacenes, transportistas=[], simboloMoneda, saving }) {
+export function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, almacenes, transportistas=[], inventario=[], simboloMoneda, saving }) {
   const initForm = { clienteId:'', almacenId: almacenes[0]?.id || '', fecha: fechaHoyISO(), fechaEntrega:'', transportistaId:'', direccionEntrega:'', observaciones:'', formaPago:'CREDITO' }
   const [form, setForm]   = useState(initForm)
   const [items, setItems] = useState([])
   const [ni, setNi]       = useState({ productoId:'', cantidad:'', precioVenta:'' })
+  const [errItem, setErrItem] = useState('')
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
+  // Stock DISPONIBLE por (almacén, producto): mismo criterio que el backend
+  // (cantidad − reservado del bucket sin ubicar). El despacho se valida contra
+  // el almacén elegido, NO contra el stock global del producto.
+  const stockPorAlmacen = useMemo(() => {
+    const m = {}
+    for (const it of inventario) {
+      const key = `${it.almacenId}:${it.productoId}`
+      const cant = Number(it.cantidad || 0)
+      const reserv = it.ubicacionId == null ? Number(it.cantidadReservada || 0) : 0
+      m[key] = (m[key] || 0) + (cant - reserv)
+    }
+    return m
+  }, [inventario])
+  const stockEnAlmacen = (productoId) => stockPorAlmacen[`${form.almacenId}:${productoId}`] || 0
+
+  // Solo resetea (y borra los items ya agregados) cuando el modal pasa de
+  // cerrado a abierto — nunca mientras sigue abierto. Bug real corregido
+  // 2026-09-11: antes dependía también de `almacenes`, así que cualquier
+  // revalidación en segundo plano de esa lista (React Query refetch por foco
+  // de ventana, etc.) mientras el usuario armaba el pedido volvía a disparar
+  // este efecto y `setItems([])` borraba en silencio lo ya agregado.
   useMemo(() => {
     if (open) {
       setForm({ ...initForm, almacenId: almacenes[0]?.id || '' })
       setItems([])
       setNi({ productoId:'', cantidad:'', precioVenta:'' })
+      setErrItem('')
+    }
+  }, [open]) // eslint-disable-line
+
+  // Si el modal ya estaba abierto cuando `almacenes` todavía no había
+  // cargado, completa el almacén por defecto en cuanto llegue — sin tocar
+  // los items (el guard `!form.almacenId` lo hace un no-op una vez elegido).
+  useEffect(() => {
+    if (open && !form.almacenId && almacenes[0]?.id) {
+      setForm(f => ({ ...f, almacenId: almacenes[0].id }))
     }
   }, [open, almacenes]) // eslint-disable-line
 
@@ -523,6 +560,12 @@ export function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, a
     if (!ni.productoId || !ni.cantidad || !ni.precioVenta) return
     if (items.find(i => i.productoId === ni.productoId)) return
     const prod = productos.find(p => p.id === ni.productoId)
+    const disp = stockEnAlmacen(ni.productoId)
+    if (+ni.cantidad > disp) {
+      setErrItem(`Solo hay ${disp} ${prod?.unidadMedida || 'und'} de "${prod?.nombre || 'este producto'}" en ${almacenes.find(a => a.id === form.almacenId)?.nombre || 'el almacén elegido'}.`)
+      return
+    }
+    setErrItem('')
     setItems(prev => [...prev, {
       productoId:   ni.productoId,
       nombre:       prod?.nombre || '',
@@ -551,7 +594,15 @@ export function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, a
     })
   }
 
-  const productosConStock = productos.filter(p => p.activo !== false && p.stockActual > 0 && !items.find(i => i.productoId === p.id))
+  // Se listan TODOS los productos activos que aún no están en el pedido, con
+  // el stock DEL ALMACÉN elegido a la vista; los que tienen stock quedan
+  // arriba. No se ocultan los que están en 0: así el selector nunca se ve
+  // "vacío" y el usuario ve de una que ese almacén no tiene ese producto
+  // (el botón Agregar sí bloquea pedir más de lo disponible).
+  const productosParaAgregar = productos
+    .filter(p => p.activo !== false && !items.find(i => i.productoId === p.id))
+    .sort((a, b) => stockEnAlmacen(b.id) - stockEnAlmacen(a.id) || String(a.nombre).localeCompare(b.nombre))
+  const hayStockEnAlmacen = productosParaAgregar.some(p => stockEnAlmacen(p.id) > 0)
 
   return (
     <Modal open={open} onClose={onClose} title="Nuevo Pedido de Despacho" size="xl"
@@ -569,7 +620,11 @@ export function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, a
           </Select>
         </Field>
         <Field label="Almacén de despacho">
-          <Select value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
+          <Select value={form.almacenId} onChange={e => {
+            f('almacenId', e.target.value)
+            setNi({ productoId:'', cantidad:'', precioVenta:'' })
+            setErrItem('')
+          }}>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
           </Select>
         </Field>
@@ -583,7 +638,11 @@ export function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, a
         </Field>
       </div>
 
-      <DireccionInput label="Dirección de entrega" value={form.direccionEntrega} onChange={v => f('direccionEntrega', v)} placeholder="Av. Principal 123, Distrito, Lima" required/>
+      <Field label="Dirección de entrega *" hint="Texto libre — calle y número, o Mz / Lote / Canchón y referencias.">
+        <Textarea className="min-h-14" value={form.direccionEntrega}
+          onChange={e => f('direccionEntrega', e.target.value)}
+          placeholder="Ej: Mz. B Lt. 12, A.H. Los Jardines — Ref. frente al mercado"/>
+      </Field>
       <Field label="Transportista / Carrier">
         <Select value={form.transportistaId} onChange={e => f('transportistaId', e.target.value)}>
           <option value="">Sin asignar (se puede asignar al armar la Ruta)</option>
@@ -597,20 +656,37 @@ export function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, a
           <Field label="Producto">
             <Select value={ni.productoId} onChange={e => {
               const p = productos.find(x => x.id === e.target.value)
+              setErrItem('')
               setNi(prev => ({ ...prev, productoId: e.target.value, precioVenta: p?.precioVenta || '' }))
             }}>
               <option value="">Seleccionar...</option>
-              {productosConStock.map(p => <option key={p.id} value={p.id}>{p.sku} — {p.nombre} (Stock: {p.stockActual} {p.unidadMedida})</option>)}
+              {productosParaAgregar.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.sku} — {p.nombre} (Stock: {stockEnAlmacen(p.id)} {p.unidadMedida})
+                </option>
+              ))}
             </Select>
           </Field>
         </div>
-        <div className="flex-1 min-w-[90px]"><Field label="Cantidad"><Input type="number" value={ni.cantidad} onChange={e => setNi(p => ({ ...p, cantidad: e.target.value }))} min="0.01" step="0.01"/></Field></div>
+        <div className="flex-1 min-w-[90px]"><Field label="Cantidad"><Input type="number" value={ni.cantidad} onChange={e => setNi(p => ({ ...p, cantidad: e.target.value }))} min="0.01" step="1"/></Field></div>
         <div className="flex-1 min-w-[100px]"><Field label="Precio Venta"><Input type="number" value={ni.precioVenta} onChange={e => setNi(p => ({ ...p, precioVenta: e.target.value }))} min="0" step="0.01"/></Field></div>
         <Btn variant="secondary" onClick={addItem}>+ Agregar</Btn>
       </div>
 
+      {errItem && (
+        <div className="text-[12px] text-red-400 bg-red-500/10 border border-red-500/25 rounded-lg px-3 py-2">
+          {errItem}
+        </div>
+      )}
+      {form.almacenId && !hayStockEnAlmacen && productosParaAgregar.length > 0 && (
+        <div className="text-[12px] text-amber-300 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2">
+          {almacenes.find(a => a.id === form.almacenId)?.nombre || 'Este almacén'} no tiene stock de ningún producto.
+          Elige otro almacén de despacho, o transfiere / recibe stock en este almacén primero.
+        </div>
+      )}
+
       {items.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-white/8">
+        <div className="overflow-x-auto rounded-xl border border-white/8 shrink-0">
           <table className="w-full border-collapse text-[13px]">
             <thead><tr>{['Producto','Cantidad','P. Venta','Subtotal',''].map(h => <th key={h} className="bg-[#1a2230] px-3 py-2 text-left text-[11px] font-semibold text-[#5f6f80] uppercase border-b border-white/8">{h}</th>)}</tr></thead>
             <tbody>{items.map((it, i) => (
@@ -709,7 +785,7 @@ function ModalDetalle({ des, productos, clientes, almacenes, simboloMoneda, onCl
       )}
 
       {des.items?.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-white/8 mb-4">
+        <div className="overflow-x-auto rounded-xl border border-white/8 mb-4 shrink-0">
           <table className="w-full border-collapse text-[13px]">
             <thead><tr>{['Producto','Cantidad','P. Venta','Subtotal'].map(h => <th key={h} className="bg-[#1a2230] px-3.5 py-2 text-left text-[11px] font-semibold text-[#5f6f80] uppercase border-b border-white/8">{h}</th>)}</tr></thead>
             <tbody>{des.items.map((it, i) => {
@@ -883,7 +959,7 @@ export function ModalPicking({ despacho, onClose, onListo }) {
       {isLoading && <div className="text-center text-[#5f6f80] py-6 text-[12px]">Cargando lista de picking...</div>}
 
       {lista && (
-        <div className="overflow-x-auto rounded-xl border border-white/8">
+        <div className="overflow-x-auto rounded-xl border border-white/8 shrink-0">
           <table className="w-full border-collapse text-[13px]">
             <thead><tr>
               {['Producto','Ubicación sugerida','Cant. Requerida','Cant. Pickeada','Estado',''].map(h => (
@@ -905,7 +981,7 @@ export function ModalPicking({ despacho, onClose, onListo }) {
                   </td>
                   <td className="px-3 py-2 font-mono text-[12px]">{Number(linea.cantidadRequerida)} {linea.producto?.unidadMedida}</td>
                   <td className="px-3 py-2">
-                    <input type="number" min="0" max={Number(linea.cantidadRequerida)} step="0.01"
+                    <input type="number" min="0" max={Number(linea.cantidadRequerida)} step="1"
                       disabled={lineaCompleta}
                       aria-label={`Cantidad pickeada de ${linea.producto?.nombre || 'producto'}`}
                       className="w-24 px-2 py-1 bg-[#1e2835] border border-white/8 rounded-lg text-[12px] text-[#e8edf2] outline-none focus:border-[#00c896] disabled:opacity-50 font-mono"

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Plus, ClipboardList, CheckCircle, SlidersHorizontal, Download, FileText } from 'lucide-react'
+import { Plus, ClipboardList, CheckCircle, SlidersHorizontal, Download, FileText, Trash2 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate } from '../utils/helpers'
-import { Modal, EmptyState, Badge, Btn, Field, Alert, Select, Textarea, DataTable } from '../components/ui/index'
+import { Modal, ConfirmDialog, EmptyState, Badge, Btn, Field, Alert, Select, Textarea, DataTable } from '../components/ui/index'
 import { useCategoriasList } from '../queries/categorias.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
 import {
@@ -11,6 +11,7 @@ import {
   useCrearInventarioFisico,
   useActualizarLineaInventario,
   useCerrarInventarioFisico,
+  useEliminarInventarioFisico,
 } from '../queries/inventario-fisico.queries'
 import { exportarInventarioFisicoXLSX } from '../utils/exportXLSX'
 import { exportarInventarioFisicoPDF } from '../utils/exportPDF'
@@ -22,10 +23,12 @@ export default function InventarioFisico() {
   const { data: inventarios = [], isLoading } = useInventarioFisicoList()
   const { data: categorias  = [] }            = useCategoriasList()
   const { data: almacenes   = [] }            = useAlmacenesList()
-  const crearInventario = useCrearInventarioFisico()
+  const crearInventario   = useCrearInventarioFisico()
+  const eliminarInventario = useEliminarInventarioFisico()
 
-  const [activeId, setActiveId] = useState(null)
-  const [modal,    setModal]    = useState(false)
+  const [activeId,   setActiveId]   = useState(null)
+  const [modal,      setModal]      = useState(false)
+  const [confirmDel, setConfirmDel] = useState(null)
 
   async function handleCrear(filtros) {
     const res = await crearInventario.mutateAsync(filtros)
@@ -33,6 +36,13 @@ export default function InventarioFisico() {
     setModal(false)
     setActiveId(res.data?.id)
     toast(`Inventario ${res.data?.numero} iniciado con ${res.data?.lineas?.length || 0} productos`, 'success')
+  }
+
+  async function handleEliminar(id) {
+    const res = await eliminarInventario.mutateAsync(id)
+    setConfirmDel(null)
+    if (res?.error) { toast(res.error, 'error'); return }
+    toast('Inventario físico eliminado', 'success')
   }
 
   const almNombre = id => almacenes.find(a => a.id === id)?.nombre || '—'
@@ -74,7 +84,13 @@ export default function InventarioFisico() {
                           {inv.estado === 'CERRADO' ? 'Cerrado' : 'En curso'}
                         </Badge>
                         {inv.estado === 'EN_CURSO' && (
-                          <Btn variant="primary" size="sm" onClick={() => setActiveId(inv.id)}>Continuar</Btn>
+                          <>
+                            <Btn variant="ghost" size="icon" title="Eliminar inventario"
+                              className="text-red-400 hover:text-red-300" onClick={() => setConfirmDel(inv)}>
+                              <Trash2 size={13}/>
+                            </Btn>
+                            <Btn variant="primary" size="sm" onClick={() => setActiveId(inv.id)}>Continuar</Btn>
+                          </>
                         )}
                         {inv.estado === 'CERRADO' && (
                           <Btn variant="ghost" size="sm" onClick={() => setActiveId(inv.id)}>Ver</Btn>
@@ -129,6 +145,11 @@ export default function InventarioFisico() {
       <ModalNuevoInventario
         open={modal} onClose={() => setModal(false)} onCrear={handleCrear}
         almacenes={almacenes} categorias={categorias} saving={crearInventario.isPending}/>
+
+      <ConfirmDialog open={!!confirmDel} onClose={() => setConfirmDel(null)}
+        onConfirm={() => handleEliminar(confirmDel.id)} danger
+        title="Eliminar inventario físico"
+        message={`¿Eliminar ${confirmDel?.numero}? Se perderá el conteo hecho hasta ahora — como todavía está en curso, no afecta el stock real.`}/>
     </div>
   )
 }
@@ -202,7 +223,13 @@ function ConteoCiclico({ inventarioId, simboloMoneda, onVolver }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-[16px] font-semibold text-[#e8edf2]">Conteo: {inv.numero}</h2>
-          <p className="text-[12px] text-[#5f6f80] mt-0.5">{lineas.length} productos · {pendientes} pendientes de conteo</p>
+          <p className="text-[12px] text-[#9ba8b6] mt-0.5">
+            <span className="font-medium text-[#e8edf2]">{inv.almacen?.nombre || '—'}</span>
+            {' · '}{inv.categoria?.nombre || 'Todas las categorías'}
+          </p>
+          <p className="text-[11px] text-[#5f6f80] mt-0.5">
+            {lineas.length} productos · {pendientes} pendientes de conteo · Iniciado por {inv.usuario?.nombre || '—'} el {formatDate(inv.fecha)}
+          </p>
         </div>
         <div className="flex gap-2">
           <Btn variant="ghost" size="sm" onClick={onVolver}>← Volver</Btn>
@@ -258,7 +285,7 @@ function ConteoCiclico({ inventarioId, simboloMoneda, onVolver }) {
               inv.estado === 'CERRADO' ? (
                 <span className="font-mono text-[12px]">{l.stockFisico ?? '—'}</span>
               ) : (
-                <input type="number" min="0" step="0.01"
+                <input type="number" min="0" step="1"
                   value={localStock[l.productoId] ?? ''}
                   placeholder="—"
                   disabled={l.ajustado}

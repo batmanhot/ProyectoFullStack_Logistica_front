@@ -14,6 +14,7 @@ import { useClientesList } from '../queries/clientes.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
 import { useListasPreciosList } from '../queries/listas-precios.queries'
+import { useStockPorAlmacen } from '../hooks/useStockPorAlmacen'
 import { useGenerarPdf } from '../queries/email.queries'
 import { useEmpresaPDFConfig } from '../queries/configuracion.queries'
 import { getPrecio } from '../utils/precios'
@@ -430,7 +431,7 @@ function ModalDetalle({ doc, clientes, productos, simboloMoneda, pdfConfig, envi
           </div>
         ))}
       </div>
-      <div className="overflow-x-auto rounded-xl border border-white/8">
+      <div className="overflow-x-auto rounded-xl border border-white/8 shrink-0">
         <table className="w-full border-collapse text-[12px]">
           <thead><tr>
             {['Producto', 'Cant.', 'P. Unitario', 'Subtotal'].map(h => (
@@ -488,6 +489,7 @@ function ModalProforma({ open, onClose, editando, clientes, productos, listasPre
   const [form, setForm] = useState(init)
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
   const isEdit = !!editando
+  const stock = useStockPorAlmacen(open)
 
   const clienteSeleccionado = clientes.find(c => c.id === form.clienteId)
   const listaSeleccionada = form.listaPrecioId
@@ -637,7 +639,7 @@ function ModalProforma({ open, onClose, editando, clientes, productos, listasPre
 
         {isEdit
           ? /* Solo lectura en edición */
-            <div className="overflow-x-auto rounded-xl border border-white/8">
+            <div className="overflow-x-auto rounded-xl border border-white/8 shrink-0">
               <table className="w-full border-collapse text-[12px]">
                 <thead><tr>
                   {['Producto', 'Cant.', 'P. Unitario', 'Subtotal'].map(h => (
@@ -667,7 +669,9 @@ function ModalProforma({ open, onClose, editando, clientes, productos, listasPre
                     {i === 0 && <div className="text-[10px] text-[#5f6f80] mb-1">Producto</div>}
                     <Select value={item.productoId} onChange={e => setItem(i, 'productoId', e.target.value)}>
                       <option value="">Seleccionar...</option>
-                      {productos.filter(p => p.estado === 'Activo').map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                      {productos.filter(p => p.estado === 'Activo').map(p => (
+                        <option key={p.id} value={p.id}>{p.nombre} · {stock.global(p.id)} disp.</option>
+                      ))}
                     </Select>
                   </div>
                   <div className="col-span-3">
@@ -676,7 +680,7 @@ function ModalProforma({ open, onClose, editando, clientes, productos, listasPre
                   </div>
                   <div className="col-span-1">
                     {i === 0 && <div className="text-[10px] text-[#5f6f80] mb-1">Cant.</div>}
-                    <Input type="number" value={item.cantidad} onChange={e => setItem(i, 'cantidad', +e.target.value)} min="0.01" step="0.01"/>
+                    <Input type="number" value={item.cantidad} onChange={e => setItem(i, 'cantidad', +e.target.value)} min="0.01" step="1"/>
                   </div>
                   <div className="col-span-2">
                     {i === 0 && <div className="text-[10px] text-[#5f6f80] mb-1">P. Unitario</div>}

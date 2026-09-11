@@ -3,7 +3,7 @@ import { Plus, Search, CheckCircle, X, Eye, ShoppingCart, FileText, MessageCircl
 import { useApp } from '../store/AppContext'
 import { usePlanLimits } from '../hooks/usePlanLimits'
 import { formatCurrency, formatDate } from '../utils/helpers'
-import { Modal, EstadoOCBadge, EstadoLogisticoBadge, Badge, Btn, Field, Input, Select, Textarea, DataTable, ModalVistaPreviaDocumento } from '../components/ui/index'
+import { Modal, EstadoOCBadge, EstadoLogisticoBadge, Badge, Btn, Field, Input, Select, Textarea, DataTable, ModalVistaPreviaDocumento, StockHint } from '../components/ui/index'
 import { ModalRecepcionParcial } from '../components/ui/ModalRecepcionParcial'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
 import { armarHtmlOC } from '../utils/pdfTemplates'
@@ -15,6 +15,7 @@ import {
 import { useProductosList } from '../queries/productos.queries'
 import { useProveedoresList } from '../queries/proveedores.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
+import { useStockPorAlmacen } from '../hooks/useStockPorAlmacen'
 import { exportarOrdenesXLSX } from '../utils/exportXLSX'
 import { exportarOrdenesPDF } from '../utils/exportPDF'
 
@@ -408,7 +409,12 @@ function ModalNuevaOC({ open, onClose, productos, proveedores, almacenes, onSave
     })
   }
 
+  const stock = useStockPorAlmacen(open)
   const productosActivos = productos.filter(p => p.estado === 'Activo' || p.activo !== false)
+  const prodSel = productos.find(p => p.id === ni.productoId)
+  const dispSel = ni.productoId
+    ? (form.almacenId ? stock.enAlmacen(form.almacenId, ni.productoId) : stock.global(ni.productoId))
+    : null
 
   return (
     <Modal open={open} onClose={onClose} title="Nueva Orden de Compra" size="xl"
@@ -472,13 +478,19 @@ function ModalNuevaOC({ open, onClose, productos, proveedores, almacenes, onSave
           <Field label="Producto">
             <Select value={ni.productoId} onChange={e => setNi(p => ({ ...p, productoId: e.target.value }))}>
               <option value="">Seleccionar...</option>
-              {productosActivos.map(p => <option key={p.id} value={p.id}>{p.sku} — {p.nombre}</option>)}
+              {productosActivos.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.sku} — {p.nombre}{form.almacenId ? ` · ${stock.enAlmacen(form.almacenId, p.id)} disp.` : ''}
+                </option>
+              ))}
             </Select>
+            <StockHint disponible={dispSel} unidad={prodSel?.unidadMedida}
+              contexto={almacenes.find(a => a.id === form.almacenId)?.nombre || 'todos los almacenes'}/>
           </Field>
         </div>
         <div className="flex-1 min-w-[90px]">
           <Field label="Cantidad">
-            <Input type="number" value={ni.cantidad} onChange={e => setNi(p => ({ ...p, cantidad: e.target.value }))} min="0.01" step="0.01"/>
+            <Input type="number" value={ni.cantidad} onChange={e => setNi(p => ({ ...p, cantidad: e.target.value }))} min="0.01" step="1"/>
           </Field>
         </div>
         <div className="flex-1 min-w-[90px]">
@@ -490,7 +502,7 @@ function ModalNuevaOC({ open, onClose, productos, proveedores, almacenes, onSave
       </div>
 
       {items.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-white/8">
+        <div className="overflow-x-auto rounded-xl border border-white/8 shrink-0">
           <table className="w-full border-collapse text-[13px]">
             <thead><tr>
               {['Producto','Cant.','Costo Unit.','Subtotal',''].map(h => (
@@ -656,7 +668,7 @@ function ModalDetalleOC({
       )}
 
       {oc.items?.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-white/8">
+        <div className="overflow-x-auto rounded-xl border border-white/8 shrink-0">
           <table className="w-full border-collapse text-[13px]">
             <thead><tr>
               {['Producto','Pedido','Recibido','Pendiente', oc.esImportacion ? 'Costo FOB' : 'Costo Unit.', ...(oc.esImportacion ? ['Costo Real'] : []),'Subtotal'].map(h => (

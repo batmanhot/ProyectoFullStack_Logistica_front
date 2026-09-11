@@ -47,6 +47,7 @@ const LotesSeries     = lazy(() => import('./pages/LotesSeries'))
 const Empaque         = lazy(() => import('./pages/Empaque'))
 const ListaPrecios    = lazy(() => import('./pages/ListaPrecios'))
 const KPIsOperativos  = lazy(() => import('./pages/KPIsOperativos'))
+const PanoramaAlmacenes = lazy(() => import('./pages/PanoramaAlmacenes'))
 const Sunat           = lazy(() => import('./pages/Sunat'))
 const PortalPedidos      = lazy(() => import('./pages/PortalPedidos'))
 const PedidosInternos    = lazy(() => import('./pages/PedidosInternos'))
@@ -98,6 +99,7 @@ const PAGE_TITLES = {
   '/empaque':        'Empaque',
   '/lista-precios':  'Listas de Precios',
   '/kpis':           'KPIs Operativos — Fill Rate · OTIF · Perfect Order',
+  '/panorama-almacenes': 'Torre de Control de Almacenes',
   '/sunat':          'Guías de Remisión',
   '/portal-pedidos':      'Portal de Pedidos para Clientes',
   '/contabilidad':        'Reportes Contables',
@@ -451,6 +453,7 @@ function AppLayout() {
             <Route path="/empaque"        element={<Empaque />} />
             <Route path="/lista-precios"  element={<ListaPrecios />} />
             <Route path="/kpis"           element={<KPIsOperativos />} />
+            <Route path="/panorama-almacenes" element={<PanoramaAlmacenes />} />
             <Route path="/sunat"          element={<Sunat />} />
             <Route path="/portal-pedidos"   element={<PortalPedidos />} />
             <Route path="/pedidos-internos" element={<PedidosInternos />} />

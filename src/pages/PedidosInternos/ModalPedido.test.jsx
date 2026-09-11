@@ -60,6 +60,23 @@ describe('ModalPedido (Pedidos Internos)', () => {
     )
   })
 
+  it('el selector de producto muestra el stock del almacén elegido', async () => {
+    const user = userEvent.setup()
+    setup({
+      almacenes: [{ id: 'a1', nombre: 'Central' }, { id: 'a2', nombre: 'Huancayo' }],
+      inventario: [
+        { id: 'i1', productoId: 'p1', almacenId: 'a1', ubicacionId: null, cantidad: 7, cantidadReservada: 0 },
+      ],
+    })
+    await user.click(screen.getByRole('button', { name: /Agregar item/ }))
+    // Almacén por defecto = a1 (tiene 7)
+    expect(screen.getByRole('option', { name: /Producto Uno · 7 disp\./ })).toBeInTheDocument()
+
+    // Cambiar a Huancayo (a2, sin stock) → el mismo producto pasa a "sin stock aquí"
+    await user.selectOptions(screen.getByDisplayValue('Central'), 'a2')
+    expect(screen.getByRole('option', { name: /Producto Uno · sin stock aquí/ })).toBeInTheDocument()
+  })
+
   it('"Guardar borrador" llama a onSave con enviar=false', async () => {
     const user = userEvent.setup()
     const { onSave } = setup()

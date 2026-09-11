@@ -6,7 +6,7 @@ const KEYS = {
   list: (f) => ['inventario', 'list', f],
 }
 
-export function useInventarioList({ productoId, almacenId } = {}) {
+export function useInventarioList({ productoId, almacenId, enabled = true } = {}) {
   return useQuery({
     queryKey: KEYS.list({ productoId, almacenId }),
     queryFn: async () => {
@@ -18,5 +18,6 @@ export function useInventarioList({ productoId, almacenId } = {}) {
       if (r.error) throw new Error(r.error)
       return r.data ?? []
     },
+    enabled,
   })
 }

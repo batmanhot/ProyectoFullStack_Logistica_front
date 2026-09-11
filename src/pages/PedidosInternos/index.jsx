@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   ClipboardList, Plus, Search,
   Eye, CheckCircle,
@@ -9,6 +10,7 @@ import { fechaHoyISO } from '../../utils/helpers'
 import { Btn, Input, Select, DataTable } from '../../components/ui'
 import { useAreasInternasList } from '../../queries/areas-internas.queries'
 import { useAlmacenesList } from '../../queries/almacenes.queries'
+import { useInventarioList } from '../../queries/inventario.queries'
 import { useProyectosList } from '../../queries/proyectos.queries'
 import { useEmpresaPDFConfig } from '../../queries/configuracion.queries'
 import {
@@ -46,6 +48,7 @@ export default function PedidosInternos() {
   const { data: areasRaw        = [] }            = useAreasInternasList({ incluirInactivas: true })
   const { data: productos       = [] }            = usePedidosInternosProductos()
   const { data: almacenes       = [] }            = useAlmacenesList()
+  const { data: inventario      = [] }            = useInventarioList()
   const { data: proyectos       = [] }            = useProyectosList()
   const pdfConfig = useEmpresaPDFConfig()
 
@@ -60,8 +63,13 @@ export default function PedidosInternos() {
   const entregarPI = useEntregarPI()
   const reciboPI   = useConfirmarReciboPI()
 
+  // Enlace desde Torre de Control ("N pendientes de aprobación" de un
+  // almacén). Esta pantalla filtra por ÁREA solicitante, no por almacén
+  // (el Pedido Interno lo pide un área, no un almacén), así que solo se
+  // trae el estado — se lee una sola vez al montar.
+  const [searchParams] = useSearchParams()
   const [busqueda,   setBusqueda]   = useState('')
-  const [filtEstado, setFiltEstado] = useState('')
+  const [filtEstado, setFiltEstado] = useState(() => searchParams.get('estado') || '')
   const [filtArea,   setFiltArea]   = useState('')
   const [modalNuevo, setModalNuevo] = useState(false)
   const [modalEditar,setModalEditar]= useState(null)
@@ -338,7 +346,7 @@ export default function PedidosInternos() {
       {modalNuevo && (
         <ModalPedido
           pedido={null} onClose={() => setModalNuevo(false)} onSave={handleModalSave}
-          areas={areas} productos={productos} almacenes={almacenes} proyectos={proyectos}
+          areas={areas} productos={productos} almacenes={almacenes} inventario={inventario} proyectos={proyectos}
           sesion={sesion} areaFija={esSolicitante ? areaDelUsuario : undefined}
           saving={saving}
         />
@@ -346,7 +354,7 @@ export default function PedidosInternos() {
       {modalEditar && (
         <ModalPedido
           pedido={modalEditar} onClose={() => setModalEditar(null)} onSave={handleModalSave}
-          areas={areas} productos={productos} almacenes={almacenes} proyectos={proyectos}
+          areas={areas} productos={productos} almacenes={almacenes} inventario={inventario} proyectos={proyectos}
           sesion={sesion} areaFija={esSolicitante ? areaDelUsuario : undefined}
           saving={saving}
         />

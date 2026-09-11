@@ -268,7 +268,7 @@ export default function PortalProveedoresB2B() {
             <EmptyState icon={FileText} title="Sin facturas recibidas"
               description="Comparte el link del portal con un proveedor para que suba su factura, o regístrala manualmente."/>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-white/8">
+            <div className="overflow-x-auto rounded-xl border border-white/8 shrink-0">
               <table className="w-full border-collapse text-[13px]">
                 <thead><tr>
                   {['N° Factura','Proveedor','OC ref.','Fecha','Monto','Estado',''].map(h=>(

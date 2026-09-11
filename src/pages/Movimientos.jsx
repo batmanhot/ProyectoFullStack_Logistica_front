@@ -4,6 +4,7 @@ import { Search, Boxes, ArrowDownToLine, ArrowUpFromLine, FileSpreadsheet, FileT
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate } from '../utils/helpers'
 import { Badge, Btn, Input, Select, DataTable } from '../components/ui/index'
+import DateInput from '../components/ui/DateInput'
 import { useMovimientosList } from '../queries/movimientos.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
@@ -114,8 +115,14 @@ export default function Movimientos() {
             <option value="">Todos los almacenes</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
           </Select>
-          <Input type="date" value={filtDesde} onChange={e => setFiltDesde(e.target.value)}/>
-          <Input type="date" value={filtHasta} onChange={e => setFiltHasta(e.target.value)}/>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-[#5f6f80]">Desde</span>
+            <DateInput value={filtDesde} onChange={setFiltDesde} style={{ width: 128 }}/>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-[#5f6f80]">Hasta</span>
+            <DateInput value={filtHasta} onChange={setFiltHasta} style={{ width: 128 }}/>
+          </div>
           {hasFiltros && <Btn variant="ghost" size="sm" onClick={limpiar}>Limpiar</Btn>}
         </div>
 

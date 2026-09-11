@@ -56,6 +56,14 @@ export function useActualizarLineaInventario() {
   })
 }
 
+export function useEliminarInventarioFisico() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => api.delete(`/inventario-fisico/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all() }),
+  })
+}
+
 export function useCerrarInventarioFisico() {
   const qc = useQueryClient()
   return useMutation({

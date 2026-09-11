@@ -84,6 +84,7 @@ const NAV = [
   { label:'Previsión de Demanda',  path:'/prevision',       icon:Activity,         modulo:'prevision',      color:'#6366f1' },
   { label:'Análisis de Inventario',path:'/reportes',        icon:BarChart3,        modulo:'reportes',       color:'#3b82f6' },
   { label:'KPIs Operativos',       path:'/kpis',            icon:Target,           modulo:'kpis',           color:'#10b981' },
+  { label:'Torre de Control de Almacenes', path:'/panorama-almacenes', icon:Building2, modulo:'panorama-almacenes', color:'#0ea5e9' },
   { label:'Reportes Contables',    path:'/contabilidad',    icon:BookOpen,         modulo:'reportes',       color:'#a855f7' },
   { label:'Dashboard Financiero',  path:'/financiero',      icon:TrendingUp,       modulo:'financiero',     color:'#22c55e' },
   { label:'Consumo por Proyecto',  path:'/reportes-proyecto', icon:Layers,         modulo:'reportes-proyecto', color:'#f97316' },

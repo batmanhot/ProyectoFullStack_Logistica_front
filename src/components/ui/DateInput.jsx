@@ -32,6 +32,21 @@ export default function DateInput({
     return `${y}-${m}-${d}`
   }
 
+  // dd/mm/aaaa (completo) → YYYY-MM-DD, o null si está incompleta o es una
+  // fecha inválida (31/02/2026, mes 13, etc.) — valida contra el calendario
+  // real, no solo el formato.
+  function toISO(masked) {
+    const digits = masked.replace(/\D/g, '')
+    if (digits.length !== 8) return null
+    const d = Number(digits.slice(0, 2))
+    const m = Number(digits.slice(2, 4))
+    const y = Number(digits.slice(4, 8))
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null
+    const fecha = new Date(y, m - 1, d)
+    if (fecha.getFullYear() !== y || fecha.getMonth() !== m - 1 || fecha.getDate() !== d) return null
+    return `${digits.slice(4, 8)}-${digits.slice(2, 4)}-${digits.slice(0, 2)}`
+  }
+
   const [display, setDisplay] = useState(() => toDisplay(value))
   const inputRef = useRef(null)
 
@@ -85,11 +100,10 @@ export default function DateInput({
   }
 
   function handleNativeChange(e) {
-    const iso = e.target.value // YYYY-MM-DD
-    const [y, m, d] = iso.split('-')
-    const display = `${d}/${m}/${y}`
-    setDisplay(display)
-    onChange?.(display)
+    const iso = e.target.value // YYYY-MM-DD, ya viene validado por el picker nativo
+    if (!iso) return
+    setDisplay(toDisplay(iso))
+    onChange?.(iso)
   }
 
   return (

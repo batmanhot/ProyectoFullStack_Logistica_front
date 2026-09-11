@@ -3,7 +3,7 @@ import { Plus, Search, Eye, Edit2, CheckCircle, FileText, X, Download } from 'lu
 
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoy } from '../utils/helpers'
-import { Modal, Badge, Btn, Field, Input, Select, Textarea, DataTable, ModalVistaPreviaDocumento } from '../components/ui/index'
+import { Modal, Badge, Btn, Field, Input, Select, Textarea, DataTable, ModalVistaPreviaDocumento, StockHint } from '../components/ui/index'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
 import { armarHtmlRFQ } from '../utils/pdfTemplates'
 import { exportarCotizacionesXLSX } from '../utils/exportXLSX'
@@ -12,6 +12,7 @@ import { useCotizacionesList, useCrearCotizacion, useActualizarCotizacion, useAg
 import { useProductosList } from '../queries/productos.queries'
 import { useProveedoresList } from '../queries/proveedores.queries'
 import { useEmpresaPDFConfig } from '../queries/configuracion.queries'
+import { useStockPorAlmacen } from '../hooks/useStockPorAlmacen'
 
 const simboloMoneda = 'S/'
 
@@ -314,6 +315,7 @@ function ModalNuevaRFQ({ open, onClose, productos, saving, onSave }) {
   const [items, setItems] = useState([])
   const [ni,    setNi]    = useState({ productoId: '', cantidad: '' })
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
+  const stock = useStockPorAlmacen(open)
 
   function addItem() {
     if (!ni.productoId || !ni.cantidad) return
@@ -348,9 +350,11 @@ function ModalNuevaRFQ({ open, onClose, productos, saving, onSave }) {
             <Select value={ni.productoId} onChange={e => setNi(p => ({ ...p, productoId: e.target.value }))}>
               <option value="">Seleccionar...</option>
               {productos.filter(p => p.estado === 'Activo' && !items.find(i => i.productoId === p.id)).map(p => (
-                <option key={p.id} value={p.id}>{p.sku} — {p.nombre}</option>
+                <option key={p.id} value={p.id}>{p.sku} — {p.nombre} · {stock.global(p.id)} disp.</option>
               ))}
             </Select>
+            <StockHint disponible={ni.productoId ? stock.global(ni.productoId) : null}
+              unidad={productos.find(p => p.id === ni.productoId)?.unidadMedida} contexto="todos los almacenes"/>
           </Field>
         </div>
         <div className="flex-1 min-w-25">
@@ -446,7 +450,7 @@ function ModalDetalleRFQ({ cotiz, productos, proveedores, simboloMoneda, onClose
 
       {/* Ítems */}
       <div className="text-[13px] font-semibold text-[#e8edf2]">Ítems solicitados</div>
-      <div className="overflow-x-auto rounded-xl border border-white/8">
+      <div className="overflow-x-auto rounded-xl border border-white/8 shrink-0">
         <table className="w-full border-collapse text-[13px]">
           <thead><tr>
             {['Producto', 'Cantidad'].map(h => (

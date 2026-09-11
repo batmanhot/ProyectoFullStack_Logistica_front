@@ -393,3 +393,4 @@ export { ModalVistaPreviaDocumento } from './ModalVistaPreviaDocumento'
 export { default as DireccionInput } from './DireccionInput'
 
 export { default as DateInput } from './DateInput'
+export { default as StockHint } from './StockHint'

@@ -412,7 +412,7 @@ export default function Dashboard() {
           <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Últimos Movimientos de Inventario</span>
           <button onClick={() => nav('/movimientos')} className="text-[11px] text-[#9ba8b6] hover:text-[#e8edf2] transition-colors">Ver todos →</button>
         </div>
-        <div className="overflow-x-auto rounded-xl border border-white/8">
+        <div className="overflow-x-auto rounded-xl border border-white/8 shrink-0">
           <table className="w-full border-collapse text-[13px]">
             <thead><tr>
               {['Fecha','Tipo','Producto','Cantidad','Costo Total','Motivo'].map(h => (

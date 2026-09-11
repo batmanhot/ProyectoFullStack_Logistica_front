@@ -9,7 +9,6 @@ import { useApp } from '../store/AppContext'
 import { usePlanLimits } from '../hooks/usePlanLimits'
 import { formatCurrency, formatDate } from '../utils/helpers'
 import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, Textarea, Alert, DataTable, EmptyState } from '../components/ui/index'
-import DireccionInput from '../components/ui/DireccionInput'
 import { useNavigate } from 'react-router-dom'
 import { useClientesList, useCrearCliente, useActualizarCliente, useEliminarCliente } from '../queries/clientes.queries'
 import { useDespachosList } from '../queries/despachos.queries'
@@ -494,7 +493,7 @@ function PerfilCliente({ cliente, despachos, simboloMoneda, onVolver, onEditar, 
         {ultimos.length === 0 ? (
           <EmptyState icon={Truck} title="Sin despachos" description="Este cliente aún no tiene pedidos registrados."/>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-white/8">
+          <div className="overflow-x-auto rounded-xl border border-white/8 shrink-0">
             <table className="w-full border-collapse text-[12px]">
               <thead><tr>
                 {['N° Despacho','Fecha','F. Entrega','Ítems','Total','Estado','Guía'].map((h, i) => (
@@ -567,7 +566,11 @@ function ModalCliente({ open, onClose, editando, listasPrecios = [], onSave, sav
           </Select>
         </Field>
       </div>
-      <DireccionInput label="Dirección de entrega principal" value={form.direccion} onChange={v => f('direccion', v)} placeholder="Av. Principal 123, Distrito, Lima"/>
+      <Field label="Dirección de entrega principal" hint="Texto libre — calle y número, o Mz / Lote / Canchón y referencias.">
+        <Textarea className="min-h-14" value={form.direccion}
+          onChange={e => f('direccion', e.target.value)}
+          placeholder="Ej: Mz. B Lt. 12, A.H. Los Jardines — Ref. frente al mercado"/>
+      </Field>
       <Field label="Notas internas"><Textarea className="min-h-14" value={form.notas} onChange={e => f('notas', e.target.value)} placeholder="Instrucciones especiales, condiciones, observaciones..."/></Field>
       <label className="flex items-center gap-2 cursor-pointer text-[13px] text-[#9ba8b6] mt-4 mb-2">
         <input type="checkbox" checked={!!form.activo} onChange={e => f('activo', e.target.checked)} className="accent-[#00c896]"/>

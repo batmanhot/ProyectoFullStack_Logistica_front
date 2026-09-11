@@ -21,7 +21,7 @@ function LineaConteoCard({ linea, valor, onChange, onBlur }) {
         <div className="text-[11px] text-[#5f6f80] font-mono">{linea.producto?.sku}</div>
         <div className="text-[11px] text-[#5f6f80] mt-1">Sistema: <span className="font-mono text-[#9ba8b6]">{linea.stockSistema} {linea.producto?.unidadMedida}</span></div>
       </div>
-      <input type="number" min="0" step="0.01"
+      <input type="number" min="0" step="1"
         aria-label={`Conteo físico de ${linea.producto?.nombre || 'producto'}`}
         disabled={linea.ajustado}
         placeholder="—"
