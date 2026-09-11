@@ -582,7 +582,7 @@ export default function PanoramaAlmacenes() {
             </div>
           )}
 
-          {/* Salud de Inventario + Despachos Valorizados, lado a lado — antes
+          {/* Despachos Valorizados + Salud de Inventario, lado a lado — antes
               cada uno era una franja a todo el ancho de la pantalla (poco
               eficiente: con pocos almacenes, Salud dejaba metad de la fila
               vacía). Despachos Valorizados sale del bloque "Continuidad del
@@ -594,19 +594,6 @@ export default function PanoramaAlmacenes() {
               superpuesto con lo de abajo; Grid no tiene ese problema. */}
           {(data.almacenes?.length > 0 || data.despachosMensuales?.length > 0) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {data.almacenes?.length > 0 && (
-                <Panel title="Salud de inventario por almacén" icon={PieChartIcon}>
-                  <p className="text-[11px] text-[#5f6f80] -mt-1 mb-1">
-                    Cuántos SKUs de cada almacén están Normal, Crítico o Agotado ahora mismo (no depende del período,
-                    es una foto actual). <strong className="text-[#9ba8b6] font-medium">Por vencer</strong> se muestra aparte,
-                    no como porción del donut: un SKU puede estar Normal de stock y por vencer a la vez.
-                  </p>
-                  <div className="flex flex-wrap gap-3 justify-center sm:justify-start">
-                    {data.almacenes.map(a => <DonutSalud key={a.id} almacen={a}/>)}
-                  </div>
-                </Panel>
-              )}
-
               {data.despachosMensuales?.length > 0 && (
                 <Panel title="Despachos valorizados" icon={Truck} subtitle={rangoMeses}>
                   {/* flex-1 acá (y en el gráfico de abajo) para que la tarjeta
@@ -670,6 +657,19 @@ export default function PanoramaAlmacenes() {
                         )}
                       </div>
                     </div>
+                  </div>
+                </Panel>
+              )}
+
+              {data.almacenes?.length > 0 && (
+                <Panel title="Salud de inventario por almacén" icon={PieChartIcon}>
+                  <p className="text-[11px] text-[#5f6f80] -mt-1 mb-1">
+                    Cuántos SKUs de cada almacén están Normal, Crítico o Agotado ahora mismo (no depende del período,
+                    es una foto actual). <strong className="text-[#9ba8b6] font-medium">Por vencer</strong> se muestra aparte,
+                    no como porción del donut: un SKU puede estar Normal de stock y por vencer a la vez.
+                  </p>
+                  <div className="flex flex-wrap gap-3 justify-center sm:justify-start">
+                    {data.almacenes.map(a => <DonutSalud key={a.id} almacen={a}/>)}
                   </div>
                 </Panel>
               )}
