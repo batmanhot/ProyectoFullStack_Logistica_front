@@ -57,7 +57,10 @@ function KPI({ label, value, sub, color = 'var(--accent)', icon: Icon }) {
       <div className="text-[10px] font-semibold text-[#5f6f80] uppercase tracking-[0.08em] mb-2 flex items-center gap-1.5">
         {Icon && <Icon size={11} style={{ color, opacity: 0.8 }}/>}{label}
       </div>
-      <div className="text-[24px] font-semibold text-[#e8edf2] leading-none">{value}</div>
+      {/* tamaño responsivo + break-words: en celular (grid a 2 columnas) un
+          valor largo como "S/ 1,384,442.00" a 24px no entraba en la tarjeta
+          y el overflow-hidden del contenedor lo recortaba a la mitad. */}
+      <div className="text-[17px] sm:text-[19px] md:text-[22px] lg:text-[24px] font-semibold text-[#e8edf2] leading-tight break-words">{value}</div>
       {sub && <div className="text-[10px] text-[#5f6f80] mt-1.5 leading-snug">{sub}</div>}
     </div>
   )
