@@ -308,20 +308,6 @@ function ModalAjuste({ open, onClose, onSave, productos, almacenes, simboloMoned
         </div>
       </Field>
 
-      <Field label="Producto *" error={err.productoId}>
-        <Select value={form.productoId} onChange={e => f('productoId', e.target.value)}>
-          <option value="">Seleccionar producto...</option>
-          {productosActivos.map(p => (
-            <option key={p.id} value={p.id}>
-              {p.sku} — {p.nombre}{form.almacenId ? ` · ${stock.enAlmacen(form.almacenId, p.id)} disp.` : ''}
-            </option>
-          ))}
-        </Select>
-        <StockHint disponible={dispSel} unidad={prodSel?.unidadMedida}
-          requerido={form.direccion === 'decremento' ? form.cantidad : undefined}
-          contexto={almSel?.nombre || 'todos los almacenes'}/>
-      </Field>
-
       <div className="grid grid-cols-2 gap-3">
         <Field label="Almacén *" error={err.almacenId}>
           <Select value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
@@ -335,6 +321,24 @@ function ModalAjuste({ open, onClose, onSave, productos, almacenes, simboloMoned
           </Select>
         </Field>
       </div>
+
+      {/* Almacén va antes que Producto a propósito: el stock que se muestra
+          junto a cada producto (y el StockHint) depende de qué almacén se
+          eligió, así que pedirlo después dejaba al usuario eligiendo un
+          producto sin ese contexto todavía. */}
+      <Field label="Producto *" error={err.productoId}>
+        <Select value={form.productoId} onChange={e => f('productoId', e.target.value)}>
+          <option value="">Seleccionar producto...</option>
+          {productosActivos.map(p => (
+            <option key={p.id} value={p.id}>
+              {p.sku} — {p.nombre}{form.almacenId ? ` · ${stock.enAlmacen(form.almacenId, p.id)} disp.` : ''}
+            </option>
+          ))}
+        </Select>
+        <StockHint disponible={dispSel} unidad={prodSel?.unidadMedida}
+          requerido={form.direccion === 'decremento' ? form.cantidad : undefined}
+          contexto={almSel?.nombre || 'todos los almacenes'}/>
+      </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Cantidad *" error={err.cantidad}>

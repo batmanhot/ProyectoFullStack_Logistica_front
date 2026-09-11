@@ -276,19 +276,6 @@ function ModalTransferencia({ open, onClose, onSave, productos, almacenes, simbo
         <Field label="Fecha"><Input type="date" value={form.fecha} onChange={e => f('fecha', e.target.value)}/></Field>
       </div>
 
-      <Field label="Producto *" error={err.productoId}>
-        <Select value={form.productoId} onChange={e => f('productoId', e.target.value)}>
-          <option value="">Seleccionar producto...</option>
-          {productosActivos.map(p => (
-            <option key={p.id} value={p.id}>
-              {p.sku} — {p.nombre}{form.almacenId ? ` · ${stock.enAlmacen(form.almacenId, p.id)} disp.` : ''}
-            </option>
-          ))}
-        </Select>
-        <StockHint disponible={dispSel} unidad={prodSel?.unidadMedida} requerido={form.cantidad}
-          contexto={almSel?.nombre || 'el origen'}/>
-      </Field>
-
       <div className="grid grid-cols-2 gap-3">
         <Field label="Almacén origen *" error={err.almacenId}>
           <Select value={form.almacenId} onChange={e => f('almacenId', e.target.value)}>
@@ -303,6 +290,23 @@ function ModalTransferencia({ open, onClose, onSave, productos, almacenes, simbo
           </Select>
         </Field>
       </div>
+
+      {/* Origen/Destino van antes que Producto a propósito: el stock que se
+          muestra junto a cada producto (y el StockHint) depende del almacén
+          origen elegido, así que pedirlo después dejaba al usuario eligiendo
+          un producto sin ese contexto todavía. */}
+      <Field label="Producto *" error={err.productoId}>
+        <Select value={form.productoId} onChange={e => f('productoId', e.target.value)}>
+          <option value="">Seleccionar producto...</option>
+          {productosActivos.map(p => (
+            <option key={p.id} value={p.id}>
+              {p.sku} — {p.nombre}{form.almacenId ? ` · ${stock.enAlmacen(form.almacenId, p.id)} disp.` : ''}
+            </option>
+          ))}
+        </Select>
+        <StockHint disponible={dispSel} unidad={prodSel?.unidadMedida} requerido={form.cantidad}
+          contexto={almSel?.nombre || 'el origen'}/>
+      </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Cantidad *" error={err.cantidad}>

@@ -473,7 +473,14 @@ function ModalNuevaOC({ open, onClose, productos, proveedores, almacenes, onSave
       )}
 
       <div className="text-[13px] font-semibold text-[#e8edf2]">Agregar ítems</div>
-      <div className="flex gap-2 flex-wrap items-end">
+      {/* items-start, no items-end: con items-end, el StockHint (una línea
+          extra debajo del select de Producto) hacía esa columna más alta que
+          Cantidad/Costo — al alinear por abajo, esas dos quedaban flotando
+          más arriba que Producto. Con items-start todas alinean por la
+          etiqueta de arriba, sin importar cuánto crezca una hacia abajo; el
+          botón (sin etiqueta) lleva un espaciador invisible del mismo alto
+          para no quedar pegado arriba del todo. */}
+      <div className="flex gap-2 flex-wrap items-start">
         <div className="flex-[2] min-w-[180px]">
           <Field label="Producto">
             <Select value={ni.productoId} onChange={e => setNi(p => ({ ...p, productoId: e.target.value }))}>
@@ -498,7 +505,10 @@ function ModalNuevaOC({ open, onClose, productos, proveedores, almacenes, onSave
             <Input type="number" value={ni.costoUnitario} onChange={e => setNi(p => ({ ...p, costoUnitario: e.target.value }))} min="0" step="0.01"/>
           </Field>
         </div>
-        <Btn variant="secondary" onClick={addItem}>+ Agregar</Btn>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wide invisible">·</span>
+          <Btn variant="secondary" onClick={addItem}>+ Agregar</Btn>
+        </div>
       </div>
 
       {items.length > 0 && (

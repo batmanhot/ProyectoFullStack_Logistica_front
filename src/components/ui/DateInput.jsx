@@ -9,6 +9,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { Calendar } from 'lucide-react'
 
+// Mismo look que Input/Select/Textarea de components/ui/index.jsx (INPUT_BASE)
+// — sin esto, un DateInput dentro de un <Field> normal queda sin borde/fondo,
+// distinto al resto de los campos del formulario. `className` del caller se
+// agrega después (nunca reemplaza), así que sigue pudiéndose ajustar el ancho
+// o sumar estilos puntuales como ya hacían los dos usos existentes.
+const INPUT_BASE = 'w-full px-3 py-2 bg-[var(--bg-input)] border border-[var(--border)] rounded-lg text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all duration-150 focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 font-[inherit]'
+
 export default function DateInput({
   value = '',           // YYYY-MM-DD
   onChange,             // fn(YYYY-MM-DD)
@@ -107,7 +114,7 @@ export default function DateInput({
   }
 
   return (
-    <div className="relative inline-flex items-center" style={style}>
+    <div className="relative inline-flex items-center w-full" style={style}>
       {/* Input visible con máscara */}
       <input
         ref={inputRef}
@@ -118,7 +125,7 @@ export default function DateInput({
         onBlur={handleBlur}
         placeholder={placeholder}
         title={title}
-        className={`pr-8 ${className}`}
+        className={`${INPUT_BASE} pr-8 ${className}`}
         maxLength={10}
         autoComplete="off"
       />

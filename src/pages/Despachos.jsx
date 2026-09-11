@@ -4,7 +4,7 @@ import { Plus, Search, Eye, Truck, Package, CheckCircle, X,
          ClipboardList, ArrowRight, FileText, MapPin, Printer, Download, CreditCard } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
-import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, Textarea, Alert, DataTable, ModalVistaPreviaDocumento } from '../components/ui/index'
+import { Modal, ConfirmDialog, Badge, Btn, Field, Input, Select, Textarea, Alert, DataTable, ModalVistaPreviaDocumento, DateInput } from '../components/ui/index'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
 import { armarHtmlGuia, armarHtmlPickingList } from '../utils/pdfTemplates'
 import {
@@ -293,8 +293,12 @@ export default function Despachos() {
             <option value="">Todos los almacenes</option>
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
           </Select>
-          <Input type="date" aria-label="Fecha desde" style={{ width:135, padding:'5px 8px', fontSize:12 }} value={filtDesde} onChange={e => setFiltDesde(e.target.value)}/>
-          <Input type="date" aria-label="Fecha hasta" style={{ width:135, padding:'5px 8px', fontSize:12 }} value={filtHasta} onChange={e => setFiltHasta(e.target.value)}/>
+          {/* !pl-2 (no !pr-*) a propósito: DateInput ya trae `pr-8` para
+              dejarle espacio al ícono de calendario — pisarlo con un !px-2
+              hubiera aplastado ese espacio y el texto quedaría debajo del
+              ícono. */}
+          <DateInput title="Fecha desde" className="!pl-2 !py-1 !text-[12px]" style={{ width:135 }} value={filtDesde} onChange={setFiltDesde}/>
+          <DateInput title="Fecha hasta" className="!pl-2 !py-1 !text-[12px]" style={{ width:135 }} value={filtHasta} onChange={setFiltHasta}/>
           <Btn variant="ghost" size="sm" onClick={() => { const hoy = fechaHoyISO(); setFiltDesde(hoy); setFiltHasta(hoy) }}>Hoy</Btn>
           <span className="text-[11px] text-[#5f6f80] whitespace-nowrap">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
           {(busqueda || filtEst || filtAlm || filtDesde || filtHasta) && (
@@ -628,8 +632,8 @@ export function ModalNuevoPedido({ open, onClose, onSave, productos, clientes, a
             {almacenes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
           </Select>
         </Field>
-        <Field label="Fecha pedido"><Input type="date" value={form.fecha} onChange={e => f('fecha', e.target.value)}/></Field>
-        <Field label="Fecha entrega comprometida"><Input type="date" value={form.fechaEntrega} onChange={e => f('fechaEntrega', e.target.value)}/></Field>
+        <Field label="Fecha pedido"><DateInput value={form.fecha} onChange={v => f('fecha', v)}/></Field>
+        <Field label="Fecha entrega comprometida"><DateInput value={form.fechaEntrega} onChange={v => f('fechaEntrega', v)}/></Field>
         <Field label="Forma de pago">
           <Select value={form.formaPago} onChange={e => f('formaPago', e.target.value)}>
             <option value="CREDITO">Crédito</option>

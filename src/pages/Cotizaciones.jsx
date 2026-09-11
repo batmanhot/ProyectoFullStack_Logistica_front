@@ -344,7 +344,13 @@ function ModalNuevaRFQ({ open, onClose, productos, saving, onSave }) {
       </div>
 
       <div className="text-[13px] font-semibold text-[#e8edf2]">Productos a cotizar</div>
-      <div className="flex gap-2 flex-wrap items-end">
+      {/* items-start, no items-end: con items-end, el StockHint (una línea
+          extra debajo del select de Producto) hacía esa columna más alta que
+          Cantidad — al alinear por abajo, Cantidad quedaba flotando más
+          arriba que Producto. Con items-start todas alinean por la etiqueta
+          de arriba; el botón (sin etiqueta) lleva un espaciador invisible
+          del mismo alto para no quedar pegado arriba del todo. */}
+      <div className="flex gap-2 flex-wrap items-start">
         <div className="flex-2 min-w-50">
           <Field label="Producto">
             <Select value={ni.productoId} onChange={e => setNi(p => ({ ...p, productoId: e.target.value }))}>
@@ -362,7 +368,10 @@ function ModalNuevaRFQ({ open, onClose, productos, saving, onSave }) {
             <Input type="number" value={ni.cantidad} onChange={e => setNi(p => ({ ...p, cantidad: e.target.value }))} min="1"/>
           </Field>
         </div>
-        <Btn variant="secondary" onClick={addItem}>+ Agregar</Btn>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wide invisible">·</span>
+          <Btn variant="secondary" onClick={addItem}>+ Agregar</Btn>
+        </div>
       </div>
 
       {items.length > 0 && (
