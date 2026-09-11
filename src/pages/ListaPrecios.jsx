@@ -267,7 +267,7 @@ export default function ListaPrecios() {
       <ModalLista open={modal} onClose={() => setModal(false)} editando={editando} onSave={saveLista}/>
       <ConfirmDialog open={!!confirmDel} onClose={() => setConfirmDel(null)} onConfirm={() => deleteLista(confirmDel)}
         danger title="Eliminar lista"
-        message="¿Eliminar esta lista de precios? Los clientes que la tengan asignada por defecto quedarán sin lista asignada. Esta acción no se puede deshacer."/>
+        message="¿Eliminar esta lista de precios? Esta acción no se puede deshacer. Si algún cliente o proforma la tiene asignada, no se podrá eliminar — desactívala (checkbox “Lista activa”) en su lugar."/>
     </div>
   )
 }
