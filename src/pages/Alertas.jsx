@@ -1,15 +1,16 @@
 ﻿import { useMemo, useState } from 'react'
 import {
-  Bell, CheckCheck, CheckCircle, Eye, ArrowRight
+  Bell, BellRing, CheckCheck, CheckCircle, Eye, ArrowRight, RotateCcw
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { formatDate, formatCurrency, vencimientoMasUrgentePorProducto } from '../utils/helpers'
+import { formatDate, formatDateTime, formatCurrency, vencimientoMasUrgentePorProducto } from '../utils/helpers'
 import {
   TIPOS, TIPOS_CHOFER, TIPOS_EJECUTIVO_COMERCIAL, TIPOS_COORDINADOR_TRANSPORTE, TIPOS_CONTABLE,
   generarAlertas, generarAlertasChofer, generarAlertasEjecutivoComercial,
-  generarAlertasCoordinadorTransporte, generarAlertasContable,
+  generarAlertasCoordinadorTransporte, generarAlertasContable, claveAtencion,
 } from '../utils/alertas'
-import { Badge, Btn, Modal } from '../components/ui/index'
+import { Badge, Btn, Modal, Textarea } from '../components/ui/index'
+import { useAtencionesAlerta, useMarcarAtendida, useReabrirAlerta } from '../queries/atenciones-alerta.queries'
 import { useApp } from '../store/AppContext'
 import { useConfiguracion } from '../queries/configuracion.queries'
 import { useProductosList } from '../queries/productos.queries'
@@ -25,11 +26,15 @@ import { usePedidosPortalList } from '../queries/pedidos-portal.queries'
 import { useFlotaAlertas } from '../queries/flota.queries'
 import { useSunatDocumentos } from '../queries/sunat.queries'
 import { useCotizacionesList } from '../queries/cotizaciones.queries'
+import { useDespachosList } from '../queries/despachos.queries'
+import { usePedidosInternosList } from '../queries/pedidos-internos.queries'
+import { useReglasAprobacion } from '../queries/aprobaciones.queries'
 
 // ════════════════════════════════════════════════════════
 export default function Alertas() {
-  const { sesion } = useApp()
+  const { sesion, tienePermiso } = useApp()
   const rolCodigo = sesion?.rol?.codigo
+  const esComodin = sesion?.rol?.permisos?.includes('*') ?? false
   const esChofer = rolCodigo === 'chofer'
   const esEjecutivoComercial = rolCodigo === 'ejecutivo-comercial'
   const esCoordinadorTransporte = rolCodigo === 'coordinador-transporte'
@@ -61,16 +66,29 @@ export default function Alertas() {
   const { data: flotaAlertas   = [] } = useFlotaAlertas({ enabled: esCoordinadorTransporte })
   const { data: guias          = [] } = useSunatDocumentos({ enabled: esContable })
   const { data: cotizaciones   = [] } = useCotizacionesList({ enabled: esRolConCotizaciones })
+  // "Pendiente de aprobación" (Despachos/Pedidos Internos) — solo tiene
+  // sentido pedir estos datos si el rol puede al menos operar o aprobar ese
+  // módulo; esAprobador() en utils/alertas.js afina después según
+  // ReglaAprobacion (puede que su rol no sea el aprobador configurado).
+  const puedeVerDespachosAprobar = !esRolEspecial && (tienePermiso('despachos') || tienePermiso('despachos-aprobar'))
+  const puedeVerPedidosInternosAprobar = !esRolEspecial && (tienePermiso('pedidos-internos') || tienePermiso('pedidos-internos-aprobar'))
+  const { data: despachosPorAprobar = [] } = useDespachosList({ estado: 'PEDIDO', enabled: puedeVerDespachosAprobar })
+  const { data: pedidosInternosPorAprobar = [] } = usePedidosInternosList({ estado: 'ENVIADO', enabled: puedeVerPedidosInternosAprobar })
+  const { data: reglasAprobacion = [] } = useReglasAprobacion({ enabled: puedeVerDespachosAprobar || puedeVerPedidosInternosAprobar })
   const { data: configApi } = useConfiguracion()
   const alertaVencimiento = configApi?.alertaVencimiento !== false
   const simboloMoneda = 'S/'
   const navigate = useNavigate()
   const [filtroTipo, setFiltroTipo] = useState('all')
 
-  const [verAlerta,  setVerAlerta]  = useState(null)
-  const [leidas,     setLeidas]     = useState(() => {
-    try { return JSON.parse(localStorage.getItem('sp_alertas_leidas') || '[]') } catch { return [] }
-  })
+  const [verAlerta, setVerAlerta] = useState(null)
+  // Seguimiento de atención (2026-09-13) — reemplaza al viejo "leída" en
+  // localStorage: ahora es un registro real en el backend (quién, cuándo,
+  // qué acción tomó), compartido entre usuarios y dispositivos.
+  const { data: atenciones = [] } = useAtencionesAlerta()
+  const atencionesPorClave = useMemo(() =>
+    new Map(atenciones.map(a => [`${a.tipo}:${a.clave}`, a]))
+  , [atenciones])
 
   const vencPorProducto = useMemo(() => vencimientoMasUrgentePorProducto(lotes), [lotes])
 
@@ -91,23 +109,20 @@ export default function Alertas() {
     if (esEjecutivoComercial) return generarAlertasEjecutivoComercial(cxc, proformas, oportunidades, pedidosPortal, simboloMoneda)
     if (esCoordinadorTransporte) return generarAlertasCoordinadorTransporte(rutasRaw, flotaAlertas)
     if (esContable) return generarAlertasContable(cxc, guias, simboloMoneda)
-    return generarAlertas(productos, ordenes, vencPorProducto, { alertaVencimiento }, categorias, almacenes, simboloMoneda, cotizaciones)
-  }, [esChofer, esEjecutivoComercial, esCoordinadorTransporte, esContable, rutasPropias, rutasRaw, flotaAlertas, cxc, guias, proformas, oportunidades, pedidosPortal, productos, ordenes, vencPorProducto, alertaVencimiento, categorias, almacenes, cotizaciones, simboloMoneda])
+    return generarAlertas(productos, ordenes, vencPorProducto, { alertaVencimiento }, categorias, almacenes, simboloMoneda, cotizaciones, {
+      despachos: despachosPorAprobar, pedidosInternos: pedidosInternosPorAprobar, reglas: reglasAprobacion, rolCodigo, esComodin,
+    })
+  }, [esChofer, esEjecutivoComercial, esCoordinadorTransporte, esContable, rutasPropias, rutasRaw, flotaAlertas, cxc, guias, proformas, oportunidades, pedidosPortal, productos, ordenes, vencPorProducto, alertaVencimiento, categorias, almacenes, cotizaciones, simboloMoneda, despachosPorAprobar, pedidosInternosPorAprobar, reglasAprobacion, rolCodigo, esComodin])
 
-  const filtered = useMemo(() =>
-    filtroTipo === 'all' ? alertas : alertas.filter(a => a.tipo === filtroTipo)
-  , [alertas, filtroTipo])
+  const noAtendidas = useMemo(() =>
+    alertas.filter(a => !atencionesPorClave.has(claveAtencion(a))).length
+  , [alertas, atencionesPorClave])
 
-  const noLeidas = alertas.filter(a => !leidas.includes(a.titulo)).length
-
-  function marcarLeida(titulo) {
-    const n = [...new Set([...leidas, titulo])]
-    setLeidas(n); localStorage.setItem('sp_alertas_leidas', JSON.stringify(n))
-  }
-  function marcarTodas() {
-    const n = alertas.map(a => a.titulo)
-    setLeidas(n); localStorage.setItem('sp_alertas_leidas', JSON.stringify(n))
-  }
+  const filtered = useMemo(() => {
+    if (filtroTipo === 'all') return alertas
+    if (filtroTipo === 'pendientes') return alertas.filter(a => !atencionesPorClave.has(claveAtencion(a)))
+    return alertas.filter(a => a.tipo === filtroTipo)
+  }, [alertas, filtroTipo, atencionesPorClave])
 
   const conteos = useMemo(() => {
     const c = { all: alertas.length }
@@ -120,27 +135,32 @@ export default function Alertas() {
 
       {/* KPIs por tipo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
-        {[['Todas', 'all', Bell], ...Object.entries(TIPOS_ACTIVOS).map(([k,v]) => [v.label, k, v.icon])].map(([label, key]) => {
-          const count  = key === 'all' ? conteos.all : (conteos[key] || 0)
-          const activo = filtroTipo === key
-          const meta   = key !== 'all' ? TIPOS_ACTIVOS[key] : null
+        {[
+          ['Todas', 'all', Bell],
+          ['Sin atender', 'pendientes', BellRing],
+          ...Object.entries(TIPOS_ACTIVOS).map(([k,v]) => [v.label, k, v.icon]),
+        ].map((row) => {
+          const [label, key, TileIcon] = row
+          const count        = key === 'all' ? conteos.all : key === 'pendientes' ? noAtendidas : (conteos[key] || 0)
+          const activo       = filtroTipo === key
+          const esPendientes = key === 'pendientes'
+          const esTodas      = key === 'all'
+          const meta         = (!esTodas && !esPendientes) ? TIPOS_ACTIVOS[key] : null
+          const iconBg  = esTodas ? 'bg-[var(--accent-dim)]' : esPendientes ? (count > 0 ? 'bg-red-500/15' : 'bg-white/5') : (meta?.bg || 'bg-white/5')
+          const iconTxt = esTodas ? 'text-[var(--accent)]'   : esPendientes ? (count > 0 ? 'text-red-400'   : 'text-[#5f6f80]') : (meta?.txt || 'text-[#9ba8b6]')
           return (
             <button key={key} onClick={() => setFiltroTipo(key)}
               className="relative text-left p-3.5 sm:p-4 rounded-xl border transition-all overflow-hidden"
               style={{
-                background:  activo ? 'rgba(0,200,150,0.08)' : 'var(--bg-card)',
-                borderColor: activo ? '#00c896' : 'var(--border)',
+                background:  activo ? 'rgba(0,200,150,0.08)' : esPendientes && count > 0 ? 'rgba(239,68,68,0.06)' : 'var(--bg-card)',
+                borderColor: activo ? '#00c896' : esPendientes && count > 0 ? 'rgba(239,68,68,0.3)' : 'var(--border)',
               }}>
               <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl"
                 style={{ background: activo ? '#00c896' : 'transparent' }}/>
-              <div className="flex items-center justify-between mb-2">
-                {count > 0 && (
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${meta?.bg || 'bg-red-500/15'} ${meta?.txt || 'text-red-400'}`}>
-                    {count}
-                  </span>
-                )}
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2.5 ${iconBg}`}>
+                <TileIcon size={15} className={iconTxt}/>
               </div>
-              <div className="text-[28px] font-semibold text-[#e8edf2]">{count}</div>
+              <div className={`text-[28px] font-semibold ${esPendientes && count > 0 ? 'text-red-400' : 'text-[#e8edf2]'}`}>{count}</div>
               <div className="text-[10px] sm:text-[11px] text-[#5f6f80] mt-0.5 leading-tight">{label}</div>
             </button>
           )
@@ -154,17 +174,12 @@ export default function Alertas() {
             <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">
               Centro de Alertas
             </span>
-            {noLeidas > 0 && (
+            {noAtendidas > 0 && (
               <span className="text-[11px] bg-red-500/15 text-red-400 px-2 py-0.5 rounded-full font-semibold">
-                {noLeidas} no leídas
+                {noAtendidas} pendiente{noAtendidas === 1 ? '' : 's'}
               </span>
             )}
           </div>
-          {noLeidas > 0 && (
-            <Btn variant="ghost" size="sm" onClick={marcarTodas}>
-              <CheckCheck size={13}/> Marcar todas leídas
-            </Btn>
-          )}
         </div>
 
         {filtered.length === 0 ? (
@@ -186,15 +201,15 @@ export default function Alertas() {
             {filtered.map((alerta, i) => {
               const meta   = TIPOS_ACTIVOS[alerta.tipo]
               const Icon   = meta?.icon || Bell
-              const esLeida = leidas.includes(alerta.titulo)
+              const atencion = atencionesPorClave.get(claveAtencion(alerta))
               const color  = alerta.prioridad === 1 ? { bg:'bg-red-500/4', border:'border-red-500/20', hborder:'hover:border-red-500/40', dot:'bg-red-400' }
                            : alerta.prioridad === 2 ? { bg:'bg-amber-500/4', border:'border-amber-500/20', hborder:'hover:border-amber-500/35', dot:'bg-amber-400' }
                            : { bg:'bg-blue-500/3', border:'border-blue-500/15', hborder:'hover:border-blue-500/30', dot:'bg-blue-400' }
               return (
                 <div key={i}
-                  onClick={() => { setVerAlerta(alerta); marcarLeida(alerta.titulo) }}
+                  onClick={() => setVerAlerta(alerta)}
                   className={`flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer group ${
-                    esLeida ? 'bg-transparent border-white/4 opacity-45'
+                    atencion ? 'bg-transparent border-white/4 opacity-60'
                     : `${color.bg} ${color.border} ${color.hborder}`
                   }`}>
 
@@ -208,7 +223,9 @@ export default function Alertas() {
                     <div className="flex items-start justify-between gap-2 mb-0.5">
                       <span className="font-medium text-[#e8edf2] text-[13px] leading-snug">{alerta.titulo}</span>
                       <div className="flex items-center gap-2 shrink-0">
-                        {!esLeida && <div className={`w-2 h-2 rounded-full shrink-0 ${color.dot}`}/>}
+                        {atencion
+                          ? <Badge variant="success">Atendida</Badge>
+                          : <div className={`w-2 h-2 rounded-full shrink-0 ${color.dot}`}/>}
                         <Badge variant={meta?.color || 'neutral'}>{meta?.label}</Badge>
                       </div>
                     </div>
@@ -233,12 +250,11 @@ export default function Alertas() {
       {verAlerta && (
         <ModalDetalleAlerta
           alerta={verAlerta}
+          atencion={atencionesPorClave.get(claveAtencion(verAlerta))}
           simboloMoneda={simboloMoneda}
           navigate={navigate}
           onClose={() => setVerAlerta(null)}
-          onMarcarLeida={() => { marcarLeida(verAlerta.titulo); setVerAlerta(null) }}
         />
-
       )}
     </div>
   )
@@ -247,22 +263,38 @@ export default function Alertas() {
 // ════════════════════════════════════════════════════════
 // MODAL DETALLE ALERTA
 // ════════════════════════════════════════════════════════
-function ModalDetalleAlerta({ alerta, simboloMoneda, navigate, onClose, onMarcarLeida }) {
+function ModalDetalleAlerta({ alerta, atencion, simboloMoneda, navigate, onClose }) {
+  const { toast } = useApp()
+  const [nota, setNota] = useState('')
+  const marcarAtendida = useMarcarAtendida()
+  const reabrir = useReabrirAlerta()
 
   const meta  = TIPOS[alerta.tipo] || TIPOS_CHOFER[alerta.tipo] || TIPOS_EJECUTIVO_COMERCIAL[alerta.tipo]
     || TIPOS_COORDINADOR_TRANSPORTE[alerta.tipo] || TIPOS_CONTABLE[alerta.tipo]
   const Icon  = meta?.icon || Bell
 
+  async function confirmarAtendida() {
+    if (nota.trim().length < 3) return
+    try {
+      await marcarAtendida.mutateAsync({ tipo: alerta.tipo, clave: alerta.clave ?? alerta.titulo, notaAccion: nota.trim() })
+      toast('Alerta marcada como atendida', 'success')
+    } catch (e) {
+      toast(e.message || 'No se pudo registrar la atención', 'error')
+    }
+  }
+
+  async function confirmarReabrir() {
+    try {
+      await reabrir.mutateAsync({ tipo: alerta.tipo, clave: alerta.clave ?? alerta.titulo })
+      toast('Alerta vuelta a pendiente', 'success')
+    } catch (e) {
+      toast(e.message || 'No se pudo reabrir la alerta', 'error')
+    }
+  }
+
   return (
     <Modal open title="Detalle de Alerta" onClose={onClose} size="sm"
-      footer={
-        <div className="flex justify-between w-full">
-          <Btn variant="ghost" size="sm" onClick={onMarcarLeida}>
-            <CheckCheck size={13}/> Marcar leída
-          </Btn>
-          <Btn variant="secondary" onClick={onClose}>Cerrar</Btn>
-        </div>
-      }>
+      footer={<Btn variant="secondary" onClick={onClose} className="ml-auto">Cerrar</Btn>}>
 
       {/* Cabecera tipo */}
       <div className={`flex items-center gap-3 px-4 py-3 rounded-xl ${meta?.bg} mb-4`}>
@@ -356,6 +388,42 @@ function ModalDetalleAlerta({ alerta, simboloMoneda, navigate, onClose, onMarcar
           <ArrowRight size={16} className="text-[#00c896] shrink-0 group-hover/action:translate-x-1 transition-transform"/>
         </div>
       )}
+
+      {/* Seguimiento — registrar la acción tomada y marcar Atendida */}
+      <div className="mt-4 pt-4 border-t border-white/8">
+        <div className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-wide mb-2">Seguimiento</div>
+        {atencion ? (
+          <div className="bg-green-500/8 border border-green-500/20 rounded-xl px-4 py-3">
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <Badge variant="success">Atendida</Badge>
+              <span className="text-[11px] text-[#5f6f80]">
+                {atencion.usuario?.nombre || 'Alguien'} · {formatDateTime(atencion.fecha)}
+              </span>
+            </div>
+            <p className="text-[13px] text-[#9ba8b6] leading-relaxed mb-3">{atencion.notaAccion}</p>
+            <Btn variant="ghost" size="sm" onClick={confirmarReabrir} disabled={reabrir.isPending}>
+              <RotateCcw size={13}/> {reabrir.isPending ? 'Reabriendo...' : 'Reabrir (marcada por error)'}
+            </Btn>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <Textarea
+              value={nota}
+              onChange={e => setNota(e.target.value)}
+              placeholder="¿Qué acción tomaste para atender esta alerta?"
+              rows={3}
+            />
+            <Btn
+              variant="primary" size="sm"
+              onClick={confirmarAtendida}
+              disabled={nota.trim().length < 3 || marcarAtendida.isPending}
+              className="self-end"
+            >
+              <CheckCheck size={13}/> {marcarAtendida.isPending ? 'Guardando...' : 'Marcar como atendida'}
+            </Btn>
+          </div>
+        )}
+      </div>
 
     </Modal>
   )

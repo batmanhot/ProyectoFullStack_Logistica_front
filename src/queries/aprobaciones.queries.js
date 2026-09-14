@@ -8,10 +8,11 @@ const KEY = 'aprobaciones'
  * procesos — con su fila real o el valor por defecto (`porDefecto: true`).
  * `{ proceso, label, descripcion, rolesAprobadores[], porDefecto }`
  */
-export function useReglasAprobacion() {
+export function useReglasAprobacion({ enabled = true } = {}) {
   return useQuery({
     queryKey: [KEY],
     queryFn:  () => api.get('/aprobaciones/reglas').then(r => r.data ?? []),
+    enabled,
   })
 }
 

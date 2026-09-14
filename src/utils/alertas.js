@@ -1,4 +1,4 @@
-import { AlertTriangle, Clock, TrendingDown, ShoppingCart, Package, PlayCircle, Flag, DollarSign, FileText, Target, Globe, Wrench, FileWarning } from 'lucide-react'
+import { AlertTriangle, Clock, TrendingDown, ShoppingCart, Package, PlayCircle, Flag, DollarSign, FileText, Target, Globe, Wrench, FileWarning, UserCheck } from 'lucide-react'
 import { formatDate, formatTime, formatCurrency, diasParaVencer, estadoStock } from './helpers'
 import { STOCK } from '../config/constants'
 
@@ -12,6 +12,11 @@ export const TIPOS = {
   // pasa `cotizaciones` a generarAlertas() (ver Alertas.jsx) — ninguno de
   // los dos tiene alertas propias, solo les faltaba este tipo en el genérico.
   cotizacion_sin_respuesta: { label:'RFQ sin respuesta', color:'warning', icon:FileWarning, bg:'bg-amber-500/15', txt:'text-amber-400' },
+  // Despachos/Pedidos Internos con estado PEDIDO/ENVIADO, mostrado solo a
+  // quien de verdad puede aprobar ese proceso (ver esAprobador() más abajo:
+  // comodín '*', o su rol figura en ReglaAprobacion.rolesAprobadores, o esa
+  // regla está vacía y le basta el permiso del módulo/el angosto '-aprobar').
+  aprobacion_pendiente: { label:'Por aprobar', color:'warning', icon:UserCheck, bg:'bg-amber-500/15', txt:'text-amber-400' },
 }
 
 // Alertas operativas para el rol Chofer — no le sirven las de inventario (no
@@ -60,12 +65,45 @@ const DIAS_ALERTA_CXC = 7 // CxC pendiente que vence dentro de esta ventana avis
 const DIAS_ESTANCAMIENTO_OPORTUNIDAD = 7 // sin actividad registrada en el pipeline abierto
 const DIAS_GRE_SIN_ENVIAR = 2 // GRE generada (PENDIENTE) sin enviar a SUNAT en este plazo avisa
 
-export function generarAlertas(productos, ordenes, vencPorProducto, config, categorias, almacenes, simboloMoneda, cotizaciones = []) {
+/**
+ * ¿El usuario actual (rolCodigo/esComodin) puede aprobar `proceso` según las
+ * reglas del tenant? Mismo criterio que AprobacionGuard (back):
+ *   · comodín '*' (Owner) → siempre.
+ *   · regla sin fila o `rolesAprobadores` vacío → no restringe (ya se filtró
+ *     por permiso de módulo/angosto '-aprobar' al pedir los datos, ver
+ *     Alertas.jsx — si no tuviera ese permiso, la lista vendría vacía).
+ *   · si no, el código de su rol debe estar en `rolesAprobadores`.
+ */
+function esAprobador(proceso, reglas, rolCodigo, esComodin) {
+  if (esComodin) return true
+  const roles = reglas.find(r => r.proceso === proceso)?.rolesAprobadores ?? []
+  return roles.length === 0 || roles.includes(rolCodigo)
+}
+
+/**
+ * Clave con la que una alerta calculada en vivo se cruza contra el registro
+ * de "Atendida" del backend (AtencionAlerta, único por tipo+clave). Todo
+ * generador de arriba pone `alerta.clave` con el id real de la instancia
+ * (productoId, id de la OC/despacho/pedido/etc.) — el fallback a `titulo`
+ * es solo por si algún tipo nuevo se agrega sin `clave`.
+ */
+export function claveAtencion(alerta) {
+  return `${alerta.tipo}:${alerta.clave ?? alerta.titulo}`
+}
+
+export function generarAlertas(productos, ordenes, vencPorProducto, config, categorias, almacenes, simboloMoneda, cotizaciones = [], aprobaciones = {}) {
   const alertas = []
   const diasAlerta = STOCK.DIAS_ALERTA_VENCIMIENTO
   // Configuración → Alertas: las de vencimiento son opcionales (default ON);
   // las de stock mínimo son siempre activas.
   const alertaVencimiento = config?.alertaVencimiento !== false
+  const {
+    despachos: despachosPendientes = [],
+    pedidosInternos: pedidosInternosPendientes = [],
+    reglas = [],
+    rolCodigo,
+    esComodin = false,
+  } = aprobaciones
 
   productos.forEach(p => {
     if (p.activo === false) return
@@ -77,21 +115,21 @@ export function generarAlertas(productos, ordenes, vencPorProducto, config, cate
                       unidad:p.unidadMedida, fecha:new Date().toISOString().split('T')[0] }
 
     if (p.stockActual <= 0) {
-      alertas.push({ ...base, tipo:'stock_agotado', prioridad:1,
+      alertas.push({ ...base, tipo:'stock_agotado', prioridad:1, clave:p.id,
         titulo:`${p.nombre} — Sin stock`,
         detalle:`El producto está agotado. Stock mínimo requerido: ${p.stockMinimo} ${p.unidadMedida}.`,
         accion:'Generar Orden de Compra',
         accionPath:'/ordenes',
       })
     } else if (e.estado === 'critico') {
-      alertas.push({ ...base, tipo:'stock_critico', prioridad:1,
+      alertas.push({ ...base, tipo:'stock_critico', prioridad:1, clave:p.id,
         titulo:`${p.nombre} — Stock crítico`,
         detalle:`Stock actual (${p.stockActual}) está por debajo del mínimo (${p.stockMinimo}) ${p.unidadMedida}.`,
         accion:'Ver en Punto de Reorden',
         accionPath:'/reorden',
       })
     } else if (e.estado === 'bajo') {
-      alertas.push({ ...base, tipo:'reorden', prioridad:2,
+      alertas.push({ ...base, tipo:'reorden', prioridad:2, clave:p.id,
         titulo:`${p.nombre} — Stock bajo`,
         detalle:`Stock actual (${p.stockActual}) se acerca al mínimo (${p.stockMinimo}) ${p.unidadMedida}.`,
         accion:'Ver Previsión',
@@ -102,8 +140,12 @@ export function generarAlertas(productos, ordenes, vencPorProducto, config, cate
     const fechaVencimiento = vencPorProducto[p.id]
     if (alertaVencimiento && fechaVencimiento) {
       const dias = diasParaVencer(fechaVencimiento)
+      // clave incluye la fecha: si el lote vencido se da de baja y el
+      // producto pasa a tener otro vencimiento más urgente, es una alerta
+      // distinta (no debe heredar el "Atendida" del vencimiento anterior).
+      const claveVenc = `${p.id}:${fechaVencimiento}`
       if (dias !== null && dias < 0) {
-        alertas.push({ ...base, tipo:'vencimiento', prioridad:1,
+        alertas.push({ ...base, tipo:'vencimiento', prioridad:1, clave:claveVenc,
           titulo:`${p.nombre} — VENCIDO`,
           detalle:`Venció hace ${Math.abs(dias)} días. Fecha: ${formatDate(fechaVencimiento)}.`,
           diasVencimiento: dias,
@@ -113,7 +155,7 @@ export function generarAlertas(productos, ordenes, vencPorProducto, config, cate
           fecha: fechaVencimiento,
         })
       } else if (dias !== null && dias <= diasAlerta) {
-        alertas.push({ ...base, tipo:'vencimiento', prioridad: dias <= 15 ? 1 : 2,
+        alertas.push({ ...base, tipo:'vencimiento', prioridad: dias <= 15 ? 1 : 2, clave:claveVenc,
           titulo:`${p.nombre} — Próximo a vencer`,
           detalle:`Vence en ${dias} días (${formatDate(fechaVencimiento)}).`,
           diasVencimiento: dias,
@@ -128,7 +170,7 @@ export function generarAlertas(productos, ordenes, vencPorProducto, config, cate
 
   ordenes.filter(o => o.estado === 'PENDIENTE').forEach(o => {
     alertas.push({
-      tipo:'oc_pendiente', prioridad:3,
+      tipo:'oc_pendiente', prioridad:3, clave:o.id,
       titulo:`OC ${o.numero} — Pendiente de aprobación`,
       detalle:`Orden de compra por ${formatCurrency(o.total, simboloMoneda)} esperando aprobación.`,
       ocNumero: o.numero,
@@ -145,7 +187,7 @@ export function generarAlertas(productos, ordenes, vencPorProducto, config, cate
     const dias = diasParaVencer(c.fechaVencimiento)
     if (dias !== null && dias < 0) {
       alertas.push({
-        tipo:'cotizacion_sin_respuesta', prioridad:2,
+        tipo:'cotizacion_sin_respuesta', prioridad:2, clave:c.id,
         titulo:`RFQ ${c.numero} — Vencida sin respuesta`,
         detalle:`Venció hace ${Math.abs(dias)} días (${formatDate(c.fechaVencimiento)}) sin que ningún proveedor responda.`,
         accion:'Ir a Cotizaciones', accionPath:'/cotizaciones',
@@ -153,6 +195,30 @@ export function generarAlertas(productos, ordenes, vencPorProducto, config, cate
       })
     }
   })
+
+  if (esAprobador('DESPACHO', reglas, rolCodigo, esComodin)) {
+    despachosPendientes.forEach(d => {
+      alertas.push({
+        tipo:'aprobacion_pendiente', prioridad:2, clave:d.id,
+        titulo:`Despacho ${d.numero} — Pendiente de aprobación`,
+        detalle:`Despacho para ${d.cliente?.razonSocial || 'el cliente'} por ${formatCurrency(d.total, simboloMoneda)} esperando tu aprobación.`,
+        accion:'Ir a Despachos', accionPath:'/despachos',
+        fecha: d.fecha,
+      })
+    })
+  }
+
+  if (esAprobador('PEDIDO_INTERNO', reglas, rolCodigo, esComodin)) {
+    pedidosInternosPendientes.forEach(p => {
+      alertas.push({
+        tipo:'aprobacion_pendiente', prioridad:2, clave:p.id,
+        titulo:`Pedido Interno ${p.numero} — Pendiente de aprobación`,
+        detalle:`Pedido de ${p.area?.nombre || 'un área'} esperando tu aprobación.`,
+        accion:'Ir a Pedidos Internos', accionPath:'/pedidos-internos',
+        fecha: p.fecha,
+      })
+    })
+  }
 
   return alertas.sort((a, b) => a.prioridad - b.prioridad)
 }
@@ -165,7 +231,7 @@ export function generarAlertasEjecutivoComercial(cxc, proformas, oportunidades, 
     if (c.estado === 'VENCIDA') {
       const dias = diasParaVencer(c.fechaVencimiento)
       alertas.push({
-        tipo:'cxc_vencida', prioridad:1,
+        tipo:'cxc_vencida', prioridad:1, clave:c.id,
         titulo:`CxC ${c.numero} — Vencida`,
         detalle:`Saldo de ${formatCurrency(c.saldo, simboloMoneda)} vencido hace ${Math.abs(dias ?? 0)} días (${formatDate(c.fechaVencimiento)}).`,
         accion:'Ir a Cuentas por Cobrar', accionPath:'/cuentas-por-cobrar',
@@ -175,7 +241,7 @@ export function generarAlertasEjecutivoComercial(cxc, proformas, oportunidades, 
       const dias = diasParaVencer(c.fechaVencimiento)
       if (dias !== null && dias >= 0 && dias <= DIAS_ALERTA_CXC) {
         alertas.push({
-          tipo:'cxc_por_vencer', prioridad:2,
+          tipo:'cxc_por_vencer', prioridad:2, clave:c.id,
           titulo:`CxC ${c.numero} — Vence en ${dias} día${dias === 1 ? '' : 's'}`,
           detalle:`Saldo de ${formatCurrency(c.saldo, simboloMoneda)} vence el ${formatDate(c.fechaVencimiento)}.`,
           accion:'Ir a Cuentas por Cobrar', accionPath:'/cuentas-por-cobrar',
@@ -190,7 +256,7 @@ export function generarAlertasEjecutivoComercial(cxc, proformas, oportunidades, 
     const dias = diasParaVencer(p.fechaVencimiento)
     if (dias !== null && dias < 0) {
       alertas.push({
-        tipo:'proforma_vencida', prioridad:2,
+        tipo:'proforma_vencida', prioridad:2, clave:p.id,
         titulo:`Proforma ${p.numero} — Vencida sin respuesta`,
         detalle:`Venció hace ${Math.abs(dias)} días (${formatDate(p.fechaVencimiento)}) sin marcarse Aceptada ni Rechazada.`,
         accion:'Ir a Proformas', accionPath:'/proformas',
@@ -206,7 +272,7 @@ export function generarAlertasEjecutivoComercial(cxc, proformas, oportunidades, 
     const dias = diasParaVencer(referencia)
     if (dias !== null && dias <= -DIAS_ESTANCAMIENTO_OPORTUNIDAD) {
       alertas.push({
-        tipo:'oportunidad_estancada', prioridad:2,
+        tipo:'oportunidad_estancada', prioridad:2, clave:o.id,
         titulo:`${o.codigo} — Sin actividad hace ${Math.abs(dias)} días`,
         detalle:`"${o.descripcion}" sigue en ${o.estado} sin registrar una actividad reciente.`,
         accion:'Ir a Oportunidades', accionPath:'/oportunidades',
@@ -218,7 +284,7 @@ export function generarAlertasEjecutivoComercial(cxc, proformas, oportunidades, 
   pedidosPortal.forEach(p => {
     if (p.estado !== 'NUEVO') return
     alertas.push({
-      tipo:'pedido_portal_pendiente', prioridad:2,
+      tipo:'pedido_portal_pendiente', prioridad:2, clave:p.id,
       titulo:`Pedido de Portal — Sin revisar`,
       detalle:`Un cliente envió un pedido por el Portal de Pedidos que todavía no fue revisado.`,
       accion:'Ir a Portal de Pedidos', accionPath:'/portal-pedidos',
@@ -242,7 +308,7 @@ export function generarAlertasChofer(rutas) {
     if (ruta.estado === 'PROGRAMADA' && salida <= ahora) {
       const horas = Math.floor((ahora - salida) / 3_600_000)
       alertas.push({
-        tipo:'ruta_sin_iniciar', prioridad:1,
+        tipo:'ruta_sin_iniciar', prioridad:1, clave:ruta.id,
         titulo:`Ruta ${ruta.numero} — Sin iniciar`,
         detalle:`Estaba programada para salir a las ${formatTime(ruta.fechaSalida)} y todavía no se inició (hace ${horas}h).`,
         rutaNumero: ruta.numero,
@@ -258,7 +324,7 @@ export function generarAlertasChofer(rutas) {
       if (horasEnRuta >= HORAS_PARADA_DEMORADA) {
         pendientes.forEach(p => {
           alertas.push({
-            tipo:'parada_demorada', prioridad:1,
+            tipo:'parada_demorada', prioridad:1, clave:p.id,
             titulo:`Ruta ${ruta.numero} — Parada #${p.orden} demorada`,
             detalle:`La ruta salió hace ${Math.floor(horasEnRuta)}h y esta parada sigue ${p.estado === 'EN_CAMINO' ? 'en camino' : 'pendiente'}.`,
             rutaNumero: ruta.numero,
@@ -270,7 +336,7 @@ export function generarAlertasChofer(rutas) {
 
       if (paradas.length > 0 && pendientes.length === 0) {
         alertas.push({
-          tipo:'ruta_sin_cerrar', prioridad:2,
+          tipo:'ruta_sin_cerrar', prioridad:2, clave:ruta.id,
           titulo:`Ruta ${ruta.numero} — Lista para cerrar`,
           detalle:`Las ${paradas.length} parada(s) ya están resueltas — falta cerrar la ruta.`,
           rutaNumero: ruta.numero,
@@ -295,7 +361,7 @@ export function generarAlertasChofer(rutas) {
 export function generarAlertasCoordinadorTransporte(rutas, flotaAlertas) {
   const deRutas = generarAlertasChofer(rutas)
   const deFlota = flotaAlertas.map(f => ({
-    tipo:'vehiculo_documento', prioridad: f.dias < 0 || f.dias <= 7 ? 1 : 2,
+    tipo:'vehiculo_documento', prioridad: f.dias < 0 || f.dias <= 7 ? 1 : 2, clave:`${f.vehiculoId}:${f.tipo}`,
     titulo:`${f.unidad} (${f.placa}) — ${f.tipo} ${f.dias < 0 ? 'vencido' : 'por vencer'}`,
     detalle: f.dias < 0
       ? `${f.tipo} venció hace ${Math.abs(f.dias)} días.`
@@ -314,7 +380,7 @@ export function generarAlertasContable(cxc, guias, simboloMoneda) {
     if (c.estado === 'VENCIDA') {
       const dias = diasParaVencer(c.fechaVencimiento)
       alertas.push({
-        tipo:'cxc_vencida', prioridad:1,
+        tipo:'cxc_vencida', prioridad:1, clave:c.id,
         titulo:`CxC ${c.numero} — Vencida`,
         detalle:`Saldo de ${formatCurrency(c.saldo, simboloMoneda)} vencido hace ${Math.abs(dias ?? 0)} días (${formatDate(c.fechaVencimiento)}).`,
         accion:'Ir a Cuentas por Cobrar', accionPath:'/cuentas-por-cobrar',
@@ -324,7 +390,7 @@ export function generarAlertasContable(cxc, guias, simboloMoneda) {
       const dias = diasParaVencer(c.fechaVencimiento)
       if (dias !== null && dias >= 0 && dias <= DIAS_ALERTA_CXC) {
         alertas.push({
-          tipo:'cxc_por_vencer', prioridad:2,
+          tipo:'cxc_por_vencer', prioridad:2, clave:c.id,
           titulo:`CxC ${c.numero} — Vence en ${dias} día${dias === 1 ? '' : 's'}`,
           detalle:`Saldo de ${formatCurrency(c.saldo, simboloMoneda)} vence el ${formatDate(c.fechaVencimiento)}.`,
           accion:'Ir a Cuentas por Cobrar', accionPath:'/cuentas-por-cobrar',
@@ -338,7 +404,7 @@ export function generarAlertasContable(cxc, guias, simboloMoneda) {
     const cliente = g.despacho?.cliente?.razonSocial || 'cliente'
     if (g.estado === 'RECHAZADO') {
       alertas.push({
-        tipo:'gre_rechazada', prioridad:1,
+        tipo:'gre_rechazada', prioridad:1, clave:g.id,
         titulo:`GRE ${g.despacho?.numero || ''} — Rechazada`,
         detalle: g.motivoRechazo ? `Motivo: ${g.motivoRechazo}` : `Guía de remisión de ${cliente} rechazada, sin motivo registrado.`,
         accion:'Ir a Guías de Remisión', accionPath:'/sunat',
@@ -348,7 +414,7 @@ export function generarAlertasContable(cxc, guias, simboloMoneda) {
       const dias = diasParaVencer(g.createdAt)
       if (dias !== null && dias <= -DIAS_GRE_SIN_ENVIAR) {
         alertas.push({
-          tipo:'gre_pendiente', prioridad:2,
+          tipo:'gre_pendiente', prioridad:2, clave:g.id,
           titulo:`GRE ${g.despacho?.numero || ''} — Sin enviar hace ${Math.abs(dias)} días`,
           detalle:`Guía de remisión de ${cliente} generada pero todavía no se envió a SUNAT.`,
           accion:'Ir a Guías de Remisión', accionPath:'/sunat',
