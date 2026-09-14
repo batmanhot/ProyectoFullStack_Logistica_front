@@ -18,9 +18,7 @@ import { useMovimientosList } from '../queries/movimientos.queries'
 import { useOrdenesCompraList } from '../queries/ordenes-compra.queries'
 import { useDespachosList } from '../queries/despachos.queries'
 import { useClientesList } from '../queries/clientes.queries'
-import { useRutasList } from '../queries/rutas.queries'
 import { useCategoriasList } from '../queries/categorias.queries'
-import { useAlmacenesList } from '../queries/almacenes.queries'
 import DashboardAlmacenero from './DashboardAlmacenero/index.jsx'
 import DashboardChofer from './DashboardChofer/index.jsx'
 import DashboardEjecutivoComercial from './DashboardEjecutivoComercial/index.jsx'
@@ -52,7 +50,7 @@ function KPI({ label, value, sub, color = '#00c896', icon: Icon, onClick, mono }
 }
 
 export default function Dashboard() {
-  const { sesion } = useApp()
+  const { sesion, tienePermiso } = useApp()
   const nav = useNavigate()
   const hoy = new Date().toISOString().split('T')[0]
 
@@ -60,11 +58,16 @@ export default function Dashboard() {
   const { data: inventarioRaw = [] } = useInventarioList()
   const { data: movimientos   = [] } = useMovimientosList()
   const { data: ordenes       = [] } = useOrdenesCompraList()
-  const { data: despachos     = [] } = useDespachosList()
+  // 2026-09-12: los hooks de este componente SIEMPRE se disparan al montar,
+  // incluso para roles que de inmediato delegan el render a su propio
+  // sub-dashboard (if (rolCodigo==='supervisor') return <DashboardSupervisor/>
+  // más abajo — React ya corrió los hooks de arriba antes de ese return).
+  // Supervisor/Analista de Compras no tienen 'despachos' ni 'despachos-
+  // aprobar' y se llevaban un 403 en cada carga de "/", aunque el dato ni
+  // siquiera se usa en su propio dashboard.
+  const { data: despachos     = [] } = useDespachosList({ enabled: tienePermiso('despachos') || tienePermiso('despachos-aprobar') })
   const { data: clientes      = [] } = useClientesList()
-  const { data: rutas         = [] } = useRutasList()
   const { data: categorias    = [] } = useCategoriasList()
-  const { data: almacenes     = [] } = useAlmacenesList()
 
   const simboloMoneda       = 'S/'
   const formulaValorizacion = 'Precio Compra'

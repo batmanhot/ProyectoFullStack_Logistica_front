@@ -39,7 +39,7 @@ const ESTADOS = {
 }
 
 export default function Despachos() {
-  const { toast, sesion } = useApp()
+  const { toast, sesion, tienePermiso } = useApp()
   const simboloMoneda = 'S/'
   const pdfConfig = useEmpresaPDFConfig()
 
@@ -107,9 +107,17 @@ export default function Despachos() {
   const cliNombre = id => cliMap.get(id)?.razonSocial || '—'
   const almNombre = id => almMap.get(id)?.nombre     || '—'
   const esChofer  = sesion?.rol?.codigo === 'chofer'
+  // Alcance de roles (2026-09-11): Admin Tenant (y Gerente de Operaciones)
+  // aprueban Despachos sin tener el módulo completo — 'despachos-aprobar'
+  // en vez de 'despachos'. En ese caso la pantalla se reduce a la cola de
+  // pendientes de aprobar: nada de Nuevo Pedido, picking, despachar,
+  // anular, etc. — solo el botón de avanzar PEDIDO → APROBADO (que ya es,
+  // sin casos especiales, la acción "Aprobar").
+  const soloAprobar = !tienePermiso('despachos') && tienePermiso('despachos-aprobar')
 
   const filtered = useMemo(() => {
     let d = [...despachos]
+    if (soloAprobar) d = d.filter(x => x.estado === 'PEDIDO')
     if (filtEst)  d = d.filter(x => x.estado === filtEst)
     if (filtAlm)  d = d.filter(x => x.almacenId === filtAlm)
     if (filtDesde) d = d.filter(x => (x.fecha || x.createdAt || '').slice(0, 10) >= filtDesde)
@@ -273,7 +281,7 @@ export default function Despachos() {
             <Btn variant="ghost" size="sm" onClick={() => exportarDespachosPDF(filtered, clientes, almacenes, transportistas, simboloMoneda, sesion?.nombre)}>
               <FileText size={13}/> PDF
             </Btn>
-            {!esChofer && (
+            {!esChofer && !soloAprobar && (
               <Btn variant="primary" size="sm" onClick={() => setModal(true)}><Plus size={13}/> Nuevo Pedido</Btn>
             )}
           </div>
@@ -401,8 +409,8 @@ export default function Despachos() {
           simboloMoneda={simboloMoneda} onClose={() => setDetalle(null)}
           onAvanzar={() => detalle.estado === 'PICKING' ? setPickingModal(detalle) : avanzarEstado(detalle)}
           onAnular={() => setConfirmAnu(detalle)}
-          puedeGestionar={!esChofer || detalle.estado === 'DESPACHADO'}
-          puedeAnular={!esChofer}/>
+          puedeGestionar={soloAprobar || !esChofer || detalle.estado === 'DESPACHADO'}
+          puedeAnular={!soloAprobar && !esChofer}/>
       )}
 
       {shareDoc && (() => {

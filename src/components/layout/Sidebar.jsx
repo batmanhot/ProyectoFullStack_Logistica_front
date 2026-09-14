@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useMemo, useState, useRef, useEffect } from 'react'
-import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, ShieldCheck, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Globe, Target, Zap, Palette, Check, RefreshCw, Bug, HelpCircle, Filter, DatabaseBackup, ScrollText, CreditCard, Receipt} from 'lucide-react'
+import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight, Boxes, Building2, SlidersHorizontal, RotateCcw, Users, Tag, LogOut, ArrowRightLeft, Clock, TrendingDown, BookOpen, Bell, FileText, ClipboardList, Activity, Smartphone, Truck, Navigation as NavIcon, Shield, ShieldCheck, TrendingUp, Wrench, DollarSign, Grid3x3, Layers, Globe, Target, Zap, Palette, Check, RefreshCw, Bug, HelpCircle, Filter, DatabaseBackup, ScrollText, CreditCard, Receipt, Eye, EyeOff} from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { useTheme } from '../../hooks/useTheme'
 import { PLAN_META } from '../../config/constants'
@@ -9,6 +9,19 @@ import OfflineBanner from '../ui/OfflineBanner'
 import ModalMiPerfil from './ModalMiPerfil'
 
 const ROLES_LABEL = { saas_admin:'Super Admin', owner:'Propietario', admin:'Administrador', supervisor:'Supervisor', almacenero:'Almacenero', solicitante:'Solicitante', chofer:'Chofer' }
+
+// Alcance de roles (2026-09-11): Owner conserva `'*'` real en el backend
+// (nunca se le recorta nada técnicamente — sigue siendo la llave maestra) —
+// su restricción es solo de NAVEGACIÓN: por defecto ve el mismo recorte de
+// pantallas de Gestión + Admin que ya tienen esos roles en seed.ts, con un
+// toggle ("Ver todo") para revelar el resto si lo necesita puntualmente.
+const MODULOS_VISTA_CURADA_OWNER = new Set([
+  'dashboard', 'alertas',
+  'panorama-almacenes', 'kpis', 'reportes', 'financiero', 'reorden', 'prevision', 'reportes-proyecto',
+  'usuarios', 'configuracion', 'auditoria', 'panel-auditoria', 'cola-sync', 'incidencias',
+  'proyectos', 'almacenes', 'categorias', 'areas-internas', 'transportes',
+])
+const MODO_COMPLETO_KEY = 'sidebar_owner_modo_completo'
 
 // Panel del SuperAdmin integrado al sidebar oficial (antes era un sidebar
 // interno aparte en pages/AdminSaaS/). Las rutas /admin-saas/<tab> las resuelve
@@ -179,11 +192,38 @@ function SidebarHelpLink({ collapsed }) {
   )
 }
 
+// Solo para Owner — alterna entre la vista curada de Gestión (por defecto)
+// y el menú completo. Backend sin cambios (Owner sigue con `'*'` real);
+// esto es pura conveniencia de navegación, persistida por navegador.
+function SidebarModoCompletoButton({ collapsed, modoCompleto, onToggle }) {
+  return (
+    <button type="button" onClick={onToggle}
+      title={modoCompleto ? 'Volver a la vista curada de Gestión' : 'Ver todos los módulos'}
+      className={`w-full flex items-center gap-3 mx-2 my-0.5 rounded-lg transition-all duration-150 whitespace-nowrap hover:bg-white/5
+        ${collapsed ? 'px-0 justify-center h-10' : 'px-3 py-2'}`}
+      style={{ color: 'var(--sidebar-fg-nav)' }}>
+      {modoCompleto
+        ? <EyeOff size={16} className="shrink-0" style={{ opacity: 0.85 }}/>
+        : <Eye size={16} className="shrink-0" style={{ opacity: 0.85 }}/>}
+      {!collapsed && <span className="flex-1 text-[13.5px] font-medium text-left">{modoCompleto ? 'Vista curada' : 'Ver todo'}</span>}
+    </button>
+  )
+}
+
 export default function Sidebar({ collapsed, onToggle }) {
   const { sesion, logout, tienePermiso } = useApp()
   const navigate = useNavigate()
   const planMeta = PLAN_META[sesion?.plan]
   const [perfilOpen, setPerfilOpen] = useState(false)
+
+  // Solo Owner usa esto (ver MODULOS_VISTA_CURADA_OWNER) — por navegador,
+  // no por cuenta; arranca siempre en la vista curada.
+  const [modoCompleto, setModoCompleto] = useState(() => {
+    try { return localStorage.getItem(MODO_COMPLETO_KEY) === '1' } catch { return false }
+  })
+  useEffect(() => {
+    try { localStorage.setItem(MODO_COMPLETO_KEY, modoCompleto ? '1' : '0') } catch { /* localStorage no disponible */ }
+  }, [modoCompleto])
 
   function handleLogout() {
     // logout() limpia la sesión (y con ella sesion.empresaCodigo) — hay que
@@ -206,10 +246,14 @@ export default function Sidebar({ collapsed, onToggle }) {
     if (!sesion) return NAV
     // SuperAdmin ve solo su panel exclusivo
     if (sesion.rol?.codigo === 'saas_admin') return NAV_SAAS_ADMIN
+    const esOwner = sesion.rol?.codigo === 'owner'
     const marked = NAV.map(item => {
       if (item.divider) return item
       if (!tienePermiso(item.modulo)) return null
       if (item.ocultarPara?.includes(sesion.rol?.codigo)) return null
+      // Owner conserva '*' real (nunca se le recorta el permiso) — esto es
+      // pura curación de navegación, ver MODULOS_VISTA_CURADA_OWNER arriba.
+      if (esOwner && !modoCompleto && !MODULOS_VISTA_CURADA_OWNER.has(item.modulo)) return null
       return item
     })
     const result = []
@@ -228,7 +272,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       }
     }
     return result
-  }, [sesion, tienePermiso])
+  }, [sesion, tienePermiso, modoCompleto])
 
   return (
     <>
@@ -354,6 +398,10 @@ export default function Sidebar({ collapsed, onToggle }) {
 
           <div className="h-px bg-white/5 mx-3"/>
 
+          {sesion.rol?.codigo === 'owner' && (
+            <SidebarModoCompletoButton collapsed={collapsed} modoCompleto={modoCompleto}
+              onToggle={() => setModoCompleto(v => !v)}/>
+          )}
           <SidebarThemeButton collapsed={collapsed}/>
           <SidebarHelpLink collapsed={collapsed}/>
 

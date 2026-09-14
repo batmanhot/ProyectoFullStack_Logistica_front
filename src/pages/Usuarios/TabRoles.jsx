@@ -79,6 +79,11 @@ export default function TabRoles({ roles, usuarios, getRolCode }) {
               ) : (
                 <div className="px-5 py-3 text-[12px] text-[#5f6f80]">
                   Este rol tiene acceso completo a todos los módulos actuales y futuros del sistema.
+                  {codigo === 'owner' && (
+                    <> Por defecto el menú lateral le muestra solo una vista curada de Gestión (para no
+                    mezclarse con la operación diaria) — el acceso real sigue siendo total, y desde el
+                    pie del menú puede activar <b>"Ver todo"</b> para navegar el resto en cualquier momento.</>
+                  )}
                 </div>
               )}
             </div>

@@ -3,8 +3,11 @@ import { Badge, Spinner } from '../../components/ui/index'
 import { useRolesList } from '../../queries/roles.queries'
 import { useReglasAprobacion, useActualizarReglaAprobacion } from '../../queries/aprobaciones.queries'
 
-// Owner/Admin aprueban siempre (permiso '*') — no se ofrecen como opción.
-const ROLES_SIEMPRE = ['owner', 'admin']
+// Owner aprueba siempre (comodín '*' real) — no se ofrece como opción.
+// Admin YA NO entra acá (Alcance de roles, 2026-09-11: dejó de tener '*'):
+// se configura como cualquier otro rol, o depende del default de cada
+// proceso (Pedido Interno ya lo incluye por defecto).
+const ROLES_SIEMPRE = ['owner']
 
 export default function TabAprobaciones() {
   const { toast } = useApp()
@@ -31,9 +34,9 @@ export default function TabAprobaciones() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start gap-2.5 px-4 py-3 rounded-lg border border-blue-500/25 bg-blue-500/10 text-blue-300 text-[13px] leading-snug">
-        <span>Define qué <b>rol(es)</b> pueden aprobar o rechazar cada proceso. El <b>Propietario</b> y el
-        <b> Administrador</b> pueden siempre, no hace falta agregarlos. Si no eliges ninguno, cualquier
-        usuario con acceso al módulo podrá hacerlo. El cambio se guarda al instante.</span>
+        <span>Define qué <b>rol(es)</b> pueden aprobar o rechazar cada proceso. El <b>Propietario</b>
+        puede siempre, no hace falta agregarlo. Si no eliges ninguno, cualquier usuario con acceso al
+        módulo podrá hacerlo. El cambio se guarda al instante.</span>
       </div>
 
       {reglas.map(regla => (

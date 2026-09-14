@@ -40,10 +40,12 @@ describe('TabAprobaciones', () => {
     expect(screen.getByText('Despacho')).toBeInTheDocument()
   })
 
-  it('no ofrece Propietario ni Administrador como opción (aprueban siempre)', () => {
+  // Alcance de roles (2026-09-11): Admin dejó de tener '*' — ya no aprueba
+  // "siempre" como Owner, se configura como cualquier otro rol.
+  it('no ofrece Propietario (aprueba siempre) pero sí ofrece Administrador', () => {
     render(<TabAprobaciones />)
     expect(screen.queryByRole('button', { name: 'Propietario' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Administrador' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'Administrador' }).length).toBeGreaterThan(0)
   })
 
   it('marca "Sin aprobador designado" cuando la lista está vacía', () => {

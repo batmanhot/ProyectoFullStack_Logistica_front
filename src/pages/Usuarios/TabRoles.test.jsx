@@ -33,4 +33,23 @@ describe('TabRoles (solo lectura)', () => {
     // el rol con '*' muestra el resumen de acceso total, no la matriz
     expect(screen.getByText(/acceso completo a todos los módulos/i)).toBeInTheDocument()
   })
+
+  // Alcance de roles (2026-09-11): un Owner viendo esta pantalla veía
+  // "acceso completo a todos los módulos" mientras su propio Sidebar le
+  // mostraba solo la vista curada de Gestión — contradicción real que
+  // reportó el usuario. La nota aclaratoria es específica de 'owner' (hoy
+  // el único rol con '*' que además tiene curación en Sidebar.jsx) — no
+  // debe aparecer para otro rol con '*' que no tenga esa curación.
+  it('el rol owner aclara la vista curada del Sidebar; otro rol con \'*\' no', () => {
+    setup({
+      roles: {
+        owner: { id: 'r0', label: 'Propietario', color: '#f59e0b', desc: 'Acceso total', permisos: ['*'] },
+        ...ROLES,
+      },
+    })
+    expect(screen.getByText(/vista curada de Gestión/i)).toBeInTheDocument()
+    // El de 'admin' (también '*' en este fixture) no debe traer la nota — se
+    // verifica que aparece UNA sola vez (la de owner).
+    expect(screen.getAllByText(/vista curada de Gestión/i)).toHaveLength(1)
+  })
 })

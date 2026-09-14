@@ -38,11 +38,17 @@ import { ModalDetalle } from './ModalDetalle'
 // Página principal
 // ══════════════════════════════════════════════════════════════
 export default function PedidosInternos() {
-  const { sesion, toast } = useApp()
+  const { sesion, toast, tienePermiso } = useApp()
 
   const esSolicitante  = sesion?.rol?.codigo === 'solicitante'
   const esAdmin        = !esSolicitante
   const areaDelUsuario = sesion?.areaId || ''
+  // Alcance de roles (2026-09-11): Admin Tenant (y Gerente de Operaciones)
+  // aprueban Pedidos Internos sin tener el módulo completo —
+  // 'pedidos-internos-aprobar' en vez de 'pedidos-internos'. La pantalla se
+  // reduce a la cola de ENVIADO pendientes de aprobar: nada de crear, editar,
+  // picking, entregar ni la cola de "listos para recojo" (eso es operar).
+  const soloAprobar = !tienePermiso('pedidos-internos') && tienePermiso('pedidos-internos-aprobar')
 
   const { data: pedidosInternos = [], isLoading } = usePedidosInternosList()
   const { data: areasRaw        = [] }            = useAreasInternasList({ incluirInactivas: true })
@@ -89,6 +95,7 @@ export default function PedidosInternos() {
 
   const lista = useMemo(() => {
     let data = pedidosInternos
+    if (soloAprobar) data = data.filter(p => p.estado === 'ENVIADO')
     if (esSolicitante) data = data.filter(p => p.areaId === areaDelUsuario)
     if (filtEstado) data = data.filter(p => p.estado === filtEstado)
     if (!esSolicitante && filtArea) data = data.filter(p => p.areaId === filtArea)
@@ -100,7 +107,7 @@ export default function PedidosInternos() {
       )
     }
     return data
-  }, [pedidosInternos, filtEstado, filtArea, busqueda, areas, esSolicitante, areaDelUsuario])
+  }, [pedidosInternos, filtEstado, filtArea, busqueda, areas, esSolicitante, areaDelUsuario, soloAprobar])
 
   // Una sola cola de "listos para recojo" — quién la ve depende del rol, qué
   // acción tiene cada fila depende de si el pedido es de uno mismo:
@@ -112,9 +119,10 @@ export default function PedidosInternos() {
   // pidiendo insumos para un proyecto propio — por eso cada fila decide su
   // botón según usuarioSolicitaId, no según el rol de quien mira la lista.
   const pedidosPorRecoger = useMemo(() => {
+    if (soloAprobar) return [] // esa cola es de operar (confirmar recibo), no de aprobar
     const listos = pedidosInternos.filter(p => p.estado === 'ENTREGADO' && !p.reciboConfirmado)
     return esAdmin ? listos : listos.filter(p => p.usuarioSolicitaId === sesion?.id)
-  }, [pedidosInternos, esAdmin, sesion?.id])
+  }, [pedidosInternos, esAdmin, sesion?.id, soloAprobar])
 
   async function handleModalSave(action) {
     let res
@@ -244,9 +252,11 @@ export default function PedidosInternos() {
             <Btn variant="ghost" size="sm" onClick={() => exportarPedidosInternosPDF(lista, areas, almacenes, sesion?.nombre)}>
               <FileText size={13}/> PDF
             </Btn>
-            <Btn variant="primary" size="sm" onClick={() => setModalNuevo(true)}>
-              <Plus size={13}/> Nuevo pedido
-            </Btn>
+            {!soloAprobar && (
+              <Btn variant="primary" size="sm" onClick={() => setModalNuevo(true)}>
+                <Plus size={13}/> Nuevo pedido
+              </Btn>
+            )}
           </div>
         </div>
 

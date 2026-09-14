@@ -34,7 +34,9 @@ export const MODULOS_GRUPOS = [
     items: [
       { id:'clientes',        label:'Clientes',               desc:'Gestión de clientes'               },
       { id:'despachos',       label:'Despachos',              desc:'Pedidos y guías de remisión'       },
+      { id:'despachos-aprobar', label:'Aprobar Despachos',    desc:'Solo aprobar, sin operar el módulo completo (picking, empaque, despachar, etc.)' },
       { id:'pedidos-internos',label:'Pedidos Internos',       desc:'Solicitudes internas al almacén'   },
+      { id:'pedidos-internos-aprobar', label:'Aprobar Pedidos Internos', desc:'Solo aprobar/rechazar, sin operar el módulo completo' },
       { id:'portal-pedidos',  label:'Portal de Pedidos',      desc:'Portal web para clientes'          },
       { id:'picking',         label:'Picking',                desc:'Preparación de pedidos en almacén' },
       { id:'empaque',         label:'Empaque / Packing',      desc:'Control de empaque y embalaje'     },
@@ -103,8 +105,12 @@ export const TODOS_MODULOS = MODULOS_GRUPOS.flatMap(g => g.items.map(i => i.id))
 // real — ver informe de auditoría de roles.
 export const ROLES_BASE_META = {
   owner:                   { label:'Propietario',             color:'#f59e0b', desc:'Dueño del negocio — acceso total sin restricciones' },
-  admin:                   { label:'Administrador',           color:'#ef4444', desc:'Acceso total sin restricciones' },
-  'gerente-operaciones':   { label:'Gerente de Operaciones',  color:'#3b82f6', desc:'Mando operativo: inventario, compras, despachos, análisis' },
+  // Alcance de roles (2026-09-11): Admin dejó de ser "acceso total" — es el
+  // Supervisor Operativo de la capa de Operaciones (gobierna la cuenta,
+  // aprueba, supervisa con reportes de control), no quien decide la
+  // estrategia/continuidad del negocio (eso es Owner + Gerencias).
+  admin:                   { label:'Administrador',           color:'#ef4444', desc:'Supervisor operativo: gobierna la cuenta, aprueba, supervisa — no decide estrategia de negocio' },
+  'gerente-operaciones':   { label:'Gerente de Operaciones',  color:'#3b82f6', desc:'Gestión: supervisa, controla y decide — sin operar la minucia diaria' },
   supervisor:              { label:'Supervisor de Almacén',   color:'#0ea5e9', desc:'Gestión de inventario con autoridad de ajustes' },
   almacenero:              { label:'Operario de Almacén',     color:'#22c55e', desc:'Operaciones de almacén, sin ajustes' },
   'analista-compras':      { label:'Analista de Compras',     color:'#f59e0b', desc:'Órdenes de compra, cotizaciones, proveedores' },
