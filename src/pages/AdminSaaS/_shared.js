@@ -14,6 +14,9 @@ export function money(n, moneda = 'PEN') {
 /** Fecha corta es-ish: `fdate('2026-09-10')` → "10 sep 2026" (o "—" si vacío). */
 export const fdate = d => (d ? format(new Date(d), 'dd MMM yyyy') : '—')
 
+/** Fecha + hora es-ish: `fdatetime('2026-09-10T13:05')` → "10 sep 2026, 13:05" (o "—" si vacío). */
+export const fdatetime = d => (d ? format(new Date(d), "dd MMM yyyy, HH:mm") : '—')
+
 /**
  * Descarga un CSV desde el navegador. `filas` es un array de arrays (la
  * primera fila suele ser el encabezado). Escapa comillas / comas / saltos y

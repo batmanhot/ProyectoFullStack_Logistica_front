@@ -6,7 +6,7 @@ import {
 import {
   Modal, EmptyState, Badge, Btn, Field, TableWrap, Th, Td, KpiCard, Input, Select, Textarea, Toggle, Alert,
 } from '../../components/ui/index'
-import { fdate, descargarCsv } from './_shared'
+import { fdate, fdatetime, descargarCsv } from './_shared'
 import {
   useRespaldos, useRespaldosResumen, useRestauraciones, useRespaldoDestinos, useRespaldoActividad, useRespaldo,
   useCrearRespaldo, useVerificarIntegridad, useAutomatizacionBackups, useEjecutarBackupAhora, useCancelarEjecucionRestauracion,
@@ -275,7 +275,7 @@ export default function TabBackups({ negocios = [], toast }) {
                         <div className="mt-0.5"><Badge variant={ORIGEN[r.origen]?.badge || 'neutral'}>{ORIGEN[r.origen]?.label || r.origen}</Badge></div>
                       </Td>
                       <Td>
-                        <div className="text-[13px] text-[var(--text-primary)]">{fdate(r.createdAt)}</div>
+                        <div className="text-[13px] text-[var(--text-primary)]">{fdatetime(r.createdAt)}</div>
                         <div className="text-[11px] text-[var(--text-muted)]">{gbFmt(r.tamanoBytes)}</div>
                       </Td>
                       <Td>
@@ -323,7 +323,7 @@ export default function TabBackups({ negocios = [], toast }) {
                   <Badge variant={ESTADO_REST[s.estado]?.badge}>{ESTADO_REST[s.estado]?.label || s.estado}</Badge>
                 </div>
                 <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
-                  {s.respaldoAlcance || 'Respaldo no disponible'} · {gbFmt(s.respaldoTamanoBytes)} · {fdate(s.respaldoCreadoEn)}
+                  {s.respaldoAlcance || 'Respaldo no disponible'} · {gbFmt(s.respaldoTamanoBytes)} · {fdatetime(s.respaldoCreadoEn)}
                 </p>
                 <p className="text-[12px] text-[var(--text-muted)] mt-0.5">Motivo: {s.motivo}</p>
                 {s.aprobacionEvidencia && <p className="text-[11px] text-emerald-400 mt-0.5">Aprobación: {s.aprobacionEvidencia} · {s.aprobacionContacto}</p>}
@@ -571,7 +571,7 @@ function ModalSolicitar({ respaldo, onClose, toast }) {
       <div className="space-y-4">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-muted)] p-3 text-[12px]">
           <div className="text-[var(--text-primary)] font-medium">{respaldo.empresaNombre}</div>
-          <div className="text-[var(--text-muted)] mt-0.5">{respaldo.alcanceLabel} · {gbFmt(respaldo.tamanoBytes)} · {fdate(respaldo.createdAt)}</div>
+          <div className="text-[var(--text-muted)] mt-0.5">{respaldo.alcanceLabel} · {gbFmt(respaldo.tamanoBytes)} · {fdatetime(respaldo.createdAt)}</div>
         </div>
         <Field label="Motivo de la restauración *" hint="Queda registrado; el cliente debe aprobarlo antes de ejecutar.">
           <Textarea rows={3} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Ej. pérdida de datos por error operativo del cliente el 09/09." />
@@ -710,7 +710,7 @@ function ModalDetalle({ id, onClose, onSolicitar }) {
               ['Alcance', r.alcanceLabel],
               ['Origen', ORIGEN[r.origen]?.label || r.origen],
               ['Formato', r.formato || '—'],
-              ['Fecha', fdate(r.createdAt)],
+              ['Fecha', fdatetime(r.createdAt)],
               ['Tamaño', gbFmt(r.tamanoBytes)],
               ['Destino', r.destinoNombre],
               ['Región', r.destinoRegion],
