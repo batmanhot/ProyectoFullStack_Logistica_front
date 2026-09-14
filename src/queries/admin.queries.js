@@ -314,7 +314,7 @@ export function useRespaldosResumen() {
     queryFn:  () => api.get('/admin/backups/resumen', OPTS)
       .then(r => r.data ?? {
         total: 0, completados: 0, verificados: 0, restauracionesPendientes: 0, cifradoActivo: false,
-        ultimoBackupAt: null, backupAtrasado: false, ultimaPrueba: null,
+        ultimoBackupAt: null, ultimoDispatchBackupAt: null, backupAtrasado: false, ultimaPrueba: null,
       }),
   })
 }
@@ -326,6 +326,21 @@ export function useRestauraciones(filtros = {}) {
   return useQuery({
     queryKey: [...BK, 'restauraciones', filtros],
     queryFn:  () => api.get(`/admin/backups/restauraciones${qs ? `?${qs}` : ''}`, OPTS).then(r => r.data ?? []),
+    // Mientras haya alguna EN_EJECUCION, sondea cada 8s — el resultado real lo
+    // escribe registrarResultadoRestauracion() cuando el script de GitHub
+    // Actions termina; no hay decisión del usuario que tomar acá (o hay algo
+    // corriendo o no), por eso no es un toggle manual como en TabMonitor.
+    refetchInterval: (query) => (query.state.data ?? []).some(s => s.estado === 'EN_EJECUCION') ? 8_000 : false,
+  })
+}
+
+/** Estado de la integración con GitHub Actions — el panel deshabilita botones con tooltip si no está configurada. */
+export function useAutomatizacionBackups() {
+  return useQuery({
+    queryKey: [...BK, 'automatizacion'],
+    staleTime: 5 * 60_000,
+    queryFn:  () => api.get('/admin/backups/automatizacion', OPTS)
+      .then(r => r.data ?? { disponible: false, motivo: null, repo: null, urlBackup: null, urlRestauracion: null }),
   })
 }
 
@@ -388,6 +403,18 @@ export function useEjecutarRestauracion() {
 export function useRechazarRestauracion() {
   const qc = useQueryClient()
   return useMutation({ mutationFn: ({ id, ...dto }) => api.post(`/admin/backups/restauraciones/${id}/rechazar`, dto, OPTS), onSuccess: () => invalidarBackups(qc) })
+}
+
+/** Dispara el workflow nocturno a demanda — el resultado lo reportan los scripts por el canal de ingesta ya existente. */
+export function useEjecutarBackupAhora() {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: () => api.post('/admin/backups/ejecutar-ahora', {}, OPTS), onSuccess: () => invalidarBackups(qc) })
+}
+
+/** Escotilla de emergencia: no cancela el job en GitHub, solo desbloquea el registro EN_EJECUCION. */
+export function useCancelarEjecucionRestauracion() {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: (id) => api.post(`/admin/backups/restauraciones/${id}/cancelar-ejecucion`, {}, OPTS), onSuccess: () => invalidarBackups(qc) })
 }
 
 // ── Alertas de vencimiento ───────────────────────────────

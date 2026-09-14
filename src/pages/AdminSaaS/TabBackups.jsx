@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   DatabaseBackup, ShieldCheck, ShieldAlert, AlertTriangle, Search, Download, Save, RefreshCw,
-  FileClock, CheckCircle, Lock, HardDriveDownload, ChevronLeft, ChevronRight, XCircle,
+  FileClock, CheckCircle, Lock, HardDriveDownload, ChevronLeft, ChevronRight, XCircle, Play, ExternalLink, Ban,
 } from 'lucide-react'
 import {
   Modal, EmptyState, Badge, Btn, Field, TableWrap, Th, Td, KpiCard, Input, Select, Textarea, Toggle, Alert,
@@ -9,7 +9,7 @@ import {
 import { fdate, descargarCsv } from './_shared'
 import {
   useRespaldos, useRespaldosResumen, useRestauraciones, useRespaldoDestinos, useRespaldoActividad, useRespaldo,
-  useCrearRespaldo, useVerificarIntegridad,
+  useCrearRespaldo, useVerificarIntegridad, useAutomatizacionBackups, useEjecutarBackupAhora, useCancelarEjecucionRestauracion,
   useSolicitarRestauracion, useRegistrarAprobacionRestauracion, useEjecutarRestauracion, useRechazarRestauracion,
 } from '../../queries/admin.queries'
 
@@ -61,7 +61,14 @@ const EVENTO_LABEL = {
   restauracion_ejecutada: 'Restauración ejecutada',
   restauracion_fallida: 'Restauración falló',
   restauracion_rechazada: 'Restauración rechazada',
+  backup_dispatch: 'Backup solicitado',
+  restauracion_dispatch: 'Restauración disparada',
+  restauracion_dispatch_cancelado: 'Ejecución marcada como abandonada',
 }
+
+// Umbral para avisar que una EN_EJECUCION puede haberse colgado (el job de
+// GitHub Actions tiene timeout de 60 min — esto es un aviso, no un veredicto).
+const MINUTOS_EJECUCION_COLGADA = 20
 
 const PAGE_SIZE = 25
 const EMPTY = []
@@ -79,12 +86,27 @@ function relTime(iso) {
   return `hace ${Math.round(h / 24)} d`
 }
 
+/** Igual que relTime pero con granularidad de minutos — para "está corriendo" reciente. */
+function relMin(iso) {
+  if (!iso) return ''
+  const min = (Date.now() - new Date(iso).getTime()) / 60_000
+  if (min < 1) return 'hace instantes'
+  if (min < 60) return `hace ${Math.round(min)} min`
+  return relTime(iso)
+}
+
+function ejecucionColgada(despachadoEn) {
+  if (!despachadoEn) return false
+  return (Date.now() - new Date(despachadoEn).getTime()) / 60_000 > MINUTOS_EJECUCION_COLGADA
+}
+
 export default function TabBackups({ negocios = [], toast }) {
   const [subTab, setSubTab] = useState('respaldos')
   const [search, setSearch] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('Todos')
   const [page, setPage] = useState(1)
   const [crearOpen, setCrearOpen] = useState(false)
+  const [backupAhoraOpen, setBackupAhoraOpen] = useState(false)
   const [detalleId, setDetalleId] = useState(null)
   const [solicitar, setSolicitar] = useState(null)  // respaldo
   const [aprobar, setAprobar] = useState(null)      // restauración
@@ -100,8 +122,16 @@ export default function TabBackups({ negocios = [], toast }) {
   const { data: restauraciones = [] } = useRestauraciones()
   const { data: destinos = [] } = useRespaldoDestinos()
   const { data: actividad = [] } = useRespaldoActividad()
+  const { data: automatizacion = { disponible: false, motivo: null } } = useAutomatizacionBackups()
 
   const verificar = useVerificarIntegridad()
+  const cancelarEjecucion = useCancelarEjecucionRestauracion()
+
+  async function handleCancelarEjecucion(s) {
+    const res = await cancelarEjecucion.mutateAsync(s.id)
+    if (res?.error) { toast(res.error, 'error'); return }
+    toast('Ejecución marcada como abandonada — la solicitud volvió a Aprobada', 'success')
+  }
 
   const items = lista.items || EMPTY
   const totalPages = Math.max(1, Math.ceil((lista.total || 0) / PAGE_SIZE))
@@ -127,6 +157,11 @@ export default function TabBackups({ negocios = [], toast }) {
 
   const ultimoTxt = relTime(resumen.ultimoBackupAt)
   const pruebaOk = resumen.ultimaPrueba?.resultado === 'ok'
+  // Un "backup ahora" disparado desde el panel puede tardar varios minutos en
+  // reportar — mientras no llegue, mostramos que se pidió en vez de que la
+  // tarjeta parezca no haber reaccionado al click.
+  const dispatchMasNuevo = resumen.ultimoDispatchBackupAt
+    && (!resumen.ultimoBackupAt || new Date(resumen.ultimoDispatchBackupAt) > new Date(resumen.ultimoBackupAt))
 
   return (
     <div className="space-y-5">
@@ -135,8 +170,9 @@ export default function TabBackups({ negocios = [], toast }) {
         <KpiCard
           label="Último backup"
           value={ultimoTxt}
-          sub={resumen.backupAtrasado ? 'El job nocturno no reportó — revisar' : 'Job de respaldo al día'}
-          accentColor={resumen.backupAtrasado ? '#ef4444' : '#22c55e'}
+          sub={dispatchMasNuevo ? `Ejecución solicitada ${relMin(resumen.ultimoDispatchBackupAt)}…`
+            : resumen.backupAtrasado ? 'El job nocturno no reportó — revisar' : 'Job de respaldo al día'}
+          accentColor={dispatchMasNuevo ? '#3b82f6' : resumen.backupAtrasado ? '#ef4444' : '#22c55e'}
           icon={<DatabaseBackup size={30}/>}
           mono
         />
@@ -158,10 +194,13 @@ export default function TabBackups({ negocios = [], toast }) {
         <div>
           <p className="text-[13px] font-semibold text-[var(--text-primary)]">Proceso de respaldo</p>
           <p className="text-[12px] text-[var(--text-muted)] mt-1 leading-relaxed">
-            Un job externo toma el <span className="font-semibold">pg_dump completo</span> (DR) y los <span className="font-semibold">exports por negocio</span>,
-            los cifra y sube al object storage, y los registra acá. La restauración por negocio exige solicitud +
-            aprobación documentada del cliente y la ejecuta un operador en ventana de mantenimiento
-            (<span className="font-mono">restore-tenant.mjs</span>). Ver <span className="font-mono">docs/BACKUP-RESTORE.md</span>.
+            El botón <span className="font-semibold">Ejecutar backup ahora</span> dispara en GitHub Actions el <span className="font-semibold">pg_dump completo</span> (DR)
+            y los <span className="font-semibold">exports por negocio</span>, que se cifran y suben al object storage y se registran acá solos.
+            La restauración por negocio exige solicitud + aprobación documentada del cliente; al ejecutarla desde el panel se dispara el mismo
+            mecanismo (<span className="font-mono">restore-tenant.mjs --apply</span>) y el resultado se reporta solo. Ver <span className="font-mono">docs/BACKUP-RESTORE.md</span>.
+            {!automatizacion.disponible && (
+              <span className="block mt-1.5 text-amber-400">⚠ {automatizacion.motivo || 'La ejecución automática no está configurada en el servidor.'}</span>
+            )}
           </p>
         </div>
       </div>
@@ -183,7 +222,15 @@ export default function TabBackups({ negocios = [], toast }) {
         </div>
         <div className="flex items-center gap-2">
           <Btn variant="secondary" onClick={exportar}><Download size={14}/>Exportar</Btn>
-          <Btn variant="primary" onClick={() => setCrearOpen(true)}><DatabaseBackup size={14}/>Crear respaldo</Btn>
+          <Btn variant="secondary" onClick={() => setCrearOpen(true)}><Save size={14}/>Registrar respaldo</Btn>
+          <Btn
+            variant="primary"
+            onClick={() => setBackupAhoraOpen(true)}
+            disabled={!automatizacion.disponible}
+            title={automatizacion.disponible ? undefined : automatizacion.motivo}
+          >
+            <Play size={14}/>Ejecutar backup ahora
+          </Btn>
         </div>
       </div>
 
@@ -290,7 +337,33 @@ export default function TabBackups({ negocios = [], toast }) {
                   </>
                 )}
                 {s.estado === 'APROBADA' && (
-                  <Btn variant="primary" size="sm" onClick={() => setEjecutar(s)}><RefreshCw size={13}/>Ejecutar restauración</Btn>
+                  <Btn
+                    variant="primary" size="sm" onClick={() => setEjecutar(s)}
+                    disabled={!automatizacion.disponible}
+                    title={automatizacion.disponible ? undefined : automatizacion.motivo}
+                  >
+                    <RefreshCw size={13}/>Ejecutar restauración
+                  </Btn>
+                )}
+                {s.estado === 'EN_EJECUCION' && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <RefreshCw size={13} className="animate-spin text-blue-400 shrink-0"/>
+                    <span className="text-[12px] text-[var(--text-muted)]">Ejecutando en GitHub Actions · {relMin(s.despachadoEn)}</span>
+                    {automatizacion.urlRestauracion && (
+                      <a href={automatizacion.urlRestauracion} target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-[12px] text-[var(--accent)] hover:underline">
+                        Ver ejecución<ExternalLink size={11}/>
+                      </a>
+                    )}
+                    {ejecucionColgada(s.despachadoEn) && (
+                      <>
+                        <Badge variant="warning">Sin respuesta hace más de {MINUTOS_EJECUCION_COLGADA} min</Badge>
+                        <Btn variant="danger" size="sm" onClick={() => handleCancelarEjecucion(s)} disabled={cancelarEjecucion.isPending}>
+                          <Ban size={12}/>Marcar como abandonada
+                        </Btn>
+                      </>
+                    )}
+                  </div>
                 )}
                 {s.estado === 'RESTAURADA' && <Badge variant="success">Ejecutada {fdate(s.ejecutadoEn)}</Badge>}
               </div>
@@ -371,6 +444,7 @@ export default function TabBackups({ negocios = [], toast }) {
 
       {/* Modales */}
       {crearOpen && <ModalCrear onClose={() => setCrearOpen(false)} negocios={negocios} toast={toast} />}
+      {backupAhoraOpen && <ModalEjecutarBackup onClose={() => setBackupAhoraOpen(false)} toast={toast} />}
       {solicitar && <ModalSolicitar respaldo={solicitar} onClose={() => setSolicitar(null)} toast={toast} />}
       {aprobar && <ModalAprobar restauracion={aprobar} onClose={() => setAprobar(null)} toast={toast} />}
       {ejecutar && <ModalEjecutar restauracion={ejecutar} onClose={() => setEjecutar(null)} toast={toast} />}
@@ -447,6 +521,34 @@ function ModalCrear({ onClose, negocios, toast }) {
   )
 }
 
+// ── Modal: ejecutar backup ahora (real — dispara GitHub Actions) ─
+function ModalEjecutarBackup({ onClose, toast }) {
+  const ejecutarAhora = useEjecutarBackupAhora()
+
+  async function confirmar() {
+    const res = await ejecutarAhora.mutateAsync()
+    if (res?.error) { toast(res.error, 'error'); return }
+    toast('Backup solicitado — el job reportará al terminar', 'success')
+    onClose()
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Ejecutar backup ahora" size="sm"
+      footer={<>
+        <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
+        <Btn variant="primary" onClick={confirmar} disabled={ejecutarAhora.isPending}><Play size={14}/>Ejecutar ahora</Btn>
+      </>}>
+      <div className="space-y-3">
+        <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">
+          Dispara en GitHub Actions la verificación de cobertura, el <span className="font-semibold">pg_dump completo</span> (DR)
+          y el export de todos los negocios activos — el mismo proceso del cron nocturno, a demanda.
+        </p>
+        <Alert variant="info">Tarda varios minutos. El resultado aparece solo acá cuando el job termina y reporta — no hace falta esperar en esta pantalla.</Alert>
+      </div>
+    </Modal>
+  )
+}
+
 // ── Modal: solicitar restauración ─────────────────────────
 function ModalSolicitar({ respaldo, onClose, toast }) {
   const solicitar = useSolicitarRestauracion()
@@ -516,32 +618,42 @@ function ModalAprobar({ restauracion, onClose, toast }) {
   )
 }
 
-// ── Modal: ejecutar restauración ─────────────────────────
+// ── Modal: ejecutar restauración (real — dispara GitHub Actions, destructivo) ─
 function ModalEjecutar({ restauracion, onClose, toast }) {
   const ejecutar = useEjecutarRestauracion()
   const [nota, setNota] = useState('')
+  const [confirmacionNombre, setConfirmacionNombre] = useState('')
+  const nombreOk = confirmacionNombre.trim().toLowerCase() === restauracion.empresaNombre.trim().toLowerCase()
 
   async function guardar() {
-    const res = await ejecutar.mutateAsync({ id: restauracion.id, nota: nota.trim() || undefined })
+    if (!nombreOk) return
+    const res = await ejecutar.mutateAsync({ id: restauracion.id, confirmacionNombre: confirmacionNombre.trim(), nota: nota.trim() || undefined })
     if (res?.error) { toast(res.error, 'error'); return }
-    toast('Restauración registrada como ejecutada', 'success')
+    toast('Restauración disparada — el job reportará el resultado', 'success')
     onClose()
   }
 
   return (
-    <Modal open onClose={onClose} title="Ejecutar restauración" size="sm"
+    <Modal open onClose={onClose} title="Ejecutar restauración real" size="sm"
       footer={<>
         <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
-        <Btn variant="primary" onClick={guardar} disabled={ejecutar.isPending}><RefreshCw size={14}/>Confirmar ejecución</Btn>
+        <Btn variant="danger" onClick={guardar} disabled={ejecutar.isPending || !nombreOk}><RefreshCw size={14}/>Disparar restauración</Btn>
       </>}>
       <div className="space-y-4">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-muted)] p-3 text-[12px]">
           <div className="text-[var(--text-primary)] font-medium">{restauracion.empresaNombre}</div>
           <div className="text-emerald-400 mt-0.5">Aprobación: {restauracion.aprobacionEvidencia} · {restauracion.aprobacionContacto}</div>
         </div>
-        <Alert variant="warning">Confirma que la restauración se realizó en el entorno del negocio. La acción queda en auditoría.</Alert>
-        <Field label="Nota de ejecución (opcional)">
-          <Textarea rows={2} value={nota} onChange={e => setNota(e.target.value)} placeholder="Punto de restauración usado, incidencias durante el proceso…" />
+        <Alert variant="danger">
+          Esto dispara el workflow en GitHub Actions y <span className="font-semibold">borra todas las filas actuales de este negocio y las reemplaza por las del respaldo</span>.
+          Antes se sube un snapshot del estado actual por si hay que revertir. El resto de los negocios no se toca (la operación queda scopeada a este tenant).
+          El panel se actualiza solo cuando el script reporte el resultado.
+        </Alert>
+        <Field label={`Escribe el nombre exacto del negocio para confirmar *`} hint={restauracion.empresaNombre}>
+          <Input value={confirmacionNombre} onChange={e => setConfirmacionNombre(e.target.value)} placeholder={restauracion.empresaNombre} />
+        </Field>
+        <Field label="Nota (opcional)">
+          <Textarea rows={2} value={nota} onChange={e => setNota(e.target.value)} placeholder="Contexto adicional para la auditoría…" />
         </Field>
       </div>
     </Modal>
