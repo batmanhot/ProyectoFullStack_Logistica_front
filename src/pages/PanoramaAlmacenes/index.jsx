@@ -442,33 +442,43 @@ function PulsoOperativo({ consolidado, almacenes }) {
   const enAlerta = activos.filter(a => a.agotados > 0 || a.criticos > 0 || a.porVencer30d > 0)
   const estable = enAlerta.length === 0
 
+  // Banner "hero" con gradiente oscuro fijo A PROPÓSITO en los dos temas (no
+  // es una tarjeta más — es el estado en vivo, se lo distingue del resto).
+  // Por eso el texto de acá adentro NO puede usar las clases
+  // `text-[#e8edf2]`/`text-[#5f6f80]` — index.css las remapea a las
+  // variables de tema (útil en el resto de la página, donde el fondo
+  // también se remapea) y en tema Claro esas variables dan un texto casi
+  // negro: sobre este fondo, que se queda oscuro siempre, quedaba invisible.
+  // Con `style` en vez de esas clases, el color queda fijo en los dos temas.
+  const CLARO  = '#e8edf2'
+  const MUTED  = '#5f6f80'
   return (
     <div className="rounded-2xl border border-white/8 overflow-hidden shrink-0" style={{ background: 'linear-gradient(135deg, #161d28, #0e1117)' }}>
       <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
         <div>
           <span className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--accent)' }}>Pulso operativo</span>
-          <p className="text-[15px] font-semibold text-[#e8edf2] mt-1.5 leading-snug">
+          <p className="text-[15px] font-semibold mt-1.5 leading-snug" style={{ color: CLARO }}>
             {estable
               ? 'Todos los almacenes están en orden — sin críticos, agotados ni vencimientos próximos.'
               : `La operación está estable, con ${enAlerta.length} almacén${enAlerta.length === 1 ? '' : 'es'} que requiere${enAlerta.length === 1 ? '' : 'n'} atención.`}
           </p>
         </div>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-semibold bg-white/5 text-[#9ba8b6] shrink-0">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-semibold bg-white/5 shrink-0" style={{ color: MUTED }}>
           <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse"/> En vivo
         </span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 border-t border-white/6">
         <div className="px-5 py-3.5 sm:border-r border-white/6">
-          <div className="text-[10px] text-[#5f6f80] uppercase tracking-[0.06em]">Almacenes activos</div>
-          <div className="text-[20px] font-semibold text-[#e8edf2] mt-0.5">{formatNumber(consolidado.almacenesActivos, 0)}</div>
+          <div className="text-[10px] uppercase tracking-[0.06em]" style={{ color: MUTED }}>Almacenes activos</div>
+          <div className="text-[20px] font-semibold mt-0.5" style={{ color: CLARO }}>{formatNumber(consolidado.almacenesActivos, 0)}</div>
         </div>
         <div className="px-5 py-3.5 sm:border-r border-white/6">
-          <div className="text-[10px] text-[#5f6f80] uppercase tracking-[0.06em]">Requieren atención</div>
-          <div className="text-[20px] font-semibold mt-0.5" style={{ color: enAlerta.length ? '#f59e0b' : '#e8edf2' }}>{formatNumber(enAlerta.length, 0)}</div>
+          <div className="text-[10px] uppercase tracking-[0.06em]" style={{ color: MUTED }}>Requieren atención</div>
+          <div className="text-[20px] font-semibold mt-0.5" style={{ color: enAlerta.length ? '#f59e0b' : CLARO }}>{formatNumber(enAlerta.length, 0)}</div>
         </div>
         <div className="px-5 py-3.5">
-          <div className="text-[10px] text-[#5f6f80] uppercase tracking-[0.06em]">Despachado (3m)</div>
-          <div className="text-[20px] font-semibold text-[#e8edf2] mt-0.5">{formatCurrency(consolidado.despachado3m)}</div>
+          <div className="text-[10px] uppercase tracking-[0.06em]" style={{ color: MUTED }}>Despachado (3m)</div>
+          <div className="text-[20px] font-semibold mt-0.5" style={{ color: CLARO }}>{formatCurrency(consolidado.despachado3m)}</div>
         </div>
       </div>
     </div>
