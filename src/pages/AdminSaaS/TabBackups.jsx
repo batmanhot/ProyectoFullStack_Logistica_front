@@ -495,7 +495,7 @@ function CardCarpetaLocal({ toast }) {
         <Input
           value={valor}
           onChange={e => setValor(e.target.value)}
-          placeholder={isLoading ? 'Cargando…' : '/mnt/e/desarrollo/Backups-StockPro'}
+          placeholder={isLoading ? 'Cargando…' : '/mnt/c/ruta/a/tu/carpeta (sin configurar)'}
           disabled={isLoading}
           className="flex-1 font-mono text-[12px]"
         />
