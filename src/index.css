@@ -31,7 +31,6 @@
   --text-faint:      #3d4f60;
 
   --sidebar-brand:   linear-gradient(160deg, #0f1a2e 0%, #0f1520 60%, #121a1f 100%);
-  --sidebar-line:    linear-gradient(90deg, #f97316, #00c896, #3b82f6);
   --sidebar-fg:      #d0dae6;
   --sidebar-fg-muted: #7a8fa8;
   --sidebar-fg-faint: #3d4f60;
@@ -66,7 +65,6 @@
   --text-faint:      #1e3a52;
 
   --sidebar-brand:   linear-gradient(160deg, #071020 0%, #07101c 60%, #0a1525 100%);
-  --sidebar-line:    linear-gradient(90deg, #0ea5e9, #38bdf8, #6366f1);
   --sidebar-fg:      #cce0f5;
   --sidebar-fg-muted: #5a8ab0;
   --sidebar-fg-faint: #1e3a52;
@@ -100,7 +98,6 @@
   --text-faint:      #1a3828;
 
   --sidebar-brand:   linear-gradient(160deg, #071410 0%, #07100c 60%, #0a1510 100%);
-  --sidebar-line:    linear-gradient(90deg, #22c55e, #84cc16, #06b6d4);
   --sidebar-fg:      #c8e8d4;
   --sidebar-fg-muted: #5a8a6e;
   --sidebar-fg-faint: #1a3828;
@@ -134,7 +131,6 @@
   --text-faint:      #38246a;
 
   --sidebar-brand:   linear-gradient(160deg, #100c20 0%, #0d0918 60%, #120c1e 100%);
-  --sidebar-line:    linear-gradient(90deg, #f97316, #ec4899, #8b5cf6);
   --sidebar-fg:      #ecdcf8;
   --sidebar-fg-muted: #8060a0;
   --sidebar-fg-faint: #38246a;
@@ -169,7 +165,6 @@
   --text-faint:      #2e3748;
 
   --sidebar-brand:   linear-gradient(160deg, #0a0a0e 0%, #060608 60%, #080810 100%);
-  --sidebar-line:    linear-gradient(90deg, #f59e0b, #f97316, #ef4444);
   --sidebar-fg:      #e0e4f0;
   --sidebar-fg-muted: #6a7890;
   --sidebar-fg-faint: #2e3748;
@@ -203,7 +198,6 @@
   --text-faint:      #383e28;
 
   --sidebar-brand:   linear-gradient(160deg, #100e08 0%, #0c0b08 60%, #110f09 100%);
-  --sidebar-line:    linear-gradient(90deg, #84cc16, #22c55e, #f59e0b);
   --sidebar-fg:      #dce8c8;
   --sidebar-fg-muted: #7a8860;
   --sidebar-fg-faint: #383e28;
@@ -238,7 +232,6 @@
   --text-faint:      #d1d5db;
 
   --sidebar-brand:   linear-gradient(160deg, #e8eef5 0%, #f1f5f9 60%, #f8fafc 100%);
-  --sidebar-line:    linear-gradient(90deg, #059669, #0891b2, #7c3aed);
   --sidebar-fg:      #1e293b;
   --sidebar-fg-muted: #64748b;
   --sidebar-fg-faint: #94a3b8;

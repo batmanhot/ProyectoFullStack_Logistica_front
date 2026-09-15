@@ -298,9 +298,6 @@ export default function Sidebar({ collapsed, onToggle }) {
         // por su padding vertical + el logo de 52px.
         <div className="shrink-0 sticky top-0 z-10 border-b border-white/8 flex flex-col" style={{ background: 'var(--sidebar-brand)', height: 64 }}>
 
-          {/* Barra acento superior */}
-          <div style={{ height: 2, background: 'var(--sidebar-line)' }}/>
-
           <div className="flex items-center gap-3 px-3.5 flex-1 min-h-0">
             <div className="w-13 h-13 shrink-0 flex items-center justify-center rounded-xl overflow-hidden shadow-inner"
               style={{ background: 'var(--sidebar-surface)', border: '1px solid var(--border)' }}>
