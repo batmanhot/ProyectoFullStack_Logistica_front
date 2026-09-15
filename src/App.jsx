@@ -253,7 +253,7 @@ function PageHeader() {
       : 'StockPro')
 
   return (
-    <div className="h-[52px] flex items-center justify-between px-6 border-b border-white/8 bg-[#141920] shrink-0">
+    <div className="h-[64px] flex items-center justify-between px-6 border-b border-white/8 bg-[#141920] shrink-0">
       <h1 className="text-[16px] font-semibold text-[#e8edf2]">{title}</h1>
       <HelpButton pathname={location.pathname} />
     </div>
