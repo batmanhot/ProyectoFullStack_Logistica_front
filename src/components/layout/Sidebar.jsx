@@ -433,14 +433,22 @@ export default function Sidebar({ collapsed, onToggle }) {
                   </button>
                 </div>
 
-                <button type="button" onClick={() => setPerfilOpen(true)}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left transition-colors hover:bg-white/5"
-                  style={{ color: 'var(--sidebar-fg)', background: 'rgba(0,0,0,0.015)', borderTop: '1px solid var(--border)' }}>
-                  <div className="w-4 h-4 flex items-center justify-center" style={{ color: 'var(--sidebar-fg-muted)' }}>
-                    <Settings size={14} strokeWidth={2}/>
-                  </div>
-                  <span className="text-[12px] font-medium">Mi Perfil</span>
-                </button>
+                {/* "Mi Perfil" es una vista 360° del Usuario de un tenant (GET /auth/me,
+                    requiere una fila real en Usuario) — el SuperAdmin de plataforma
+                    (rol saas_admin) no es un Usuario de ningún negocio, así que esa
+                    llamada siempre falla para esa cuenta. Se oculta en vez de mostrar
+                    un modal roto; sus propios datos de cuenta se gestionan desde
+                    Administradores (/admin-saas/platform-admins). */}
+                {sesion.rol?.codigo !== 'saas_admin' && (
+                  <button type="button" onClick={() => setPerfilOpen(true)}
+                    className="w-full flex items-center gap-2 px-2.5 py-2 text-left transition-colors hover:bg-white/5"
+                    style={{ color: 'var(--sidebar-fg)', background: 'rgba(0,0,0,0.015)', borderTop: '1px solid var(--border)' }}>
+                    <div className="w-4 h-4 flex items-center justify-center" style={{ color: 'var(--sidebar-fg-muted)' }}>
+                      <Settings size={14} strokeWidth={2}/>
+                    </div>
+                    <span className="text-[12px] font-medium">Mi Perfil</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
