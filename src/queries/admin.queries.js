@@ -386,11 +386,6 @@ function invalidarBackups(qc) {
   qc.invalidateQueries({ queryKey: BK })
 }
 
-export function useCrearRespaldo() {
-  const qc = useQueryClient()
-  return useMutation({ mutationFn: dto => api.post('/admin/backups', dto, OPTS), onSuccess: () => invalidarBackups(qc) })
-}
-
 export function useVerificarIntegridad() {
   const qc = useQueryClient()
   return useMutation({ mutationFn: ({ id, ...dto }) => api.patch(`/admin/backups/${id}/integridad`, dto, OPTS), onSuccess: () => invalidarBackups(qc) })

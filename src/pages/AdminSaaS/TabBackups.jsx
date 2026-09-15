@@ -4,12 +4,12 @@ import {
   FileClock, CheckCircle, Lock, HardDriveDownload, ChevronLeft, ChevronRight, XCircle, Play, ExternalLink, Ban,
 } from 'lucide-react'
 import {
-  Modal, EmptyState, Badge, Btn, Field, TableWrap, Th, Td, KpiCard, Input, Select, Textarea, Toggle, Alert,
+  Modal, EmptyState, Badge, Btn, Field, TableWrap, Th, Td, KpiCard, Input, Select, Textarea, Alert,
 } from '../../components/ui/index'
 import { fdate, fdatetime, descargarCsv } from './_shared'
 import {
   useRespaldos, useRespaldosResumen, useRestauraciones, useRespaldoDestinos, useRespaldoActividad, useRespaldo,
-  useCrearRespaldo, useVerificarIntegridad, useAutomatizacionBackups, useEjecutarBackupAhora, useCancelarEjecucionRestauracion,
+  useVerificarIntegridad, useAutomatizacionBackups, useEjecutarBackupAhora, useCancelarEjecucionRestauracion,
   useSolicitarRestauracion, useRegistrarAprobacionRestauracion, useEjecutarRestauracion, useRechazarRestauracion,
   useBackupLocalDir, useActualizarBackupLocalDir,
 } from '../../queries/admin.queries'
@@ -101,12 +101,11 @@ function ejecucionColgada(despachadoEn) {
   return (Date.now() - new Date(despachadoEn).getTime()) / 60_000 > MINUTOS_EJECUCION_COLGADA
 }
 
-export default function TabBackups({ negocios = [], toast }) {
+export default function TabBackups({ toast }) {
   const [subTab, setSubTab] = useState('respaldos')
   const [search, setSearch] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('Todos')
   const [page, setPage] = useState(1)
-  const [crearOpen, setCrearOpen] = useState(false)
   const [backupAhoraOpen, setBackupAhoraOpen] = useState(false)
   const [detalleId, setDetalleId] = useState(null)
   const [solicitar, setSolicitar] = useState(null)  // respaldo
@@ -223,7 +222,6 @@ export default function TabBackups({ negocios = [], toast }) {
         </div>
         <div className="flex items-center gap-2">
           <Btn variant="secondary" onClick={exportar}><Download size={14}/>Exportar</Btn>
-          <Btn variant="secondary" onClick={() => setCrearOpen(true)}><Save size={14}/>Registrar respaldo</Btn>
           <Btn
             variant="primary"
             onClick={() => setBackupAhoraOpen(true)}
@@ -446,7 +444,6 @@ export default function TabBackups({ negocios = [], toast }) {
       )}
 
       {/* Modales */}
-      {crearOpen && <ModalCrear onClose={() => setCrearOpen(false)} negocios={negocios} toast={toast} />}
       {backupAhoraOpen && <ModalEjecutarBackup onClose={() => setBackupAhoraOpen(false)} toast={toast} />}
       {solicitar && <ModalSolicitar respaldo={solicitar} onClose={() => setSolicitar(null)} toast={toast} />}
       {aprobar && <ModalAprobar restauracion={aprobar} onClose={() => setAprobar(null)} toast={toast} />}
@@ -509,72 +506,6 @@ function CardCarpetaLocal({ toast }) {
         </p>
       )}
     </div>
-  )
-}
-
-function ModalCrear({ onClose, negocios, toast }) {
-  const crear = useCrearRespaldo()
-  const [form, setForm] = useState({ empresaId: negocios[0]?.id || '', alcance: 'base_datos', tamanoGb: '', retencionDias: 90, cifrado: true, estado: 'VALIDANDO', nota: '' })
-  const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
-
-  async function guardar() {
-    if (!form.empresaId) { toast('Selecciona un negocio', 'error'); return }
-    const res = await crear.mutateAsync({
-      empresaId: form.empresaId,
-      alcance: form.alcance,
-      tamanoBytes: form.tamanoGb ? Math.round(parseFloat(form.tamanoGb) * 1e9) : undefined,
-      retencionDias: Number(form.retencionDias) || 90,
-      cifrado: form.cifrado,
-      estado: form.estado,
-      nota: form.nota?.trim() || undefined,
-    })
-    if (res?.error) { toast(res.error, 'error'); return }
-    toast('Respaldo registrado', 'success')
-    onClose()
-  }
-
-  return (
-    <Modal open onClose={onClose} title="Registrar respaldo" size="md"
-      footer={<>
-        <Btn variant="secondary" onClick={onClose}>Cancelar</Btn>
-        <Btn variant="primary" onClick={guardar} disabled={crear.isPending}><Save size={14}/>Registrar</Btn>
-      </>}>
-      <div className="space-y-4">
-        <Alert variant="info">Esto <span className="font-semibold">registra</span> un respaldo ya tomado por infraestructura; no ejecuta el volcado.</Alert>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Negocio *">
-            <Select value={form.empresaId} onChange={e => f('empresaId', e.target.value)}>
-              <option value="">Seleccionar…</option>
-              {negocios.map(n => <option key={n.id} value={n.id}>{n.nombre}</option>)}
-            </Select>
-          </Field>
-          <Field label="Alcance">
-            <Select value={form.alcance} onChange={e => f('alcance', e.target.value)}>
-              {ALCANCES.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
-            </Select>
-          </Field>
-          <Field label="Tamaño (GB)">
-            <Input type="number" min="0" step="0.1" value={form.tamanoGb} onChange={e => f('tamanoGb', e.target.value)} placeholder="Opcional" />
-          </Field>
-          <Field label="Retención (días)">
-            <Input type="number" min="1" max="3650" value={form.retencionDias} onChange={e => f('retencionDias', e.target.value)} />
-          </Field>
-          <Field label="Estado inicial">
-            <Select value={form.estado} onChange={e => f('estado', e.target.value)}>
-              <option value="VALIDANDO">Validando</option>
-              <option value="COMPLETADO">Completado</option>
-              <option value="FALLIDO">Fallido</option>
-            </Select>
-          </Field>
-          <Field label="Cifrado">
-            <div className="flex items-center h-9"><Toggle value={form.cifrado} onChange={v => f('cifrado', v)} label="Cifrado en destino" /></div>
-          </Field>
-        </div>
-        <Field label="Nota (opcional)">
-          <Textarea rows={2} value={form.nota} onChange={e => f('nota', e.target.value)} placeholder="Ventana de mantenimiento, job de origen, observación…" />
-        </Field>
-      </div>
-    </Modal>
   )
 }
 

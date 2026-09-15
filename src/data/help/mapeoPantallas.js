@@ -98,8 +98,97 @@ export const MAPEO_PANTALLAS = {
       { tipo: 'concepto',      slug: 'fecha-vencimiento', label: '¿Qué es la fecha de vencimiento?' },
       { tipo: 'concepto',      slug: 'lote',              label: '¿Qué es un lote?' },
       { tipo: 'procedimiento', slug: 'consultar-proximos-vencer', label: 'Consultar productos próximos a vencer' },
+      { tipo: 'modulo',        slug: 'vencimientos',      label: 'Ver documentación completa del módulo' },
     ],
     verProcedimientoCompleto: '/ayuda/como-hago/consultar-proximos-vencer',
+  },
+  '/alertas': {
+    queEsEstaPantalla: 'Bandeja central de avisos operativos: agrupa lo que requiere tu atención (stock crítico, vencimientos, aprobaciones pendientes, cobranza, rutas, etc.), calculado en vivo según tu rol.',
+    pasosRecomendados: [
+      'Revisa primero la tarjeta "Sin atender" para saber cuánto queda pendiente.',
+      'Abre el detalle de una alerta para ver el contexto completo.',
+      'Al resolverla, márcala como "Atendida" explicando qué acción tomaste (mínimo 3 caracteres).',
+      'Si la marcaste por error, usa "Reabrir" para devolverla a pendiente.',
+    ],
+    ayudaRelacionada: [
+      { tipo: 'modulo', slug: 'alertas', label: 'Ver documentación completa del módulo' },
+    ],
+    verProcedimientoCompleto: '/ayuda/modulos/alertas',
+  },
+  '/panorama-almacenes': {
+    queEsEstaPantalla: 'Torre de Control de Almacenes: supervisión consolidada de todos los almacenes (valor de inventario, criticidad de stock, vencimientos, actividad reciente y mapa geográfico). Es de solo consulta.',
+    pasosRecomendados: [
+      'Revisa el "Pulso operativo" y los KPIs consolidados para ver el estado general.',
+      'Abre la tarjeta de un almacén específico para ver su detalle.',
+      'Usa los enlaces de cada dato (crítico, por vencer, pendiente de aprobación) para saltar directo a resolverlo en su módulo.',
+      'Carga Latitud/Longitud en Categorías y Almacenes si el mapa aparece vacío.',
+    ],
+    ayudaRelacionada: [
+      { tipo: 'concepto', slug: 'almacen', label: '¿Qué es un almacén?' },
+      { tipo: 'modulo',   slug: 'panorama-almacenes', label: 'Ver documentación completa del módulo' },
+    ],
+    verProcedimientoCompleto: '/ayuda/modulos/panorama-almacenes',
+  },
+  '/auditoria': {
+    queEsEstaPantalla: 'Bitácora: el registro cronológico automático de toda la actividad del sistema (quién hizo qué, cuándo y sobre qué módulo), incluyendo inicios de sesión.',
+    pasosRecomendados: [
+      'Usa los filtros (tipo de acción, módulo, usuario, fechas) para acotar la búsqueda antes de leer el listado completo.',
+      'Abre el detalle de un evento para ver los datos antes/después si el sistema los guardó.',
+      'Exporta a Excel o PDF si necesitas el historial fuera del sistema.',
+    ],
+    ayudaRelacionada: [
+      { tipo: 'modulo', slug: 'auditoria', label: 'Ver documentación completa del módulo' },
+    ],
+    verProcedimientoCompleto: '/ayuda/modulos/auditoria',
+  },
+  '/panel-auditoria': {
+    queEsEstaPantalla: 'Panel de Auditoría: tablero de solo lectura para el rol Auditor, con 4 pestañas (Bitácora, Discrepancias, Movimientos, Conciliación de CxC).',
+    pasosRecomendados: [
+      'Elige la pestaña que necesitas consultar.',
+      'Recuerda que este panel no tiene filtros ni exportación — para eso usa el módulo de origen si tienes acceso.',
+      'Cualquier corrección se hace desde el módulo original (Inventario Físico, Movimientos, CxC), no desde aquí.',
+    ],
+    ayudaRelacionada: [
+      { tipo: 'modulo', slug: 'panel-auditoria', label: 'Ver documentación completa del módulo' },
+    ],
+    verProcedimientoCompleto: '/ayuda/modulos/panel-auditoria',
+  },
+  '/configuracion': {
+    queEsEstaPantalla: 'Ajustes generales de la empresa: datos de empresa, valorización de inventario, Aprobaciones por proceso, alertas, áreas internas, importación de datos maestros y herramientas de datos (limpiar/restaurar).',
+    pasosRecomendados: [
+      'Configura primero "Aprobaciones" si necesitas restringir quién autoriza cada proceso — mientras no lo hagas, cualquiera con acceso al módulo puede aprobar.',
+      'Antes de usar "Limpiar Datos Operativos" o "Restaurar Datos Demo", ten certeza total: ambas acciones son irreversibles.',
+      'Para importar datos maestros, descarga primero la plantilla del sistema y no cambies el texto de sus encabezados.',
+    ],
+    ayudaRelacionada: [
+      { tipo: 'modulo', slug: 'configuracion', label: 'Ver documentación completa del módulo' },
+    ],
+    verProcedimientoCompleto: '/ayuda/modulos/configuracion',
+  },
+  '/reorden': {
+    queEsEstaPantalla: 'Punto de Reorden: calcula cuándo conviene reponer cada producto según su consumo real de los últimos 60 días, y permite generar la Orden de Compra sugerida.',
+    pasosRecomendados: [
+      'Revisa primero los productos marcados como "Requieren acción".',
+      'Usa "Generar OC" sobre un producto sugerido para crear la Orden de Compra automáticamente.',
+      'Si el botón dice "Ver OC", ese producto ya tiene una orden pendiente — revísala antes de duplicar el pedido.',
+    ],
+    ayudaRelacionada: [
+      { tipo: 'concepto', slug: 'stock', label: '¿Qué es el stock?' },
+      { tipo: 'modulo',   slug: 'reorden', label: 'Ver documentación completa del módulo' },
+    ],
+    verProcedimientoCompleto: '/ayuda/modulos/reorden',
+  },
+  '/kpis': {
+    queEsEstaPantalla: 'KPIs Operativos: indicadores logísticos estándar (Fill Rate, OTIF, Tasa de Error, Perfect Order Rate, Cycle Time, Lead Time de proveedor y rotación por categoría) sobre un período seleccionable.',
+    pasosRecomendados: [
+      'Elige el período de análisis (7, 30, 60 o 90 días).',
+      'Revisa el semáforo de cada indicador antes de mirar el detalle.',
+      'Consulta el glosario dentro de la misma pantalla si algún indicador no es claro.',
+    ],
+    ayudaRelacionada: [
+      { tipo: 'modulo', slug: 'kpis', label: 'Ver documentación completa del módulo' },
+    ],
+    verProcedimientoCompleto: '/ayuda/modulos/kpis',
   },
   '/reportes': {
     queEsEstaPantalla: 'Reportes analíticos: Rentabilidad, Inventario Valorizado, Movimientos por Período, Análisis ABC y Rotación por Categoría.',
