@@ -344,6 +344,22 @@ export function useAutomatizacionBackups() {
   })
 }
 
+/** Carpeta local (runner self-hosted) donde cae el backup cuando no hay object storage configurado. */
+export function useBackupLocalDir() {
+  return useQuery({
+    queryKey: [...BK, 'local-dir'],
+    queryFn:  () => api.get('/admin/backups/configuracion/local-dir', OPTS).then(r => r.data ?? { valor: null }),
+  })
+}
+
+export function useActualizarBackupLocalDir() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (valor) => api.patch('/admin/backups/configuracion/local-dir', { valor }, OPTS),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: [...BK, 'local-dir'] }),
+  })
+}
+
 export function useRespaldoDestinos() {
   return useQuery({
     queryKey: [...BK, 'destinos'],

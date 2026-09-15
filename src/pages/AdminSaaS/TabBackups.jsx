@@ -11,6 +11,7 @@ import {
   useRespaldos, useRespaldosResumen, useRestauraciones, useRespaldoDestinos, useRespaldoActividad, useRespaldo,
   useCrearRespaldo, useVerificarIntegridad, useAutomatizacionBackups, useEjecutarBackupAhora, useCancelarEjecucionRestauracion,
   useSolicitarRestauracion, useRegistrarAprobacionRestauracion, useEjecutarRestauracion, useRechazarRestauracion,
+  useBackupLocalDir, useActualizarBackupLocalDir,
 } from '../../queries/admin.queries'
 
 // ══════════════════════════════════════════════════════════
@@ -375,6 +376,8 @@ export default function TabBackups({ negocios = [], toast }) {
       {/* ── DESTINO Y POLÍTICA ── */}
       {subTab === 'destino' && (
         <div className="space-y-4">
+          <CardCarpetaLocal toast={toast} />
+
           <div className="grid lg:grid-cols-2 gap-3">
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-muted)] p-4">
               <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--accent)]">Política de seguridad</p>
@@ -455,6 +458,60 @@ export default function TabBackups({ negocios = [], toast }) {
 }
 
 // ── Modal: crear (registrar) respaldo ──────────────────────
+/** Editor de BACKUP_LOCAL_DIR — la repository variable de GitHub que leen los 3 workflows de backup. */
+function CardCarpetaLocal({ toast }) {
+  const { data: localDir = { valor: null }, isLoading } = useBackupLocalDir()
+  const actualizar = useActualizarBackupLocalDir()
+  const [valor, setValor] = useState('')
+  // Sincroniza el input con el valor del server solo cuando cambia "de afuera"
+  // (primera carga, o después de guardar) — sin useEffect, siguiendo el patrón
+  // de React para ajustar estado durante el render en vez de en un efecto.
+  const [valorSincronizado, setValorSincronizado] = useState(null)
+  if (localDir.valor !== valorSincronizado) {
+    setValorSincronizado(localDir.valor)
+    setValor(localDir.valor || '')
+  }
+
+  async function guardar() {
+    const limpio = valor.trim()
+    if (!limpio) { toast('La ruta no puede quedar vacía', 'error'); return }
+    const res = await actualizar.mutateAsync(limpio)
+    if (res?.error) { toast(res.error, 'error'); return }
+    toast('Carpeta local actualizada — la usan los workflows desde la próxima corrida', 'success')
+  }
+
+  const sinCambios = valor.trim() === (localDir.valor || '')
+
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-muted)] p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--accent)]">Runner self-hosted</p>
+      <h4 className="text-[14px] font-bold text-[var(--text-primary)] mt-1.5">Carpeta local de destino</h4>
+      <p className="text-[12px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
+        Ruta en la PC donde corre el runner (formato WSL, ej. <span className="font-mono">/mnt/e/carpeta</span>) donde caen
+        los backups mientras no haya object storage configurado. Se guarda como <span className="font-mono">BACKUP_LOCAL_DIR</span> en
+        GitHub — la toman los 3 workflows de backup desde su próxima corrida, no hace falta redeployar nada.
+      </p>
+      <div className="flex items-center gap-2 mt-3">
+        <Input
+          value={valor}
+          onChange={e => setValor(e.target.value)}
+          placeholder={isLoading ? 'Cargando…' : '/mnt/e/desarrollo/Backups-StockPro'}
+          disabled={isLoading}
+          className="flex-1 font-mono text-[12px]"
+        />
+        <Btn variant="primary" onClick={guardar} disabled={actualizar.isPending || isLoading || sinCambios}>
+          <Save size={14}/>Guardar
+        </Btn>
+      </div>
+      {!isLoading && !localDir.valor && (
+        <p className="text-[11px] text-amber-400 mt-2">
+          ⚠ No hay carpeta configurada — los backups caen en una ruta temporal dentro del propio runner (se puede perder en la próxima corrida).
+        </p>
+      )}
+    </div>
+  )
+}
+
 function ModalCrear({ onClose, negocios, toast }) {
   const crear = useCrearRespaldo()
   const [form, setForm] = useState({ empresaId: negocios[0]?.id || '', alcance: 'base_datos', tamanoGb: '', retencionDias: 90, cifrado: true, estado: 'VALIDANDO', nota: '' })
