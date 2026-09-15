@@ -166,7 +166,36 @@ botón "Activar notificaciones" en `DashboardAlmacenero/AlertasTab.jsx`.
 del backend. El envío real (cron cada 30 min, alertas de stock/vencimiento)
 corre en el backend — ver su propio README, §3.
 
-### 2.10 Envío de documentos por correo
+### 2.10 Centro de Ayuda (`data/help/`)
+
+`/ayuda` es un mini-CMS estático, no una llamada a la API: todo el
+contenido vive como datos en `src/data/help/` (`modulos.js`,
+`conceptos.js`, `procedimientos.js`, `faq.js`, `problemas.js`,
+`mapeoPantallas.js`), re-exportados desde `index.js`. `search.js` hace
+un filtro en memoria sobre las ~5 colecciones (dataset pequeño, sin
+librería de búsqueda). `pages/Ayuda/` (`AyudaHome`, `AyudaModulos`,
+`AyudaModuloDetalle`, `AyudaComoHago`, `AyudaConceptos`, `AyudaFaq`,
+`AyudaProblemas`) solo renderiza esos datos — agregar o corregir un
+artículo de ayuda es editar el archivo de datos correspondiente, nunca
+tocar las páginas.
+
+`mapeoPantallas.js` (clave = `location.pathname` exacto) alimenta la
+ayuda contextual: `components/layout/HelpButton.jsx` la resuelve según
+la ruta activa y la enlaza al artículo de módulo correspondiente en
+`components/layout/Sidebar.jsx` (`SidebarHelpLink`, en el pie, fuera del
+array `NAV`/`divider` — no aparece en la agrupación por secciones de §5).
+
+Cada entrada de `modulos.js` sigue una plantilla fija (`queEs`,
+`paraQueSirve`, `quienPuedeUsarlo`, `reglasNegocio`, `validaciones`,
+`erroresFrecuentes`, `consejos`, …) documentada en el propio archivo.
+El `slug` de cada módulo coincide a propósito con el campo `modulo` de
+`Sidebar.jsx` — no es casualidad, así el botón de ayuda contextual
+resuelve pantalla → artículo sin necesitar una tabla de mapeo aparte.
+A 2026-09-15 cubre 25 de los módulos reales del Sidebar (quedan pendientes
+~20 — ver historial de commits de `data/help/` para el criterio de
+priorización usado).
+
+### 2.11 Envío de documentos por correo
 
 `components/ui/PdfSharePanel.jsx` es el panel "Compartir" usado en
 Despachos (Guía de Remisión), Órdenes de Compra y Cotizaciones (RFQ). Con
@@ -230,7 +259,9 @@ src/
 ├── data/
 │   ├── demoData.js            # datos demo usados por storage.js / Configuracion
 │   ├── initialData.js         # snapshot inicial legacy
-│   └── distritosPeruanos.js   # catálogo estático de distritos (Perú)
+│   ├── distritosPeruanos.js   # catálogo estático de distritos (Perú)
+│   └── help/                  # contenido del Centro de Ayuda (§2.10) — módulos,
+│                                #   conceptos, procedimientos, FAQ, problemas, mapeo
 │
 ├── components/
 │   ├── layout/                # Layout.jsx, Sidebar.jsx
@@ -264,6 +295,7 @@ secciones más Dashboard/Alertas sueltos arriba de todo:
 | Almacén | `MapaAlmacen/`, `LotesSeries` |
 | Análisis | `Vencimientos`, `PuntoReorden`, `Prevision`, `Reportes`, `KPIsOperativos`, `ContabilidadReportes`, `Financiero` |
 | Administración | `Usuarios/`, `Auditoria`, `PanelAuditoria`, `Incidencias`, `ColaSincronizacion`, `Configuracion/` |
+| *(enlace en el pie del Sidebar, fuera del `NAV`)* | `Ayuda/` — Centro de Ayuda, ver §2.10 |
 
 Fuera del Sidebar normal:
 
