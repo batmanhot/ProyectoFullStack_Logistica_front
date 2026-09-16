@@ -69,7 +69,7 @@ export function Contacto({ primary, contacto }) {
           {[
             { ic: '⚡', t: 'Respuesta rápida', d: 'Menos de 24h hábiles en todos los canales de contacto' },
             { ic: '🌎', t: 'Soporte en español', d: 'Equipo nativo hispanohablante, sin barreras idiomáticas' },
-            { ic: '🛡️', t: 'Datos protegidos', d: 'Cifrado SSL · Backups diarios · GDPR compliant' },
+            { ic: '🛡️', t: 'Datos protegidos', d: 'Cifrado SSL · Backups automáticos · Cumplimiento de la Ley de Protección de Datos Personales (Perú)' },
           ].map(({ ic, t, d }) => (
             <div key={t} className="flex items-start gap-4 p-5 bg-[#141920]/60 border border-white/6 rounded-2xl">
               <span className="text-[28px] shrink-0">{ic}</span>

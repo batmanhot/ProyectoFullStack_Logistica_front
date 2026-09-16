@@ -13,7 +13,7 @@
  * `queries/admin.queries.js`): landing configurada por SuperAdmin (AdminSaaS → "Landing Page")
  * y planes activos con precios/límites, resueltos desde PlanSaaS.
  */
-import { useMemo, useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { usePublicLanding, usePublicPlanes } from '../../queries/admin.queries'
 import { useNavigate } from 'react-router-dom'
 
@@ -51,7 +51,7 @@ export default function LandingPage() {
     ? planesAPI.filter(p => p.activo !== false)
     : PLANES_DEFAULT.filter(p => p.activo !== false)
 
-  const { sitio, hero, caracteristicas, contacto, redesSociales, footer } = landing
+  const { sitio, hero, caracteristicas, contacto, redesSociales, footer, testimonios, stats, onPremise } = landing
   const primary = sitio?.colorPrimario || '#00c896'
 
   useEffect(() => {
@@ -101,7 +101,7 @@ export default function LandingPage() {
 
       <ProblemaEmpresarial primary={primary} goSection={goSection}/>
 
-      <StatsBar primary={primary}/>
+      <StatsBar primary={primary} stats={stats}/>
 
       <Beneficios primary={primary} caracteristicas={caracteristicas}/>
 
@@ -109,9 +109,9 @@ export default function LandingPage() {
                     setModuloActivo={setModuloActivo} navigate={navigate}/>
 
       <PlanesYPrecios primary={primary} planes={planes} ciclo={ciclo} setCiclo={setCiclo}
-                      navigate={navigate} goSection={goSection} contacto={contacto}/>
+                      navigate={navigate} goSection={goSection} contacto={contacto} onPremise={onPremise}/>
 
-      <Testimonios primary={primary}/>
+      <Testimonios primary={primary} testimonios={testimonios}/>
 
       <CtaCentral primary={primary} navigate={navigate} goSection={goSection} sitio={sitio} footer={footer}/>
 

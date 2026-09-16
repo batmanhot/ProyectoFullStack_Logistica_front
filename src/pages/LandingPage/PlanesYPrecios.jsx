@@ -1,6 +1,7 @@
+import { Building2, ArrowRight } from 'lucide-react'
 import { PlanCard } from './PlanCard'
 
-export function PlanesYPrecios({ primary, planes, ciclo, setCiclo, navigate, goSection, contacto }) {
+export function PlanesYPrecios({ primary, planes, ciclo, setCiclo, navigate, goSection, contacto, onPremise }) {
   return (
     <section id="planes" className="py-24 px-6 bg-[#111820]">
       <div className="max-w-6xl mx-auto">
@@ -61,6 +62,42 @@ export function PlanesYPrecios({ primary, planes, ciclo, setCiclo, navigate, goS
             Hablemos →
           </button>
         </p>
+
+        {/* On-Premise — sin precio fijo, se cotiza según el tipo de negocio.
+            No es un PlanSaaS del backend (ese catálogo es de suscripción
+            cloud con límites numéricos) — es una tarjeta aparte, editable
+            desde SuperAdmin → Landing Page → On-Premise. */}
+        {onPremise?.activo && (
+          <div className="mt-8 rounded-2xl border p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6"
+               style={{ borderColor: `${primary}30`, background: `linear-gradient(120deg, ${primary}08 0%, transparent 60%)` }}>
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
+                 style={{ background: `${primary}15` }}>
+              <Building2 size={26} style={{ color: primary }}/>
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1.5">
+                <h3 className="text-[18px] font-extrabold text-[#e8edf2]">{onPremise.nombre || 'On-Premise'}</h3>
+                <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+                      style={{ color: primary, background: `${primary}15` }}>Precio a medida</span>
+              </div>
+              <p className="text-[13px] text-[#8a9ab0] leading-relaxed mb-3">{onPremise.descripcion}</p>
+              {(onPremise.caracteristicas?.length > 0) && (
+                <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-[12px] text-[#9ba8b6]">
+                  {onPremise.caracteristicas.map((c, i) => (
+                    <li key={i} className="flex items-center gap-1.5">
+                      <span className="w-1 h-1 rounded-full" style={{ background: primary }}/>{c}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <button onClick={() => goSection('contacto')}
+              className="shrink-0 flex items-center gap-2 px-6 py-3 rounded-xl text-[14px] font-bold transition-all hover:opacity-90 w-full sm:w-auto justify-center"
+              style={{ background: primary, color: '#082e1e', boxShadow: `0 6px 24px ${primary}40` }}>
+              {onPremise.ctaTexto || 'Conversemos'} <ArrowRight size={15}/>
+            </button>
+          </div>
+        )}
 
         {/* Tabla comparativa */}
         <div className="mt-12 bg-[#141920] border border-white/7 rounded-2xl overflow-hidden">

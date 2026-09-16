@@ -22,7 +22,19 @@ export const LANDING_INIT = {
   contacto: { email:'ventas@stockpro.com', telefono:'+51 1 234 5678', whatsapp:'+51 999 000 111', direccion:'Lima, Perú', emailSoporte:'' },
   redesSociales: { linkedin:'', twitter:'', facebook:'', instagram:'', youtube:'' },
   seo: { titulo:'StockPro — Sistema Logístico SaaS', descripcion:'Gestiona tu inventario, despachos y logística con StockPro. Prueba gratis por 14 días.', keywords:'logística, inventario, saas, gestión almacén, stockpro, peru' },
-  footer: { textoLegal:'© 2026 StockPro. Todos los derechos reservados.', mostrarPrecios:true, moneda:'USD', probarGratisDias:14 }
+  footer: { textoLegal:'© 2026 StockPro. Todos los derechos reservados.', mostrarPrecios:true, moneda:'USD', probarGratisDias:14 },
+  // Vacíos a propósito: sin testimonios/métricas reales, esas secciones no
+  // deben aparecer en el sitio público (ver LandingPage/Testimonios.jsx y
+  // StatsBar.jsx, que se ocultan solas mientras estén vacíos).
+  testimonios: [],
+  stats: [],
+  onPremise: {
+    activo: true,
+    nombre: 'On-Premise',
+    descripcion: 'Instala StockPro en tu propia infraestructura cuando necesites máximo control, integración a medida o cumplimiento normativo específico.',
+    caracteristicas: ['Precio a medida según tipo y tamaño de negocio', 'Integración con tus sistemas internos', 'Datos alojados en tu propia infraestructura', 'Onboarding e implementación dedicados'],
+    ctaTexto: 'Conversemos',
+  },
 }
 
 export const ESTADO_BADGE = {

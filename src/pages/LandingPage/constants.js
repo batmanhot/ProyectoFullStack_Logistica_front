@@ -34,7 +34,28 @@ export const LANDING_DEFAULT = {
     descripcion: 'Digitaliza tu operación logística con StockPro. Software ERP logístico para gestión de inventario, almacenes, pedidos y trazabilidad en tiempo real. Prueba 30 días gratis sin tarjeta.',
     keywords: 'software logístico, sistema logístico, gestión de inventario, control de almacenes, trazabilidad logística, ERP logístico, software distribución, logística empresarial, plataforma logística, saas logística peru',
   },
-  footer: { textoLegal: '© 2026 StockPro. Todos los derechos reservados.', mostrarPrecios: true, moneda: 'PEN', probarGratisDias: 30 },
+  footer: { textoLegal: `© ${new Date().getFullYear()} StockPro. Todos los derechos reservados.`, mostrarPrecios: true, moneda: 'PEN', probarGratisDias: 30 },
+  // Sin testimonios/stats reales todavía: se dejan vacíos a propósito — antes
+  // había nombres y cifras inventados acá mismo (auditoría 2026-09-16), y una
+  // landing pública no debe mostrar "resultados reales"/"empresas activas"
+  // que nadie configuró. Las secciones correspondientes se ocultan solas
+  // mientras estos arrays estén vacíos (ver Testimonios.jsx y StatsBar.jsx).
+  // Se cargan/editan desde SuperAdmin → Landing Page → Testimonios / Métricas.
+  testimonios: [],
+  stats: [],
+  // On-Premise: opción real de despliegue sin precio fijo en la tabla de
+  // planes — se cotiza según el tipo de negocio (aclarado por el usuario
+  // 2026-09-16). Va como tarjeta aparte en Planes y Precios, no como
+  // PlanSaaS del backend (ese catálogo es de suscripción cloud con límites
+  // numéricos reales; On-Premise no encaja ahí). Editable desde SuperAdmin
+  // → Landing Page → On-Premise.
+  onPremise: {
+    activo: true,
+    nombre: 'On-Premise',
+    descripcion: 'Instala StockPro en tu propia infraestructura cuando necesites máximo control, integración a medida o cumplimiento normativo específico.',
+    caracteristicas: ['Precio a medida según tipo y tamaño de negocio', 'Integración con tus sistemas internos', 'Datos alojados en tu propia infraestructura', 'Onboarding e implementación dedicados'],
+    ctaTexto: 'Conversemos',
+  },
 }
 
 export const PLANES_DEFAULT = [
@@ -44,23 +65,10 @@ export const PLANES_DEFAULT = [
   { id: 'empresarial', nombre: 'Empresarial',      descripcion: 'Potencia sin límites para grandes operaciones', precioMensual: 199, precioAnual: 1990, moneda: 'PEN', color: '#f59e0b', destacado: false, activo: true, vigenciaDias: 30, caracteristicas: ['Usuarios ilimitados', 'Productos ilimitados', 'Almacenes ilimitados', 'Multi-empresa', 'API Access', 'SLA garantizado', 'Soporte 24/7', 'Onboarding dedicado'] },
 ]
 
-export const STATS = [
-  { valor: '500+',  label: 'Empresas activas',              icono: '🏢' },
-  { valor: '99.9%', label: 'Uptime garantizado',             icono: '⚡' },
-  { valor: '50K+',  label: 'Pedidos procesados al mes',      icono: '📦' },
-  { valor: '85%',   label: 'Reducción de errores promedio',  icono: '🎯' },
-]
-
 export const PASOS = [
   { num: '01', icono: '🏢', titulo: 'Registra tu empresa en minutos', desc: 'Crea tu cuenta sin tarjeta de crédito. Configura tu empresa, usuarios y estructura operativa de forma guiada en menos de 15 minutos.' },
   { num: '02', icono: '📋', titulo: 'Importa tu inventario y almacenes', desc: 'Carga tus productos, categorías y almacenes. Importación masiva desde Excel en un solo clic, sin perder datos.' },
   { num: '03', icono: '🚀', titulo: 'Opera y escala con control total', desc: 'Gestiona pedidos, despachos y genera reportes ejecutivos en tiempo real desde cualquier dispositivo.' },
-]
-
-export const TESTIMONIOS = [
-  { nombre: 'Carlos Mendoza', cargo: 'Gerente de Operaciones', empresa: 'Distribuidora Lima Norte', texto: 'StockPro transformó nuestra operación. Redujimos los errores de inventario en un 85% y el tiempo de despacho en un 40%. El ROI fue visible desde el primer mes.', rating: 5, avatar: 'CM' },
-  { nombre: 'María Rodríguez', cargo: 'Directora Logística', empresa: 'ACME Distribuciones', texto: 'El portal B2B para nuestros clientes cambió todo. Los pedidos entran directamente al sistema sin intermediarios. Los reportes en tiempo real nos dieron la visibilidad que nunca habíamos tenido. Nunca más operamos a ciegas.', rating: 5, avatar: 'MR' },
-  { nombre: 'Pedro Torres', cargo: 'Propietario', empresa: 'Ferretería San Martín', texto: 'Empezamos con el plan básico y en 3 meses ya pasamos al profesional. El ROI fue inmediato. Dejamos de perder dinero por errores de stock que no veíamos antes.', rating: 5, avatar: 'PT' },
 ]
 
 export const PROBLEMAS = [

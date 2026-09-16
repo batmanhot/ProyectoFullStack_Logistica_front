@@ -1,7 +1,11 @@
-import { TESTIMONIOS } from './constants'
 import { TestimonioCard } from './TestimonioCard'
 
-export function Testimonios({ primary }) {
+export function Testimonios({ primary, testimonios }) {
+  // Sin testimonios reales configurados todavía (SuperAdmin → Landing Page →
+  // Testimonios) — se oculta la sección entera en vez de mostrar ejemplos
+  // inventados como "resultados reales" (auditoría 2026-09-16).
+  if (!testimonios?.length) return null
+
   return (
     <section id="testimonios" className="py-24 px-6 bg-[#0e1117]">
       <div className="max-w-6xl mx-auto">
@@ -21,22 +25,7 @@ export function Testimonios({ primary }) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {TESTIMONIOS.map(t => <TestimonioCard key={t.nombre} t={t} primary={primary}/>)}
-        </div>
-
-        {/* Trust bar */}
-        <div className="mt-12 flex flex-wrap justify-center gap-8 items-center">
-          {[
-            { ic: '🏢', label: '500+ empresas activas' },
-            { ic: '⭐', label: '4.9/5 valoración promedio' },
-            { ic: '🔒', label: 'Datos 100% seguros y cifrados' },
-            { ic: '🇵🇪', label: 'Soporte en español 24/7' },
-          ].map(({ ic, label }) => (
-            <div key={label} className="flex items-center gap-2 text-[13px] text-[#5f6f80]">
-              <span>{ic}</span>
-              <span>{label}</span>
-            </div>
-          ))}
+          {testimonios.map(t => <TestimonioCard key={t.id || t.nombre} t={t} primary={primary}/>)}
         </div>
       </div>
     </section>

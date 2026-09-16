@@ -1,4 +1,5 @@
-import { Package, Linkedin, Facebook, Instagram, Twitter, Youtube, Shield } from 'lucide-react'
+import { Linkedin, Facebook, Instagram, Twitter, Youtube, Shield } from 'lucide-react'
+import BrandName from '../../components/ui/BrandName'
 
 export function Footer({ sitio, primary, redesSociales, footer, navigate }) {
   return (
@@ -7,11 +8,12 @@ export function Footer({ sitio, primary, redesSociales, footer, navigate }) {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 mb-8">
           <div>
             <div className="flex items-center gap-2.5 mb-2">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center overflow-hidden"
                    style={{ background: `${primary}20` }}>
-                <Package size={17} style={{ color: primary }}/>
+                <img src={sitio?.logoUrl || '/logo.webp'} alt={sitio?.nombre || 'StockPro'}
+                     className="w-6 h-6 object-contain" onError={e => { e.target.src = '/logo.webp' }}/>
               </div>
-              <span className="font-extrabold text-[17px] text-[#e8edf2]">{sitio?.nombre || 'StockPro'}</span>
+              <span className="font-extrabold text-[17px] text-[#e8edf2]"><BrandName nombre={sitio?.nombre} accent={primary}/></span>
             </div>
             <p className="text-[12px] text-[#5f6f80] max-w-xs leading-relaxed">
               {sitio?.tagline || 'La plataforma logística diseñada para empresas que necesitan control total.'}

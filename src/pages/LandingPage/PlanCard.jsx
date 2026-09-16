@@ -31,7 +31,7 @@ export function PlanCard({ plan, ciclo, primary, navigate, whatsapp }) {
         <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1.5
                         bg-[#00c896] text-[#082e1e] text-[11px] font-extrabold
                         rounded-full uppercase tracking-widest shadow-lg shadow-[#00c896]/30
-                        flex items-center gap-1.5">
+                        flex items-center gap-1.5 whitespace-nowrap">
           <Star size={10} fill="currentColor"/> Más popular
         </div>
       )}

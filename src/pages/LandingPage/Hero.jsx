@@ -80,8 +80,14 @@ export function Hero({ primary, hero, footer, navigate, goSection }) {
         {/* Dashboard mockup mejorado con floating cards */}
         <div className="relative max-w-3xl mx-auto">
 
-          {/* Floating metric card — izquierda */}
-          <div className="absolute -left-8 top-12 hidden lg:flex items-center gap-3 px-4 py-3
+          {/* Floating metric card — izquierda.
+              Offset -left-52 (no -left-8): con menos margen, la tarjeta
+              (~185px de ancho) invadía el mockup por encima de su propio
+              borde — medido en vivo: a -left-8 quedaba ~150px metida en el
+              contenido. xl: en vez de lg: para no clipear en anchos
+              intermedios (1024-1279px) donde el margen disponible es menor
+              al ancho de la tarjeta. Auditoría 2026-09-16. */}
+          <div className="absolute -left-52 top-12 hidden xl:flex items-center gap-3 px-4 py-3
                           bg-[#1a2535]/90 backdrop-blur border border-white/12 rounded-2xl
                           shadow-2xl shadow-black/50 z-10">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] shrink-0"
@@ -92,8 +98,8 @@ export function Hero({ primary, hero, footer, navigate, goSection }) {
             </div>
           </div>
 
-          {/* Floating metric card — derecha */}
-          <div className="absolute -right-8 top-24 hidden lg:flex items-center gap-3 px-4 py-3
+          {/* Floating metric card — derecha (mismo fix que la de la izquierda) */}
+          <div className="absolute -right-52 top-24 hidden xl:flex items-center gap-3 px-4 py-3
                           bg-[#1a2535]/90 backdrop-blur border border-white/12 rounded-2xl
                           shadow-2xl shadow-black/50 z-10">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] shrink-0"

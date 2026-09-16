@@ -4,21 +4,30 @@ import {LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, ShoppingCart
 import { useApp } from '../../store/AppContext'
 import { useTheme } from '../../hooks/useTheme'
 import { PLAN_META } from '../../config/constants'
+import { usePublicLanding } from '../../queries/admin.queries'
 import StorageWidget from '../ui/StorageWidget'
+import BrandName from '../ui/BrandName'
 import OfflineBanner from '../ui/OfflineBanner'
 import ModalMiPerfil from './ModalMiPerfil'
 
 const ROLES_LABEL = { saas_admin:'Super Admin', owner:'Propietario', admin:'Administrador', supervisor:'Supervisor', almacenero:'Almacenero', solicitante:'Solicitante', chofer:'Chofer' }
 
-// Alcance de roles (2026-09-11): Owner conserva `'*'` real en el backend
-// (nunca se le recorta nada técnicamente — sigue siendo la llave maestra) —
-// su restricción es solo de NAVEGACIÓN: por defecto ve el mismo recorte de
-// pantallas de Gestión + Admin que ya tienen esos roles en seed.ts, con un
-// toggle ("Ver todo") para revelar el resto si lo necesita puntualmente.
+// Alcance de roles (2026-09-11, recortada 2026-09-16): Owner conserva `'*'`
+// real en el backend (nunca se le recorta nada técnicamente — sigue siendo
+// la llave maestra) — su restricción es solo de NAVEGACIÓN: por defecto ve
+// una curaduría de pantallas de gestión estratégica, con un toggle
+// ("Ver todo") para revelar el resto si lo necesita puntualmente.
+//
+// Auditoría 2026-09-16: se sacaron de esta lista los módulos técnicos/
+// operativos que no aportan a decisiones de negocio (cola-sync, reorden,
+// incidencias — territorio de Gerente de Operaciones/soporte) y "auditoria"
+// (Bitácora), que quedó cubierta por "panel-auditoria" (superset: incluye su
+// propia pestaña de bitácora + discrepancias de inventario físico +
+// conciliación de CxC). Todos siguen accesibles vía "Ver todo".
 const MODULOS_VISTA_CURADA_OWNER = new Set([
   'dashboard', 'alertas',
-  'panorama-almacenes', 'kpis', 'reportes', 'financiero', 'reorden', 'prevision', 'reportes-proyecto',
-  'usuarios', 'configuracion', 'auditoria', 'panel-auditoria', 'cola-sync', 'incidencias',
+  'panorama-almacenes', 'kpis', 'reportes', 'financiero', 'prevision', 'reportes-proyecto',
+  'usuarios', 'configuracion', 'panel-auditoria',
   'proyectos', 'almacenes', 'categorias', 'areas-internas', 'transportes',
 ])
 const MODO_COMPLETO_KEY = 'sidebar_owner_modo_completo'
@@ -214,6 +223,12 @@ export default function Sidebar({ collapsed, onToggle }) {
   const { sesion, logout, tienePermiso } = useApp()
   const navigate = useNavigate()
   const planMeta = PLAN_META[sesion?.plan]
+  // Mismo nombre de producto que ya usa Login.jsx (landing.sitio.nombre,
+  // configurable en SuperAdmin → Landing Page → Sitio) — antes esta cabecera
+  // tenía "StockPro" fijo en el código, desincronizado de ese nombre en
+  // cuanto se personalizaba (auditoría 2026-09-16).
+  const { data: landing } = usePublicLanding()
+  const productName = landing?.sitio?.nombre?.trim() || 'StockPro'
   const [perfilOpen, setPerfilOpen] = useState(false)
 
   // Solo Owner usa esto (ver MODULOS_VISTA_CURADA_OWNER) — por navegador,
@@ -311,10 +326,10 @@ export default function Sidebar({ collapsed, onToggle }) {
               </div>
 
               <div className="min-w-0" style={{ marginTop: '2px', lineHeight: 1.1 }}>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] font-black uppercase tracking-[0.18em] whitespace-nowrap"
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[9px] font-black uppercase tracking-[0.18em] truncate" title={productName}
                     style={{ color: 'var(--sidebar-fg-muted)', lineHeight: 1.1 }}>
-                    StockPro
+                    <BrandName nombre={productName} accent={landing?.sitio?.colorPrimario || '#00c896'}/>
                   </span>
                 </div>
 

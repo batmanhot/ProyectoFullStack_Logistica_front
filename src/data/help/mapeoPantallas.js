@@ -327,6 +327,32 @@ export const MAPEO_PANTALLAS = {
     ],
     verProcedimientoCompleto: '/ayuda/modulos/oportunidades',
   },
+  '/': {
+    queEsEstaPantalla: 'Pantalla de inicio — su contenido depende del rol. El Propietario tiene un panel ejecutivo (salud financiera del mes, salud de almacenes, pendientes de atención); Administrador y Gerente de Operaciones ven la operación táctica del día.',
+    pasosRecomendados: [
+      'Revisa primero las tarjetas de KPI de arriba.',
+      'Si algo requiere acción, haz clic en la tarjeta o en "Ver más →" para ir directo al módulo con el detalle completo.',
+      'Recuerda que los números de esta pantalla son una versión simplificada — para el cálculo exacto de cada indicador, entra al módulo dedicado (Financiero, Alertas, Torre de Control).',
+    ],
+    ayudaRelacionada: [
+      { tipo: 'modulo', slug: 'dashboard', label: 'Ver documentación completa del módulo' },
+      { tipo: 'modulo', slug: 'financiero', label: 'Ver documentación de Dashboard Financiero' },
+    ],
+    verProcedimientoCompleto: '/ayuda/modulos/dashboard',
+  },
+  '/financiero': {
+    queEsEstaPantalla: 'Dashboard Financiero: un Estado de Resultados (P&L) simplificado con Ingresos, Costo de ventas, Margen bruto, Margen %, Total compras, Devoluciones y Valor de inventario, mes a mes.',
+    pasosRecomendados: [
+      'Elige el período de análisis (3, 6 o 12 meses).',
+      'Revisa el Estado de Resultados mensual y el gráfico de Ingresos vs Costo.',
+      'Consulta el Top 5 de productos con mayor margen % para decisiones de precio o mezcla de venta.',
+      'Exporta a Excel o PDF si necesitas compartirlo fuera del sistema.',
+    ],
+    ayudaRelacionada: [
+      { tipo: 'modulo', slug: 'financiero', label: 'Ver documentación completa del módulo (todas las fórmulas)' },
+    ],
+    verProcedimientoCompleto: '/ayuda/modulos/financiero',
+  },
   '/pedidos-internos': {
     queEsEstaPantalla: 'Solicitudes de materiales de un área hacia el almacén, para consumo interno (no venta) — con aprobación, picking y entrega, opcionalmente etiquetadas a un Proyecto.',
     pasosRecomendados: [

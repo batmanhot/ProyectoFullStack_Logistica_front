@@ -6,6 +6,7 @@ import api from '../services/api'
 import { useTheme } from '../hooks/useTheme'
 import { usePublicLanding } from '../queries/admin.queries'
 import fondoLogistica from '../assets/Logistica_fondo.webp'
+import BrandName from '../components/ui/BrandName'
 
 const ROLES_LABEL = {
   owner:       { label: 'Propietario',   color: '#f59e0b' },
@@ -119,7 +120,6 @@ export default function Login({ adminMode = false }) {
   const ac  = tema.accent
   const acD = tema.preview?.[0]
   const productName = landing?.sitio?.nombre?.trim() || 'StockPro'
-  const isStockPro = productName.toLowerCase() === 'stockpro'
 
   const [paso,        setPaso]        = useState('empresa')
   const [empresa,     setEmpresa]     = useState(null)
@@ -254,9 +254,7 @@ export default function Login({ adminMode = false }) {
             <h1 className="text-[24px] font-semibold text-white tracking-tight">
               {adminMode
                 ? 'Admin Sistema'
-                : isStockPro
-                  ? <><span>STOCK</span><span style={{ color: '#00c896' }}>PRO</span></>
-                  : productName}
+                : <BrandName nombre={productName} accent={landing?.sitio?.colorPrimario || '#00c896'}/>}
             </h1>
             <p className="text-[13px] text-white/40 mt-1 text-center leading-tight tracking-wide">
               {adminMode ? 'Acceso exclusivo administrador' : <>PLATAFORMA INTELIGENTE<br />DE GESTIÓN LOGÍSTICA</>}

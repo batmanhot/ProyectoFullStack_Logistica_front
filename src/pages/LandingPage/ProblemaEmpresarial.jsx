@@ -50,7 +50,7 @@ export function ProblemaEmpresarial({ primary, goSection }) {
               Más control, menos errores y mayor eficiencia operativa desde el primer día.
             </p>
             <button
-              onClick={() => goSection('beneficios')}
+              onClick={() => goSection('como-funciona')}
               className="inline-flex items-center gap-2 px-7 py-3 rounded-xl text-[14px] font-bold transition-all hover:opacity-90"
               style={{ background: primary, color: '#082e1e', boxShadow: `0 6px 24px ${primary}40` }}>
               Ver cómo funciona <ChevronRight size={16}/>

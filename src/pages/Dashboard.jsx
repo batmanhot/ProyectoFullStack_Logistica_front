@@ -29,6 +29,7 @@ import DashboardSolicitante from './DashboardSolicitante/index.jsx'
 import DashboardAuditor from './DashboardAuditor/index.jsx'
 import DashboardSupervisor from './DashboardSupervisor/index.jsx'
 import DashboardDespachador from './DashboardDespachador/index.jsx'
+import DashboardOwner from './DashboardOwner/index.jsx'
 
 const TT = { background:'#1a2230', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, fontSize:12, color:'#e8edf2' }
 const PIE_COLORS = ['#00c896','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899']
@@ -214,6 +215,14 @@ export default function Dashboard() {
 
   if (sesion?.rol?.codigo === 'despachador') {
     return <DashboardDespachador/>
+  }
+
+  // Owner tiene su propio dashboard ejecutivo (2026-09-16) — Admin y
+  // Gerente de Operaciones siguen con el genérico de abajo, que es el que
+  // de verdad usan en el día a día operativo (movimientos de hoy, top
+  // productos, últimos despachos).
+  if (sesion?.rol?.codigo === 'owner') {
+    return <DashboardOwner/>
   }
 
   return (

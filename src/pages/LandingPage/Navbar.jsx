@@ -1,4 +1,5 @@
 import { X } from 'lucide-react'
+import BrandName from '../../components/ui/BrandName'
 
 export function Navbar({ sitio, primary, scrolled, menuOpen, setMenuOpen, navigate, goSection }) {
   return (
@@ -10,12 +11,13 @@ export function Navbar({ sitio, primary, scrolled, menuOpen, setMenuOpen, naviga
       <div className="max-w-6xl mx-auto px-6 h-[70px] flex items-center justify-between">
 
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden"
                style={{ background: `${primary}20`, boxShadow: `0 0 16px ${primary}20` }}>
-            <img src="/logo.webp" alt="StockPro" className="w-7 h-7 object-contain" />
+            <img src={sitio?.logoUrl || '/logo.webp'} alt={sitio?.nombre || 'StockPro'}
+                 className="w-7 h-7 object-contain" onError={e => { e.target.src = '/logo.webp' }}/>
           </div>
           <span className="font-extrabold text-[19px] text-[#e8edf2] tracking-tight">
-            {sitio?.nombre || 'StockPro'}
+            <BrandName nombre={sitio?.nombre} accent={primary}/>
           </span>
         </div>
 
