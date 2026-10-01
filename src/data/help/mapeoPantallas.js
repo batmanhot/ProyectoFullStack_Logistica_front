@@ -154,9 +154,11 @@ export const MAPEO_PANTALLAS = {
     verProcedimientoCompleto: '/ayuda/modulos/panel-auditoria',
   },
   '/configuracion': {
-    queEsEstaPantalla: 'Ajustes generales de la empresa: datos de empresa, valorización de inventario, Aprobaciones por proceso, alertas, áreas internas, importación de datos maestros y herramientas de datos (limpiar/restaurar).',
+    queEsEstaPantalla: 'Ajustes generales de la empresa: datos de empresa, valorización de inventario (con Costeo Automático por capas de costo opcional), Aprobaciones por proceso, niveles de aprobación de compras por monto, alertas, áreas internas, importación de datos maestros y herramientas de datos (limpiar/restaurar).',
     pasosRecomendados: [
       'Configura primero "Aprobaciones" si necesitas restringir quién autoriza cada proceso — mientras no lo hagas, cualquiera con acceso al módulo puede aprobar.',
+      'Si necesitas una cadena de aprobación por monto para Órdenes de Compra, configúrala en "Aprobación de Compras" — sin niveles, cualquier OC se aprueba con un solo click.',
+      'Antes de activar "Costeo Automático" en Valorización, revisa que el precio de compra de tus productos esté actualizado — con eso se migra el stock existente.',
       'Antes de usar "Limpiar Datos Operativos" o "Restaurar Datos Demo", ten certeza total: ambas acciones son irreversibles.',
       'Para importar datos maestros, descarga primero la plantilla del sistema y no cambies el texto de sus encabezados.',
     ],
@@ -164,6 +166,19 @@ export const MAPEO_PANTALLAS = {
       { tipo: 'modulo', slug: 'configuracion', label: 'Ver documentación completa del módulo' },
     ],
     verProcedimientoCompleto: '/ayuda/modulos/configuracion',
+  },
+  '/ordenes': {
+    queEsEstaPantalla: 'Órdenes de Compra: emitir pedidos a proveedores, aprobarlos (directo o por una cadena de niveles según el monto), y recibir la mercadería total o parcialmente.',
+    pasosRecomendados: [
+      'Cree la orden indicando proveedor, almacén de destino y los ítems con cantidad y costo.',
+      'Apruébela — si la empresa configuró niveles de aprobación por monto, puede necesitar más de una aprobación en secuencia antes de quedar Aprobada.',
+      'Reciba la mercadería cuando llegue, total o parcialmente por ítem.',
+      'Si es una compra de importación, avance su estado logístico hasta Nacionalizada antes de intentar recibirla.',
+    ],
+    ayudaRelacionada: [
+      { tipo: 'modulo', slug: 'ordenes', label: 'Ver documentación completa del módulo' },
+    ],
+    verProcedimientoCompleto: '/ayuda/modulos/ordenes',
   },
   '/reorden': {
     queEsEstaPantalla: 'Punto de Reorden: calcula cuándo conviene reponer cada producto según su consumo real de los últimos 60 días, y permite generar la Orden de Compra sugerida.',

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { Plus, Search, Eye, Edit2, CheckCircle, FileText, X, Download } from 'lucide-react'
 
 import { useApp } from '../store/AppContext'
-import { formatCurrency, formatDate, fechaHoy } from '../utils/helpers'
+import { formatCurrency, formatDate } from '../utils/helpers'
 import { Modal, Badge, Btn, Field, Input, Select, Textarea, DataTable, ModalVistaPreviaDocumento, StockHint } from '../components/ui/index'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
 import { armarHtmlRFQ } from '../utils/pdfTemplates'

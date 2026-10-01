@@ -5,14 +5,12 @@ import { formatCurrency } from '../utils/helpers'
 import { Badge, Btn, Select, Input } from '../components/ui/index'
 import { useProductosList } from '../queries/productos.queries'
 import { useMovimientosList } from '../queries/movimientos.queries'
-import { useCategoriasList } from '../queries/categorias.queries'
 
 const TT = { background:'#1a2230', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, fontSize:12, color:'#e8edf2' }
 
 export default function Prevision() {
   const { data: productos  = [] } = useProductosList()
   const { data: movimientos= [] } = useMovimientosList()
-  const { data: categorias = [] } = useCategoriasList()
   const simboloMoneda = 'S/'
   const [productoId, setProductoId] = useState('')
   const [horizonte, setHorizonte]   = useState(30) // días a proyectar
@@ -90,8 +88,6 @@ export default function Prevision() {
       sinDatos: false,
     }
   }, [prod, movimientos, horizonte])
-
-  const catNombre = id => categorias.find(c => c.id === id)?.nombre || '—'
 
   function diasColor(dias) {
     if (dias === null) return 'text-green-400'

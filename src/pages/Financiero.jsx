@@ -12,6 +12,7 @@ import { useDespachosList } from '../queries/despachos.queries'
 import { useOrdenesCompraList } from '../queries/ordenes-compra.queries'
 import { exportarFinancieroXLSX } from '../utils/exportXLSX'
 import { exportarFinancieroPDF } from '../utils/exportPDF'
+import { useConfiguracion } from '../queries/configuracion.queries'
 
 const simboloMoneda = 'S/'
 const TT = { background:'#1a2230', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, fontSize:12, color:'#e8edf2' }
@@ -41,6 +42,8 @@ export default function Financiero() {
   const { data: movimientos  = [] } = useMovimientosList({})
   const { data: despachos    = [] } = useDespachosList()
   const { data: ordenes      = [] } = useOrdenesCompraList()
+  const { data: configApi }         = useConfiguracion()
+  const costeoAutomatico = !!configApi?.costeoAutomatico
 
   const [periodo, setPeriodo] = useState('6') // meses hacia atrás
 
@@ -109,9 +112,10 @@ export default function Financiero() {
       ? ((mesAct?.ingresos - mesPrev?.ingresos) / mesPrev.ingresos * 100).toFixed(1)
       : null
 
-    // Valor del stock actual usando precioCompra (batches no existe en backend)
+    // Valor del stock actual: costoPromedioReal (motor de capas) si la
+    // empresa activó costeoAutomatico; si no, precioCompra sigue como proxy.
     const valorStock = productos.reduce((s, p) =>
-      s + ((p.precioCompra || 0) * (p.stockActual || 0)), 0)
+      s + ((p.costoPromedioReal ?? p.precioCompra ?? 0) * (p.stockActual || 0)), 0)
 
     return { totalIngresos, totalCosto, totalCompras, totalDev, margenBruto, margenPct, tendIngresos, valorStock }
   }, [plMensual, productos])
@@ -121,7 +125,7 @@ export default function Financiero() {
     return productos
       .filter(p => p.precioVenta > 0)
       .map(p => {
-        const pmp    = p.precioCompra || 0
+        const pmp    = p.costoPromedioReal ?? p.precioCompra ?? 0
         const margen = p.precioVenta > 0 ? ((p.precioVenta - pmp) / p.precioVenta * 100) : 0
         return { ...p, pmp, margen }
       })
@@ -289,7 +293,9 @@ export default function Financiero() {
             { t:'Ingresos', d:'Salidas de stock del período × precio de venta del producto — refleja lo facturado a clientes.' },
             { t:'Costo de ventas', d:'Costo unitario × cantidad de cada salida — el costo real de lo vendido, no el precio de lista.' },
             { t:'Margen bruto', d:'Ingresos − Costo de ventas − Devoluciones. El % es el margen sobre el ingreso total del mes.' },
-            { t:'Valor de inventario', d:'Stock actual valorizado a costo de compra (PMP) — no incluye margen, es el capital inmovilizado.' },
+            { t:'Valor de inventario', d: costeoAutomatico
+                ? 'Stock actual valorizado al costo real de sus capas de costo — no incluye margen, es el capital inmovilizado.'
+                : 'Stock actual valorizado a costo de compra (PMP) — no incluye margen, es el capital inmovilizado.' },
           ].map(({t,d}) => (
             <div key={t} className="bg-[#1a2230] rounded-lg p-3.5 border-l-2 border-[#00c896]/30">
               <div className="text-[12px] font-semibold text-[#e8edf2] mb-1">{t}</div>

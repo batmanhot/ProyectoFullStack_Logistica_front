@@ -52,3 +52,25 @@ export function useRestaurarDemo() {
     mutationFn: () => api.post('/datos/restaurar-demo', {}),
   })
 }
+
+/**
+ * Activa Empresa.costeoAutomatico — el backend migra (backfill) el stock
+ * existente ANTES de encender el flag, en la misma transacción, para que
+ * ninguna salida posterior falle por falta de capas de costo previas.
+ */
+export function useActivarCosteoAutomatico() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.post('/valorizacion/activar', {}),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: [KEY] }),
+  })
+}
+
+/** Apaga el motor de capas de costo. No borra las capas ya creadas. */
+export function useDesactivarCosteoAutomatico() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.post('/valorizacion/desactivar', {}),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: [KEY] }),
+  })
+}

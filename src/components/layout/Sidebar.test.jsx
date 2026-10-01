@@ -17,6 +17,8 @@ vi.mock('../../store/AppContext', () => ({
 vi.mock('../../hooks/useTheme', () => ({
   useTheme: () => ({ current: { accent: '#000', emoji: '🎨', label: 'Test' }, applyTheme: vi.fn(), themes: [] }),
 }))
+// Sidebar lee el logo de la landing pública; se evita el QueryClient real.
+vi.mock('../../queries/admin.queries', () => ({ usePublicLanding: () => ({ data: undefined }) }))
 vi.mock('../ui/StorageWidget', () => ({ default: () => null }))
 vi.mock('../ui/OfflineBanner', () => ({ default: () => null }))
 vi.mock('./ModalMiPerfil', () => ({ default: () => null }))

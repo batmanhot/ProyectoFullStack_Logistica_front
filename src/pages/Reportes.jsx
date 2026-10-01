@@ -2,10 +2,12 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
          LineChart, Line, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
 import { Download, TrendingUp, TrendingDown, DollarSign, Percent, Package, FileSpreadsheet, FileText } from 'lucide-react'
-import { formatCurrency, clasificarABC, formatDate } from '../utils/helpers'
-// batches no existe en el backend — precioCompra es el proxy ya probado (ver Financiero.jsx).
-const pmpProxy   = (p) => Number(p?.precioCompra || 0)
-const valorProxy = (p) => Number(p?.precioCompra || 0) * Number(p?.stockActual || 0)
+import { formatCurrency, clasificarABC } from '../utils/helpers'
+// Motor de valorización — Fase 3: si el producto trae costoPromedioReal (la
+// empresa activó costeoAutomatico), se usa ese costo real de capas; si no,
+// precioCompra sigue siendo el proxy (mismo patrón que Financiero.jsx).
+const pmpProxy   = (p) => Number(p?.costoPromedioReal ?? p?.precioCompra ?? 0)
+const valorProxy = (p) => pmpProxy(p) * Number(p?.stockActual || 0)
 import { Badge, Btn, DataTable } from '../components/ui/index'
 import { exportarRentabilidadXLSX, exportarInventarioXLSX, exportarReportesMovimientosXLSX, exportarReportesABCXLSX } from '../utils/exportXLSX'
 import { exportarRentabilidadPDF, exportarInventarioPDF, exportarReportesMovimientosPDF, exportarReportesABCPDF } from '../utils/exportPDF'
@@ -13,6 +15,7 @@ import { useProductosList } from '../queries/productos.queries'
 import { useMovimientosList } from '../queries/movimientos.queries'
 import { useCategoriasList } from '../queries/categorias.queries'
 import { useAlmacenesList } from '../queries/almacenes.queries'
+import { useConfiguracion } from '../queries/configuracion.queries'
 
 const TT = { background:'#0f172a', border:'1px solid rgba(255,255,255,0.15)', borderRadius:8, fontSize:12, color:'#fff', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.5)' }
 const PIE_COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#06b6d4']
@@ -30,22 +33,24 @@ export default function Reportes() {
   const { data: movimientos = [] } = useMovimientosList()
   const { data: categorias  = [] } = useCategoriasList()
   const { data: almacenes   = [] } = useAlmacenesList()
-  const formulaValorizacion = 'PMP'
+  const { data: configApi }  = useConfiguracion()
+  const formulaValorizacion = configApi?.formulaValorizacion || 'PMP'
   const simboloMoneda       = 'S/'
   const config              = null
   const [tab, setTab] = useState('rentabilidad')
 
   // ── Inventario enriquecido ────────────────────────────
-  // batches no existe en el backend (se reemplazó por LoteProducto) — se usa
-  // precioCompra como proxy del costo, mismo patrón ya probado en Financiero.jsx.
+  // Costo real de capas (costoPromedioReal) si la empresa activó
+  // costeoAutomatico; si no, precioCompra sigue siendo el proxy — mismo
+  // patrón ya probado en Financiero.jsx.
   const inventario = useMemo(() =>
     productos.filter(p => p.activo !== false).map(p => ({
       ...p,
-      pmp:         p.precioCompra || 0,
-      valorStock:  (p.precioCompra || 0) * (p.stockActual || 0),
+      pmp:         pmpProxy(p),
+      valorStock:  valorProxy(p),
       catNombre:   categorias.find(c => c.id === p.categoriaId)?.nombre || '—',
       margenNum:   (p.precioVenta || 0) > 0
-        ? (((p.precioVenta || 0) - (p.precioCompra || 0)) / (p.precioVenta || 1)) * 100
+        ? (((p.precioVenta || 0) - pmpProxy(p)) / (p.precioVenta || 1)) * 100
         : null,
     })).sort((a, b) => b.valorStock - a.valorStock)
   , [productos, categorias, formulaValorizacion])

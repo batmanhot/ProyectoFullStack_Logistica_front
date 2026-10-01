@@ -154,7 +154,7 @@ export async function exportarProductosXLSX(productos, categorias) {
   })
 }
 
-export async function exportarMovimientosXLSX(movimientos, productos, almacenes, simboloMoneda) {
+export async function exportarMovimientosXLSX(movimientos, productos, almacenes, _simboloMoneda) {
   await exportarExcel({
     titulo: 'Historial de Movimientos',
     cabeceras: ['Fecha','Hora','Tipo','Documento','Producto','SKU','Almacén','Cantidad','U.M.','Costo Unit.','Costo Total','Lote','Motivo'],
@@ -175,7 +175,7 @@ export async function exportarMovimientosXLSX(movimientos, productos, almacenes,
   })
 }
 
-export async function exportarDespachosXLSX(despachos, clientes, almacenes, transportistas, simboloMoneda) {
+export async function exportarDespachosXLSX(despachos, clientes, almacenes, transportistas, _simboloMoneda) {
   await exportarExcel({
     titulo: 'Reporte de Despachos',
     cabeceras: ['N° Guía','Fecha','Estado','Cliente','RUC','Almacén','Dir. Entrega','Subtotal','IGV','Total','Transportista','Obs.'],
@@ -203,7 +203,7 @@ export async function exportarAuditoriaXLSX(logs) {
   })
 }
 
-export async function exportarRentabilidadXLSX(rentabilidad, kpisRent, simboloMoneda) {
+export async function exportarRentabilidadXLSX(rentabilidad, kpisRent, _simboloMoneda) {
   await exportarExcel({
     titulo: 'Reporte de Rentabilidad',
     cabeceras: ['SKU','Producto','Categoría','Costo PMP','Precio Venta','Uds. Vendidas','Costo Ventas','Ingresos','Margen S/','Margen %','ABC'],
@@ -221,7 +221,7 @@ export async function exportarRentabilidadXLSX(rentabilidad, kpisRent, simboloMo
   })
 }
 
-export async function exportarDevolucionesXLSX(devoluciones, productos, almacenes, simboloMoneda) {
+export async function exportarDevolucionesXLSX(devoluciones, productos, almacenes, _simboloMoneda) {
   await exportarExcel({
     titulo: 'Reporte de Devoluciones',
     cabeceras: ['Fecha','Documento','Tipo','Producto','SKU','Almacén','Cantidad','Costo Unit.','Costo Total','Motivo'],
@@ -240,7 +240,7 @@ export async function exportarDevolucionesXLSX(devoluciones, productos, almacene
   })
 }
 
-export async function exportarTransferenciasXLSX(transferencias, productos, almacenes, simboloMoneda) {
+export async function exportarTransferenciasXLSX(transferencias, productos, almacenes, _simboloMoneda) {
   await exportarExcel({
     titulo: 'Reporte de Transferencias',
     cabeceras: ['Fecha','Documento','Producto','SKU','Almacén Origen','Almacén Destino','Cantidad','U.M.','Costo Unit.','Costo Total','Motivo'],
@@ -262,7 +262,7 @@ export async function exportarTransferenciasXLSX(transferencias, productos, alma
   })
 }
 
-export async function exportarOrdenesXLSX(ordenes, proveedores, productos, simboloMoneda) {
+export async function exportarOrdenesXLSX(ordenes, proveedores, _productos, _simboloMoneda) {
   await exportarExcel({
     titulo: 'Órdenes de Compra',
     cabeceras: ['N° OC','Fecha','F. Entrega','Proveedor','RUC','Estado','Ítems','Subtotal','IGV','Total','Notas'],
@@ -280,7 +280,7 @@ export async function exportarOrdenesXLSX(ordenes, proveedores, productos, simbo
   })
 }
 
-export async function exportarCotizacionesXLSX(cotizaciones, proveedores, productos) {
+export async function exportarCotizacionesXLSX(cotizaciones, proveedores, _productos) {
   await exportarExcel({
     titulo: 'Cotizaciones a Proveedores (RFQ)',
     cabeceras: ['N° RFQ','Fecha','F. Vencimiento','Estado','Ítems solicitados','Respuestas','Mejor precio','Proveedor ganador','Notas'],
@@ -348,7 +348,7 @@ export async function exportarVencimientosXLSX(productos, categorias, almacenes,
   })
 }
 
-export async function exportarProformasXLSX(proformas, clientes, simboloMoneda) {
+export async function exportarProformasXLSX(proformas, clientes, _simboloMoneda) {
   await exportarExcel({
     titulo: 'Proformas / Cotizaciones de Venta',
     cabeceras: ['N° Proforma','Fecha','Válida hasta','Cliente','RUC','Estado','Ítems','Subtotal','IGV','Total','Notas'],
@@ -366,7 +366,7 @@ export async function exportarProformasXLSX(proformas, clientes, simboloMoneda) 
   })
 }
 
-export async function exportarCxCXLSX(docs, clientes, simboloMoneda) {
+export async function exportarCxCXLSX(docs, clientes, _simboloMoneda) {
   await exportarExcel({
     titulo: 'Cuentas por Cobrar',
     cabeceras: ['N° Doc.','Cliente','RUC','Fecha Emisión','Fecha Vencimiento','Días Crédito','Días Mora','Monto','Saldo','Estado','Notas'],
@@ -385,7 +385,7 @@ export async function exportarCxCXLSX(docs, clientes, simboloMoneda) {
   })
 }
 
-export async function exportarEntradasXLSX(entradas, productos, almacenes, proveedores, simboloMoneda) {
+export async function exportarEntradasXLSX(entradas, productos, almacenes, proveedores, _simboloMoneda) {
   await exportarExcel({
     titulo: 'Reporte de Entradas',
     cabeceras: ['Fecha','Documento','Producto','SKU','Almacén','Proveedor','Cantidad','Costo Unit.','Costo Total','Motivo'],
@@ -405,7 +405,7 @@ export async function exportarEntradasXLSX(entradas, productos, almacenes, prove
   })
 }
 
-export async function exportarSalidasXLSX(salidas, productos, almacenes, simboloMoneda) {
+export async function exportarSalidasXLSX(salidas, productos, almacenes, _simboloMoneda) {
   await exportarExcel({
     titulo: 'Reporte de Salidas',
     cabeceras: ['Fecha','Documento','Producto','SKU','Almacén','Cantidad','Costo Unit.','Costo Total','Motivo'],
@@ -424,7 +424,7 @@ export async function exportarSalidasXLSX(salidas, productos, almacenes, simbolo
   })
 }
 
-export async function exportarAjustesXLSX(ajustes, productos, almacenes, simboloMoneda) {
+export async function exportarAjustesXLSX(ajustes, productos, almacenes, _simboloMoneda) {
   await exportarExcel({
     titulo: 'Reporte de Ajustes',
     cabeceras: ['Fecha','Documento','Producto','SKU','Almacén','Tipo','Cantidad','Costo Unit.','Costo Total','Motivo'],
@@ -460,7 +460,7 @@ export async function exportarKardexXLSX(lineasKardex, producto, simboloMoneda, 
   })
 }
 
-export async function exportarInventarioFisicoXLSX(lineas, inventario, simboloMoneda) {
+export async function exportarInventarioFisicoXLSX(lineas, inventario, _simboloMoneda) {
   await exportarExcel({
     titulo: `Conteo Físico — ${inventario?.numero || ''}`,
     cabeceras: ['SKU','Producto','U.M.','Sistema','Contado','Diferencia','Costo Unit.','Valor Dif.'],
@@ -577,7 +577,7 @@ export async function exportarCombustibleXLSX(registros) {
   })
 }
 
-export async function exportarPuntoReordenXLSX(analisis, simboloMoneda) {
+export async function exportarPuntoReordenXLSX(analisis, _simboloMoneda) {
   await exportarExcel({
     titulo: 'Análisis de Punto de Reorden',
     cabeceras: ['SKU','Producto','Categoría','Stock actual','Punto reorden','Consumo/día','Días de stock','Cant. sugerida','Costo estimado','Estado'],
@@ -621,7 +621,7 @@ export async function exportarSunatGenerarXLSX(despachos, clientes) {
   })
 }
 
-export async function exportarReportesMovimientosXLSX(movMes, simboloMoneda) {
+export async function exportarReportesMovimientosXLSX(movMes, _simboloMoneda) {
   await exportarExcel({
     titulo: 'Movimientos por Período',
     cabeceras: ['Mes','Entradas','Salidas'],
@@ -631,7 +631,7 @@ export async function exportarReportesMovimientosXLSX(movMes, simboloMoneda) {
   })
 }
 
-export async function exportarReportesABCXLSX(abc, valorTotal, simboloMoneda) {
+export async function exportarReportesABCXLSX(abc, valorTotal, _simboloMoneda) {
   await exportarExcel({
     titulo: 'Análisis ABC de Inventario',
     cabeceras: ['Clase','SKU','Producto','Stock','U.M.','Valor','% Acumulado'],
@@ -644,7 +644,7 @@ export async function exportarReportesABCXLSX(abc, valorTotal, simboloMoneda) {
   })
 }
 
-export async function exportarFinancieroXLSX(plMensual, kpis, simboloMoneda) {
+export async function exportarFinancieroXLSX(plMensual, kpis, _simboloMoneda) {
   await exportarExcel({
     titulo: 'Estado de Resultados Mensual (P&L)',
     cabeceras: ['Mes','Ingresos','Costo Ventas','Devoluciones','Margen Bruto','Margen %'],
@@ -658,7 +658,7 @@ export async function exportarFinancieroXLSX(plMensual, kpis, simboloMoneda) {
 // plano que devuelve GET /proyectos/reporte-consumo (cada una ya trae
 // proyecto/cdr/área embebidos). Sirve tal cual como respaldo de cobro a la
 // minera — por eso incluye pedido de origen y costo unitario real.
-export async function exportarReporteConsumoProyectoXLSX(filas, simboloMoneda) {
+export async function exportarReporteConsumoProyectoXLSX(filas, _simboloMoneda) {
   const valorTotal = filas.reduce((s, f) => s + Number(f.cantidad) * Number(f.costoUnitario || 0), 0)
   await exportarExcel({
     titulo: 'Consumo por Proyecto',

@@ -54,7 +54,7 @@ export default function AdminSaaS() {
       setVerificandoSesion(false)
     })
     return () => { vivo = false }
-  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── hooks API ──────────────────────────────────────────
   const { data: negociosRaw = [] } = useNegociosList()

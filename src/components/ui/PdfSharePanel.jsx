@@ -24,7 +24,7 @@ import { useApp } from '../../store/AppContext'
 import { useEnviarDocumentoEmail } from '../../queries/email.queries'
 
 export default function PdfSharePanel({
-  onClose, onPrint, numero, tipo = 'documento', extra = null, destinatarios = null,
+  onPrint, numero, tipo = 'documento', extra = null, destinatarios = null,
   getHtml = null, asunto = null, empresaNombre = null,
 }) {
   const { toast } = useApp()

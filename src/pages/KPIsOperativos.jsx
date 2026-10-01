@@ -14,7 +14,7 @@ import { TrendingUp, TrendingDown, Target, Zap, Clock, Package,
          CheckCircle, AlertTriangle, RotateCcw, Truck, DollarSign, BarChart2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
          LineChart, Line, CartesianGrid, RadialBarChart, RadialBar, Legend } from 'recharts'
-import { formatCurrency, formatDate } from '../utils/helpers'
+import { formatCurrency } from '../utils/helpers'
 import { Select } from '../components/ui/index'
 import { useDespachosList } from '../queries/despachos.queries'
 import { useMovimientosList } from '../queries/movimientos.queries'
@@ -145,7 +145,7 @@ export default function KPIsOperativos() {
       const costoVtas = movimientos.filter(m => m.tipo === 'SALIDA' && (m.createdAt||'').slice(0,10) >= desdeS)
         .filter(m => prodsCat.some(p => p.id === m.productoId))
         .reduce((s,m) => s + (m.costoTotal||0), 0)
-      const invPromedio = prodsCat.reduce((s,p) => s + Number(p.precioCompra||0) * Number(p.stockActual||0), 0)
+      const invPromedio = prodsCat.reduce((s,p) => s + Number(p.costoPromedioReal ?? p.precioCompra ?? 0) * Number(p.stockActual||0), 0)
       const rot = invPromedio > 0 ? costoVtas / invPromedio : 0
       return { name: cat.nombre.slice(0,14), rot: +rot.toFixed(2) }
     }).filter(r => r.rot > 0).sort((a,b) => b.rot - a.rot)

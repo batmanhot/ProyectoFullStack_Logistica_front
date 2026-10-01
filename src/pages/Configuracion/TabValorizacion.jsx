@@ -1,13 +1,51 @@
-import { Badge } from '../../components/ui/index'
+import { Layers } from 'lucide-react'
+import { Badge, Toggle, ConfirmDialog } from '../../components/ui/index'
 import { FORMULAS_VALORIZACION } from '../../utils/valorizacion'
 
-export default function TabValorizacion({ form, onChange }) {
+export default function TabValorizacion({
+  form, onChange,
+  costeoAutomatico, onActivar, onDesactivar,
+  confirmActivar, setConfirmActivar,
+  activando,
+}) {
   return (
-    <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Método de Valorización de Stock</span>
-        <Badge variant="teal">Activo: {form.formulaValorizacion}</Badge>
+    <div className="flex flex-col gap-5">
+      {/* ── Costeo automático (motor de capas de costo) ── */}
+      <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
+        <div className="flex items-center justify-between px-4 py-3.5 bg-[#1a2230] rounded-xl">
+          <div className="flex items-start gap-3">
+            <Layers size={18} className="text-[#00c896] mt-0.5 shrink-0" />
+            <div>
+              <div className="text-[14px] font-medium text-[#e8edf2] mb-0.5">Costeo automático (capas de costo)</div>
+              <div className="text-[12px] text-[#5f6f80] max-w-[520px]">
+                Con esto activo, cada salida consume las capas de costo reales según el método elegido abajo
+                y graba ese costo en el movimiento — reemplaza el costo manual/estimado. Al activar se migra
+                (una sola vez) el stock existente para que quede cubierto por capas.
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {activando && <span className="text-[11px] text-[#5f6f80]">Migrando stock existente…</span>}
+            <Toggle
+              value={!!costeoAutomatico}
+              disabled={activando}
+              onChange={(v) => (v ? setConfirmActivar(true) : onDesactivar())}
+            />
+          </div>
+        </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmActivar} onClose={() => setConfirmActivar(false)} onConfirm={onActivar}
+        title="Activar costeo automático"
+        message="Se migrará (backfill) el stock actual de todos los productos creando capas de costo con su precio de compra vigente, y a partir de ahora cada salida grabará el costo real de esas capas en vez del costo manual. Esta migración inicial es automática y no se puede deshacer."
+      />
+
+      <div className="bg-[#161d28] border border-white/8 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[11px] font-semibold text-[#5f6f80] uppercase tracking-[0.06em]">Método de Valorización de Stock</span>
+          <Badge variant="teal">Activo: {form.formulaValorizacion}</Badge>
+        </div>
 
       <div className="flex items-start gap-2.5 px-4 py-3 rounded-lg border border-blue-500/25 bg-blue-500/10 text-blue-300 text-[13px] mb-4 leading-snug">
         <span>El método seleccionado se aplica hoy al <b>Kardex valorizado</b> (costo de salida y valor del saldo por movimiento).
@@ -57,6 +95,7 @@ export default function TabValorizacion({ form, onChange }) {
             </div>
           )
         })}
+      </div>
       </div>
     </div>
   )

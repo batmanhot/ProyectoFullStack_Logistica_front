@@ -3,7 +3,7 @@ import { Save } from 'lucide-react'
 import { useApp } from '../../store/AppContext'
 import { Btn } from '../../components/ui/index'
 import { TabCategorias, TabAlmacenes } from '../Maestros'
-import { useConfiguracion, usePatchConfiguracion, useLimpiarOperativos, useRestaurarDemo } from '../../queries/configuracion.queries'
+import { useConfiguracion, usePatchConfiguracion, useLimpiarOperativos, useRestaurarDemo, useActivarCosteoAutomatico, useDesactivarCosteoAutomatico } from '../../queries/configuracion.queries'
 import { useCategoriasList } from '../../queries/categorias.queries'
 import { useAlmacenesList } from '../../queries/almacenes.queries'
 import { useProveedoresList } from '../../queries/proveedores.queries'
@@ -13,6 +13,7 @@ import TabAreasInternas from './TabAreasInternas'
 import TabEmpresa from './TabEmpresa'
 import TabValorizacion from './TabValorizacion'
 import TabAprobaciones from './TabAprobaciones'
+import TabAprobacionCompras from './TabAprobacionCompras'
 import TabAlertas from './TabAlertas'
 import TabImportarDatos from './TabImportarDatos'
 import TabDatosReset from './TabDatosReset'
@@ -41,6 +42,8 @@ export default function Configuracion() {
   const patchConfiguracion   = usePatchConfiguracion()
   const limpiarOperativos    = useLimpiarOperativos()
   const restaurarDemo        = useRestaurarDemo()
+  const activarCosteo        = useActivarCosteoAutomatico()
+  const desactivarCosteo     = useDesactivarCosteoAutomatico()
 
   const { data: cats  = [] } = useCategoriasList()
   const { data: alms  = [] } = useAlmacenesList()
@@ -58,6 +61,7 @@ export default function Configuracion() {
 
   const [confirmReset, setConfirmReset]     = useState(false)
   const [confirmLimpiar, setConfirmLimpiar] = useState(false)
+  const [confirmActivarCosteo, setConfirmActivarCosteo] = useState(false)
 
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
@@ -91,6 +95,23 @@ export default function Configuracion() {
     toast(v ? 'Alertas de vencimiento activadas' : 'Alertas de vencimiento desactivadas', 'success')
   }
 
+  async function handleActivarCosteo() {
+    const res = await activarCosteo.mutateAsync()
+    if (res?.error) { toast(res.error, 'error'); return }
+    const { productosMigrados, capasCreadas, productosSinCosto } = res?.data || {}
+    toast(
+      `Costeo automático activado — ${capasCreadas ?? productosMigrados ?? 0} producto(s) migrado(s)` +
+      (productosSinCosto ? `, ${productosSinCosto} sin precio de compra (sin migrar)` : ''),
+      'success',
+    )
+  }
+
+  async function handleDesactivarCosteo() {
+    const res = await desactivarCosteo.mutateAsync()
+    if (res?.error) { toast(res.error, 'error'); return }
+    toast('Costeo automático desactivado', 'success')
+  }
+
   async function handleReset() {
     const res = await restaurarDemo.mutateAsync()
     if (res?.error) { toast(res.error, 'error'); return }
@@ -120,8 +141,17 @@ export default function Configuracion() {
       </div>
 
       {tab === 'empresa'       && <TabEmpresa form={form} f={f} tenantId={tenantId} sesion={sesion} />}
-      {tab === 'valorizacion'  && <TabValorizacion form={form} onChange={guardarFormula} />}
+      {tab === 'valorizacion'  && (
+        <TabValorizacion
+          form={form} onChange={guardarFormula}
+          costeoAutomatico={configApi?.costeoAutomatico}
+          onActivar={handleActivarCosteo} onDesactivar={handleDesactivarCosteo}
+          confirmActivar={confirmActivarCosteo} setConfirmActivar={setConfirmActivarCosteo}
+          activando={activarCosteo.isPending}
+        />
+      )}
       {tab === 'aprobaciones'  && <TabAprobaciones />}
+      {tab === 'aprobacion-compras' && <TabAprobacionCompras />}
       {tab === 'alertas'       && <TabAlertas form={form} onChange={toggleAlertaVencimiento} />}
       {tab === 'areas-internas' && <TabAreasInternas toast={toast} />}
       {tab === 'categorias'    && <TabCategorias />}

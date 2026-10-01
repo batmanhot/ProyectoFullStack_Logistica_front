@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Truck, Clock, Navigation as NavIcon } from 'lucide-react'
-import { formatDate, formatTime, fechaHoy } from '../../utils/helpers'
+import { formatDate, formatTime } from '../../utils/helpers'
 import { Badge, Btn, DataTable } from '../../components/ui/index'
 import DateInput from '../../components/ui/DateInput'
 import { useRutasList } from '../../queries/rutas.queries'
@@ -21,7 +21,6 @@ export default function TabSeguimiento() {
   const transportistas = useMemo(() => transRaw,      [transRaw])
   const clientes       = useMemo(() => clientesRaw,   [clientesRaw])
 
-  const hoy    = fechaHoy()
   const hace7  = new Date(); hace7.setDate(hace7.getDate() - 7)
   const hace7s = hace7.toISOString().split('T')[0]
 

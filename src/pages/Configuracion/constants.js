@@ -1,9 +1,10 @@
-import { Building2, Bell, DollarSign, Database, Upload, Layers, Tag, Warehouse, ShieldCheck } from 'lucide-react'
+import { Building2, Bell, DollarSign, Database, Upload, Layers, Tag, Warehouse, ShieldCheck, TrendingUp } from 'lucide-react'
 
 export const TABS = [
   ['empresa',           'Empresa',           Building2],
   ['valorizacion',      'Valorización',      DollarSign],
   ['aprobaciones',      'Aprobaciones',      ShieldCheck],
+  ['aprobacion-compras', 'Aprobación de Compras', TrendingUp],
   ['alertas',           'Alertas',           Bell],
   ['areas-internas',    'Áreas Internas',    Layers],
   ['categorias',        'Categorías',        Tag],

@@ -176,7 +176,7 @@ function useMemo_simple_calculo() {
   try {
     let total = 0
     for (const key in localStorage) {
-      if (localStorage.hasOwnProperty(key)) total += (localStorage[key].length * 2) // UTF-16
+      if (Object.prototype.hasOwnProperty.call(localStorage, key)) total += (localStorage[key].length * 2) // UTF-16
     }
     return {
       usado: (total / 1024 / 1024).toFixed(2),

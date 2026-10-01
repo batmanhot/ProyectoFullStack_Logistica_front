@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Plus, Search, Edit2, Trash2, Eye, Package, AlertTriangle, DollarSign, TrendingDown, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { usePlanLimits } from '../hooks/usePlanLimits'
-import { formatCurrency, estadoStock, formatDate } from '../utils/helpers'
+import { formatCurrency, estadoStock } from '../utils/helpers'
 import { Modal, ConfirmDialog, StockBadge, Btn, Field, Input, Select, DataTable } from '../components/ui/index'
 import { useProductosList, useCrearProducto, useActualizarProducto, useEliminarProducto } from '../queries/productos.queries'
 import { useInventarioList } from '../queries/inventario.queries'
@@ -106,7 +106,6 @@ export default function Inventario() {
   }, [productos, busqueda, filtCat, filtAlm, filtStock, productosPorAlmacen, cantidadPorAlmacen])
 
   const catMap = useMemo(() => new Map(categorias.map(c => [c.id, c.nombre])), [categorias])
-  const almMap = useMemo(() => new Map(almacenes.map(a => [a.id, a.nombre])), [almacenes])
 
   const kpis = useMemo(() => {
     const activos    = productos.filter(p => p.activo)
@@ -350,7 +349,6 @@ export default function Inventario() {
         onClose={() => setModalDet(null)}
         producto={modalDet}
         catNombre={id => catMap.get(id) || '—'}
-        almNombre={id => almMap.get(id) || '—'}
         inventarioRaw={inventarioRaw}
         almacenes={almacenes}
       />
@@ -404,7 +402,7 @@ export function ModalProducto({ open, onClose, editando, categorias, proveedores
     if (!open) return
     setErr({})
     setForm(editando ? normalizarProducto(editando) : { ...INIT_PRODUCTO })
-  }, [open, editando])  // eslint-disable-line
+  }, [open, editando])
 
   function validate() {
     const e = {}
@@ -544,7 +542,7 @@ function ModalQuickProveedor({ open, onClose, onSave }) {
 }
 
 // ── Modal Detalle Producto ────────────────────────────────────
-function ModalDetalle({ open, onClose, producto, catNombre, almNombre, inventarioRaw, almacenes }) {
+function ModalDetalle({ open, onClose, producto, catNombre, inventarioRaw, almacenes }) {
   if (!open || !producto) return null
   const p = producto
 

@@ -108,7 +108,6 @@ export function valorarStock(batches, formula = 'PMP') {
 // ─────────────────────────────────────────────
 function _procesar_salida(batchesOrdenados, cantidadSalida) {
   let restante = cantidadSalida
-  const resultado = []
   let costoTotal = 0
 
   const copia = batchesOrdenados.map(b => ({ ...b }))

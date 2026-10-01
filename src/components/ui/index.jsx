@@ -16,14 +16,13 @@ import { useApp } from '../../store/AppContext'
 function useDialogA11y(open, onClose) {
   const ref = useRef(null)
   const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
+  useEffect(() => { onCloseRef.current = onClose })
   useEffect(() => {
     if (!open) return
     function onKeyDown(e) { if (e.key === 'Escape') onCloseRef.current?.() }
     document.addEventListener('keydown', onKeyDown)
     ref.current?.focus()
     return () => document.removeEventListener('keydown', onKeyDown)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
   return ref
 }

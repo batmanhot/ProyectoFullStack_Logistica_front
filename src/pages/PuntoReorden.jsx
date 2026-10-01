@@ -43,7 +43,6 @@ export default function PuntoReorden() {
     const hoy    = new Date()
     const hace60 = new Date(hoy); hace60.setDate(hoy.getDate() - 60)
     const hace60s = hace60.toISOString().split('T')[0]
-    const hoys    = hoy.toISOString().split('T')[0]
 
     return productos
       .filter(p => p.activo !== false)

@@ -97,7 +97,7 @@ function imprimirConIframe(html) {
         frame.contentWindow.focus()
         frame.contentWindow.print()
       }
-    } catch(e) {}
+    } catch { /* sin acceso al documento: se ignora */ }
   }, 500)
 }
 
@@ -215,7 +215,6 @@ export function imprimirRFQ(args) {
 }
 
 export function armarHtmlRFQ({ cotiz, productos, config }) {
-  const s   = config?.simboloMoneda || 'S/'
   const emp = config?.empresa        || 'Mi Empresa S.A.C.'
   const ruc = config?.ruc             || ''
   const tel = config?.telefono        || ''

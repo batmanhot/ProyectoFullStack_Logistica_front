@@ -89,7 +89,7 @@ export default function Dashboard() {
 
   const kpis = useMemo(() => {
     const activos     = productos.filter(p => p.activo)
-    const valorTotal  = activos.reduce((s, p) => s + (Number(p.precioCompra || 0) * p.stockActual), 0)
+    const valorTotal  = activos.reduce((s, p) => s + (Number(p.costoPromedioReal ?? p.precioCompra ?? 0) * p.stockActual), 0)
     const criticos    = activos.filter(p => { const e = estadoStock(p.stockActual, p.stockMinimo); return e.estado === 'critico' || e.estado === 'agotado' }).length
     const movHoy      = movimientos.filter(m => m.fecha === hoy).length
     const entradasHoy = movimientos.filter(m => m.fecha === hoy && m.tipo === 'ENTRADA').reduce((s, m) => s + (m.costoTotal || 0), 0)
@@ -123,7 +123,7 @@ export default function Dashboard() {
     const map = {}
     productos.forEach(p => {
       const n = categorias.find(c => c.id === p.categoriaId)?.nombre || 'Sin categoría'
-      map[n] = (map[n] || 0) + (Number(p.precioCompra || 0) * p.stockActual)
+      map[n] = (map[n] || 0) + (Number(p.costoPromedioReal ?? p.precioCompra ?? 0) * p.stockActual)
     })
     return Object.entries(map).map(([name, value]) => ({ name, value: Math.round(value) }))
       .filter(d => d.value > 0).sort((a, b) => b.value - a.value).slice(0, 7)

@@ -6,7 +6,7 @@ import {
 } from 'recharts'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../../store/AppContext'
-import { formatCurrency, formatDate, estadoStock, vencimientoMasUrgentePorProducto, diasParaVencer } from '../../utils/helpers'
+import { formatCurrency, estadoStock, vencimientoMasUrgentePorProducto, diasParaVencer } from '../../utils/helpers'
 import { useProductosList } from '../../queries/productos.queries'
 import { useInventarioList } from '../../queries/inventario.queries'
 import { useMovimientosList } from '../../queries/movimientos.queries'

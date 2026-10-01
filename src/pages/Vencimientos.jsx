@@ -84,7 +84,7 @@ export default function Vencimientos() {
       .filter(p => (p.estado === 'Activo' || p.activo !== false) && vencPorProducto[p.id])
       .map(p => {
         const stockActual    = stockMap[p.id] || 0
-        const pmpCalc        = Number(p.precioCompra || 0)
+        const pmpCalc        = Number(p.costoPromedioReal ?? p.precioCompra ?? 0)
         const mainAlmId      = getMainAlmacen(p.id)
         const fechaVencimiento = vencPorProducto[p.id]
         return {
@@ -147,7 +147,7 @@ export default function Vencimientos() {
 
   const limpiarFiltros = () => { setFiltroRango('all'); setFiltCat(''); setFiltAlm(''); setFiltEstado(''); setFiltProd('') }
   const hayFiltros     = filtroRango !== 'all' || filtCat || filtAlm || filtEstado || filtProd
-  const calcFn         = (p) => Number(p?.precioCompra || 0)
+  const calcFn         = (p) => Number(p?.costoPromedioReal ?? p?.precioCompra ?? 0)
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-5">

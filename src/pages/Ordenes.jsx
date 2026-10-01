@@ -5,12 +5,14 @@ import { usePlanLimits } from '../hooks/usePlanLimits'
 import { formatCurrency, formatDate } from '../utils/helpers'
 import { Modal, EstadoOCBadge, EstadoLogisticoBadge, Badge, Btn, Field, Input, Select, Textarea, DataTable, ModalVistaPreviaDocumento, StockHint } from '../components/ui/index'
 import { ModalRecepcionParcial } from '../components/ui/ModalRecepcionParcial'
+import { ModalAprobacionOC } from '../components/ui/ModalAprobacionOC'
 import PdfSharePanel from '../components/ui/PdfSharePanel'
 import { armarHtmlOC } from '../utils/pdfTemplates'
 import { useEmpresaPDFConfig } from '../queries/configuracion.queries'
 import {
   useOrdenesCompraList, useCrearOrdenCompra, useActualizarOrdenCompra, useRecibirOrdenCompra,
   useAgregarGastoImportacion, useEliminarGastoImportacion, useActualizarEstadoLogistico,
+  useAprobarOrdenCompra, useRechazarOrdenCompra,
 } from '../queries/ordenes-compra.queries'
 import { useProductosList } from '../queries/productos.queries'
 import { useProveedoresList } from '../queries/proveedores.queries'
@@ -48,6 +50,8 @@ export default function Ordenes() {
 
   const crearOC     = useCrearOrdenCompra()
   const actualizarOC= useActualizarOrdenCompra()
+  const aprobarOC   = useAprobarOrdenCompra()
+  const rechazarOC  = useRechazarOrdenCompra()
   const recibirOC   = useRecibirOrdenCompra()
   const agregarGasto     = useAgregarGastoImportacion()
   const eliminarGasto    = useEliminarGastoImportacion()
@@ -57,6 +61,7 @@ export default function Ordenes() {
   const [detalle,  setDetalle]  = useState(null)
   const [recepcion,setRecepcion]= useState(null)
   const [shareOC,  setShareOC]  = useState(null)
+  const [ocAprobacion, setOcAprobacion] = useState(null) // OC abierta en el modal de Aprobar/Rechazar (#11c)
   const [preview,  setPreview]  = useState(null) // { titulo, html, numeroDocumento } | null
   const [filtEst,  setFiltEst]  = useState('')
   const [filtProv, setFiltProv] = useState('')
@@ -94,10 +99,23 @@ export default function Ordenes() {
     total:      ordenes.filter(o => ['PENDIENTE','APROBADA','PARCIAL'].includes(o.estado)).reduce((s,o) => s + Number(o.total || 0), 0),
   }), [ordenes])
 
-  async function aprobar(oc) {
-    const res = await actualizarOC.mutateAsync({ id: oc.id, estado: 'APROBADA' })
-    if (res.error) { toast(res.error, 'error'); return }
-    toast(`OC ${oc.numero} aprobada`, 'success')
+  // Aprobar/Rechazar por monto y niveles (#11c) — el modal maneja la cadena;
+  // sin niveles configurados en la OC, aprobar() ya se comporta como el
+  // click simple de siempre (lo resuelve el backend).
+  async function aprobarNivel({ id, notas }) {
+    const res = await aprobarOC.mutateAsync({ id, notas })
+    if (res.error) return res
+    toast(`OC ${res.data?.numero || ''} — aprobación registrada`, 'success')
+    setOcAprobacion(null)
+    return res
+  }
+
+  async function rechazarNivel({ id, motivo }) {
+    const res = await rechazarOC.mutateAsync({ id, motivo })
+    if (res.error) return res
+    toast(`OC ${res.data?.numero || ''} rechazada — cancelada`, 'warning')
+    setOcAprobacion(null)
+    return res
   }
 
   async function cancelar(oc) {
@@ -261,7 +279,7 @@ export default function Ordenes() {
                     </Btn>
                   )}
                   {oc.estado === 'PENDIENTE' && (
-                    <Btn variant="ghost" size="icon" className="text-green-400" title="Aprobar" onClick={() => aprobar(oc)}><CheckCircle size={13}/></Btn>
+                    <Btn variant="ghost" size="icon" className="text-green-400" title="Aprobar" onClick={() => setOcAprobacion(oc)}><CheckCircle size={13}/></Btn>
                   )}
                   {puedeRecibir && (
                     <Btn variant="primary" size="sm" onClick={() => abrirRecepcion(oc)}><CheckCircle size={12}/> Recibir</Btn>
@@ -342,6 +360,12 @@ export default function Ordenes() {
       {recepcion && (
         <ModalRecepcionParcial oc={recepcion} productos={productos}
           simboloMoneda={simboloMoneda} onClose={() => setRecepcion(null)} onConfirm={confirmarRecepcion}/>
+      )}
+
+      {ocAprobacion && (
+        <ModalAprobacionOC oc={ocAprobacion} onClose={() => setOcAprobacion(null)}
+          onAprobar={aprobarNivel} onRechazar={rechazarNivel}
+          saving={aprobarOC.isPending || rechazarOC.isPending}/>
       )}
 
       <ModalVistaPreviaDocumento

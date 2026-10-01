@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Plus, Search, ArrowRightLeft, Eye, XCircle, X, Download, FileText } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import { formatCurrency, formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
+import { formatDate, fechaHoyISO, generarNumDoc } from '../utils/helpers'
 import { Modal, ConfirmDialog, Btn, Field, Input, Select, DataTable, StockHint } from '../components/ui/index'
 import { useMovimientosList, useCrearMovimiento } from '../queries/movimientos.queries'
 import { useProductosList } from '../queries/productos.queries'
@@ -186,7 +186,7 @@ export default function Transferencias() {
       </div>
 
       <ModalTransferencia open={modal} onClose={() => setModal(false)} onSave={handleRegistrar}
-        productos={productos} almacenes={almacenes} simboloMoneda={simboloMoneda}
+        productos={productos} almacenes={almacenes}
         saving={crearMovimiento.isPending}/>
 
       {verTr && <ModalDetalle tr={verTr} productMap={productMap} almacenMap={almacenMap} onClose={() => setVerTr(null)}/>}
@@ -225,7 +225,7 @@ function ModalDetalle({ tr, productMap, almacenMap, onClose }) {
   )
 }
 
-function ModalTransferencia({ open, onClose, onSave, productos, almacenes, simboloMoneda, saving }) {
+function ModalTransferencia({ open, onClose, onSave, productos, almacenes, saving }) {
   const INIT = { productoId:'', almacenId:'', almacenDestinoId:'', cantidad:'', fecha: fechaHoyISO(), motivo: MOTIVOS[0], documento:'' }
   const [form, setForm] = useState(INIT)
   const [err,  setErr]  = useState({})

@@ -51,6 +51,24 @@ export function useActualizarOrdenCompra() {
   })
 }
 
+/** POST :id/aprobar — { notas? }. Aprueba el nivel pendiente actual (#11c) o directo a APROBADA sin cadena configurada. */
+export function useAprobarOrdenCompra() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...dto }) => api.post(`/ordenes-compra/${id}/aprobar`, dto),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all() }),
+  })
+}
+
+/** POST :id/rechazar — { motivo }. Rechaza el nivel pendiente actual y cancela la OC. */
+export function useRechazarOrdenCompra() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...dto }) => api.post(`/ordenes-compra/${id}/rechazar`, dto),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all() }),
+  })
+}
+
 export function useRecibirOrdenCompra() {
   const qc = useQueryClient()
   return useMutation({
